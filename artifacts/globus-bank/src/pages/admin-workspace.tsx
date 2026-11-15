@@ -9,27 +9,26 @@ import {
   Settings2, Shield, ShieldCheck, SlidersHorizontal, Users, WalletCards, X,
 } from 'lucide-react';
 import {
-  getGetAdminAccessQueryKey, getGetAdminSummaryQueryKey, getGetAdminSettingsQueryKey, getGetBankProfileQueryKey,
+  getGetAdminAccessQueryKey, getGetAdminSummaryQueryKey, getGetAdminSettingsQueryKey,
   getGetAdminWalletCurrencyMigrationPreviewQueryKey,
-  getGetAdminIdentityDocumentContentUrl,
   getGetAdminTransactionDetailQueryKey, getGetAdminUserDetailQueryKey,
   getListAdminAccountsQueryKey, getListAdminAuditLogsQueryKey,
-  getListAdminIdentityDocumentsQueryKey, getListAdminLedgerRequestsQueryKey,
+  getListAdminLedgerRequestsQueryKey,
   getListAdminRestrictionsQueryKey,
   getListAdminTransactionsQueryKey, getListAdminTransactionStatusHistoryQueryKey,
   getListAdminUsersQueryKey,
   useCreateAdminFunding, useCreateAdminRestriction, useCreateAdminTransactionCorrection,
   useConvertAdminWalletCurrenciesToUsd, useGetAdminWalletCurrencyMigrationPreview,
-  useGetAdminAccess, useGetBankProfile,
+  useGetAdminAccess,
   useGetAdminSettings, useGetAdminSummary, useGetAdminTransactionDetail,
   useGetAdminUserDetail, useListAdminAccounts, useListAdminAuditLogs,
-  useListAdminIdentityDocuments, useListAdminLedgerRequests, useListAdminRestrictions,
+  useListAdminLedgerRequests, useListAdminRestrictions,
   useListAdminTransactions,
   useListAdminTransactionStatusHistory, useListAdminUsers,
   useResetAdminUserPassword, useResetAdminUserTransactionPin, useReviewAdminFunding, useReviewAdminLedgerRequest,
   useProcessAdminInternalTransfer, useRemoveAdminRestriction,
   useUpdateAdminSettings, useUpdateAdminTransactionStatus, useUpdateAdminUserProfile,
-  useUpdateAdminUserStatus, useUpdateAdminUserVerification, useUpdateAdminWalletStatus,
+  useUpdateAdminUserStatus, useUpdateAdminWalletStatus,
   useUpdateAdminUserVaultSubscription,
 } from '@workspace/api-client-react';
 import type {
@@ -211,7 +210,6 @@ function WorkspaceFrame({ children, active, title }: { children: ReactNode; acti
 
 function Overview() {
   const summary = useGetAdminSummary({ query: { queryKey: getGetAdminSummaryQueryKey(), retry: false } });
-  const adminProfile = useGetBankProfile({ query: { queryKey: getGetBankProfileQueryKey() } });
   const requests = useListAdminLedgerRequests(undefined, { query: { queryKey: getListAdminLedgerRequestsQueryKey() } });
   const recent = summary.data?.recentActions || [];
   return <><Heading kicker="Administrator workspace" title="Operations overview" subtitle="A clear view of account activity, member accounts and decisions waiting for review." action={<Link href="/admin/users" className={button}><Users size={14} />Manage a member</Link>} />
@@ -234,7 +232,7 @@ function Overview() {
       </Panel>
       <Panel title="Recent administrative activity" eyebrow="Traceability"><div className="divide-y divide-[#edf0ed]">{recent.length ? recent.slice(0, 7).map((row: AdminAuditLog) => <div key={row.id} className="px-5 py-3.5"><div className="flex flex-wrap items-center justify-between gap-2"><p className="text-[11px] font-bold text-[#334d58]">{human(row.action)}</p><time className="text-[9px] text-[#829294]">{dateTime(row.createdAt)}</time></div><p className="mt-1 text-[10px] text-[#76898c]">{row.actorName} · {row.targetName}</p><p className="mt-1 line-clamp-2 text-[9px] leading-4 text-[#8a999a]">{row.reason}</p></div>) : <Empty title="No recent actions" text="Administrative changes will be recorded here." />}</div></Panel>
     </div>
-    <div className={`${box} mt-5 flex flex-wrap items-center justify-between gap-3 p-4 text-[10px] text-[#617b7d]`}><span className="flex items-center gap-3"><ShieldCheck size={16} className="text-[#4c8980]" /> Every change is attributable and recorded. Wallet activity is saved in Globus.</span><span className="text-[9px] text-[#7d8d8f]">Administrator identity status: <b>{human(adminProfile.data?.verificationStatus)}</b></span></div>
+    <div className={`${box} mt-5 flex flex-wrap items-center justify-between gap-3 p-4 text-[10px] text-[#617b7d]`}><span className="flex items-center gap-3"><ShieldCheck size={16} className="text-[#4c8980]" /> Every change is attributable and recorded. Wallet activity is saved in Globus.</span></div>
   </>;
 }
 
@@ -245,7 +243,7 @@ function UsersPage() {
   return <><Heading kicker="People & access" title="Member directory" subtitle="Search member records by name, email or Customer ID. Phone details are masked in this broad list." />
     <Panel title="Members" eyebrow={`${users.data?.total ?? 0} records`} action={<span className="text-[10px] text-[#899799]">Sorted by most recent</span>}>
       <div className="flex flex-wrap gap-2 border-b border-[#e9efec] bg-[#f8f9f4] p-4"><label className="relative min-w-[220px] flex-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a9a9b]" /><input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className={`${input} pl-9`} placeholder="Name, email or Customer ID" /></label><select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className={`${input} w-auto min-w-[150px]`}><option value="">All account states</option><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select><select value={vaultStatus} onChange={e => { setVaultStatus(e.target.value); setPage(1); }} className={`${input} w-auto min-w-[170px]`} aria-label="Filter Private Vault access"><option value="">All vault access</option><option value="pending">Legacy pending requests</option><option value="active">Active vault access</option><option value="expired">Expired vault access</option><option value="rejected">Declined legacy requests</option><option value="inactive">No vault subscription</option></select></div>
-      {users.isLoading ? <Skeleton /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <><div className="overflow-x-auto"><table className="w-full min-w-[760px] text-left"><thead className="bg-[#f7f8f4] text-[9px] uppercase tracking-[.12em] text-[#7f9090]"><tr>{['Member', 'Customer ID', 'Phone', 'Identity', 'Account', 'Wallets', 'Created', ''].map(x => <th key={x} className="px-4 py-3 font-bold">{x}</th>)}</tr></thead><tbody>{users.data.items.map(u => <tr key={u.id} className="border-t border-[#edf1ee] text-[10px] hover:bg-[#f8faf7]"><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className="font-bold text-[#315c66] hover:underline">{nameOf(u)}</Link><p className="mt-1 text-[9px] text-[#829292]">{u.email}</p></td><td className="px-4 py-3 font-mono text-[#526c73]">{u.customerId || '—'}</td><td className="px-4 py-3 text-[#687f84]">Hidden in list</td><td className="px-4 py-3"><StatusPill status={u.verificationStatus} /></td><td className="px-4 py-3"><StatusPill status={u.accountStatus} /></td><td className="px-4 py-3 font-mono">{u.walletCount}</td><td className="px-4 py-3 whitespace-nowrap text-[#7a8e90]">{date(u.createdAt)}</td><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className={quietButton}>Open <ArrowRight size={12} /></Link></td></tr>)}</tbody></table></div><Pager page={page} pages={Math.ceil(users.data.total / Math.max(1, users.data.pageSize))} onChange={setPage} /></> : <Empty title="No members match" text="Try a different name, email, Customer ID or account state." />}
+      {users.isLoading ? <Skeleton /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left"><thead className="bg-[#f7f8f4] text-[9px] uppercase tracking-[.12em] text-[#7f9090]"><tr>{['Member', 'Customer ID', 'Phone', 'Account', 'Vault access', 'Wallets', 'Created', ''].map(x => <th key={x} className="px-4 py-3 font-bold">{x}</th>)}</tr></thead><tbody>{users.data.items.map(u => <tr key={u.id} className="border-t border-[#edf1ee] text-[10px] hover:bg-[#f8faf7]"><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className="font-bold text-[#315c66] hover:underline">{nameOf(u)}</Link><p className="mt-1 text-[9px] text-[#829292]">{u.email}</p></td><td className="px-4 py-3 font-mono text-[#526c73]">{u.customerId || '—'}</td><td className="px-4 py-3 text-[#687f84]">Hidden in list</td><td className="px-4 py-3"><StatusPill status={u.accountStatus} /></td><td className="px-4 py-3"><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></td><td className="px-4 py-3 font-mono">{u.walletCount}</td><td className="px-4 py-3 whitespace-nowrap text-[#7a8e90]">{date(u.createdAt)}</td><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className={quietButton}>Open <ArrowRight size={12} /></Link></td></tr>)}</tbody></table></div><Pager page={page} pages={Math.ceil(users.data.total / Math.max(1, users.data.pageSize))} onChange={setPage} /></> : <Empty title="No members match" text="Try a different name, email, Customer ID or account state." />}
     </Panel>
   </>;
 }
@@ -253,7 +251,6 @@ function UsersPage() {
 function MemberDetail({ userId }: { userId: string }) {
   const client = useQueryClient();
   const detail = useGetAdminUserDetail(userId, { query: { queryKey: getGetAdminUserDetailQueryKey(userId), enabled: !!userId } });
-  const adminProfile = useGetBankProfile({ query: { queryKey: getGetBankProfileQueryKey() } });
   const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'transactions' | 'funding' | 'wallets' | 'restrictions'>(() => {
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
     return ['accounts', 'transactions', 'funding', 'wallets', 'restrictions'].includes(requestedTab || '')
@@ -261,10 +258,9 @@ function MemberDetail({ userId }: { userId: string }) {
       : 'overview';
   });
   const u = detail.data?.user;
-  const docs = useListAdminIdentityDocuments(userId, { query: { queryKey: getListAdminIdentityDocumentsQueryKey(userId), enabled: !!u && ['pending', 'additional_information_required'].includes(u.verificationStatus) } });
-  const statusMutation = useUpdateAdminUserStatus(); const profileMutation = useUpdateAdminUserProfile(); const pinMutation = useResetAdminUserTransactionPin(); const passwordMutation = useResetAdminUserPassword(); const identityMutation = useUpdateAdminUserVerification(); const vaultSubscriptionMutation = useUpdateAdminUserVaultSubscription();
-  const [modal, setModal] = useState<'status' | 'profile' | 'pin' | 'password-reset' | 'identity' | 'vault-subscription' | null>(null);
-  const [form, setForm] = useState({ reason: '', notes: '', transactionPin: '', firstName: '', lastName: '', phone: '', country: '', decision: 'approved', userMessage: '', confirmed: false, expiresAt: '' });
+  const statusMutation = useUpdateAdminUserStatus(); const profileMutation = useUpdateAdminUserProfile(); const pinMutation = useResetAdminUserTransactionPin(); const passwordMutation = useResetAdminUserPassword(); const vaultSubscriptionMutation = useUpdateAdminUserVaultSubscription();
+  const [modal, setModal] = useState<'status' | 'profile' | 'pin' | 'password-reset' | 'vault-subscription' | null>(null);
+  const [form, setForm] = useState({ reason: '', notes: '', transactionPin: '', firstName: '', lastName: '', phone: '', country: '', decision: 'approved', confirmed: false, expiresAt: '' });
   const [message, setMessage] = useState(''); const [error, setError] = useState('');
   const refresh = async () => { await Promise.all([client.invalidateQueries({ queryKey: getGetAdminUserDetailQueryKey(userId) }), client.invalidateQueries({ queryKey: getListAdminUsersQueryKey() }), client.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() })]); };
   const open = (kind: typeof modal) => { if (kind === 'profile' && detail.data) setForm({ ...form, firstName: u?.firstName || '', lastName: u?.lastName || '', phone: detail.data.phone || '', country: u?.country || '', reason: '', transactionPin: '', confirmed: false }); else if (kind === 'status') setForm({ ...form, reason: '', notes: '', transactionPin: '', decision: u?.accountStatus === 'active' ? 'suspended' : 'active', confirmed: false }); else if (kind === 'vault-subscription') setForm({ ...form, reason: '', notes: '', decision: 'inactive', confirmed: false }); else setForm({ ...form, reason: '', notes: '', transactionPin: '', confirmed: false }); setError(''); setModal(kind); };
@@ -279,7 +275,6 @@ function MemberDetail({ userId }: { userId: string }) {
         ? `Password reset required. ${result.sessionsRevoked} active session(s) ended. A secure recovery link was sent to the member’s registered email.`
         : `Password reset required and ${result.sessionsRevoked} active session(s) ended, but the recovery email could not be sent. The reset requirement remains active.`;
     }
-    if (modal === 'identity') await identityMutation.mutateAsync({ userId, data: { verificationStatus: form.decision as 'approved' | 'rejected' | 'additional_information_required', reason: form.reason.trim(), ...(form.userMessage.trim() ? { userMessage: form.userMessage.trim() } : {}) } });
     if (modal === 'vault-subscription') {
       await vaultSubscriptionMutation.mutateAsync({
         userId,
@@ -307,7 +302,7 @@ function MemberDetail({ userId }: { userId: string }) {
      </div>
      <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-2">
        <div className="min-w-0"><p className="text-[8px] font-bold uppercase tracking-[.17em] text-[#4f8888]">Customer management · {u.customerId || 'Customer ID unavailable'}</p><h1 className="mt-0.5 truncate text-[21px] font-extrabold tracking-[-.045em] text-[#203b4c] sm:text-[24px]">{fullName}</h1><p className="truncate text-[10px] text-[#71858b]">{u.email}</p></div>
-       <div className="flex flex-wrap gap-1.5"><StatusPill status={u.accountStatus} /><StatusPill status={u.verificationStatus} /></div>
+        <div className="flex flex-wrap gap-1.5"><StatusPill status={u.accountStatus} /><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></div>
      </div>
      {message && <p role="status" data-testid="status-member-management" className="mb-2 shrink-0 rounded-lg border border-[#cfe4d7] bg-[#eef7f0] px-3 py-2 text-[10px] text-[#47755e]">{message}</p>}
      <nav aria-label="Member management sections" className="mb-3 flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-[#dce6e0] bg-[#fbfcf8] p-1">
@@ -316,8 +311,7 @@ function MemberDetail({ userId }: { userId: string }) {
      <div role="tabpanel" className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
        {activeTab === 'overview' && <div className="space-y-3 pb-3">
          <div className="grid items-start gap-3 xl:grid-cols-[1.25fr_.75fr]">
-           <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['Customer ID', u.customerId || '—'], ['Identity status', human(u.verificationStatus)], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Member since', date(u.createdAt)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
-           <Panel title="Identity review" eyebrow="Authorized review workflow"><div className="p-4"><div className="flex items-center justify-between gap-2"><span className="text-[10px] font-semibold">Current state</span><StatusPill status={u.verificationStatus} /></div>{['pending', 'additional_information_required'].includes(u.verificationStatus) ? <><p className="mt-3 text-[9px] leading-4 text-[#74888b]">{docs.isLoading ? 'Loading review metadata…' : docs.isError ? 'Document metadata unavailable.' : `${docs.data?.length || 0} document record(s) available for review.`}</p><button onClick={() => open('identity')} className={`${button} mt-3 w-full`}>Review identity</button></> : <p className="mt-3 text-[9px] leading-4 text-[#809092]">No identity decision is awaiting review.</p>}</div></Panel>
+            <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['Customer ID', u.customerId || '—'], ['Private Vault access', human(u.vaultSubscriptionStatus || 'inactive')], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Member since', date(u.createdAt)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
          </div>
          <div className="grid items-start gap-3 xl:grid-cols-2">
            <Panel title="Transaction PIN" eyebrow="Account security"><div className="flex flex-wrap items-center justify-between gap-3 p-4"><div><p className="text-[9px] leading-4 text-[#718588]">PIN values are never visible to administrators.</p><p className="mt-1 text-[9px] font-semibold">Status: {detail.data.transactionPinConfigured ? 'Configured' : 'Not configured'}</p></div><button disabled={!detail.data.transactionPinConfigured} onClick={() => open('pin')} className={quietButton}>Reset PIN</button></div></Panel>
@@ -332,26 +326,16 @@ function MemberDetail({ userId }: { userId: string }) {
        {activeTab === 'wallets' && <AccountsPage memberId={userId} controlsOnly compact />}
        {activeTab === 'restrictions' && <RestrictionsPage memberId={userId} compact />}
      </div>
-       {modal && <Modal title={modal === 'status' ? 'Change account status' : modal === 'profile' ? 'Edit member profile' : modal === 'pin' ? 'Reset transaction PIN' : modal === 'password-reset' ? 'Require password reset' : modal === 'vault-subscription' ? 'Remove Private Vault access' : 'Identity review decision'} close={() => setModal(null)}><form onSubmit={submit} className="space-y-3">
+        {modal && <Modal title={modal === 'status' ? 'Change account status' : modal === 'profile' ? 'Edit member profile' : modal === 'pin' ? 'Reset transaction PIN' : modal === 'password-reset' ? 'Require password reset' : 'Remove Private Vault access'} close={() => setModal(null)}><form onSubmit={submit} className="space-y-3">
       {modal === 'profile' && <><div className="grid gap-3 sm:grid-cols-2"><Field label="First name"><input className={input} value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} maxLength={80} /></Field><Field label="Last name"><input className={input} value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} maxLength={80} /></Field><Field label="Phone"><input className={input} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={40} /></Field><Field label="Country"><input className={input} value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} maxLength={80} /></Field></div><Field label="Your six-digit transaction PIN"><input className={input} type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.transactionPin} onChange={e => setForm({ ...form, transactionPin: e.target.value.replace(/\D/g, '').slice(0, 6) })} /></Field></>}
       {modal === 'status' && <><p className="rounded-lg bg-[#f5f7f1] p-3 text-[10px] text-[#728487]">This consequential action changes member access. Enter a reason and confirm to continue.</p><Field label="New account state"><select className={input} value={form.decision === 'approved' ? (u.accountStatus === 'active' ? 'suspended' : 'active') : form.decision} onChange={e => setForm({ ...form, decision: e.target.value })}><option value="active">Active — restore access</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select></Field><Field label="Administrative notes (optional)"><textarea className={`${input} h-20 py-2`} value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} /></Field></>}
       {modal === 'pin' && <p className="rounded-lg bg-[#f5f7f1] p-3 text-[10px] leading-5 text-[#728487]">The member will need to create a new PIN before transacting. This action is logged.</p>}
        {modal === 'password-reset' && <><p className="rounded-lg bg-[#f5f7f1] p-3 text-[10px] leading-5 text-[#728487]">This ends the member’s active sessions, emails a one-time recovery link to their verified primary email, and requires a new password before protected account pages open. The reset requirement remains active if email delivery fails.</p><label className="flex items-start gap-2 text-[10px] leading-5 text-[#546b70]"><input type="checkbox" checked={form.confirmed} onChange={e => setForm({ ...form, confirmed: e.target.checked })} className="mt-1" required /><span>I confirm this password-reset requirement and session revocation.</span></label></>}
-       {modal === 'identity' && <>
-         {u.id === adminProfile.data?.id && <p className="rounded-lg border border-[#eadfbe] bg-[#fbf7eb] p-3 text-[10px] leading-5 text-[#806b3d]">This is a self-approval. The decision is recorded, but it is not independent identity verification.</p>}
-         <div className="rounded-xl border border-[#dce8e4] bg-[#f5f8f4] p-4">
-           <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#547d7b]">Private identity documents</p>
-           <p className="mt-1 text-[9px] leading-4 text-[#788c8b]">Download documents only for this review. Approving or rejecting permanently deletes the uploads; requesting more information keeps them available.</p>
-           {docs.isLoading ? <p className="mt-3 text-[10px] text-[#7b8c8b]">Loading document metadata…</p> : docs.isError ? <div className="mt-3"><InlineError text="Identity documents could not be loaded." retry={() => docs.refetch()} /></div> : docs.data?.length ? <ul className="mt-3 space-y-2">{docs.data.map((document, index) => <li key={document.id} className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#e1e9e5] bg-white px-3 py-2.5"><div><p className="text-[10px] font-semibold text-[#3b555d]">Document {index + 1} · {document.contentType === 'application/pdf' ? 'PDF' : document.contentType === 'image/png' ? 'PNG image' : 'JPG image'}</p><p className="mt-1 text-[9px] text-[#80918f]">{(document.sizeBytes / 1024 / 1024).toFixed(2)} MB · Uploaded {date(document.uploadedAt || document.createdAt)}</p></div><button type="button" onClick={() => window.open(getGetAdminIdentityDocumentContentUrl(document.id), '_blank', 'noopener,noreferrer')} className={quietButton}>Download securely</button></li>)}</ul> : <p className="mt-3 text-[10px] text-[#7b8c8b]">No uploaded documents are available for review.</p>}
-         </div>
-         <Field label="Decision"><select className={input} value={form.decision} onChange={e => setForm({ ...form, decision: e.target.value })}><option value="approved">Approve</option><option value="rejected">Reject</option><option value="additional_information_required">Request additional information</option></select></Field>
-         {form.decision === 'additional_information_required' && <Field label="Message to member"><textarea className={`${input} h-20 py-2`} required value={form.userMessage} onChange={e => setForm({ ...form, userMessage: e.target.value })} /></Field>}
-       </>}
           {modal === 'vault-subscription' && <>
             <p className="rounded-lg border border-[#f0d4cc] bg-[#fff7f3] p-3 text-[10px] leading-5 text-[#945246]">This removes current access but does not approve, reject, or alter a Paystack payment. Administrators cannot activate subscriptions manually.</p>
             <label className="flex items-start gap-2 text-[10px] leading-5 text-[#546b70]"><input type="checkbox" checked={form.confirmed} onChange={e => setForm({ ...form, confirmed: e.target.checked })} className="mt-1" required /><span>I confirm removal of this member’s Private Vault access.</span></label>
          </>}
-        <Field label={modal === 'pin' || modal === 'password-reset' ? 'Reset reason' : 'Audit reason'}><textarea required minLength={5} maxLength={500} className={`${input} h-20 py-2`} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></Field>{error && <p role="alert" className="text-[10px] text-[#a45247]">{error}</p>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModal(null)} className={quietButton}>Cancel</button><button disabled={statusMutation.isPending || profileMutation.isPending || identityMutation.isPending || pinMutation.isPending || passwordMutation.isPending || vaultSubscriptionMutation.isPending || form.reason.trim().length < 5 || (modal === 'profile' && form.transactionPin.length !== 6) || ((modal === 'password-reset' || modal === 'vault-subscription') && !form.confirmed)} className={button}>{statusMutation.isPending || profileMutation.isPending || identityMutation.isPending || pinMutation.isPending || passwordMutation.isPending || vaultSubscriptionMutation.isPending ? 'Saving…' : 'Confirm & save'}</button></div>
+        <Field label={modal === 'pin' || modal === 'password-reset' ? 'Reset reason' : 'Audit reason'}><textarea required minLength={5} maxLength={500} className={`${input} h-20 py-2`} value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} /></Field>{error && <p role="alert" className="text-[10px] text-[#a45247]">{error}</p>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModal(null)} className={quietButton}>Cancel</button><button disabled={statusMutation.isPending || profileMutation.isPending || pinMutation.isPending || passwordMutation.isPending || vaultSubscriptionMutation.isPending || form.reason.trim().length < 5 || (modal === 'profile' && form.transactionPin.length !== 6) || ((modal === 'password-reset' || modal === 'vault-subscription') && !form.confirmed)} className={button}>{statusMutation.isPending || profileMutation.isPending || pinMutation.isPending || passwordMutation.isPending || vaultSubscriptionMutation.isPending ? 'Saving…' : 'Confirm & save'}</button></div>
      </form></Modal>}
    </div>;
 }
@@ -386,7 +370,10 @@ function MemberPendingRequests({ userId, user, onUpdated }: { userId: string; us
   const [pin, setPin] = useState('');
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState('');
-  const canApprove = user.accountStatus === 'active' && user.verificationStatus === 'approved';
+  const vaultExpiry = user.vaultSubscriptionExpiresAt ? new Date(user.vaultSubscriptionExpiresAt).getTime() : null;
+  const canApprove = user.accountStatus === 'active' &&
+    user.vaultSubscriptionStatus === 'active' &&
+    (vaultExpiry === null || vaultExpiry > Date.now());
 
   const open = (request: AdminLedgerRequest) => {
     setTarget(request);
@@ -437,7 +424,7 @@ function MemberPendingRequests({ userId, user, onUpdated }: { userId: string; us
           </article>)}
         </div>
       ) : <Empty title="No pending withdrawals" text="New withdrawal requests will appear here." />}
-      {!canApprove && requests.data?.length ? <p className="border-t border-[#edf0ed] bg-[#fbf7eb] px-5 py-3 text-[9px] leading-4 text-[#806b3d]">Approval is available only when this account is active and identity verification is approved. Requests can still be rejected.</p> : null}
+      {!canApprove && requests.data?.length ? <p className="border-t border-[#edf0ed] bg-[#fbf7eb] px-5 py-3 text-[9px] leading-4 text-[#806b3d]">Approval is available only when this account is active and its Private Vault subscription is current. Requests can still be rejected.</p> : null}
     </Panel>
     {target && <Modal title={`Review ${target.type} request`} close={() => setTarget(null)}>
       <div className="rounded-xl border border-[#e2e9e5] bg-[#f8faf6] p-3.5">
@@ -779,7 +766,6 @@ function SettingsPage() {
   const update = useUpdateAdminSettings();
   const [limit, setLimit] = useState('');
   const [threshold, setThreshold] = useState('');
-  const [unverifiedNotice, setUnverifiedNotice] = useState<string | null>(null);
   const [vaultPlan1mPrice, setVaultPlan1mPrice] = useState<string | null>(null);
   const [vaultPlan3mPrice, setVaultPlan3mPrice] = useState<string | null>(null);
   const [vaultPlan1yPrice, setVaultPlan1yPrice] = useState<string | null>(null);
@@ -796,7 +782,6 @@ function SettingsPage() {
         data: {
           fundingLimit: limit || settings.data?.fundingLimit || '',
           secondApprovalThreshold: threshold || settings.data?.secondApprovalThreshold || '',
-          unverifiedDashboardMessage: (unverifiedNotice ?? settings.data?.unverifiedDashboardMessage ?? '').trim(),
           vaultPlan1mPrice: vaultPlan1mPrice ?? settings.data?.vaultPlan1mPrice ?? '',
           vaultPlan3mPrice: vaultPlan3mPrice ?? settings.data?.vaultPlan3mPrice ?? '',
           vaultPlan1yPrice: vaultPlan1yPrice ?? settings.data?.vaultPlan1yPrice ?? '',
@@ -804,7 +789,6 @@ function SettingsPage() {
           transactionPin: pin,
         },
       });
-      setUnverifiedNotice(result.unverifiedDashboardMessage);
       setVaultPlan1mPrice(result.vaultPlan1mPrice);
       setVaultPlan3mPrice(result.vaultPlan3mPrice);
       setVaultPlan1yPrice(result.vaultPlan1yPrice);
@@ -837,8 +821,6 @@ function SettingsPage() {
               <p className="text-[9px] text-[#829294]">Frozen-wallet incoming policy: {human(settings.data?.frozenIncomingPolicy)}</p>
               <Field label="Maximum funding amount per currency"><input required className={input} inputMode="decimal" pattern="[0-9]+(\\.[0-9]{1,2})?" min="0.01" max="100000000" value={limit || settings.data?.fundingLimit || ''} onChange={e => setLimit(e.target.value)} /></Field>
               <Field label="Second administrator approval threshold"><input required className={input} inputMode="decimal" pattern="[0-9]+(\\.[0-9]{1,2})?" min="0" max="100000000" value={threshold || settings.data?.secondApprovalThreshold || ''} onChange={e => setThreshold(e.target.value)} /></Field>
-              <Field label="Default warning for new and unverified members"><textarea required minLength={1} maxLength={500} className={`${input} h-20 py-2`} value={unverifiedNotice ?? settings.data?.unverifiedDashboardMessage ?? ''} onChange={e => setUnverifiedNotice(e.target.value)} placeholder="Enter the message shown until identity verification is approved." /></Field>
-              <p className="-mt-1 text-[9px] leading-4 text-[#829294]">Shown on customer dashboards while identity is not approved. It clears automatically when verification is approved; separate account restrictions still apply.</p>
             </div>
           </Panel>
           <Panel title="Private Vault plan prices" eyebrow="Paystack checkout" note="Access activates automatically after Paystack confirms payment. Administrators cannot manually approve subscriptions.">

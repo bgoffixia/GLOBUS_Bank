@@ -45,4 +45,5 @@ See:
 - [API reference](docs/api.md)
 - [Security and production-readiness checklist](docs/security.md)
 - [Backup and recovery](docs/operations.md)
+- [Railway deployment](docs/railway.md)
 - [Environment example](.env.example)

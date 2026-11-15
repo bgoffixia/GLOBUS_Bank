@@ -92,7 +92,7 @@ export function InternationalTransferPage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const pending = createRequest.isPending;
-  const verified = profile.data?.verificationStatus === 'approved';
+  const subscriptionActive = profile.data?.vaultSubscriptionActive === true;
   const pinConfigured = profile.data?.transactionPinConfigured !== false;
   const recipientEmailAlertsEnabled =
     emailAlertPreference.data?.enabled === true;
@@ -319,7 +319,7 @@ export function InternationalTransferPage() {
                 <RateWarning changed={rateChanged} lost={rateLost} onReview={() => { setRateSnapshot(liveRate); setConfirmed(false); }} />
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-[#f5f8f9] p-3 text-[11px] leading-5 text-[#3e566e]">
                   <input data-testid="checkbox-confirm-transfer" type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#173b62]" />
-                  <span>I confirm these details are correct. {verified ? 'Globus will record this transfer once I enter my PIN.' : 'My account is not yet verified, so this will be sent to an administrator for review.'}</span>
+                  <span>I confirm these details are correct. {subscriptionActive ? 'Globus will record this transfer once I enter my PIN.' : 'An active Private Vault subscription is required for immediate processing; otherwise an administrator will review it.'}</span>
                 </label>
               </>}
 
@@ -338,7 +338,7 @@ export function InternationalTransferPage() {
             {step > 0 && <button type="button" data-testid="button-transfer-back" disabled={pending} onClick={() => go(step - 1)} className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[#dbe3e8] bg-white px-4 text-[11px] font-bold text-[#3e566e] disabled:opacity-50"><ArrowLeft size={14} /> Back</button>}
             {step < 4
               ? <button type="button" data-testid="button-transfer-next" disabled={!stepValid[step]} onClick={next} className="ml-auto inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f51] px-5 text-[12px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[180px]">{step === 3 ? 'Confirm and continue' : 'Continue'} <ArrowRight size={15} /></button>
-              : <button type="button" data-testid="button-submit-international-transfer" disabled={!stepValid[4] || pending} onClick={submit} className="ml-auto inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f51] px-5 text-[12px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[180px]"><LockKeyhole size={14} /> {pending ? 'Submitting…' : verified ? 'Complete transfer' : 'Submit for review'}</button>}
+              : <button type="button" data-testid="button-submit-international-transfer" disabled={!stepValid[4] || pending} onClick={submit} className="ml-auto inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f51] px-5 text-[12px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[180px]"><LockKeyhole size={14} /> {pending ? 'Submitting…' : subscriptionActive ? 'Complete transfer' : 'Submit for review'}</button>}
           </div>
         </section>
       </div>

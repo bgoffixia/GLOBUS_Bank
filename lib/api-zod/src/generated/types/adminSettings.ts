@@ -15,11 +15,6 @@ export interface AdminSettings {
   fundingLimit: string;
   secondApprovalThreshold: string;
   frozenIncomingPolicy: AdminSettingsFrozenIncomingPolicy;
-  /**
-     * @minLength 1
-     * @maxLength 500
-     */
-  unverifiedDashboardMessage: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   vaultPlan1mPrice: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */

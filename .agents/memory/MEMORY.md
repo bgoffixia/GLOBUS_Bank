@@ -1,4 +1,4 @@
-- [Identity review and retention](identity-document-retention.md) — Requests may have no files; keep optional uploads private, delete after decisions, and show the admin-set warning until approval.
+- [Identity workflow retirement](identity-document-retention.md) — Keep historical records/files; active Vault subscription replaces identity gating after workflow removal.
 - [Clerk user identity reconciliation](clerk-bank-user-resolution.md) — Resolve cross-environment Clerk IDs to a canonical bank profile using a server-verified primary email.
 - [Authentication diagnostics](authentication-diagnostics.md) — Interpret provider errors before advancing sign-in; diagnose production without exposing credentials or resetting identities.
 - [Internal ledger boundaries](internal-ledger-boundaries.md) — Keep money movement internal; international requests use admin-maintained estimates and never send or reserve funds.

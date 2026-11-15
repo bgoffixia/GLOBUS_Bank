@@ -22,7 +22,7 @@ after(async () => {
   await pool.end();
 });
 
-test("verification and operation-specific restrictions gate deposits and withdrawals independently", async () => {
+test("active Private Vault access and operation-specific restrictions gate deposits and withdrawals", async () => {
   await db.insert(bankUsersTable).values({
     id: userId,
     email,
@@ -30,18 +30,16 @@ test("verification and operation-specific restrictions gate deposits and withdra
   });
 
   assert.deepEqual(
-    await getBankOperationEligibility(userId, "active", "pending"),
-    { depositAllowed: false, withdrawalAllowed: false },
+    await getBankOperationEligibility(userId, "active"),
+    { depositAllowed: false, withdrawalAllowed: false, vaultSubscriptionActive: false },
   );
-
-  await db
-    .update(bankUsersTable)
-    .set({ verificationStatus: "approved" })
-    .where(eq(bankUsersTable.id, userId));
-  assert.deepEqual(
-    await getBankOperationEligibility(userId, "active", "approved"),
-    { depositAllowed: false, withdrawalAllowed: true },
-  );
+  const [depositWithoutSubscription, withdrawalWithoutSubscription] =
+    await db.transaction(async (tx) => [
+      await bankOperationRestrictionError(tx, { userId, operation: "deposit" }),
+      await bankOperationRestrictionError(tx, { userId, operation: "withdrawal" }),
+    ]);
+  assert.match(depositWithoutSubscription ?? "", /active Private Vault subscription/i);
+  assert.match(withdrawalWithoutSubscription ?? "", /active Private Vault subscription/i);
 
   await db
     .update(bankUsersTable)
@@ -51,8 +49,17 @@ test("verification and operation-specific restrictions gate deposits and withdra
     })
     .where(eq(bankUsersTable.id, userId));
   assert.deepEqual(
-    await getBankOperationEligibility(userId, "active", "approved"),
-    { depositAllowed: true, withdrawalAllowed: true },
+    await getBankOperationEligibility(userId, "active"),
+    { depositAllowed: true, withdrawalAllowed: true, vaultSubscriptionActive: true },
+  );
+
+  await db
+    .update(bankUsersTable)
+    .set({ verificationStatus: "rejected" })
+    .where(eq(bankUsersTable.id, userId));
+  assert.deepEqual(
+    await getBankOperationEligibility(userId, "active"),
+    { depositAllowed: true, withdrawalAllowed: true, vaultSubscriptionActive: true },
   );
 
   await db.insert(bankRestrictionsTable).values({
@@ -63,8 +70,8 @@ test("verification and operation-specific restrictions gate deposits and withdra
   });
 
   assert.deepEqual(
-    await getBankOperationEligibility(userId, "active", "approved"),
-    { depositAllowed: false, withdrawalAllowed: true },
+    await getBankOperationEligibility(userId, "active"),
+    { depositAllowed: false, withdrawalAllowed: true, vaultSubscriptionActive: true },
   );
   const [depositError, withdrawalError] = await db.transaction(async (tx) => [
     await bankOperationRestrictionError(tx, { userId, operation: "deposit" }),

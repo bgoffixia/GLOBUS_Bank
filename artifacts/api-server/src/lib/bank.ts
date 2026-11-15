@@ -38,7 +38,8 @@ export async function bankOperationRestrictionError(
   const [user] = await executor
     .select({
       accountStatus: bankUsersTable.accountStatus,
-      verificationStatus: bankUsersTable.verificationStatus,
+      vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
+      vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
     })
     .from(bankUsersTable)
     .where(eq(bankUsersTable.id, input.userId))
@@ -49,9 +50,9 @@ export async function bankOperationRestrictionError(
   }
   if (
     (input.operation === "deposit" || input.operation === "withdrawal") &&
-    user.verificationStatus !== "approved"
+    !hasActiveVaultSubscription(user)
   ) {
-    return "Complete identity verification before requesting deposits or withdrawals.";
+    return "An active Private Vault subscription is required for deposits or withdrawals.";
   }
 
   const now = new Date();
@@ -118,12 +119,11 @@ export async function bankOperationRestrictionError(
 export async function getBankOperationEligibility(
   userId: string,
   accountStatus: "active" | "restricted" | "suspended",
-  verificationStatus: string,
-): Promise<{ depositAllowed: boolean; withdrawalAllowed: boolean }> {
-  if (accountStatus !== "active" || verificationStatus !== "approved") {
-    return { depositAllowed: false, withdrawalAllowed: false };
-  }
-
+): Promise<{
+  depositAllowed: boolean;
+  withdrawalAllowed: boolean;
+  vaultSubscriptionActive: boolean;
+}> {
   const now = new Date();
   const [subscription, restrictions] = await Promise.all([
     db
@@ -156,16 +156,21 @@ export async function getBankOperationEligibility(
     vaultSubscriptionExpiresAt: subscription[0]?.expiresAt ?? null,
   });
   const commonRestriction =
+    accountStatus !== "active" ||
     types.has("suspend_user") ||
     types.has("under_review") ||
     types.has("read_only");
 
   return {
+    vaultSubscriptionActive: subscriptionActive,
     depositAllowed:
+      accountStatus === "active" &&
       subscriptionActive &&
       !commonRestriction &&
       !types.has("restrict_deposits"),
     withdrawalAllowed:
+      accountStatus === "active" &&
+      subscriptionActive &&
       !commonRestriction &&
       !types.has("restrict_withdrawals") &&
       !types.has("freeze_wallet"),

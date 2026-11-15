@@ -26,7 +26,6 @@ import type {
   AdminAuditLogPage,
   AdminFundingInput,
   AdminFundingReviewInput,
-  AdminIdentityVerificationInput,
   AdminLedgerRequest,
   AdminLedgerRequestReviewInput,
   AdminRestriction,
@@ -80,8 +79,6 @@ import type {
   BankVaultPaystackCheckout,
   BankVaultPaystackInitializeInput,
   BankVaultPaystackVerifyInput,
-  BankVaultProofUploadInput,
-  BankVaultProofUploadResult,
   BankVaultSession,
   BankVaultStatus,
   BankVaultTransactionNote,
@@ -99,15 +96,10 @@ import type {
   CustomerIdLookupResult,
   DeleteSavedPaymentMethodResponse,
   EmailBankVaultPaystackRenewalManagementLink200,
-  ErrorResponse,
   ExternalTransferInput,
   ForbiddenResponse,
   GetBankExchangeRateQuoteParams,
   HealthStatus,
-  IdentityDocument,
-  IdentityDocumentUploadInput,
-  IdentityDocumentUploadUrl,
-  IdentityVerificationSubmissionInput,
   IncomingExternalTransferInput,
   InternationalTransferRequest,
   InternationalTransferRequestInput,
@@ -567,172 +559,6 @@ export const useInitializeBankVaultPasscode = <TError = ErrorType<BadRequestResp
         TContext
       > => {
       return useMutation(getInitializeBankVaultPasscodeMutationOptions(options));
-    }
-
-export const getRequestBankVaultSubscriptionUrl = () => {
-
-
-
-
-  return `/api/bank/vault/subscription`
-}
-
-/**
- * @deprecated
- * @summary Disabled legacy manual subscription request
- */
-export const requestBankVaultSubscription = async ( options?: Parameters<typeof customFetch>[1]): Promise<BankVaultStatus> => {
-
-  return customFetch<BankVaultStatus>(getRequestBankVaultSubscriptionUrl(),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-
-export const getRequestBankVaultSubscriptionMutationKey = () => ['requestBankVaultSubscription'] as const;
-
-export const getRequestBankVaultSubscriptionMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestBankVaultSubscription>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof requestBankVaultSubscription>>, TError,void, TContext> => {
-
-const mutationKey = getRequestBankVaultSubscriptionMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof requestBankVaultSubscription>>, void> = () => {
-
-
-          return  requestBankVaultSubscription(requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type RequestBankVaultSubscriptionMutationResult = NonNullable<Awaited<ReturnType<typeof requestBankVaultSubscription>>>
-
-    export type RequestBankVaultSubscriptionMutationError = ErrorType<ErrorResponse>
-
-
-    /**
- * @deprecated
- * @summary Disabled legacy manual subscription request
- */
-export const useRequestBankVaultSubscription = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof requestBankVaultSubscription>>, TError,void, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof requestBankVaultSubscription>>,
-        TError,
-        void,
-        TContext
-      > => {
-      return useMutation(getRequestBankVaultSubscriptionMutationOptions(options));
-    }
-
-export const getCreateBankVaultSubscriptionProofUploadUrlUrl = () => {
-
-
-
-
-  return `/api/bank/vault/subscription/proof-upload-url`
-}
-
-/**
- * @deprecated
- * @summary Disabled legacy subscription proof upload
- */
-export const createBankVaultSubscriptionProofUploadUrl = async (bankVaultProofUploadInput: BankVaultProofUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<BankVaultProofUploadResult> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<BankVaultProofUploadResult>(getCreateBankVaultSubscriptionProofUploadUrlUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(bankVaultProofUploadInput)
-  }
-);}
-
-
-
-
-
-export const getCreateBankVaultSubscriptionProofUploadUrlMutationKey = () => ['createBankVaultSubscriptionProofUploadUrl'] as const;
-
-export const getCreateBankVaultSubscriptionProofUploadUrlMutationOptions = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankVaultSubscriptionProofUploadUrl>>, TError,CreateBankVaultSubscriptionProofUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createBankVaultSubscriptionProofUploadUrl>>, TError,CreateBankVaultSubscriptionProofUploadUrlMutationVariables, TContext> => {
-
-const mutationKey = getCreateBankVaultSubscriptionProofUploadUrlMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBankVaultSubscriptionProofUploadUrl>>, CreateBankVaultSubscriptionProofUploadUrlMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  createBankVaultSubscriptionProofUploadUrl(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateBankVaultSubscriptionProofUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof createBankVaultSubscriptionProofUploadUrl>>>
-    export type CreateBankVaultSubscriptionProofUploadUrlMutationBody = BodyType<BankVaultProofUploadInput>
-    export type CreateBankVaultSubscriptionProofUploadUrlMutationError = ErrorType<ErrorResponse>
-    export type CreateBankVaultSubscriptionProofUploadUrlMutationVariables = {data: BodyType<BankVaultProofUploadInput>}
-
-    /**
- * @deprecated
- * @summary Disabled legacy subscription proof upload
- */
-export const useCreateBankVaultSubscriptionProofUploadUrl = <TError = ErrorType<ErrorResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankVaultSubscriptionProofUploadUrl>>, TError,CreateBankVaultSubscriptionProofUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createBankVaultSubscriptionProofUploadUrl>>,
-        TError,
-        CreateBankVaultSubscriptionProofUploadUrlMutationVariables,
-        TContext
-      > => {
-      return useMutation(getCreateBankVaultSubscriptionProofUploadUrlMutationOptions(options));
     }
 
 export const getGetBankVaultBillingUrl = () => {
@@ -3330,407 +3156,6 @@ export const useUpdateTransactionPin = <TError = ErrorType<BadRequestResponse | 
       return useMutation(getUpdateTransactionPinMutationOptions(options));
     }
 
-export const getListMyIdentityDocumentsUrl = () => {
-
-
-
-
-  return `/api/bank/verification/documents`
-}
-
-/**
- * @summary List identity documents belonging to the authenticated user
- */
-export const listMyIdentityDocuments = async ( options?: Parameters<typeof customFetch>[1]): Promise<IdentityDocument[]> => {
-
-  return customFetch<IdentityDocument[]>(getListMyIdentityDocumentsUrl(),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListMyIdentityDocumentsQueryKey = () => {
-    return [
-    `/api/bank/verification/documents`
-    ] as const;
-    }
-
-
-export const getListMyIdentityDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listMyIdentityDocuments>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyIdentityDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListMyIdentityDocumentsQueryKey();
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listMyIdentityDocuments>>> = ({ signal }) => listMyIdentityDocuments({ signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listMyIdentityDocuments>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListMyIdentityDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listMyIdentityDocuments>>>
-export type ListMyIdentityDocumentsQueryError = ErrorType<UnauthorizedResponse>
-
-
-/**
- * @summary List identity documents belonging to the authenticated user
- */
-
-export function useListMyIdentityDocuments<TData = Awaited<ReturnType<typeof listMyIdentityDocuments>>, TError = ErrorType<UnauthorizedResponse>>(
-  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listMyIdentityDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListMyIdentityDocumentsQueryOptions(options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getCreateIdentityDocumentUploadUrlUrl = () => {
-
-
-
-
-  return `/api/bank/verification/documents/upload-url`
-}
-
-/**
- * @summary Request a private upload URL for an identity document
- */
-export const createIdentityDocumentUploadUrl = async (identityDocumentUploadInput: IdentityDocumentUploadInput, options?: Parameters<typeof customFetch>[1]): Promise<IdentityDocumentUploadUrl> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<IdentityDocumentUploadUrl>(getCreateIdentityDocumentUploadUrlUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(identityDocumentUploadInput)
-  }
-);}
-
-
-
-
-
-export const getCreateIdentityDocumentUploadUrlMutationKey = () => ['createIdentityDocumentUploadUrl'] as const;
-
-export const getCreateIdentityDocumentUploadUrlMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIdentityDocumentUploadUrl>>, TError,CreateIdentityDocumentUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof createIdentityDocumentUploadUrl>>, TError,CreateIdentityDocumentUploadUrlMutationVariables, TContext> => {
-
-const mutationKey = getCreateIdentityDocumentUploadUrlMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createIdentityDocumentUploadUrl>>, CreateIdentityDocumentUploadUrlMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  createIdentityDocumentUploadUrl(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CreateIdentityDocumentUploadUrlMutationResult = NonNullable<Awaited<ReturnType<typeof createIdentityDocumentUploadUrl>>>
-    export type CreateIdentityDocumentUploadUrlMutationBody = BodyType<IdentityDocumentUploadInput>
-    export type CreateIdentityDocumentUploadUrlMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>
-    export type CreateIdentityDocumentUploadUrlMutationVariables = {data: BodyType<IdentityDocumentUploadInput>}
-
-    /**
- * @summary Request a private upload URL for an identity document
- */
-export const useCreateIdentityDocumentUploadUrl = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createIdentityDocumentUploadUrl>>, TError,CreateIdentityDocumentUploadUrlMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof createIdentityDocumentUploadUrl>>,
-        TError,
-        CreateIdentityDocumentUploadUrlMutationVariables,
-        TContext
-      > => {
-      return useMutation(getCreateIdentityDocumentUploadUrlMutationOptions(options));
-    }
-
-export const getCompleteIdentityDocumentUploadUrl = (documentId: string,) => {
-
-
-
-
-  return `/api/bank/verification/documents/${documentId}/complete`
-}
-
-/**
- * @summary Validate and complete an identity document upload
- */
-export const completeIdentityDocumentUpload = async (documentId: string, options?: Parameters<typeof customFetch>[1]): Promise<IdentityDocument> => {
-
-  return customFetch<IdentityDocument>(getCompleteIdentityDocumentUploadUrl(documentId),
-  {
-    ...options,
-    method: 'POST'
-
-
-  }
-);}
-
-
-
-
-
-export const getCompleteIdentityDocumentUploadMutationKey = () => ['completeIdentityDocumentUpload'] as const;
-
-export const getCompleteIdentityDocumentUploadMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeIdentityDocumentUpload>>, TError,CompleteIdentityDocumentUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof completeIdentityDocumentUpload>>, TError,CompleteIdentityDocumentUploadMutationVariables, TContext> => {
-
-const mutationKey = getCompleteIdentityDocumentUploadMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof completeIdentityDocumentUpload>>, CompleteIdentityDocumentUploadMutationVariables> = (props) => {
-          const {documentId} = props ?? {};
-
-          return  completeIdentityDocumentUpload(documentId,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type CompleteIdentityDocumentUploadMutationResult = NonNullable<Awaited<ReturnType<typeof completeIdentityDocumentUpload>>>
-
-    export type CompleteIdentityDocumentUploadMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
-    export type CompleteIdentityDocumentUploadMutationVariables = {documentId: string}
-
-    /**
- * @summary Validate and complete an identity document upload
- */
-export const useCompleteIdentityDocumentUpload = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof completeIdentityDocumentUpload>>, TError,CompleteIdentityDocumentUploadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof completeIdentityDocumentUpload>>,
-        TError,
-        CompleteIdentityDocumentUploadMutationVariables,
-        TContext
-      > => {
-      return useMutation(getCompleteIdentityDocumentUploadMutationOptions(options));
-    }
-
-export const getDeleteMyIdentityDocumentUrl = (documentId: string,) => {
-
-
-
-
-  return `/api/bank/verification/documents/${documentId}`
-}
-
-/**
- * @summary Remove an identity document before it enters review
- */
-export const deleteMyIdentityDocument = async (documentId: string, options?: Parameters<typeof customFetch>[1]): Promise<void> => {
-
-  return customFetch<void>(getDeleteMyIdentityDocumentUrl(documentId),
-  {
-    ...options,
-    method: 'DELETE'
-
-
-  }
-);}
-
-
-
-
-
-export const getDeleteMyIdentityDocumentMutationKey = () => ['deleteMyIdentityDocument'] as const;
-
-export const getDeleteMyIdentityDocumentMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMyIdentityDocument>>, TError,DeleteMyIdentityDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof deleteMyIdentityDocument>>, TError,DeleteMyIdentityDocumentMutationVariables, TContext> => {
-
-const mutationKey = getDeleteMyIdentityDocumentMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteMyIdentityDocument>>, DeleteMyIdentityDocumentMutationVariables> = (props) => {
-          const {documentId} = props ?? {};
-
-          return  deleteMyIdentityDocument(documentId,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type DeleteMyIdentityDocumentMutationResult = NonNullable<Awaited<ReturnType<typeof deleteMyIdentityDocument>>>
-
-    export type DeleteMyIdentityDocumentMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>
-    export type DeleteMyIdentityDocumentMutationVariables = {documentId: string}
-
-    /**
- * @summary Remove an identity document before it enters review
- */
-export const useDeleteMyIdentityDocument = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteMyIdentityDocument>>, TError,DeleteMyIdentityDocumentMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof deleteMyIdentityDocument>>,
-        TError,
-        DeleteMyIdentityDocumentMutationVariables,
-        TContext
-      > => {
-      return useMutation(getDeleteMyIdentityDocumentMutationOptions(options));
-    }
-
-export const getSubmitIdentityDocumentsUrl = () => {
-
-
-
-
-  return `/api/bank/verification/submit`
-}
-
-/**
- * @summary Submit uploaded identity documents for review
- */
-export const submitIdentityDocuments = async (identityVerificationSubmissionInput: IdentityVerificationSubmissionInput, options?: Parameters<typeof customFetch>[1]): Promise<BankProfile> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<BankProfile>(getSubmitIdentityDocumentsUrl(),
-  {
-    ...options,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(identityVerificationSubmissionInput)
-  }
-);}
-
-
-
-
-
-export const getSubmitIdentityDocumentsMutationKey = () => ['submitIdentityDocuments'] as const;
-
-export const getSubmitIdentityDocumentsMutationOptions = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitIdentityDocuments>>, TError,SubmitIdentityDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof submitIdentityDocuments>>, TError,SubmitIdentityDocumentsMutationVariables, TContext> => {
-
-const mutationKey = getSubmitIdentityDocumentsMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof submitIdentityDocuments>>, SubmitIdentityDocumentsMutationVariables> = (props) => {
-          const {data} = props ?? {};
-
-          return  submitIdentityDocuments(data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type SubmitIdentityDocumentsMutationResult = NonNullable<Awaited<ReturnType<typeof submitIdentityDocuments>>>
-    export type SubmitIdentityDocumentsMutationBody = BodyType<IdentityVerificationSubmissionInput>
-    export type SubmitIdentityDocumentsMutationError = ErrorType<UnauthorizedResponse | ConflictResponse>
-    export type SubmitIdentityDocumentsMutationVariables = {data: BodyType<IdentityVerificationSubmissionInput>}
-
-    /**
- * @summary Submit uploaded identity documents for review
- */
-export const useSubmitIdentityDocuments = <TError = ErrorType<UnauthorizedResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof submitIdentityDocuments>>, TError,SubmitIdentityDocumentsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof submitIdentityDocuments>>,
-        TError,
-        SubmitIdentityDocumentsMutationVariables,
-        TContext
-      > => {
-      return useMutation(getSubmitIdentityDocumentsMutationOptions(options));
-    }
-
 export const getCreateBankTransferUrl = () => {
 
 
@@ -4425,7 +3850,8 @@ export const getCreateLedgerRequestUrl = () => {
 }
 
 /**
- * @summary Request an internal ledger deposit or withdrawal
+ * Deposit requests are credited immediately only for customers with an active Private Vault subscription and eligible account and wallet status. Withdrawal requests remain subject to administrator review.
+ * @summary Add funds with active Vault access or request a withdrawal
  */
 export const createLedgerRequest = async (ledgerRequestInput: LedgerRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<LedgerRequest> => {
 
@@ -4458,7 +3884,7 @@ return customFetch<LedgerRequest>(getCreateLedgerRequestUrl(),
 
 export const getCreateLedgerRequestMutationKey = () => ['createLedgerRequest'] as const;
 
-export const getCreateLedgerRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>,
+export const getCreateLedgerRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLedgerRequest>>, TError,CreateLedgerRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createLedgerRequest>>, TError,CreateLedgerRequestMutationVariables, TContext> => {
 
@@ -4487,13 +3913,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateLedgerRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createLedgerRequest>>>
     export type CreateLedgerRequestMutationBody = BodyType<LedgerRequestInput>
-    export type CreateLedgerRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>
+    export type CreateLedgerRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
     export type CreateLedgerRequestMutationVariables = {data: BodyType<LedgerRequestInput>}
 
     /**
- * @summary Request an internal ledger deposit or withdrawal
+ * @summary Add funds with active Vault access or request a withdrawal
  */
-export const useCreateLedgerRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>,
+export const useCreateLedgerRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLedgerRequest>>, TError,CreateLedgerRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createLedgerRequest>>,
@@ -5522,7 +4948,7 @@ export const getListAdminLedgerRequestsUrl = (params?: ListAdminLedgerRequestsPa
 }
 
 /**
- * @summary List pending internal ledger deposit and withdrawal requests
+ * @summary List pending withdrawal requests
  */
 export const listAdminLedgerRequests = async (params?: ListAdminLedgerRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminLedgerRequest[]> => {
 
@@ -5569,7 +4995,7 @@ export type ListAdminLedgerRequestsQueryError = ErrorType<UnauthorizedResponse |
 
 
 /**
- * @summary List pending internal ledger deposit and withdrawal requests
+ * @summary List pending withdrawal requests
  */
 
 export function useListAdminLedgerRequests<TData = Awaited<ReturnType<typeof listAdminLedgerRequests>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
@@ -5599,7 +5025,7 @@ export const getReviewAdminLedgerRequestUrl = (requestId: string,) => {
 }
 
 /**
- * @summary Approve or reject an internal ledger request
+ * @summary Approve or reject a withdrawal request
  */
 export const reviewAdminLedgerRequest = async (requestId: string,
     adminLedgerRequestReviewInput: AdminLedgerRequestReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminLedgerRequest> => {
@@ -5666,7 +5092,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ReviewAdminLedgerRequestMutationVariables = {requestId: string;data: BodyType<AdminLedgerRequestReviewInput>}
 
     /**
- * @summary Approve or reject an internal ledger request
+ * @summary Approve or reject a withdrawal request
  */
 export const useReviewAdminLedgerRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAdminLedgerRequest>>, TError,ReviewAdminLedgerRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -6196,83 +5622,6 @@ export const useUpdateAdminUserProfile = <TError = ErrorType<BadRequestResponse 
       return useMutation(getUpdateAdminUserProfileMutationOptions(options));
     }
 
-export const getListAdminIdentityDocumentsUrl = (userId: string,) => {
-
-
-
-
-  return `/api/bank/admin/users/${userId}/verification-documents`
-}
-
-/**
- * @summary List a user's identity documents for admin review
- */
-export const listAdminIdentityDocuments = async (userId: string, options?: Parameters<typeof customFetch>[1]): Promise<IdentityDocument[]> => {
-
-  return customFetch<IdentityDocument[]>(getListAdminIdentityDocumentsUrl(userId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getListAdminIdentityDocumentsQueryKey = (userId: string,) => {
-    return [
-    `/api/bank/admin/users/${userId}/verification-documents`
-    ] as const;
-    }
-
-
-export const getListAdminIdentityDocumentsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminIdentityDocuments>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminIdentityDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getListAdminIdentityDocumentsQueryKey(userId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminIdentityDocuments>>> = ({ signal }) => listAdminIdentityDocuments(userId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: userId !== null && userId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminIdentityDocuments>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type ListAdminIdentityDocumentsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminIdentityDocuments>>>
-export type ListAdminIdentityDocumentsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
-
-
-/**
- * @summary List a user's identity documents for admin review
- */
-
-export function useListAdminIdentityDocuments<TData = Awaited<ReturnType<typeof listAdminIdentityDocuments>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
- userId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminIdentityDocuments>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getListAdminIdentityDocumentsQueryOptions(userId,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
 export const getUpdateAdminUserVaultSubscriptionUrl = (userId: string,) => {
 
 
@@ -6360,172 +5709,6 @@ export const useUpdateAdminUserVaultSubscription = <TError = ErrorType<BadReques
         TContext
       > => {
       return useMutation(getUpdateAdminUserVaultSubscriptionMutationOptions(options));
-    }
-
-export const getGetAdminIdentityDocumentContentUrl = (documentId: string,) => {
-
-
-
-
-  return `/api/bank/admin/identity-documents/${documentId}/content`
-}
-
-/**
- * @summary Stream an identity document to an authorized admin
- */
-export const getAdminIdentityDocumentContent = async (documentId: string, options?: Parameters<typeof customFetch>[1]): Promise<Blob> => {
-
-  return customFetch<Blob>(getGetAdminIdentityDocumentContentUrl(documentId),
-  {
-    ...options,
-    method: 'GET'
-
-
-  }
-);}
-
-
-
-
-
-export const getGetAdminIdentityDocumentContentQueryKey = (documentId: string,) => {
-    return [
-    `/api/bank/admin/identity-documents/${documentId}/content`
-    ] as const;
-    }
-
-
-export const getGetAdminIdentityDocumentContentQueryOptions = <TData = Awaited<ReturnType<typeof getAdminIdentityDocumentContent>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(documentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminIdentityDocumentContent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-) => {
-
-const {query: queryOptions, request: requestOptions} = options ?? {};
-
-  const queryKey =  queryOptions?.queryKey ?? getGetAdminIdentityDocumentContentQueryKey(documentId);
-
-
-
-    const queryFn: QueryFunction<Awaited<ReturnType<typeof getAdminIdentityDocumentContent>>> = ({ signal }) => getAdminIdentityDocumentContent(documentId, { signal, ...requestOptions });
-
-
-
-
-
-   return  { queryKey, queryFn, enabled: documentId !== null && documentId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getAdminIdentityDocumentContent>>, TError, TData> & { queryKey: QueryKey }
-}
-
-export type GetAdminIdentityDocumentContentQueryResult = NonNullable<Awaited<ReturnType<typeof getAdminIdentityDocumentContent>>>
-export type GetAdminIdentityDocumentContentQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
-
-
-/**
- * @summary Stream an identity document to an authorized admin
- */
-
-export function useGetAdminIdentityDocumentContent<TData = Awaited<ReturnType<typeof getAdminIdentityDocumentContent>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>>(
- documentId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getAdminIdentityDocumentContent>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
-
- ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
-
-  const queryOptions = getGetAdminIdentityDocumentContentQueryOptions(documentId,options)
-
-  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
-
-  return withQueryKey(query, queryOptions.queryKey);
-}
-
-
-
-
-
-
-
-export const getUpdateAdminUserVerificationUrl = (userId: string,) => {
-
-
-
-
-  return `/api/bank/admin/users/${userId}/verification`
-}
-
-/**
- * @summary Record an identity review decision
- */
-export const updateAdminUserVerification = async (userId: string,
-    adminIdentityVerificationInput: AdminIdentityVerificationInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminUser> => {
-
-    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
-    if (!h) return {};
-    if (h instanceof Headers) return Object.fromEntries(h.entries());
-    if (Symbol.iterator in h) {
-      return Object.fromEntries(
-        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
-      );
-    }
-    const headers: Record<string, string | readonly string[]> = {};
-    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
-      if (value !== undefined) headers[name] = value;
-    }
-    return headers;
-  };
-return customFetch<AdminUser>(getUpdateAdminUserVerificationUrl(userId),
-  {
-    ...options,
-    method: 'PATCH',
-    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(adminIdentityVerificationInput)
-  }
-);}
-
-
-
-
-
-export const getUpdateAdminUserVerificationMutationKey = () => ['updateAdminUserVerification'] as const;
-
-export const getUpdateAdminUserVerificationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminUserVerification>>, TError,UpdateAdminUserVerificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
-): UseMutationOptions<Awaited<ReturnType<typeof updateAdminUserVerification>>, TError,UpdateAdminUserVerificationMutationVariables, TContext> => {
-
-const mutationKey = getUpdateAdminUserVerificationMutationKey();
-const {mutation: mutationOptions, request: requestOptions} = options ?
-      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
-      options
-      : {...options, mutation: {...options.mutation, mutationKey}}
-      : {mutation: { mutationKey, }, request: undefined};
-
-
-
-
-      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminUserVerification>>, UpdateAdminUserVerificationMutationVariables> = (props) => {
-          const {userId,data} = props ?? {};
-
-          return  updateAdminUserVerification(userId,data,requestOptions)
-        }
-
-
-
-
-
-
-  return  { mutationFn, ...mutationOptions }}
-
-    export type UpdateAdminUserVerificationMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminUserVerification>>>
-    export type UpdateAdminUserVerificationMutationBody = BodyType<AdminIdentityVerificationInput>
-    export type UpdateAdminUserVerificationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
-    export type UpdateAdminUserVerificationMutationVariables = {userId: string;data: BodyType<AdminIdentityVerificationInput>}
-
-    /**
- * @summary Record an identity review decision
- */
-export const useUpdateAdminUserVerification = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
-    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminUserVerification>>, TError,UpdateAdminUserVerificationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
- ): UseMutationResult<
-        Awaited<ReturnType<typeof updateAdminUserVerification>>,
-        TError,
-        UpdateAdminUserVerificationMutationVariables,
-        TContext
-      > => {
-      return useMutation(getUpdateAdminUserVerificationMutationOptions(options));
     }
 
 export const getCreateAdminFundingUrl = (userId: string,) => {

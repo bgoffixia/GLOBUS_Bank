@@ -1,5 +1,4 @@
 import { Router, type IRouter, type RequestHandler } from "express";
-import { pipeline } from "node:stream/promises";
 import { clerkClient, getAuth } from "@clerk/express";
 import {
   and,
@@ -30,7 +29,6 @@ import {
   CreateAdminTransactionCorrectionBody,
   CreateAdminTransactionCorrectionParams,
   CreateAdminTransactionCorrectionResponse,
-  GetAdminIdentityDocumentContentParams,
   GetAdminAccessResponse,
   GetAdminSettingsResponse,
   GetAdminSummaryResponse,
@@ -51,14 +49,9 @@ import {
   ListAdminLedgerResponse,
   ListAdminTransactionStatusHistoryParams,
   ListAdminTransactionStatusHistoryResponse,
-  ListAdminIdentityDocumentsParams,
-  ListAdminIdentityDocumentsResponse,
   ListAdminUsersQueryParams,
   ListAdminUsersResponse,
   ListAdminLedgerRequestsQueryParams,
-  UpdateAdminUserVerificationBody,
-  UpdateAdminUserVerificationParams,
-  UpdateAdminUserVerificationResponse,
   UpdateAdminUserStatusBody,
   UpdateAdminUserStatusParams,
   UpdateAdminUserStatusResponse,
@@ -101,7 +94,6 @@ import {
   bankAuditLogsTable,
   bankAdminSettingsTable,
   bankExchangeRatesTable,
-  bankIdentityDocumentsTable,
   bankInternationalTransferRequestsTable,
   bankLedgerEntriesTable,
   bankRestrictionsTable,
@@ -137,12 +129,11 @@ import {
   userWallet,
 } from "../lib/bank";
 import { getExchangeRate } from "../lib/exchange-rates";
-import {
-  deleteIdentityDocumentObject,
-  getIdentityDocumentFile,
-} from "../lib/identityDocumentStorage";
 import { verifyTransactionPin } from "../lib/transaction-pin";
-import { vaultSubscriptionStatus } from "../lib/bank-vault";
+import {
+  hasActiveVaultSubscription,
+  vaultSubscriptionStatus,
+} from "../lib/bank-vault";
 import {
   notifyTransferRecipient,
   sendPushToUser,
@@ -151,12 +142,15 @@ import {
 import {
   minorAmountToDecimal,
 } from "../lib/vault-subscription";
-import {
-  deleteVaultSubscriptionProof,
-  getVaultSubscriptionProofFile,
-} from "../lib/vault-subscription-proof-storage";
 
 const router: IRouter = Router();
+
+const removedIdentityWorkflow: RequestHandler = (_req, res): void => {
+  res.status(410).json({ error: "Identity review workflows are no longer available." });
+};
+router.use("/bank/admin/users/:userId/verification-documents", removedIdentityWorkflow);
+router.use("/bank/admin/identity-documents", removedIdentityWorkflow);
+router.all("/bank/admin/users/:userId/verification", removedIdentityWorkflow);
 
 function configuredAdminIds(): Set<string> {
   return new Set(
@@ -338,7 +332,6 @@ function adminSettingsPayload(settings: Awaited<ReturnType<typeof getOrCreateAdm
     fundingLimit: settings.fundingLimit,
     secondApprovalThreshold: settings.secondApprovalThreshold,
     frozenIncomingPolicy: "allow_frozen" as const,
-    unverifiedDashboardMessage: settings.unverifiedDashboardMessage,
     vaultPlan1mPrice: minorAmountToDecimal(settings.vaultPlan1mPriceMinor),
     vaultPlan3mPrice: minorAmountToDecimal(settings.vaultPlan3mPriceMinor),
     vaultPlan1yPrice: minorAmountToDecimal(settings.vaultPlan1yPriceMinor),
@@ -366,81 +359,6 @@ function respondWithTransactionPinError(
   } else {
     res.status(404).json({ error: "The account for this transaction was not found." });
   }
-}
-
-async function runIdentityReview(input: {
-  actorUserId: string;
-  userId: string;
-  verificationStatus:
-    | "approved"
-    | "rejected"
-    | "additional_information_required";
-  reason: string;
-  userMessage: string | null;
-}) {
-  return db.transaction(async (tx) => {
-    const [user] = await tx
-      .select()
-      .from(bankUsersTable)
-      .where(eq(bankUsersTable.id, input.userId))
-      .for("update");
-    if (!user) {
-      return { notFound: true as const };
-    }
-    if (
-      user.verificationStatus !== "pending" &&
-      user.verificationStatus !== "additional_information_required"
-    ) {
-      return { error: "This user does not have an identity review awaiting a decision." };
-    }
-
-    const documents = await tx
-      .select()
-      .from(bankIdentityDocumentsTable)
-      .where(eq(bankIdentityDocumentsTable.userId, input.userId))
-      .for("update");
-    if (documents.some((document) => document.status !== "uploaded")) {
-      return {
-        error:
-          "Finish or remove each in-progress identity document upload before recording a decision.",
-      };
-    }
-
-    const finalDecision =
-      input.verificationStatus === "approved" ||
-      input.verificationStatus === "rejected";
-    if (finalDecision) {
-      for (const document of documents) {
-        await deleteIdentityDocumentObject(document.objectPath);
-      }
-    }
-
-    const [updated] = await tx
-      .update(bankUsersTable)
-      .set({
-        verificationStatus: input.verificationStatus,
-        verificationNote: input.userMessage,
-        updatedAt: new Date(),
-      })
-      .where(eq(bankUsersTable.id, input.userId))
-      .returning();
-    if (finalDecision) {
-      await tx
-        .delete(bankIdentityDocumentsTable)
-        .where(eq(bankIdentityDocumentsTable.userId, input.userId));
-    }
-    await tx.insert(bankAuditLogsTable).values({
-      actorUserId: input.actorUserId,
-      targetUserId: input.userId,
-      action: `identity_review_${input.verificationStatus}`,
-      reason: input.reason,
-    });
-    const [walletCount] = await tx
-      .select({ value: count() })
-      .from(bankWalletsTable)
-      .where(eq(bankWalletsTable.userId, input.userId));
-    return { user: updated, walletCount: Number(walletCount?.value ?? 0) };
-  });
 }
 
 router.get("/bank/admin/access", requireSignedIn, async (req, res): Promise<void> => {
@@ -1655,19 +1573,12 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     res.status(400).json({ error: "Enter an audit reason of at least five characters." });
     return;
   }
-  const unverifiedDashboardMessage =
-    parsed.data.unverifiedDashboardMessage.trim();
-  if (!unverifiedDashboardMessage) {
-    res.status(400).json({ error: "Enter a default message for unverified members." });
-    return;
-  }
   const [settings] = await db
     .insert(bankAdminSettingsTable)
     .values({
       id: "operations",
       fundingLimit: formatMinorAmount(fundingLimitMinor),
       secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
-      unverifiedDashboardMessage,
       vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
       vaultPlan3mPriceMinor: vaultPlan3mPriceMinor.toString(),
       vaultPlan1yPriceMinor: vaultPlan1yPriceMinor.toString(),
@@ -1678,7 +1589,6 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
       set: {
         fundingLimit: formatMinorAmount(fundingLimitMinor),
         secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
-        unverifiedDashboardMessage,
         vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
         vaultPlan3mPriceMinor: vaultPlan3mPriceMinor.toString(),
         vaultPlan1yPriceMinor: vaultPlan1yPriceMinor.toString(),
@@ -2837,7 +2747,6 @@ router.patch(
         return { recurringActive: true as const };
       }
       const now = new Date();
-      const proofPathToDelete = user.vaultSubscriptionProofObjectPath;
       const [updated] = await tx
         .update(bankUsersTable)
         .set({
@@ -2848,11 +2757,6 @@ router.patch(
           vaultSubscriptionExpiresAt: null,
           vaultSubscriptionPlan: null,
           vaultSubscriptionAmountMinor: null,
-          vaultSubscriptionProofObjectPath: null,
-          vaultSubscriptionProofContentType: null,
-          vaultSubscriptionProofSizeBytes: null,
-          vaultSubscriptionProofFileName: null,
-          vaultSubscriptionProofUploadedAt: null,
           updatedAt: now,
         })
         .where(eq(bankUsersTable.id, user.id))
@@ -2866,7 +2770,7 @@ router.patch(
         action: "revoke_private_vault_subscription",
         reason: parsed.data.reason.trim(),
       });
-      return { user: updated, proofPathToDelete };
+      return { user: updated };
     });
     if ("notFound" in result) {
       res.status(404).json({ error: "User record not found." });
@@ -2877,12 +2781,6 @@ router.patch(
         error: "The member must cancel Paystack renewal before an administrator can remove Vault access.",
       });
       return;
-    }
-    if (result.proofPathToDelete) {
-      void deleteVaultSubscriptionProof(result.proofPathToDelete, result.user.id).catch(
-        (error) =>
-          req.log.error({ error }, "Could not delete reviewed private vault payment proof"),
-      );
     }
     res.json(
       UpdateAdminUserVaultSubscriptionResponse.parse({
@@ -2904,267 +2802,6 @@ router.get(
     res.status(410).json({
       error: "Manual subscription proof review is disabled. Paystack confirmation controls Vault activation.",
     });
-  },
-);
-
-router.get(
-  "/bank/admin/users/:userId/vault-subscription/proof",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const params = ListAdminIdentityDocumentsParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const [user] = await db
-      .select({
-        id: bankUsersTable.id,
-        status: bankUsersTable.vaultSubscriptionStatus,
-        objectPath: bankUsersTable.vaultSubscriptionProofObjectPath,
-        contentType: bankUsersTable.vaultSubscriptionProofContentType,
-      })
-      .from(bankUsersTable)
-      .where(eq(bankUsersTable.id, params.data.userId))
-      .limit(1);
-    if (
-      !user ||
-      user.status !== "pending" ||
-      !user.objectPath ||
-      !user.contentType
-    ) {
-      res.status(404).json({ error: "Pending payment proof was not found." });
-      return;
-    }
-    try {
-      const file = getVaultSubscriptionProofFile(user.objectPath, user.id);
-      res.setHeader("Content-Type", user.contentType);
-      res.setHeader(
-        "Content-Disposition",
-        user.contentType === "application/pdf"
-          ? 'attachment; filename="vault-payment-proof.pdf"'
-          : user.contentType === "image/png"
-            ? 'attachment; filename="vault-payment-proof.png"'
-            : 'attachment; filename="vault-payment-proof.jpg"',
-      );
-      res.setHeader("Cache-Control", "private, no-store");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      await pipeline(file.createReadStream(), res);
-    } catch (error) {
-      req.log.warn({ error }, "Private vault payment proof could not be streamed");
-      if (!res.headersSent) {
-        res.status(404).json({ error: "Pending payment proof could not be opened." });
-      }
-    }
-  },
-);
-
-router.get(
-  "/bank/admin/users/:userId/verification-documents",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const params = ListAdminIdentityDocumentsParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const [user] = await db
-      .select({
-        id: bankUsersTable.id,
-        verificationStatus: bankUsersTable.verificationStatus,
-      })
-      .from(bankUsersTable)
-      .where(eq(bankUsersTable.id, params.data.userId))
-      .limit(1);
-    if (!user) {
-      res.status(404).json({ error: "User record not found." });
-      return;
-    }
-    if (
-      user.verificationStatus !== "pending" &&
-      user.verificationStatus !== "additional_information_required"
-    ) {
-      res.json(ListAdminIdentityDocumentsResponse.parse([]));
-      return;
-    }
-    const documents = await db
-      .select()
-      .from(bankIdentityDocumentsTable)
-      .where(
-        and(
-          eq(bankIdentityDocumentsTable.userId, user.id),
-          eq(bankIdentityDocumentsTable.status, "uploaded"),
-        ),
-      )
-      .orderBy(asc(bankIdentityDocumentsTable.createdAt));
-    res.json(
-      ListAdminIdentityDocumentsResponse.parse(
-        documents.map((document) => ({
-          id: document.id,
-          contentType: document.contentType as
-            | "application/pdf"
-            | "image/jpeg"
-            | "image/png",
-          sizeBytes: document.sizeBytes,
-          status: document.status as "uploading" | "uploaded",
-          createdAt: document.createdAt.toISOString(),
-          uploadedAt: document.uploadedAt?.toISOString() ?? null,
-        })),
-      ),
-    );
-  },
-);
-
-router.get(
-  "/bank/admin/identity-documents/:documentId/content",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const params = GetAdminIdentityDocumentContentParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const [document] = await db
-      .select({
-        document: bankIdentityDocumentsTable,
-        verificationStatus: bankUsersTable.verificationStatus,
-      })
-      .from(bankIdentityDocumentsTable)
-      .innerJoin(
-        bankUsersTable,
-        eq(bankUsersTable.id, bankIdentityDocumentsTable.userId),
-      )
-      .where(
-        and(
-          eq(bankIdentityDocumentsTable.id, params.data.documentId),
-          eq(bankIdentityDocumentsTable.status, "uploaded"),
-        ),
-      )
-      .limit(1);
-    if (
-      !document ||
-      (document.verificationStatus !== "pending" &&
-        document.verificationStatus !== "additional_information_required")
-    ) {
-      res.status(404).json({ error: "Identity document not found." });
-      return;
-    }
-    try {
-      const file = getIdentityDocumentFile(document.document.objectPath);
-      const [exists] = await file.exists();
-      if (!exists) {
-        res.status(404).json({ error: "Identity document not found." });
-        return;
-      }
-      const extension =
-        document.document.contentType === "application/pdf"
-          ? "pdf"
-          : document.document.contentType === "image/png"
-            ? "png"
-            : "jpg";
-      res.setHeader("Content-Type", document.document.contentType);
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="identity-document-${document.document.id}.${extension}"`,
-      );
-      res.setHeader("Content-Length", String(document.document.sizeBytes));
-      res.setHeader("Cache-Control", "private, no-store");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      await pipeline(file.createReadStream(), res);
-    } catch (error) {
-      req.log.error({ err: error }, "Could not stream a private identity document");
-      if (!res.headersSent) {
-        res.status(503).json({ error: "The identity document is temporarily unavailable." });
-      } else {
-        res.destroy(error instanceof Error ? error : undefined);
-      }
-    }
-  },
-);
-
-router.patch(
-  "/bank/admin/users/:userId/verification",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const params = UpdateAdminUserVerificationParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const parsed = UpdateAdminUserVerificationBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
-      return;
-    }
-    const authenticatedClerkId = getAuth(req).userId;
-    if (!authenticatedClerkId) {
-      res.status(401).json({ error: "Sign in to access your Globus account." });
-      return;
-    }
-    const actorUserId = (await ensureBankUser(authenticatedClerkId)).id;
-    if (
-      params.data.userId === actorUserId &&
-      parsed.data.verificationStatus !== "approved"
-    ) {
-      res.status(400).json({
-        error: "Administrators may approve their own identity, but cannot reject or request more information from themselves.",
-      });
-      return;
-    }
-    const reason = parsed.data.reason.trim();
-    const userMessage = parsed.data.userMessage?.trim() ?? "";
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-      return;
-    }
-    if (
-      parsed.data.verificationStatus === "additional_information_required" &&
-      !userMessage
-    ) {
-      res.status(400).json({
-        error: "Include a message telling the user what additional information is needed.",
-      });
-      return;
-    }
-
-    let result: Awaited<ReturnType<typeof runIdentityReview>>;
-    try {
-      result = await runIdentityReview({
-        actorUserId,
-        userId: params.data.userId,
-        verificationStatus: parsed.data.verificationStatus,
-        reason,
-        userMessage: userMessage || null,
-      });
-    } catch (error) {
-      req.log.error({ err: error }, "Could not complete identity verification decision");
-      res.status(503).json({
-        error: "Private document cleanup failed. No final verification decision was recorded; retry the review.",
-      });
-      return;
-    }
-    if ("notFound" in result) {
-      res.status(404).json({ error: "User record not found." });
-      return;
-    }
-    if ("error" in result) {
-      res.status(409).json({ error: result.error });
-      return;
-    }
-    res.json(
-      UpdateAdminUserVerificationResponse.parse({
-        id: result.user.id,
-        email: result.user.email,
-        customerId: result.user.customerId,
-        firstName: result.user.firstName,
-        lastName: result.user.lastName,
-        country: result.user.country,
-        verificationStatus: result.user.verificationStatus,
-        verificationNote: result.user.verificationNote,
-        accountStatus: result.user.accountStatus,
-        walletCount: result.walletCount,
-        createdAt: result.user.createdAt.toISOString(),
-      }),
-    );
   },
 );
 
@@ -3674,11 +3311,11 @@ router.patch(
       }
       if (
         parsed.data.decision === "approve" &&
-        target.verificationStatus !== "approved"
+        !hasActiveVaultSubscription(target)
       ) {
         return {
           error:
-            "Identity verification must be approved before this deposit or withdrawal can be completed.",
+            "An active Private Vault subscription is required before this deposit or withdrawal can be completed.",
         };
       }
 

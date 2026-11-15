@@ -285,6 +285,7 @@ export interface BankProfile {
   /** @nullable */
   verificationNote: string | null;
   accountStatus: BankProfileAccountStatus;
+  vaultSubscriptionActive: boolean;
   depositAllowed: boolean;
   withdrawalAllowed: boolean;
   createdAt: string;
@@ -420,43 +421,6 @@ export interface BankVaultPaystackVerifyInput {
 
 export interface BankVaultTransferEmailAlert {
   enabled: boolean;
-}
-
-export type BankVaultProofUploadInputPlanCode = typeof BankVaultProofUploadInputPlanCode[keyof typeof BankVaultProofUploadInputPlanCode];
-
-
-export const BankVaultProofUploadInputPlanCode = {
-  '1m': '1m',
-  '3m': '3m',
-  '1y': '1y',
-} as const;
-
-export type BankVaultProofUploadInputContentType = typeof BankVaultProofUploadInputContentType[keyof typeof BankVaultProofUploadInputContentType];
-
-
-export const BankVaultProofUploadInputContentType = {
-  'application/pdf': 'application/pdf',
-  'image/jpeg': 'image/jpeg',
-  'image/png': 'image/png',
-} as const;
-
-export interface BankVaultProofUploadInput {
-  planCode: BankVaultProofUploadInputPlanCode;
-  contentType: BankVaultProofUploadInputContentType;
-  /**
-     * @minimum 1
-     * @maximum 10485760
-     */
-  sizeBytes: number;
-  /**
-     * @minLength 1
-     * @maxLength 120
-     */
-  fileName: string;
-}
-
-export interface BankVaultProofUploadResult {
-  uploadUrl: string;
 }
 
 export type BankVaultEmailPreferencesBannerTheme = typeof BankVaultEmailPreferencesBannerTheme[keyof typeof BankVaultEmailPreferencesBannerTheme];
@@ -779,56 +743,6 @@ export interface BankProfileInput {
   acceptedTerms: true;
 }
 
-export type IdentityDocumentContentType = typeof IdentityDocumentContentType[keyof typeof IdentityDocumentContentType];
-
-
-export const IdentityDocumentContentType = {
-  'application/pdf': 'application/pdf',
-  'image/jpeg': 'image/jpeg',
-  'image/png': 'image/png',
-} as const;
-
-export type IdentityDocumentStatus = typeof IdentityDocumentStatus[keyof typeof IdentityDocumentStatus];
-
-
-export const IdentityDocumentStatus = {
-  uploading: 'uploading',
-  uploaded: 'uploaded',
-} as const;
-
-export interface IdentityDocument {
-  id: string;
-  contentType: IdentityDocumentContentType;
-  /**
-     * @minimum 1
-     * @maximum 10485760
-     */
-  sizeBytes: number;
-  status: IdentityDocumentStatus;
-  createdAt: string;
-  /** @nullable */
-  uploadedAt: string | null;
-}
-
-export interface IdentityDocumentUploadInput {
-  contentType: IdentityDocumentContentType;
-  /**
-     * @minimum 1
-     * @maximum 10485760
-     */
-  sizeBytes: number;
-}
-
-export interface IdentityDocumentUploadUrl {
-  documentId: string;
-  uploadUrl: string;
-}
-
-export const IdentityVerificationSubmissionInputValue = {
-  confirmed: true,
-} as const;
-export type IdentityVerificationSubmissionInput = typeof IdentityVerificationSubmissionInputValue;
-
 export type BankTransactionMode = typeof BankTransactionMode[keyof typeof BankTransactionMode];
 
 
@@ -857,11 +771,6 @@ export interface BankDashboard {
   recentTransactions: BankTransaction[];
   referenceCurrency: CurrencyCode;
   internalLedger: true;
-  /**
-     * @maxLength 500
-     * @nullable
-     */
-  verificationNotice: string | null;
 }
 
 export interface TransferInput {
@@ -1369,26 +1278,6 @@ export interface AdminVaultSubscriptionResult {
   expiresAt: string | null;
 }
 
-export type AdminIdentityVerificationInputVerificationStatus = typeof AdminIdentityVerificationInputVerificationStatus[keyof typeof AdminIdentityVerificationInputVerificationStatus];
-
-
-export const AdminIdentityVerificationInputVerificationStatus = {
-  approved: 'approved',
-  rejected: 'rejected',
-  additional_information_required: 'additional_information_required',
-} as const;
-
-export interface AdminIdentityVerificationInput {
-  verificationStatus: AdminIdentityVerificationInputVerificationStatus;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-  /** @maxLength 500 */
-  userMessage?: string;
-}
-
 export type AdminFundingInputDirection = typeof AdminFundingInputDirection[keyof typeof AdminFundingInputDirection];
 
 
@@ -1742,11 +1631,6 @@ export interface AdminSettings {
   fundingLimit: string;
   secondApprovalThreshold: string;
   frozenIncomingPolicy: AdminSettingsFrozenIncomingPolicy;
-  /**
-     * @minLength 1
-     * @maxLength 500
-     */
-  unverifiedDashboardMessage: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   vaultPlan1mPrice: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
@@ -1761,11 +1645,6 @@ export interface AdminSettingsInput {
   fundingLimit: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   secondApprovalThreshold: string;
-  /**
-     * @minLength 1
-     * @maxLength 500
-     */
-  unverifiedDashboardMessage: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   vaultPlan1mPrice: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */

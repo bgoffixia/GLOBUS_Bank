@@ -95,55 +95,6 @@ paths:
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "409": { $ref: "#/components/responses/Conflict" }
-  /bank/vault/subscription:
-    post:
-      operationId: requestBankVaultSubscription
-      tags: [bank]
-      deprecated: true
-      summary: Disabled legacy manual subscription request
-      parameters:
-        - name: X-Globus-Vault-Session
-          in: header
-          required: true
-          schema: { type: string, minLength: 32, maxLength: 128 }
-      responses:
-        "200":
-          description: Legacy request result (route returns 410)
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/BankVaultStatus" }
-        "410":
-          description: Manual review is disabled; complete Paystack checkout instead
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
-  /bank/vault/subscription/proof-upload-url:
-    post:
-      operationId: createBankVaultSubscriptionProofUploadUrl
-      tags: [bank]
-      deprecated: true
-      summary: Disabled legacy subscription proof upload
-      parameters:
-        - name: X-Globus-Vault-Session
-          in: header
-          required: true
-          schema: { type: string, minLength: 32, maxLength: 128 }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/BankVaultProofUploadInput" }
-      responses:
-        "200":
-          description: Legacy upload result (route returns 410)
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/BankVaultProofUploadResult" }
-        "410":
-          description: Manual review is disabled; complete Paystack checkout instead
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/ErrorResponse" }
   /bank/vault/billing:
     get:
       operationId: getBankVaultBilling
@@ -801,114 +752,6 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-        "409":
-          $ref: "#/components/responses/Conflict"
-  /bank/verification/documents:
-    get:
-      operationId: listMyIdentityDocuments
-      tags: [bank]
-      summary: List identity documents belonging to the authenticated user
-      responses:
-        "200":
-          description: The user's identity documents
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/IdentityDocument"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-  /bank/verification/documents/upload-url:
-    post:
-      operationId: createIdentityDocumentUploadUrl
-      tags: [bank]
-      summary: Request a private upload URL for an identity document
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/IdentityDocumentUploadInput"
-      responses:
-        "201":
-          description: Upload URL
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdentityDocumentUploadUrl"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "409":
-          $ref: "#/components/responses/Conflict"
-  /bank/verification/documents/{documentId}/complete:
-    post:
-      operationId: completeIdentityDocumentUpload
-      tags: [bank]
-      summary: Validate and complete an identity document upload
-      parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Uploaded identity document
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/IdentityDocument"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
-  /bank/verification/documents/{documentId}:
-    delete:
-      operationId: deleteMyIdentityDocument
-      tags: [bank]
-      summary: Remove an identity document before it enters review
-      parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "204":
-          description: Document removed
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
-  /bank/verification/submit:
-    post:
-      operationId: submitIdentityDocuments
-      tags: [bank]
-      summary: Submit uploaded identity documents for review
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/IdentityVerificationSubmissionInput"
-      responses:
-        "200":
-          description: Verification request submitted
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/BankProfile"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
         "409":
           $ref: "#/components/responses/Conflict"
   /bank/transfers:
@@ -1583,33 +1426,6 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-  /bank/admin/users/{userId}/verification-documents:
-    get:
-      operationId: listAdminIdentityDocuments
-      tags: [admin]
-      summary: List a user's identity documents for admin review
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      responses:
-        "200":
-          description: Identity documents available for review
-          content:
-            application/json:
-              schema:
-                type: array
-                items:
-                  $ref: "#/components/schemas/IdentityDocument"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
   /bank/admin/users/{userId}/vault-subscription:
     patch:
       operationId: updateAdminUserVaultSubscription
@@ -1636,67 +1452,6 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
-  /bank/admin/identity-documents/{documentId}/content:
-    get:
-      operationId: getAdminIdentityDocumentContent
-      tags: [admin]
-      summary: Stream an identity document to an authorized admin
-      parameters:
-        - name: documentId
-          in: path
-          required: true
-          schema:
-            type: string
-            format: uuid
-      responses:
-        "200":
-          description: Private identity document content
-          content:
-            application/octet-stream:
-              schema:
-                type: string
-                format: binary
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-  /bank/admin/users/{userId}/verification:
-    patch:
-      operationId: updateAdminUserVerification
-      tags: [admin]
-      summary: Record an identity review decision
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema:
-            type: string
-            minLength: 1
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AdminIdentityVerificationInput"
-      responses:
-        "200":
-          description: Updated identity review status
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminUser"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
   /bank/admin/users/{userId}/funding:
     post:
       operationId: createAdminFunding
@@ -2095,10 +1850,11 @@ components:
         verificationStatus: { type: string, enum: [not_started, pending, approved, rejected, additional_information_required] }
         verificationNote: { type: ["string", "null"] }
         accountStatus: { type: string, enum: [active, restricted, suspended] }
+        vaultSubscriptionActive: { type: boolean }
         depositAllowed: { type: boolean }
         withdrawalAllowed: { type: boolean }
         createdAt: { type: string, format: date-time }
-      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, depositAllowed, withdrawalAllowed, createdAt]
+      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, vaultSubscriptionActive, depositAllowed, withdrawalAllowed, createdAt]
     BankVaultStatus:
       type: object
       properties:
@@ -2158,19 +1914,6 @@ components:
       properties:
         enabled: { type: boolean }
       required: [enabled]
-    BankVaultProofUploadInput:
-      type: object
-      properties:
-        planCode: { type: string, enum: [1m, 3m, 1y] }
-        contentType: { type: string, enum: [application/pdf, image/jpeg, image/png] }
-        sizeBytes: { type: integer, minimum: 1, maximum: 10485760 }
-        fileName: { type: string, minLength: 1, maxLength: 120 }
-      required: [planCode, contentType, sizeBytes, fileName]
-    BankVaultProofUploadResult:
-      type: object
-      properties:
-        uploadUrl: { type: string, format: uri }
-      required: [uploadUrl]
     BankVaultEmailPreferences:
       type: object
       properties:
@@ -2363,36 +2106,6 @@ components:
         dateOfBirth: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
         acceptedTerms: { type: boolean, const: true }
       required: [firstName, lastName, phone, country, acceptedTerms]
-    IdentityDocumentContentType:
-      type: string
-      enum: [application/pdf, image/jpeg, image/png]
-    IdentityDocument:
-      type: object
-      properties:
-        id: { type: string, format: uuid }
-        contentType: { $ref: "#/components/schemas/IdentityDocumentContentType" }
-        sizeBytes: { type: integer, minimum: 1, maximum: 10485760 }
-        status: { type: string, enum: [uploading, uploaded] }
-        createdAt: { type: string, format: date-time }
-        uploadedAt: { type: ["string", "null"], format: date-time }
-      required: [id, contentType, sizeBytes, status, createdAt, uploadedAt]
-    IdentityDocumentUploadInput:
-      type: object
-      properties:
-        contentType: { $ref: "#/components/schemas/IdentityDocumentContentType" }
-        sizeBytes: { type: integer, minimum: 1, maximum: 10485760 }
-      required: [contentType, sizeBytes]
-    IdentityDocumentUploadUrl:
-      type: object
-      properties:
-        documentId: { type: string, format: uuid }
-        uploadUrl: { type: string, format: uri }
-      required: [documentId, uploadUrl]
-    IdentityVerificationSubmissionInput:
-      type: object
-      properties:
-        confirmed: { type: boolean, const: true }
-      required: [confirmed]
     BankTransaction:
       type: object
       properties:
@@ -2420,8 +2133,7 @@ components:
           items: { $ref: "#/components/schemas/BankTransaction" }
         referenceCurrency: { $ref: "#/components/schemas/CurrencyCode" }
         internalLedger: { type: boolean, const: true }
-        verificationNotice: { type: ["string", "null"], maxLength: 500 }
-      required: [profile, wallets, recentTransactions, referenceCurrency, internalLedger, verificationNotice]
+      required: [profile, wallets, recentTransactions, referenceCurrency, internalLedger]
     TransferInput:
       type: object
       properties:
@@ -2650,13 +2362,6 @@ components:
         status: { type: string, enum: [inactive, pending, active, rejected, expired] }
         expiresAt: { type: ["string", "null"], format: date-time }
       required: [userId, status, expiresAt]
-    AdminIdentityVerificationInput:
-      type: object
-      properties:
-        verificationStatus: { type: string, enum: [approved, rejected, additional_information_required] }
-        reason: { type: string, minLength: 5, maxLength: 500 }
-        userMessage: { type: string, maxLength: 500 }
-      required: [verificationStatus, reason]
     AdminFundingInput:
       type: object
       properties:
@@ -2880,24 +2585,22 @@ components:
         fundingLimit: { type: string }
         secondApprovalThreshold: { type: string }
         frozenIncomingPolicy: { type: string, enum: [allow_frozen] }
-        unverifiedDashboardMessage: { type: string, minLength: 1, maxLength: 500 }
         vaultPlan1mPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan3mPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan1yPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         updatedAt: { type: string, format: date-time }
-      required: [customerEmailSenderDomain, customerEmailSenderDisplayName, fundingLimit, secondApprovalThreshold, frozenIncomingPolicy, unverifiedDashboardMessage, vaultPlan1mPrice, vaultPlan3mPrice, vaultPlan1yPrice, updatedAt]
+      required: [customerEmailSenderDomain, customerEmailSenderDisplayName, fundingLimit, secondApprovalThreshold, frozenIncomingPolicy, vaultPlan1mPrice, vaultPlan3mPrice, vaultPlan1yPrice, updatedAt]
     AdminSettingsInput:
       type: object
       properties:
         fundingLimit: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         secondApprovalThreshold: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
-        unverifiedDashboardMessage: { type: string, minLength: 1, maxLength: 500 }
         vaultPlan1mPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan3mPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan1yPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [fundingLimit, secondApprovalThreshold, unverifiedDashboardMessage, vaultPlan1mPrice, vaultPlan3mPrice, vaultPlan1yPrice, reason, transactionPin]
+      required: [fundingLimit, secondApprovalThreshold, vaultPlan1mPrice, vaultPlan3mPrice, vaultPlan1yPrice, reason, transactionPin]
     AdminTransactionPage:
       type: object
       properties:
