@@ -17,14 +17,16 @@ Member, incoming and external-recipient transfers and admin funding update ficti
 
 ## Run and configure
 
-The managed `artifacts/globus-bank: web` and `artifacts/api-server: API Server` workflows run the app and API. PostgreSQL is the workspace's managed development database.
+The managed `artifacts/globus-bank: web` and `artifacts/api-server: API Server` workflows run the app and API. The app uses Supabase PostgreSQL through `SUPABASE_DATABASE_URL`; configure it separately in Replit development Secrets and Production app secrets.
 
 ```sh
 pnpm --filter @workspace/api-spec run codegen
-pnpm --filter @workspace/db run push
+pnpm --filter @workspace/db run generate
 pnpm --filter @workspace/api-server run typecheck
 pnpm --filter @workspace/globus-bank run typecheck
 ```
+
+The post-merge setup applies checked-in migrations to the development database. Production migrations are manual: set `SUPABASE_DATABASE_URL` to the production Supabase connection string in a trusted shell and run `pnpm --filter @workspace/db run migrate` before publishing code that needs the new schema. Do not run migrations from app startup or deployment build steps.
 
 Replit-managed Clerk provisions `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` and `VITE_CLERK_PUBLISHABLE_KEY`. Do not copy their values into source files, chat, or `.env.example`. The production Clerk proxy URL is platform-managed.
 
