@@ -28,7 +28,7 @@ pnpm --filter @workspace/globus-bank run typecheck
 
 The post-merge setup applies checked-in migrations to the development database. Production migrations are manual: set `SUPABASE_DATABASE_URL` to the production Supabase connection string in a trusted shell and run `pnpm --filter @workspace/db run migrate` before publishing code that needs the new schema. Do not run migrations from app startup or deployment build steps.
 
-Replit-managed Clerk provisions `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` and `VITE_CLERK_PUBLISHABLE_KEY`. Do not copy their values into source files, chat, or `.env.example`. The production Clerk proxy URL is platform-managed.
+The app uses your external Clerk application. Configure `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` and `VITE_CLERK_PUBLISHABLE_KEY` separately in Replit's development Secrets and Publishing → Production app secrets. Use the external app's development keys in development and its production keys in production. Do not copy values into source files, chat or `.env.example`; configure the app's allowed domains and redirect URLs in Clerk.
 
 ### Simulation behavior
 
