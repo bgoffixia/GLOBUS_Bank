@@ -97,7 +97,7 @@ app.use("/api", router);
 if (process.env.SERVE_WEB_APP === "true") {
   const webRoot = path.resolve(
     process.cwd(),
-    "artifacts/globus-bank/dist/public",
+    "../globus-bank/dist/public",
   );
   app.use(express.static(webRoot, { index: false }));
   app.get("/{*splat}", (req, res, next) => {
