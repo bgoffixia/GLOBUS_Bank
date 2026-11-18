@@ -324,6 +324,71 @@ export async function finalizeSignupAndOpenDashboard(
   return { ok: true };
 }
 
+const signupFieldLabels: Record<string, string> = {
+  first_name: 'first name',
+  last_name: 'last name',
+  username: 'username',
+  email_address: 'email address',
+  password: 'password',
+  legal_accepted: 'account terms',
+  phone_number: 'phone number',
+};
+
+export function getSignupFinalizationBlocker({
+  status,
+  createdSessionId,
+  missingFields,
+}: {
+  status: 'missing_requirements' | 'complete' | 'abandoned' | string;
+  createdSessionId: string | null | undefined;
+  missingFields: readonly string[];
+}): { ready: true } | { ready: false; message: string } {
+  if (status === 'complete' && createdSessionId) return { ready: true };
+
+  if (missingFields.length > 0) {
+    const labels = [...new Set(missingFields.map((field) => signupFieldLabels[field]))]
+      .filter((label): label is string => Boolean(label));
+    if (labels.length > 0) {
+      return {
+        ready: false,
+        message: `Your email is verified, but Clerk still needs ${labels.join(', ')}. Review the required details to finish setting up your account.`,
+      };
+    }
+    return {
+      ready: false,
+      message: 'Your email is verified, but Clerk still needs additional account information. Review the required details to finish setup.',
+    };
+  }
+
+  if (status === 'complete') {
+    return {
+      ready: false,
+      message: 'Your email is verified, but no sign-in session was created. Try signing in or use account recovery if an account was already created.',
+    };
+  }
+
+  return {
+    ready: false,
+    message: 'Your email is verified, but account setup is not complete yet. Review the required details and try again.',
+  };
+}
+
+export async function finalizeSignupWhenSessionReady(
+  state: {
+    status: 'missing_requirements' | 'complete' | 'abandoned' | string;
+    createdSessionId: string | null | undefined;
+    missingFields: readonly string[];
+  },
+  finalize: () => Promise<{ error: { message?: string } | null }>,
+  clearProgress: () => void,
+  openDashboard: () => void,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const readiness = getSignupFinalizationBlocker(state);
+  if (!readiness.ready) return { ok: false, message: readiness.message };
+
+  return finalizeSignupAndOpenDashboard(finalize, clearProgress, openDashboard);
+}
+
 export async function saveSignupProfileWithoutBlocking(
   saveProfile: () => Promise<unknown>,
 ): Promise<boolean> {

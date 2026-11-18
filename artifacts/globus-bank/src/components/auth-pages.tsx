@@ -11,6 +11,8 @@ import {
   clearSignupProfileDraft,
   clearLocalSignupAttempt,
   finalizeSignupAndOpenDashboard,
+  finalizeSignupWhenSessionReady,
+  getSignupFinalizationBlocker,
   persistSignupProfileDraft,
   persistSignupProgress,
   readSignupProfileDraft,
@@ -978,6 +980,12 @@ export function ClerkSignUpForm() {
     signUp.requiredFields.includes('legal_accepted') ||
     signUp.missingFields.includes('legal_accepted');
   const emailVerified = signUp.verifications.emailAddress.status === 'verified';
+  const finalizationState = {
+    status: signUp.status,
+    createdSessionId: signUp.createdSessionId,
+    missingFields: signUp.missingFields,
+  };
+  const signupMissingFieldsKey = signUp.missingFields.join('|');
   const canResetSignupAttempt =
     Boolean(signUp.id) &&
     signUp.status !== 'complete' &&
@@ -1042,6 +1050,12 @@ export function ClerkSignUpForm() {
 
   const finalizeVerifiedAccount = async (allowRetry = false) => {
     if (finalizingRef.current) return;
+    const readiness = getSignupFinalizationBlocker(finalizationState);
+    if (!readiness.ready) {
+      setStage('verify');
+      setError(readiness.message);
+      return;
+    }
     if (
       !allowRetry &&
       finalizationAttemptedRef.current === (signUp.id ?? 'no-signup-id')
@@ -1068,7 +1082,8 @@ export function ClerkSignUpForm() {
         }
       }
 
-      const finalized = await finalizeSignupAndOpenDashboard(
+      const finalized = await finalizeSignupWhenSessionReady(
+        finalizationState,
         () => signUp.finalize({ navigate: () => undefined }),
         () => clearSignupProgress(signUp.id),
         () => setLocation('/dashboard', { replace: true }),
@@ -1087,7 +1102,14 @@ export function ClerkSignUpForm() {
     if (stage === 'verify' && emailVerified) {
       void finalizeVerifiedAccount();
     }
-  }, [stage, emailVerified, signUp.id]);
+  }, [
+    stage,
+    emailVerified,
+    signUp.id,
+    signUp.status,
+    signUp.createdSessionId,
+    signupMissingFieldsKey,
+  ]);
 
   const startSignUp = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -1142,10 +1164,14 @@ export function ClerkSignUpForm() {
         }
       }
 
-      if (signUp.status === 'complete' || emailVerified) {
+      if (signUp.status === 'complete' && signUp.createdSessionId) {
         persistSignupProgress(signUp.id, 'optional-profile');
         setStage('optional-profile');
-        setNotice('Your account is ready. Continue to email verification and profile setup.');
+        setNotice('Your account is ready. Continue to profile setup.');
+        return;
+      }
+      if (signUp.status === 'complete' && !signUp.createdSessionId) {
+        setError(getSignupFinalizationBlocker(finalizationState).message);
         return;
       }
 
@@ -1341,6 +1367,12 @@ export function ClerkSignUpForm() {
     setStage('optional-profile');
   };
 
+  const reviewRequiredSignupDetails = () => {
+    setError('');
+    setNotice('Your email is already verified. Re-enter the required account details and password to finish setup.');
+    setStage('details');
+  };
+
   const changeEmail = async () => {
     const reset = await clearLocalSignupAttempt(
       () => signUp.reset(),
@@ -1464,6 +1496,11 @@ export function ClerkSignUpForm() {
             )}
             {error && <p role="alert" className="gb-auth-error">{error}</p>}
             {notice && <p role="status" className="gb-auth-notice">{notice}</p>}
+            {emailVerified && signUp.status !== 'complete' && (
+              <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={reviewRequiredSignupDetails}>
+                Review required details
+              </button>
+            )}
             <button className="gb-primary-button" type="submit" disabled={busy || (!emailVerified && verificationCode.trim().length < 4)}>
               <span>{busy ? 'Verifying…' : emailVerified && error ? 'Try account setup again' : 'Verify email'}</span>
               <span aria-hidden="true">→</span>
