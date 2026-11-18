@@ -88,7 +88,8 @@ export function ClerkSignInForm() {
   const lookupCustomerId = useLookupCustomerId();
   const [customerId, setCustomerId] = useState('');
   const [email, setEmail] = useState('');
-  const [useEmail, setUseEmail] = useState(false);
+  const [username, setUsername] = useState('');
+  const [identifierMode, setIdentifierMode] = useState<'customerId' | 'username' | 'email'>('customerId');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationFactor, setVerificationFactor] = useState<
@@ -167,11 +168,13 @@ export function ClerkSignInForm() {
     event.preventDefault();
     setError('');
     try {
-      const identifier = useEmail
+      const identifier = identifierMode === 'email'
         ? email.trim()
-        : (await lookupCustomerId.mutateAsync({
-            data: { customerId: customerId.trim().toUpperCase() },
-          })).email;
+        : identifierMode === 'username'
+          ? username.trim()
+          : (await lookupCustomerId.mutateAsync({
+              data: { customerId: customerId.trim().toUpperCase() },
+            })).email;
       const result = await signIn.password({
         identifier,
         password,
@@ -210,7 +213,7 @@ export function ClerkSignInForm() {
       <div className="gb-form-heading">
         <span className="gb-step-label">MEMBER ACCESS <i /></span>
         <h1>Welcome back</h1>
-        <p>{useEmail ? 'Sign in with your email address and password.' : 'Use your Globus Customer ID to access your account.'}</p>
+        <p>{identifierMode === 'email' ? 'Sign in with your email address and password.' : identifierMode === 'username' ? 'Sign in with your Clerk username and password.' : 'Use your Globus Customer ID to access your account.'}</p>
       </div>
       {verificationFactor ? (
         <form className="gb-auth-form" onSubmit={submitVerificationCode}>
@@ -254,23 +257,25 @@ export function ClerkSignInForm() {
         </form>
       ) : (
         <form className="gb-auth-form" onSubmit={submit}>
-          <label className="gb-field-label" htmlFor={useEmail ? 'gb-signin-email' : 'gb-customer-id'}>
-            {useEmail ? 'Email address' : 'Customer ID'}
+          <label className="gb-field-label" htmlFor={identifierMode === 'email' ? 'gb-signin-email' : identifierMode === 'username' ? 'gb-signin-username' : 'gb-customer-id'}>
+            {identifierMode === 'email' ? 'Email address' : identifierMode === 'username' ? 'Username' : 'Customer ID'}
           </label>
           <input
-            id={useEmail ? 'gb-signin-email' : 'gb-customer-id'}
-            className={`gb-input ${useEmail ? '' : 'gb-customer-id-input'}`}
-            type={useEmail ? 'email' : 'text'}
-            autoComplete={useEmail ? 'email' : 'username'}
-            autoCapitalize={useEmail ? 'none' : 'characters'}
-            inputMode={useEmail ? 'email' : 'text'}
-            minLength={useEmail ? undefined : 7}
-            maxLength={useEmail ? 254 : 7}
-            pattern={useEmail ? undefined : '[A-Za-z0-9]{7}'}
-            value={useEmail ? email : customerId}
-            onChange={event => useEmail
-              ? setEmail(event.target.value)
-              : setCustomerId(event.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 7))}
+            id={identifierMode === 'email' ? 'gb-signin-email' : identifierMode === 'username' ? 'gb-signin-username' : 'gb-customer-id'}
+            className={`gb-input ${identifierMode === 'customerId' ? 'gb-customer-id-input' : ''}`}
+            type={identifierMode === 'email' ? 'email' : 'text'}
+            autoComplete={identifierMode === 'email' ? 'email' : 'username'}
+            autoCapitalize={identifierMode === 'email' ? 'none' : 'off'}
+            inputMode={identifierMode === 'email' ? 'email' : 'text'}
+            minLength={identifierMode === 'customerId' ? 7 : identifierMode === 'username' ? 6 : undefined}
+            maxLength={identifierMode === 'customerId' ? 7 : identifierMode === 'username' ? 12 : 254}
+            pattern={identifierMode === 'customerId' ? '[A-Za-z0-9]{7}' : identifierMode === 'username' ? '(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}' : undefined}
+            value={identifierMode === 'email' ? email : identifierMode === 'username' ? username : customerId}
+            onChange={event => {
+              if (identifierMode === 'email') setEmail(event.target.value);
+              else if (identifierMode === 'username') setUsername(event.target.value.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12));
+              else setCustomerId(event.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 7));
+            }}
             required
           />
           <label className="gb-field-label gb-signin-spaced-label" htmlFor="gb-customer-password">Password</label>
@@ -284,21 +289,58 @@ export function ClerkSignInForm() {
             required
           />
           {error && <p role="alert" className="gb-auth-error">{error}</p>}
-          <button className="gb-primary-button" type="submit" disabled={busy || (useEmail ? !email.trim() : customerId.length !== 7) || !password}>
-            <span>{busy ? 'Securely signing in…' : 'Sign in'}</span>
+          <button className="gb-primary-button" type="submit" disabled={busy || (identifierMode === 'email' ? !email.trim() : identifierMode === 'username' ? username.length < 6 || !/[A-Za-z]/.test(username) : customerId.length !== 7) || !password}>
+            <span>{busy ? 'Securely signing in…' : 'Sign in with password'}</span>
             <span aria-hidden="true">→</span>
           </button>
+          {identifierMode === 'email' && (
+            <button
+              className="gb-recovery-secondary"
+              type="button"
+              disabled={busy || !email.trim()}
+              onClick={async () => {
+                setError('');
+                try {
+                  const created = await signIn.create({ identifier: email.trim() });
+                  if (created.error) {
+                    setError(authFailureMessage(created.error, 'sign-in'));
+                    return;
+                  }
+                  const sent = await signIn.emailCode.sendCode();
+                  if (sent.error) {
+                    setError(authFailureMessage(sent.error, 'verification'));
+                    return;
+                  }
+                  setVerificationCode('');
+                  setVerificationFactor('first_email_code');
+                } catch (signInError) {
+                  setError(authFailureMessage(signInError, 'sign-in'));
+                }
+              }}
+            >
+              Sign in with an email verification code
+            </button>
+          )}
         </form>
       )}
       <div className="gb-login-recovery-actions">
         <button
           type="button"
           className="gb-login-recovery-action"
-          onClick={() => { setUseEmail(current => !current); setError(''); }}
-          aria-label={useEmail ? 'Use Customer ID to sign in' : 'Forgot your ID? Sign in with email instead'}
+          onClick={() => { setIdentifierMode(current => current === 'customerId' ? 'email' : 'customerId'); setError(''); }}
         >
-          {useEmail ? 'Use Customer ID' : 'Forgot your ID?'}
+          {identifierMode === 'customerId' ? 'Forgot your ID? Use email' : 'Use Customer ID'}
         </button>
+        {identifierMode !== 'username' && (
+          <button type="button" className="gb-login-recovery-action" onClick={() => { setIdentifierMode('username'); setError(''); }}>
+            Sign in with username
+          </button>
+        )}
+        {identifierMode === 'username' && (
+          <button type="button" className="gb-login-recovery-action" onClick={() => { setIdentifierMode('email'); setError(''); }}>
+            Use email instead
+          </button>
+        )}
         <Link className="gb-login-recovery-action" href="/sign-in/email">Forgot password</Link>
       </div>
       <p className="gb-switch-copy">New to Globus? <Link href="/sign-up">Create an account <span aria-hidden="true">→</span></Link></p>
@@ -673,7 +715,6 @@ export function ClerkSignUpForm() {
   const [notice, setNotice] = useState('');
 
   const busy = fetchStatus === 'fetching' || updateProfile.isPending || stage === 'finishing';
-  const clerkRequiresLastName = signUp.requiredFields.includes('last_name');
   const clerkFields = [...signUp.requiredFields, ...signUp.optionalFields];
   const clerkSupportsFirstName = clerkFields.includes('first_name');
   const clerkSupportsLastName = clerkFields.includes('last_name');
@@ -729,13 +770,15 @@ export function ClerkSignUpForm() {
     setError('');
     setNotice('');
 
-    if (
-      !firstName.trim() ||
-      (clerkRequiresLastName && !lastName.trim()) ||
-      !username.trim() ||
-      !email.trim() ||
-      !password
-    ) {
+    if (!firstName.trim() || !lastName.trim()) {
+      setError('Enter both your first name and last name, as required by Globus account setup.');
+      return;
+    }
+    if (!/^(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}$/.test(username)) {
+      setError('Choose a username with 6–12 letters, numbers, hyphens or underscores. It must include at least one letter.');
+      return;
+    }
+    if (!email.trim() || !password) {
       setError('Complete each required field before continuing.');
       return;
     }
@@ -818,11 +861,12 @@ export function ClerkSignUpForm() {
               </div>
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-last-name">Last name</label>
-                <input id="gb-signup-last-name" data-testid="input-signup-last-name" className="gb-input" type="text" autoComplete="family-name" maxLength={80} placeholder="Last name" value={lastName} onChange={event => setLastName(event.target.value)} required={clerkRequiresLastName} />
+                <input id="gb-signup-last-name" data-testid="input-signup-last-name" className="gb-input" type="text" autoComplete="family-name" maxLength={80} placeholder="Last name" value={lastName} onChange={event => setLastName(event.target.value)} required />
               </div>
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-username">Username</label>
-                <input id="gb-signup-username" data-testid="input-signup-username" className="gb-input" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="Choose a username" value={username} onChange={event => setUsername(event.target.value)} required />
+                <input id="gb-signup-username" data-testid="input-signup-username" className="gb-input" type="text" autoComplete="username" autoCapitalize="off" spellCheck={false} minLength={6} maxLength={12} pattern="(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}" placeholder="Choose a 6–12 character username" value={username} onChange={event => setUsername(event.target.value.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12))} required />
+                <p className="gb-password-hint">Use 6–12 characters. Include at least one letter; letters, numbers, hyphens and underscores are accepted.</p>
               </div>
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-email">Email address</label>

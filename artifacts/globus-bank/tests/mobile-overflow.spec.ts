@@ -119,7 +119,11 @@ test.describe('Globus sign-up design', () => {
         'Password',
       ]);
       await expect(page.getByTestId('input-signup-first-name')).toHaveAttribute('required', '');
+      await expect(page.getByTestId('input-signup-last-name')).toHaveAttribute('required', '');
       await expect(page.getByTestId('input-signup-username')).toHaveAttribute('required', '');
+      await expect(page.getByTestId('input-signup-username')).toHaveAttribute('minlength', '6');
+      await expect(page.getByTestId('input-signup-username')).toHaveAttribute('maxlength', '12');
+      await expect(page.getByTestId('input-signup-username')).toHaveAttribute('pattern', '(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}');
       await expect(page.getByTestId('input-signup-email')).toHaveAttribute('required', '');
       await expect(page.getByTestId('input-signup-password')).toHaveAttribute('required', '');
       await expect(page.getByTestId('input-signup-password')).toHaveAttribute('minlength', '8');
@@ -148,7 +152,7 @@ test.describe('Globus sign-up design', () => {
       await expect(page.getByText('Already have an account?')).toBeVisible();
       await expect(page.getByTestId('link-signup-sign-in')).toHaveText('Sign in');
       const footer = page.getByText('Secured by Clerk');
-      await footer.scrollIntoViewIfNeeded();
+      await footer.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
       await expect(footer).toBeVisible();
       const footerBox = await footer.boundingBox();
       expect(footerBox).not.toBeNull();
