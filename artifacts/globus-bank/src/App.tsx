@@ -1,13 +1,12 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { ClerkProvider, Show, useClerk, useUser } from '@clerk/react';
+import { ClerkProvider, Show, SignIn, SignUp, useClerk, useUser } from '@clerk/react';
 import { publishableKeyFromHost } from '@clerk/react/internal';
-import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { BankShell } from '@/components/bank-shell';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { AuthFrame, ClerkSignInForm, ClerkSignUpForm, EmailRecoverySignInForm } from '@/components/auth-pages';
+import { AuthFrame, BankProfileCompletionPage, ClerkSignInForm, EmailRecoverySignInForm } from '@/components/auth-pages';
 import { PasswordResetLinkPage, RequiredPasswordResetPage } from '@/components/auth-pages';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { GlobusLoader } from '@/components/globus-loader';
@@ -55,57 +54,6 @@ function stripBase(path: string): string {
 if (!clerkPubKey) {
   throw new Error('Missing VITE_CLERK_PUBLISHABLE_KEY in .env file');
 }
-
-const clerkAppearance = {
-  theme: shadcn,
-  cssLayerName: 'clerk',
-  options: {
-    logoPlacement: 'inside' as const,
-    logoLinkUrl: basePath || '/',
-    logoImageUrl: `${window.location.origin}${basePath}/globus-wordmark-transparent.png`,
-  },
-  variables: {
-    colorPrimary: '#173b62',
-    colorForeground: '#203851',
-    colorMutedForeground: '#728296',
-    colorDanger: '#b64d45',
-    colorBackground: '#ffffff',
-    colorInput: '#fbfcfd',
-    colorInputForeground: '#30465f',
-    colorNeutral: '#dfe6ec',
-    fontFamily: 'DM Sans, sans-serif',
-    borderRadius: '0.8rem',
-  },
-  elements: {
-    rootBox: 'w-full flex justify-center',
-    cardBox: 'bg-transparent rounded-none w-full max-w-[440px] overflow-hidden border-0 shadow-none',
-    card: '!shadow-none !border-0 !bg-transparent !rounded-none !p-0',
-    footer: '!shadow-none !border-0 !bg-transparent !rounded-none',
-    header: 'hidden',
-    headerTitle: 'font-semibold tracking-tight text-[#18324f]',
-    headerSubtitle: 'text-[#718196]',
-    formFieldLabel: 'font-semibold text-[#435971]',
-    footerActionLink: 'font-semibold text-[#357b83]',
-    footerActionText: 'text-[#718196]',
-    dividerText: 'text-[#8290a0]',
-    identityPreviewEditButton: 'text-[#357b83]',
-    formFieldSuccessText: 'text-[#397a62]',
-    alertText: 'text-[#a24940]',
-    logoBox: 'mb-3',
-    logoImage: 'h-auto max-h-12 max-w-[180px]',
-    socialButtonsBlock: 'hidden',
-    dividerRow: 'hidden',
-    socialButtonsBlockButton: 'hidden',
-    formButtonPrimary: 'bg-[#173b62] hover:bg-[#214c76] text-white',
-    formFieldInput: 'border-[#dfe6ec] bg-[#fbfcfd] text-[#30465f]',
-    footerAction: 'text-[#718196]',
-    dividerLine: 'bg-[#e4e9ed]',
-    alert: 'border-[#efd8d3] bg-[#fff7f5]',
-    otpCodeFieldInput: 'border-[#dfe6ec] text-[#30465f]',
-    formFieldRow: 'gap-1',
-    main: 'gap-5',
-  },
-};
 
 function HomeRedirect() {
   return (
@@ -167,9 +115,16 @@ function SignInPage() {
         <Redirect to="/dashboard" />
       </Show>
       <Show when="signed-out">
-        <AuthFrame mode="sign-in">
-          <ClerkSignInForm />
-        </AuthFrame>
+        <div className="min-h-screen w-full flex flex-col items-center justify-center gap-4 p-4">
+          <SignIn
+            routing="hash"
+            signUpUrl={`${basePath}/sign-up`}
+            forceRedirectUrl={`${basePath}/dashboard`}
+          />
+          <p className="text-sm text-muted-foreground">
+            Prefer your Globus Customer ID? <Link href="/sign-in/customer-id" className="underline">Use Customer ID sign-in</Link>
+          </p>
+        </div>
       </Show>
     </>
   );
@@ -185,9 +140,13 @@ function EmailRecoveryPage() {
 
 function SignUpPage() {
   return (
-    <AuthFrame mode="sign-up">
-      <ClerkSignUpForm />
-    </AuthFrame>
+    <div className="min-h-screen w-full flex items-center justify-center p-4">
+      <SignUp
+        routing="hash"
+        signInUrl={`${basePath}/sign-in`}
+        forceRedirectUrl={`${basePath}/complete-profile`}
+      />
+    </div>
   );
 }
 
@@ -220,23 +179,8 @@ function ClerkRoutes() {
     <ClerkProvider
       publishableKey={clerkPubKey}
       proxyUrl={clerkProxyUrl || undefined}
-      appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
-      localization={{
-        signIn: {
-          start: {
-            title: 'Welcome back',
-            subtitle: 'Sign in to access your Globus workspace',
-          },
-        },
-        signUp: {
-          start: {
-            title: 'Set up your account',
-            subtitle: 'Create a secure account to explore Globus',
-          },
-        },
-      }}
       routerPush={(to) => setLocation(stripBase(to))}
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
@@ -252,6 +196,8 @@ function ClerkRoutes() {
           </Show>
         </Route>
         <Route path="/sign-in/email" component={EmailRecoveryPage} />
+        <Route path="/sign-in/customer-id"><AuthFrame mode="sign-in"><ClerkSignInForm /></AuthFrame></Route>
+        <Route path="/complete-profile"><Show when="signed-in"><BankProfileCompletionPage /></Show><Show when="signed-out"><Redirect to="/sign-in" /></Show></Route>
         <Route path="/sign-in/recover" component={PasswordResetLinkPage} />
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />
