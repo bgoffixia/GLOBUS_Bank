@@ -2,6 +2,13 @@ import { existsSync } from 'node:fs';
 import { test, expect, type Page } from '@playwright/test';
 
 const viewportWidths = [320, 360, 375, 402];
+const authViewports = [
+  { name: '320px mobile', width: 320, height: 760 },
+  { name: '360px mobile', width: 360, height: 800 },
+  { name: '390px mobile', width: 390, height: 844 },
+  { name: 'tablet', width: 768, height: 1024 },
+  { name: 'desktop', width: 1440, height: 900 },
+];
 const authenticatedState = process.env.GLOBUS_VIEWPORT_STORAGE_STATE;
 const validAuthenticatedState =
   authenticatedState && existsSync(authenticatedState) ? authenticatedState : undefined;
@@ -85,6 +92,47 @@ async function openAndCheck(page: Page, path: string, width: number, context: st
   await expectNoHorizontalOverflow(page, `${context} at ${width}px (${path})`);
 }
 
+async function expectNoSignUpLayoutOverlap(page: Page, context: string) {
+  const overlaps = await page.evaluate(() => {
+    const isVisible = (element: Element) => {
+      const style = window.getComputedStyle(element);
+      const rect = element.getBoundingClientRect();
+      return style.display !== 'none' && style.visibility !== 'hidden' &&
+        Number(style.opacity) !== 0 && rect.width > 0 && rect.height > 0;
+    };
+    const containers = [
+      '.gb-auth-content',
+      '.gb-signup-form-wrap',
+      'form.gb-signup-form',
+      '.gb-signup-fields',
+      '.gb-signup-fields .gb-field',
+    ];
+    const collisions: string[] = [];
+
+    for (const selector of containers) {
+      for (const container of Array.from(document.querySelectorAll<HTMLElement>(selector))) {
+        const children = Array.from(container.children).filter(isVisible) as HTMLElement[];
+        for (let first = 0; first < children.length; first += 1) {
+          const firstRect = children[first].getBoundingClientRect();
+          for (let second = first + 1; second < children.length; second += 1) {
+            const secondRect = children[second].getBoundingClientRect();
+            const intersects =
+              Math.min(firstRect.right, secondRect.right) - Math.max(firstRect.left, secondRect.left) > 1 &&
+              Math.min(firstRect.bottom, secondRect.bottom) - Math.max(firstRect.top, secondRect.top) > 1;
+            if (intersects) {
+              collisions.push(`${selector}: ${children[first].className || children[first].tagName} overlaps ${children[second].className || children[second].tagName}`);
+            }
+          }
+        }
+      }
+    }
+
+    return collisions;
+  });
+
+  expect(overlaps, `${context}: sign-up elements overlap: ${overlaps.join('; ')}`).toEqual([]);
+}
+
 test.describe('public and authentication pages at phone widths', () => {
   for (const width of viewportWidths) {
     test(`landing, sign-in, and sign-up fit at ${width}px`, async ({ page }) => {
@@ -96,11 +144,7 @@ test.describe('public and authentication pages at phone widths', () => {
 });
 
 test.describe('Globus sign-up design', () => {
-  for (const viewport of [
-    { name: 'small mobile', width: 320, height: 760 },
-    { name: 'mobile', width: 390, height: 844 },
-    { name: 'desktop', width: 1440, height: 1000 },
-  ]) {
+  for (const viewport of authViewports) {
     test(`shows the requested account fields and layout on ${viewport.name}`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/sign-up', { waitUntil: 'domcontentloaded' });
@@ -146,11 +190,15 @@ test.describe('Globus sign-up design', () => {
       expect(formBox).not.toBeNull();
       expect(buttonBox).not.toBeNull();
       expect(buttonBox!.width).toBeGreaterThanOrEqual(formBox!.width - 1);
-      expect(inputStyle.height).toBeGreaterThanOrEqual(50);
-      expect(inputStyle.borderRadius).toBe('12px');
+      expect(inputStyle.height).toBeGreaterThanOrEqual(44);
+      expect(inputStyle.height).toBeLessThanOrEqual(50);
+      expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
+      expect(buttonBox!.height).toBeLessThanOrEqual(52);
+      expect(inputStyle.borderRadius).toBe('10px');
       expect(shellStyle).toBe('rgb(255, 255, 255)');
       await expect(page.getByText('Already have an account?')).toBeVisible();
       await expect(page.getByTestId('link-signup-sign-in')).toHaveText('Sign in');
+      await expectNoSignUpLayoutOverlap(page, `Sign-up at ${viewport.width}px`);
       const footer = page.getByText('Secured by Clerk');
       await footer.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
       await expect(footer).toBeVisible();
@@ -162,23 +210,78 @@ test.describe('Globus sign-up design', () => {
     });
   }
 
-  test('keeps the existing sign-in layout separate', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
+  test('keeps sign-up content reachable by natural scrolling on a short phone screen', async ({ page }) => {
+    await page.setViewportSize({ width: 320, height: 400 });
+    await page.goto('/sign-up', { waitUntil: 'domcontentloaded' });
 
-    await expect(page.locator('.gb-auth-shell')).toBeVisible();
-    await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
-    await expect(page.locator('#gb-customer-id')).toBeVisible();
-    await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
+    const scrollState = await page.evaluate(() => ({
+      documentHeight: document.documentElement.scrollHeight,
+      viewportHeight: window.innerHeight,
+      overflowY: getComputedStyle(document.querySelector('.gb-auth-signup-shell')!).overflowY,
+    }));
+    expect(scrollState.documentHeight).toBeGreaterThan(scrollState.viewportHeight);
+    expect(scrollState.overflowY).not.toBe('hidden');
+
+    const footer = page.getByText('Secured by Clerk');
+    await footer.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
+    const footerBox = await footer.boundingBox();
+    expect(footerBox).not.toBeNull();
+    expect(footerBox!.y).toBeGreaterThanOrEqual(0);
+    expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(400);
+    await expectNoHorizontalOverflow(page, 'Sign-up at 320px with a short viewport');
+  });
+
+  test('keeps long validation feedback clear of the continue button', async ({ page }) => {
+    for (const viewport of authViewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto('/sign-up', { waitUntil: 'domcontentloaded' });
+
+      await page.locator('form.gb-signup-form').evaluate((form) => {
+        const message = document.createElement('p');
+        message.setAttribute('role', 'alert');
+        message.className = 'gb-auth-error';
+        message.textContent = `We could not finish creating the account. ${'A'.repeat(90)} Please review the details and try again.`;
+        form.querySelector('button')?.before(message);
+      });
+
+      const message = page.locator('form.gb-signup-form [role="alert"]');
+      const button = page.locator('form.gb-signup-form button');
+      await expect(message).toBeVisible();
+      const [messageBox, buttonBox] = await Promise.all([
+        message.boundingBox(),
+        button.boundingBox(),
+      ]);
+      expect(messageBox).not.toBeNull();
+      expect(buttonBox).not.toBeNull();
+      expect(messageBox!.y + messageBox!.height).toBeLessThanOrEqual(buttonBox!.y + 1);
+      await expectNoSignUpLayoutOverlap(page, `Sign-up validation at ${viewport.width}px`);
+      await expectNoHorizontalOverflow(page, `Sign-up validation at ${viewport.width}px`);
+    }
+  });
+
+  test('keeps the existing sign-in layout separate', async ({ page }) => {
+    for (const viewport of authViewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
+
+      await expect(page.locator('.gb-auth-shell')).toBeVisible();
+      await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
+      await expect(page.locator('#gb-customer-id')).toBeVisible();
+      await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
+      await expectNoHorizontalOverflow(page, `Sign-in at ${viewport.width}px`);
+    }
   });
 
   test('keeps the existing email-recovery route available', async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto('/sign-in/email', { waitUntil: 'domcontentloaded' });
+    for (const viewport of authViewports) {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto('/sign-in/email', { waitUntil: 'domcontentloaded' });
 
-    await expect(page.locator('.gb-auth-shell')).toBeVisible();
-    await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
-    await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
+      await expect(page.locator('.gb-auth-shell')).toBeVisible();
+      await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
+      await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
+      await expectNoHorizontalOverflow(page, `Recovery at ${viewport.width}px`);
+    }
   });
 });
 
