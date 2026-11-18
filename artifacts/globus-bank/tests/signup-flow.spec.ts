@@ -4,6 +4,8 @@ import {
   clearSignupProgress,
   clearLocalSignupAttempt,
   finalizeSignupAndOpenDashboard,
+  finalizeSignupWhenSessionReady,
+  getSignupFinalizationBlocker,
   persistSignupProfileDraft,
   persistSignupProgress,
   readSignupProfileDraft,
@@ -221,6 +223,68 @@ test('failed Clerk finalization does not redirect to the dashboard', async () =>
     message: 'Verification is incomplete.',
   });
   expect(navigations).toEqual([]);
+});
+
+test('does not finalize a verified sign-up until Clerk has a created session', async () => {
+  let finalizeCalled = false;
+  const navigations: string[] = [];
+  const result = await finalizeSignupWhenSessionReady(
+    {
+      status: 'missing_requirements',
+      createdSessionId: null,
+      missingFields: ['username'],
+    },
+    async () => {
+      finalizeCalled = true;
+      return { error: null };
+    },
+    () => navigations.push('clear'),
+    () => navigations.push('dashboard'),
+  );
+
+  expect(result).toEqual({
+    ok: false,
+    message: 'Your email is verified, but Clerk still needs username. Review the required details to finish setting up your account.',
+  });
+  expect(finalizeCalled).toBe(false);
+  expect(navigations).toEqual([]);
+});
+
+test('completed sign-up without a session gets an account recovery message', () => {
+  const result = getSignupFinalizationBlocker({
+    status: 'complete',
+    createdSessionId: null,
+    missingFields: [],
+  });
+  expect(result.ready).toBe(false);
+  if (!result.ready) {
+    expect(result.message).toContain('no sign-in session was created');
+    expect(result.message).toContain('account recovery');
+  }
+});
+
+test('identifies a Clerk phone requirement without silently making phone auth part of signup', () => {
+  const result = getSignupFinalizationBlocker({
+    status: 'missing_requirements',
+    createdSessionId: null,
+    missingFields: ['phone_number'],
+  });
+  expect(result.ready).toBe(false);
+  if (!result.ready) {
+    expect(result.message).toContain('phone number');
+    expect(result.message).toContain('Phone verification is not part of this sign-up flow');
+    expect(result.message).toContain('account recovery');
+  }
+});
+
+test('only a completed sign-up with a session can be finalized', () => {
+  expect(
+    getSignupFinalizationBlocker({
+      status: 'complete',
+      createdSessionId: 'sess_created_123',
+      missingFields: [],
+    }),
+  ).toEqual({ ready: true });
 });
 
 test('profile persistence errors never block a verified session and retain the draft', async () => {

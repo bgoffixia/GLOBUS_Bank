@@ -349,9 +349,12 @@ export function getSignupFinalizationBlocker({
     const labels = [...new Set(missingFields.map((field) => signupFieldLabels[field]))]
       .filter((label): label is string => Boolean(label));
     if (labels.length > 0) {
+      const phoneRequirement = missingFields.includes('phone_number')
+        ? ' Phone verification is not part of this sign-up flow, so use sign-in or account recovery, or ask Globus support to review that requirement.'
+        : '';
       return {
         ready: false,
-        message: `Your email is verified, but Clerk still needs ${labels.join(', ')}. Review the required details to finish setting up your account.`,
+        message: `Your email is verified, but Clerk still needs ${labels.join(', ')}. Review the required details to finish setting up your account.${phoneRequirement}`,
       };
     }
     return {

@@ -10,7 +10,6 @@ import {
   clearSignupProgress,
   clearSignupProfileDraft,
   clearLocalSignupAttempt,
-  finalizeSignupAndOpenDashboard,
   finalizeSignupWhenSessionReady,
   getSignupFinalizationBlocker,
   persistSignupProfileDraft,
@@ -985,7 +984,26 @@ export function ClerkSignUpForm() {
     createdSessionId: signUp.createdSessionId,
     missingFields: signUp.missingFields,
   };
+  const signupFinalizationReadiness = getSignupFinalizationBlocker(finalizationState);
+  const onlyTermsRemaining =
+    emailVerified &&
+    acceptedTerms &&
+    signUp.missingFields.length === 1 &&
+    signUp.missingFields[0] === 'legal_accepted';
+  const canSubmitVerifiedSignup =
+    emailVerified &&
+    (signupFinalizationReadiness.ready || onlyTermsRemaining);
   const signupMissingFieldsKey = signUp.missingFields.join('|');
+  const canReviewSignupDetails = signUp.missingFields.every((field) =>
+    [
+      'first_name',
+      'last_name',
+      'username',
+      'email_address',
+      'password',
+      'legal_accepted',
+    ].includes(field),
+  );
   const canResetSignupAttempt =
     Boolean(signUp.id) &&
     signUp.status !== 'complete' &&
@@ -1050,19 +1068,12 @@ export function ClerkSignUpForm() {
 
   const finalizeVerifiedAccount = async (allowRetry = false) => {
     if (finalizingRef.current) return;
-    const readiness = getSignupFinalizationBlocker(finalizationState);
-    if (!readiness.ready) {
-      setStage('verify');
-      setError(readiness.message);
-      return;
-    }
     if (
       !allowRetry &&
       finalizationAttemptedRef.current === (signUp.id ?? 'no-signup-id')
     ) {
       return;
     }
-    finalizationAttemptedRef.current = signUp.id ?? 'no-signup-id';
     finalizingRef.current = true;
     setStage('finishing');
     setError('');
@@ -1082,8 +1093,23 @@ export function ClerkSignUpForm() {
         }
       }
 
+      const stateAfterRequiredUpdates = {
+        status: signUp.status,
+        createdSessionId: signUp.createdSessionId,
+        missingFields: signUp.missingFields.filter(
+          (field) => !(acceptedTerms && field === 'legal_accepted'),
+        ),
+      };
+      const readiness = getSignupFinalizationBlocker(stateAfterRequiredUpdates);
+      if (!readiness.ready) {
+        setStage('verify');
+        setError(readiness.message);
+        return;
+      }
+
+      finalizationAttemptedRef.current = signUp.id ?? 'no-signup-id';
       const finalized = await finalizeSignupWhenSessionReady(
-        finalizationState,
+        stateAfterRequiredUpdates,
         () => signUp.finalize({ navigate: () => undefined }),
         () => clearSignupProgress(signUp.id),
         () => setLocation('/dashboard', { replace: true }),
@@ -1171,7 +1197,10 @@ export function ClerkSignUpForm() {
         return;
       }
       if (signUp.status === 'complete' && !signUp.createdSessionId) {
-        setError(getSignupFinalizationBlocker(finalizationState).message);
+        const readiness = getSignupFinalizationBlocker(finalizationState);
+        setError(readiness.ready
+          ? 'Your email is verified, but Clerk did not create a sign-in session. Try signing in or use account recovery.'
+          : readiness.message);
         return;
       }
 
@@ -1486,8 +1515,12 @@ export function ClerkSignUpForm() {
             <p>Enter the code we sent to <strong>{email || signUp.emailAddress}</strong> to verify your address.</p>
           </div>
           <form className="gb-auth-form" onSubmit={verifyEmail}>
-            <label className="gb-field-label" htmlFor="gb-verification-code">Email verification code</label>
-            <input id="gb-verification-code" data-testid="input-signup-verification-code" className="gb-input gb-code-input" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={12} value={verificationCode} onChange={event => setVerificationCode(event.target.value)} required />
+            {!emailVerified && (
+              <>
+                <label className="gb-field-label" htmlFor="gb-verification-code">Email verification code</label>
+                <input id="gb-verification-code" data-testid="input-signup-verification-code" className="gb-input gb-code-input" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={12} value={verificationCode} onChange={event => setVerificationCode(event.target.value)} required />
+              </>
+            )}
             {signUp.missingFields.includes('legal_accepted') && (
               <label className="gb-terms-check gb-signup-terms">
                 <input data-testid="checkbox-signup-terms" type="checkbox" checked={acceptedTerms} onChange={event => setAcceptedTerms(event.target.checked)} required />
@@ -1496,15 +1529,17 @@ export function ClerkSignUpForm() {
             )}
             {error && <p role="alert" className="gb-auth-error">{error}</p>}
             {notice && <p role="status" className="gb-auth-notice">{notice}</p>}
-            {emailVerified && signUp.status !== 'complete' && (
+            {emailVerified && signUp.status !== 'complete' && canReviewSignupDetails && (
               <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={reviewRequiredSignupDetails}>
                 Review required details
               </button>
             )}
-            <button className="gb-primary-button" type="submit" disabled={busy || (!emailVerified && verificationCode.trim().length < 4)}>
-              <span>{busy ? 'Verifying…' : emailVerified && error ? 'Try account setup again' : 'Verify email'}</span>
-              <span aria-hidden="true">→</span>
-            </button>
+            {(!emailVerified || canSubmitVerifiedSignup) && (
+              <button className="gb-primary-button" type="submit" disabled={busy || (!emailVerified && verificationCode.trim().length < 4)}>
+                <span>{busy ? 'Verifying…' : emailVerified ? 'Finish account setup' : 'Verify email'}</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            )}
           </form>
           <div className="gb-verification-actions">
             {!emailVerified && signUp.status !== 'complete' && (
@@ -1518,6 +1553,11 @@ export function ClerkSignUpForm() {
               </>
             )}
           </div>
+          {emailVerified && (
+            <p className="gb-switch-copy gb-signup-switch">
+              Need account access? <Link href="/sign-in">Sign in</Link> or <Link href="/sign-in/email">recover it</Link>.
+            </p>
+          )}
         </>
       )}
 
