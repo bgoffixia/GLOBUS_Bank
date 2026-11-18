@@ -273,9 +273,37 @@ export function ClerkSignInForm() {
           />
           {error && <p role="alert" className="gb-auth-error">{error}</p>}
           <button className="gb-primary-button" type="submit" disabled={busy || (identifierMode === 'email' ? !email.trim() : identifierMode === 'username' ? username.length < 6 || !/[A-Za-z]/.test(username) : customerId.length !== 7) || !password}>
-            <span>{busy ? 'Securely signing in…' : 'Sign in'}</span>
+            <span>{busy ? 'Securely signing in…' : 'Sign in with password'}</span>
             <span aria-hidden="true">→</span>
           </button>
+          {identifierMode === 'email' && (
+            <button
+              className="gb-recovery-secondary"
+              type="button"
+              disabled={busy || !email.trim()}
+              onClick={async () => {
+                setError('');
+                try {
+                  const created = await signIn.create({ identifier: email.trim() });
+                  if (created.error) {
+                    setError(authFailureMessage(created.error, 'sign-in'));
+                    return;
+                  }
+                  const sent = await signIn.emailCode.sendCode();
+                  if (sent.error) {
+                    setError(authFailureMessage(sent.error, 'verification'));
+                    return;
+                  }
+                  setVerificationCode('');
+                  setVerificationFactor('first_email_code');
+                } catch (signInError) {
+                  setError(authFailureMessage(signInError, 'sign-in'));
+                }
+              }}
+            >
+              Sign in with an email verification code
+            </button>
+          )}
         </form>
       )}
       <div className="gb-login-recovery-actions">
