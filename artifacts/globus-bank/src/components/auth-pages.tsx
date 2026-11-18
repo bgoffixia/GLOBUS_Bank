@@ -1,8 +1,20 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { useClerk, useSignIn, useSignUp, useUser } from '@clerk/react';
-import { getGetBankProfileQueryKey, useCompleteRequiredPasswordReset, useGetBankProfile, useLookupCustomerId, useUpdateBankProfile } from '@workspace/api-client-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { getGetBankDashboardQueryKey, getGetBankProfileQueryKey, useCompleteRequiredPasswordReset, useGetBankProfile, useLookupCustomerId, useUpdateBankProfile } from '@workspace/api-client-react';
 import { Link, useLocation } from 'wouter';
 import { authFailureMessage, signInNextStep } from '../lib/auth-errors';
+import {
+  clearSignupProgress,
+  buildBankProfileInput,
+  finalizeSignupAndSaveProfile,
+  getProfileCompletionError,
+  isBankProfileComplete,
+  persistSignupProgress,
+  readSignupProgress,
+  resolveSignupResumeStage,
+  verifyEmailCodeAndContinue,
+} from '../lib/signup-flow';
 import './auth-pages.css';
 
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
@@ -694,11 +706,19 @@ export function RequiredPasswordResetPage() {
   );
 }
 
-type SignUpStage = 'details' | 'verify' | 'profile' | 'finishing' | 'profile-error';
+type SignUpStage = 'details' | 'verify' | 'profile' | 'finishing';
 
 export function ClerkSignUpForm() {
   const [, setLocation] = useLocation();
   const { signUp, fetchStatus } = useSignUp();
+  const { isLoaded: userLoaded, user } = useUser();
+  const queryClient = useQueryClient();
+  const profileQuery = useGetBankProfile({
+    query: {
+      queryKey: getGetBankProfileQueryKey(),
+      enabled: userLoaded && Boolean(user),
+    },
+  });
   const updateProfile = useUpdateBankProfile();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
@@ -710,45 +730,146 @@ export function ClerkSignUpForm() {
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [acceptedTerms, setAcceptedTerms] = useState(false);
-  const [stage, setStage] = useState<SignUpStage>('details');
+  const [showIdentityFields, setShowIdentityFields] = useState(false);
+  const [stage, setStage] = useState<SignUpStage>(() => {
+    const emailVerified = signUp.verifications.emailAddress.status === 'verified';
+    const resumeStage = resolveSignupResumeStage({
+      isSignedIn: Boolean(user),
+      profileComplete: false,
+      emailVerified,
+      clerkStatus: signUp.status,
+      persistedStage: readSignupProgress(signUp.id),
+    });
+    return resumeStage === 'dashboard' ? 'profile' : resumeStage;
+  });
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
+  const finalizedSignupRef = useRef(false);
 
   const busy = fetchStatus === 'fetching' || updateProfile.isPending || stage === 'finishing';
   const clerkFields = [...signUp.requiredFields, ...signUp.optionalFields];
   const clerkSupportsFirstName = clerkFields.includes('first_name');
   const clerkSupportsLastName = clerkFields.includes('last_name');
 
+  useEffect(() => {
+    if (signUp.id) {
+      setFirstName((current) => current || signUp.firstName || '');
+      setLastName((current) => current || signUp.lastName || '');
+      setUsername((current) => current || signUp.username || '');
+      setEmail((current) => current || signUp.emailAddress || '');
+    }
+  }, [signUp.id, signUp.firstName, signUp.lastName, signUp.username, signUp.emailAddress]);
+
+  useEffect(() => {
+    const emailVerified = signUp.verifications.emailAddress.status === 'verified';
+    const persistedStage = readSignupProgress(signUp.id);
+
+    if (user) {
+      const profile = profileQuery.data;
+      setFirstName((current) => current || profile?.firstName || user.firstName || '');
+      setLastName((current) => current || profile?.lastName || user.lastName || '');
+      setPhone((current) => current || profile?.phone || '');
+      setCountry((current) => current || profile?.country || '');
+      setDateOfBirth((current) => current || profile?.dateOfBirth || '');
+      setShowIdentityFields(
+        !((profile?.firstName || user.firstName) && (profile?.lastName || user.lastName)),
+      );
+
+      if (profileQuery.isSuccess && isBankProfileComplete(profile)) {
+        clearSignupProgress(signUp.id);
+        setLocation('/dashboard', { replace: true });
+        return;
+      }
+
+      setStage('profile');
+      if (profileQuery.isError) {
+        setError('Your account is signed in, but its saved profile could not be loaded. Enter the required details below and select Continue to retry saving.');
+      }
+      return;
+    }
+
+    const resumeStage = resolveSignupResumeStage({
+      isSignedIn: false,
+      profileComplete: false,
+      emailVerified,
+      clerkStatus: signUp.status,
+      persistedStage,
+    });
+    if (resumeStage === 'profile' || resumeStage === 'verify') {
+      setFirstName((current) => current || signUp.firstName || '');
+      setLastName((current) => current || signUp.lastName || '');
+      setUsername((current) => current || signUp.username || '');
+      setEmail((current) => current || signUp.emailAddress || '');
+      if (resumeStage === 'profile' && (!signUp.firstName || !signUp.lastName)) {
+        setShowIdentityFields(true);
+      }
+      setStage(resumeStage);
+    }
+  }, [
+    user,
+    profileQuery.data,
+    profileQuery.isError,
+    profileQuery.isSuccess,
+    signUp.id,
+    signUp.status,
+    signUp.verifications.emailAddress.status,
+    signUp.firstName,
+    signUp.lastName,
+    signUp.username,
+    signUp.emailAddress,
+    setLocation,
+  ]);
+
   const saveBankProfile = async () => {
     setError('');
     setNotice('');
-    try {
-      await updateProfile.mutateAsync({
-        data: {
+    const result = await finalizeSignupAndSaveProfile(
+      async () => {
+        if (user || finalizedSignupRef.current) {
+          return { error: null };
+        }
+
+        if (signUp.missingFields.includes('legal_accepted') && acceptedTerms) {
+          const acceptance = await signUp.update({ legalAccepted: true });
+          if (acceptance.error) {
+            return acceptance;
+          }
+        }
+
+        const finalized = await signUp.finalize({ navigate: () => undefined });
+        if (!finalized.error) {
+          finalizedSignupRef.current = true;
+        }
+        return finalized;
+      },
+      () => updateProfile.mutateAsync({
+        data: buildBankProfileInput({
           firstName: firstName.trim(),
           lastName: lastName.trim(),
           phone: phone.trim(),
           country: country.trim(),
           dateOfBirth,
-          acceptedTerms: true,
-        },
-      });
-      setLocation('/dashboard', { replace: true });
-    } catch {
-      setStage('profile-error');
-      setError('Your sign-in is active, but your Globus profile could not be saved. Retry to finish setting up the account.');
+        }),
+      }),
+    );
+
+    if (!result.ok) {
+      setStage('profile');
+      setError(result.message);
+      return;
     }
+
+    clearSignupProgress(signUp.id);
+    await Promise.all([
+      queryClient.invalidateQueries({ queryKey: getGetBankProfileQueryKey() }),
+      queryClient.invalidateQueries({ queryKey: getGetBankDashboardQueryKey() }),
+    ]);
+    setLocation('/dashboard', { replace: true });
   };
 
   const finishSignUp = async () => {
     setStage('finishing');
     setError('');
-    const result = await signUp.finalize({ navigate: () => undefined });
-    if (result.error) {
-      setStage('profile');
-      setError(result.error.message || 'Your account could not be activated. Please try again.');
-      return;
-    }
     await saveBankProfile();
   };
 
@@ -757,8 +878,20 @@ export function ClerkSignUpForm() {
     setError('');
     setNotice('');
 
-    if (!phone.trim() || !country.trim() || !dateOfBirth || !acceptedTerms) {
-      setError('Complete each required profile field and accept the account terms.');
+    const validationError = getProfileCompletionError({
+      firstName,
+      lastName,
+      phone,
+      country,
+      dateOfBirth,
+      acceptedTerms,
+    });
+    if (validationError) {
+      if (!firstName.trim() || !lastName.trim()) {
+        setShowIdentityFields(true);
+      }
+      setStage('profile');
+      setError(validationError);
       return;
     }
 
@@ -796,6 +929,7 @@ export function ClerkSignUpForm() {
     }
 
     if (signUp.status === 'complete') {
+      persistSignupProgress(signUp.id, 'profile');
       setStage('profile');
       return;
     }
@@ -805,6 +939,7 @@ export function ClerkSignUpForm() {
       setError(sent.error.message || 'The email verification code could not be sent. Please try again.');
       return;
     }
+    persistSignupProgress(signUp.id, 'verify');
     setStage('verify');
     setNotice(`Enter the verification code sent to ${email.trim()}.`);
   };
@@ -813,15 +948,14 @@ export function ClerkSignUpForm() {
     event.preventDefault();
     setError('');
     setNotice('');
-    const verified = await signUp.verifications.verifyEmailCode({ code: verificationCode.trim() });
-    if (verified.error) {
-      setError(verified.error.message || 'That code could not be verified. Check it and try again.');
+    const result = await verifyEmailCodeAndContinue(() =>
+      signUp.verifications.verifyEmailCode({ code: verificationCode.trim() }),
+    );
+    if (!result.ok) {
+      setError(result.message);
       return;
     }
-    if (signUp.status !== 'complete') {
-      setError('Email verified, but the account still needs information. Please contact support.');
-      return;
-    }
+    persistSignupProgress(signUp.id, 'profile');
     setStage('profile');
   };
 
@@ -837,6 +971,7 @@ export function ClerkSignUpForm() {
   };
 
   const changeEmail = async () => {
+    clearSignupProgress(signUp.id);
     await signUp.reset();
     setVerificationCode('');
     setError('');
@@ -916,9 +1051,21 @@ export function ClerkSignUpForm() {
         <>
           <div className="gb-form-heading gb-signup-heading">
             <h1>Complete your profile</h1>
-            <p>Add the details needed to finish your Globus account.</p>
+            <p>Your email is verified. Add the details needed to finish your Globus account.</p>
           </div>
           <form className="gb-auth-form gb-signup-fields" onSubmit={completeProfile}>
+            {showIdentityFields && (
+              <>
+                <div className="gb-field">
+                  <label className="gb-field-label" htmlFor="gb-signup-first-name">First name</label>
+                  <input id="gb-signup-first-name" data-testid="input-signup-first-name" className="gb-input" type="text" autoComplete="given-name" maxLength={80} placeholder="First name" value={firstName} onChange={event => setFirstName(event.target.value)} required />
+                </div>
+                <div className="gb-field">
+                  <label className="gb-field-label" htmlFor="gb-signup-last-name">Last name</label>
+                  <input id="gb-signup-last-name" data-testid="input-signup-last-name" className="gb-input" type="text" autoComplete="family-name" maxLength={80} placeholder="Last name" value={lastName} onChange={event => setLastName(event.target.value)} required />
+                </div>
+              </>
+            )}
             <div className="gb-field">
               <label className="gb-field-label" htmlFor="gb-signup-phone">Phone number</label>
               <input id="gb-signup-phone" data-testid="input-signup-phone" className="gb-input" type="tel" autoComplete="tel" maxLength={32} placeholder="Phone number" value={phone} onChange={event => setPhone(event.target.value)} required />
@@ -951,19 +1098,6 @@ export function ClerkSignUpForm() {
           <span className="gb-step-label">ACCOUNT SETUP <i /></span>
           <h1>Finishing your account</h1>
           <p>Saving your profile securely. Please keep this page open.</p>
-        </div>
-      )}
-
-      {stage === 'profile-error' && (
-        <div className="gb-form-heading">
-          <span className="gb-step-label">ACCOUNT SETUP <i /></span>
-          <h1>Finish your profile</h1>
-          <p>Your email is verified. Retry the profile save to continue into Globus.</p>
-          {error && <p role="alert" className="gb-auth-error">{error}</p>}
-          <button type="button" className="gb-primary-button" onClick={saveBankProfile} disabled={updateProfile.isPending}>
-            <span>{updateProfile.isPending ? 'Saving profile…' : 'Retry profile save'}</span>
-            <span aria-hidden="true">→</span>
-          </button>
         </div>
       )}
 
