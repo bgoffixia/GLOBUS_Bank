@@ -8,6 +8,7 @@
     "build": "node ./build.mjs",
     "start": "node --enable-source-maps ./dist/index.mjs",
     "test:bank-identity": "tsx --test test/bank-identity.test.ts",
+    "test:signup-profile": "tsx --test test/signup-profile.test.ts",
     "test:identity-documents": "tsx --test test/identity-document-size.test.ts",
     "test:financial-access": "tsx --test test/financial-access.test.ts",
     "test:vault-subscriber-deposit": "tsx --test test/vault-subscriber-deposit.test.ts",

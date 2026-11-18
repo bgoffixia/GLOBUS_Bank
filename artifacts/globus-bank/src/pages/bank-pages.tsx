@@ -943,7 +943,9 @@ export function ProfilePage() {
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
+  const [cityOfOrigin, setCityOfOrigin] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
+  const [occupation, setOccupation] = useState('');
   const [accepted, setAccepted] = useState(false);
   const [initialised, setInitialised] = useState(false);
   useEffect(() => {
@@ -952,14 +954,16 @@ export function ProfilePage() {
       setLastName(profile.lastName ?? '');
       setPhone(profile.phone ?? '');
       setCountry(profile.country ?? '');
+      setCityOfOrigin(profile.cityOfOrigin ?? '');
       setDateOfBirth(profile.dateOfBirth ?? '');
+      setOccupation(profile.occupation ?? '');
       setInitialised(true);
     }
   }, [profile, initialised]);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setNote('');
-    update.mutate({ data: { firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), country: country.trim(), ...(dateOfBirth ? { dateOfBirth } : {}), acceptedTerms: true } }, {
+    update.mutate({ data: { firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), country: country.trim(), ...(cityOfOrigin.trim() ? { cityOfOrigin: cityOfOrigin.trim() } : {}), ...(dateOfBirth ? { dateOfBirth } : {}), ...(occupation.trim() ? { occupation: occupation.trim() } : {}), acceptedTerms: true } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetBankProfileQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetBankDashboardQueryKey() });
@@ -1138,8 +1142,10 @@ export function ProfilePage() {
             <Field label="First name"><input required maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} className={inputClass} /></Field>
             <Field label="Last name"><input maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
             <Field label="Phone"><input required minLength={3} maxLength={32} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} /></Field>
-            <Field label="Country or region"><input required minLength={2} maxLength={80} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} /></Field>
+            <Field label="Country of origin"><input required minLength={2} maxLength={80} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} /></Field>
+            <Field label="City of origin (optional)"><input maxLength={100} value={cityOfOrigin} onChange={event => setCityOfOrigin(event.target.value)} className={inputClass} /></Field>
             <Field label="Date of birth"><input type="date" value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} className={inputClass} /></Field>
+            <Field label="Occupation / employment status (optional)"><input maxLength={100} value={occupation} onChange={event => setOccupation(event.target.value)} className={inputClass} /></Field>
             <Field label="Email address"><input disabled value={profile?.email ?? ''} className={`${inputClass} bg-[#f4f7f9] text-[#8190a0]`} /></Field>
           </div>
           <label className="mt-3 flex items-start gap-2.5 text-[9px] leading-4 text-[#728296]"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-0.5 accent-[#387e84]" /><span>I confirm these profile details are accurate and accept the Globus account terms.</span></label>

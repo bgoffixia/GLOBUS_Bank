@@ -174,6 +174,7 @@ export * from './savedPaymentMethodInputCardBrand';
 export * from './savedPaymentMethodInputMethod';
 export * from './savedPaymentMethodMethod';
 export * from './serviceUnavailableResponse';
+export * from './signupProfileInput';
 export * from './tooManyRequestsResponse';
 export * from './transactionPinInput';
 export * from './transactionPinUpdateResult';

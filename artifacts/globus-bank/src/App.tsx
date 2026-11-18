@@ -7,7 +7,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { BankShell } from '@/components/bank-shell';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { AuthFrame, ClerkSignInForm, ClerkSignUpForm, EmailRecoverySignInForm } from '@/components/auth-pages';
+import { AuthFrame, ClerkSignInForm, ClerkSignUpForm, EmailRecoverySignInForm, PendingSignupProfilePersistence } from '@/components/auth-pages';
 import { PasswordResetLinkPage, RequiredPasswordResetPage } from '@/components/auth-pages';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { GlobusLoader } from '@/components/globus-loader';
@@ -241,6 +241,7 @@ function ClerkRoutes() {
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
       <ClerkQueryClientCacheInvalidator />
+      <PendingSignupProfilePersistence />
       <Switch>
         <Route path="/" component={HomeRedirect} />
         <Route path="/home">

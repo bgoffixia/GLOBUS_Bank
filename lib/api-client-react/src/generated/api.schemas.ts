@@ -280,6 +280,10 @@ export interface BankProfile {
      * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
      */
   dateOfBirth: string | null;
+  /** @nullable */
+  cityOfOrigin: string | null;
+  /** @nullable */
+  occupation: string | null;
   transactionPinConfigured: boolean;
   verificationStatus: BankProfileVerificationStatus;
   /** @nullable */
@@ -740,7 +744,35 @@ export interface BankProfileInput {
   country: string;
   /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   dateOfBirth?: string;
+  /** @maxLength 100 */
+  cityOfOrigin?: string;
+  /** @maxLength 100 */
+  occupation?: string;
   acceptedTerms: true;
+}
+
+export interface SignupProfileInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  firstName: string;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  lastName: string;
+  /** @maxLength 1024 */
+  phone?: string;
+  /** @maxLength 1024 */
+  country?: string;
+  /** @maxLength 1024 */
+  cityOfOrigin?: string;
+  /** @maxLength 1024 */
+  dateOfBirth?: string;
+  /** @maxLength 1024 */
+  occupation?: string;
+  acceptedTerms?: true;
 }
 
 export type BankTransactionMode = typeof BankTransactionMode[keyof typeof BankTransactionMode];

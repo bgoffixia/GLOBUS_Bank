@@ -84,6 +84,7 @@ import {
   MarkBankNotificationReadResponse,
   SaveBankPushSubscriptionBody,
   SaveBankPushSubscriptionResponse,
+  SaveSignupProfileBody,
 } from "@workspace/api-zod";
 import {
   bankAuditLogsTable,
@@ -127,6 +128,7 @@ import {
   CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
   normalizeCustomerEmailSenderLocalPart,
 } from "../lib/customer-email-sender";
+import { sanitizeSignupProfileDetails } from "../lib/signup-profile";
 import { getExchangeRate } from "../lib/exchange-rates";
 import {
   addVaultSubscriptionMonths,
@@ -638,7 +640,78 @@ router.get("/bank/me", async (req, res): Promise<void> => {
       lastName: user.lastName,
       phone: user.phone,
       country: user.country,
+      cityOfOrigin: user.cityOfOrigin,
       dateOfBirth: user.dateOfBirth,
+      occupation: user.occupation,
+      transactionPinConfigured: !!user.transactionPinHash,
+      verificationStatus: user.verificationStatus,
+      verificationNote: user.verificationNote,
+      accountStatus,
+      ...operationEligibility,
+      createdAt: user.createdAt.toISOString(),
+    }),
+  );
+});
+
+router.put("/bank/signup-profile", async (req, res): Promise<void> => {
+  const authUserId = getAuth(req).userId;
+  if (!authUserId) {
+    res.status(401).json({ error: "Sign in to access your Globus account." });
+    return;
+  }
+
+  const parsed = SaveSignupProfileBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const firstName = parsed.data.firstName.trim();
+  const lastName = parsed.data.lastName.trim();
+  if (!firstName || !lastName) {
+    res.status(400).json({ error: "Enter your first and last name to save your profile." });
+    return;
+  }
+
+  const currentUser = await getOrCreateBankUser(authUserId);
+  const optionalDetails = sanitizeSignupProfileDetails(parsed.data);
+  const [user] = await db
+    .update(bankUsersTable)
+    .set({
+      firstName,
+      lastName,
+      ...optionalDetails,
+      ...(parsed.data.acceptedTerms === true
+        ? { acceptedTermsAt: new Date() }
+        : {}),
+      updatedAt: new Date(),
+    })
+    .where(eq(bankUsersTable.id, currentUser.id))
+    .returning();
+
+  const [accountStatus, operationEligibility] = await Promise.all([
+    getEffectiveBankAccountStatus(
+      user.id,
+      user.accountStatus as "active" | "restricted" | "suspended",
+    ),
+    getBankOperationEligibility(
+      user.id,
+      user.accountStatus as "active" | "restricted" | "suspended",
+    ),
+  ]);
+
+  res.json(
+    GetBankProfileResponse.parse({
+      id: user.id,
+      email: user.email,
+      customerId: user.customerId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      phone: user.phone,
+      country: user.country,
+      cityOfOrigin: user.cityOfOrigin,
+      dateOfBirth: user.dateOfBirth,
+      occupation: user.occupation,
       transactionPinConfigured: !!user.transactionPinHash,
       verificationStatus: user.verificationStatus,
       verificationNote: user.verificationNote,
@@ -680,7 +753,9 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
         lastName: profile.lastName,
         phone: profile.phone,
         country: profile.country,
+        cityOfOrigin: profile.cityOfOrigin,
         dateOfBirth: profile.dateOfBirth,
+        occupation: profile.occupation,
         transactionPinConfigured: !!profile.transactionPinHash,
         verificationStatus: profile.verificationStatus,
         verificationNote: profile.verificationNote,
@@ -990,6 +1065,7 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
       lastName: parsed.data.lastName.trim() || null,
       phone: parsed.data.phone.trim(),
       country: parsed.data.country.trim(),
+      ...sanitizeSignupProfileDetails(parsed.data),
       ...(parsed.data.dateOfBirth
         ? { dateOfBirth: parsed.data.dateOfBirth }
         : {}),
@@ -1019,7 +1095,9 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
       lastName: user.lastName,
       phone: user.phone,
       country: user.country,
+      cityOfOrigin: user.cityOfOrigin,
       dateOfBirth: user.dateOfBirth,
+      occupation: user.occupation,
       transactionPinConfigured: !!user.transactionPinHash,
       verificationStatus: user.verificationStatus,
       verificationNote: user.verificationNote,

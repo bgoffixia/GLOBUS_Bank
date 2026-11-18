@@ -1,5 +1,9 @@
 import { existsSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
+import { createElement } from 'react';
+import { renderToStaticMarkup } from 'react-dom/server';
 import { test, expect, type Page } from '@playwright/test';
+import { SignupOptionalProfileFields } from '../src/components/signup-profile-fields';
 
 const viewportWidths = [320, 360, 375, 402];
 const authViewports = [
@@ -377,6 +381,76 @@ test.describe('Globus sign-up design', () => {
       await expectNoHorizontalOverflow(page, `Missing password at ${viewport.width}px`);
     }
   });
+});
+
+test.describe('optional sign-up details responsive layout', () => {
+  const optionalFieldsMarkup = renderToStaticMarkup(
+    createElement(SignupOptionalProfileFields, {
+      values: {},
+      onChange: () => undefined,
+    }),
+  );
+  const authStyles = readFileSync(
+    new URL('../src/components/auth-pages.css', import.meta.url),
+    'utf8',
+  );
+
+  for (const viewport of authViewports) {
+    test(`optional profile fields fit without overlap at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({
+        width: viewport.width,
+        height: viewport.height,
+      });
+      await page.setContent(`
+        <main class="gb-auth-shell gb-auth-signup-shell">
+          <aside class="gb-brand-panel"></aside>
+          <section class="gb-form-side">
+            <div class="gb-auth-content gb-signup-content">
+              <div class="gb-signup-brand">Globus Bank</div>
+              <div class="gb-signup-form-wrap">
+                <div class="gb-form-heading gb-signup-heading">
+                  <span class="gb-step-label">STEP 2 OF 2</span>
+                  <h1>Optional profile details</h1>
+                  <p>Add any details you want to share. You can skip every field.</p>
+                </div>
+                <form class="gb-auth-form gb-signup-form">
+                  <div class="gb-signup-fields gb-signup-optional-fields">${optionalFieldsMarkup}</div>
+                  <button class="gb-primary-button gb-signup-continue">Continue to email verification</button>
+                  <button class="gb-optional-skip">Skip for now</button>
+                </form>
+              </div>
+              <div class="gb-signup-footer">Secured by Clerk</div>
+            </div>
+          </section>
+        </main>
+      `);
+      await page.addStyleTag({
+        content: `*,*::before,*::after{box-sizing:border-box}body{margin:0}${authStyles}`,
+      });
+
+      await expect(page.getByRole('heading', { name: 'Optional profile details' })).toBeVisible();
+      await expect(page.locator('.gb-signup-optional-fields .gb-field-label')).toHaveText([
+        'Country of origin (optional)',
+        'City of origin (optional)',
+        'Date of birth (optional)',
+        'Occupation / employment status (optional)',
+        'Phone number (optional)',
+      ]);
+      for (const field of [
+        'input-signup-country',
+        'input-signup-city',
+        'input-signup-date-of-birth',
+        'input-signup-occupation',
+        'input-signup-phone',
+      ]) {
+        await expect(page.getByTestId(field)).not.toHaveAttribute('required', '');
+      }
+      await expect(page.getByRole('button', { name: 'Continue to email verification' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Skip for now' })).toBeVisible();
+      await expectNoAuthLayoutOverlap(page, `Optional sign-up step at ${viewport.width}px`);
+      await expectNoHorizontalOverflow(page, `Optional sign-up step at ${viewport.width}px`);
+    });
+  }
 });
 
 test.describe('signed-in member pages at phone widths', () => {

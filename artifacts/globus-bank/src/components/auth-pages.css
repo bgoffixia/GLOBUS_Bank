@@ -1124,3 +1124,40 @@ body:has(.gb-auth-signin-shell) #root {
     font-size: 27px;
   }
 }
+
+.gb-auth-signup-shell .gb-signup-optional-fields .gb-field-label span {
+  color: #858798;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.gb-auth-signup-shell .gb-optional-skip {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1px solid #dedfe6;
+  border-radius: 10px;
+  background: #fff;
+  color: #6343b4;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gb-auth-signup-shell .gb-optional-skip:hover:not(:disabled) {
+  background: #f8f6fd;
+}
+
+.gb-auth-signup-shell .gb-optional-skip:focus-visible {
+  outline: 3px solid rgba(133, 91, 220, .28);
+  outline-offset: 2px;
+}
+
+.gb-auth-signup-shell .gb-optional-skip:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}

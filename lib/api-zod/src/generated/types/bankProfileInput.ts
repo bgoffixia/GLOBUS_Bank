@@ -29,5 +29,9 @@ export interface BankProfileInput {
   country: string;
   /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
   dateOfBirth?: string;
+  /** @maxLength 100 */
+  cityOfOrigin?: string;
+  /** @maxLength 100 */
+  occupation?: string;
   acceptedTerms: true;
 }

@@ -1,28 +1,28 @@
-export type SignupProgressStage = 'verify' | 'profile';
+export type SignupProgressStage = 'optional-profile' | 'verify';
 export type SignupResumeStage = 'details' | SignupProgressStage | 'dashboard';
 
-export type BankProfileCompletionFields = {
-  firstName?: string | null;
-  lastName?: string | null;
-  phone?: string | null;
-  country?: string | null;
-  dateOfBirth?: string | null;
+export type OptionalSignupProfile = {
+  phone?: string;
+  country?: string;
+  cityOfOrigin?: string;
+  dateOfBirth?: string;
+  occupation?: string;
 };
 
-export type BankProfileInput = {
+export type SignupProfileDraft = OptionalSignupProfile & {
+  emailAddress: string;
   firstName: string;
   lastName: string;
-  phone: string;
-  country: string;
-  dateOfBirth: string;
-  acceptedTerms: true;
+  acceptedTerms?: true;
 };
 
 type SignupStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 const SIGNUP_PROGRESS_STORAGE_KEY = 'globus-bank:signup-progress:v1';
-const PROFILE_SAVE_RETRY_MESSAGE =
-  'Your email is verified, but your Globus profile could not be saved. Your details are still on this page. Check your connection, then select Continue to retry.';
+const SIGNUP_PROFILE_DRAFT_STORAGE_KEY = 'globus-bank:signup-profile-draft:v1';
+const allowedText = /^[\p{L}\p{M}\p{N}\s.'’&(),/-]+$/u;
+const allowedPhone = /^[+0-9().\-\s]+$/;
+let inMemorySignupProfileDraft: SignupProfileDraft | null = null;
 
 function getBrowserSessionStorage(): SignupStorage | undefined {
   try {
@@ -30,6 +30,53 @@ function getBrowserSessionStorage(): SignupStorage | undefined {
   } catch {
     return undefined;
   }
+}
+
+function optionalText(value: unknown, maxLength: number) {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  if (!trimmed || trimmed.length > maxLength || !allowedText.test(trimmed)) {
+    return undefined;
+  }
+  return trimmed;
+}
+
+function isValidDateOfBirth(value: unknown) {
+  if (typeof value !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+    return false;
+  }
+  const date = new Date(`${value}T00:00:00.000Z`);
+  return Number.isFinite(date.getTime()) &&
+    date.toISOString().slice(0, 10) === value &&
+    value <= new Date().toISOString().slice(0, 10);
+}
+
+export function sanitizeOptionalSignupProfile(
+  input: Partial<Record<keyof OptionalSignupProfile, unknown>>,
+): OptionalSignupProfile {
+  const normalized: OptionalSignupProfile = {};
+
+  const phone = typeof input.phone === 'string' ? input.phone.trim() : '';
+  const phoneDigits = phone.replace(/\D/g, '');
+  if (phone && phone.length <= 32 && allowedPhone.test(phone) &&
+      phoneDigits.length >= 7 && phoneDigits.length <= 15) {
+    normalized.phone = phone;
+  }
+
+  const country = optionalText(input.country, 80);
+  if (country) normalized.country = country;
+
+  const cityOfOrigin = optionalText(input.cityOfOrigin, 100);
+  if (cityOfOrigin) normalized.cityOfOrigin = cityOfOrigin;
+
+  if (isValidDateOfBirth(input.dateOfBirth)) {
+    normalized.dateOfBirth = input.dateOfBirth as string;
+  }
+
+  const occupation = optionalText(input.occupation, 100);
+  if (occupation) normalized.occupation = occupation;
+
+  return normalized;
 }
 
 export function persistSignupProgress(
@@ -61,9 +108,11 @@ export function readSignupProgress(
       storage.removeItem(SIGNUP_PROGRESS_STORAGE_KEY);
       return null;
     }
-    return saved.stage === 'verify' || saved.stage === 'profile'
-      ? saved.stage
-      : null;
+    if (saved.stage === 'verify' || saved.stage === 'optional-profile') {
+      return saved.stage;
+    }
+    // Resume users who had reached the former post-verification profile screen.
+    return saved.stage === 'profile' ? 'verify' : null;
   } catch {
     return null;
   }
@@ -86,83 +135,99 @@ export function clearSignupProgress(
   }
 }
 
+export function persistSignupProfileDraft(
+  draft: SignupProfileDraft,
+  storage = getBrowserSessionStorage(),
+) {
+  const emailAddress = draft.emailAddress.trim().toLowerCase();
+  const firstName = draft.firstName.trim();
+  const lastName = draft.lastName.trim();
+  if (!emailAddress || !firstName || !lastName) return false;
+
+  inMemorySignupProfileDraft = {
+    emailAddress,
+    firstName,
+    lastName,
+    ...sanitizeOptionalSignupProfile(draft),
+    ...(draft.acceptedTerms === true ? { acceptedTerms: true as const } : {}),
+  };
+  if (!storage) return false;
+  try {
+    storage.setItem(
+      SIGNUP_PROFILE_DRAFT_STORAGE_KEY,
+      JSON.stringify(inMemorySignupProfileDraft),
+    );
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export function readSignupProfileDraft(
+  storage = getBrowserSessionStorage(),
+): SignupProfileDraft | null {
+  if (inMemorySignupProfileDraft) return inMemorySignupProfileDraft;
+  if (!storage) return null;
+  try {
+    const raw = storage.getItem(SIGNUP_PROFILE_DRAFT_STORAGE_KEY);
+    if (!raw) return null;
+    const draft = JSON.parse(raw) as Partial<SignupProfileDraft>;
+    if (
+      typeof draft.emailAddress !== 'string' ||
+      typeof draft.firstName !== 'string' ||
+      typeof draft.lastName !== 'string' ||
+      !draft.emailAddress.trim() ||
+      !draft.firstName.trim() ||
+      !draft.lastName.trim()
+    ) {
+      storage.removeItem(SIGNUP_PROFILE_DRAFT_STORAGE_KEY);
+      return null;
+    }
+    inMemorySignupProfileDraft = {
+      emailAddress: draft.emailAddress.trim().toLowerCase(),
+      firstName: draft.firstName.trim(),
+      lastName: draft.lastName.trim(),
+      ...sanitizeOptionalSignupProfile(draft),
+      ...(draft.acceptedTerms === true ? { acceptedTerms: true as const } : {}),
+    };
+    return inMemorySignupProfileDraft;
+  } catch {
+    return null;
+  }
+}
+
+export function clearSignupProfileDraft(
+  storage = getBrowserSessionStorage(),
+) {
+  inMemorySignupProfileDraft = null;
+  try {
+    storage?.removeItem(SIGNUP_PROFILE_DRAFT_STORAGE_KEY);
+  } catch {
+    // Retaining a stale browser-only draft must not affect account access.
+  }
+}
+
 export function resolveSignupResumeStage({
   isSignedIn,
-  profileComplete,
   emailVerified,
   clerkStatus,
   persistedStage,
 }: {
   isSignedIn: boolean;
-  profileComplete: boolean;
   emailVerified: boolean;
   clerkStatus: 'missing_requirements' | 'complete' | 'abandoned';
   persistedStage: SignupProgressStage | null;
 }): SignupResumeStage {
-  if (isSignedIn) return profileComplete ? 'dashboard' : 'profile';
-  if (emailVerified || clerkStatus === 'complete' || persistedStage === 'profile') {
-    return 'profile';
-  }
-  if (persistedStage === 'verify') return 'verify';
+  if (isSignedIn) return 'dashboard';
+  if (persistedStage === 'optional-profile') return 'optional-profile';
+  if (persistedStage === 'verify' || emailVerified) return 'verify';
+  if (clerkStatus === 'complete') return 'optional-profile';
   return 'details';
 }
 
-export function isBankProfileComplete(
-  profile: BankProfileCompletionFields | null | undefined,
-) {
-  return Boolean(
-    profile?.firstName?.trim() &&
-      profile.lastName?.trim() &&
-      profile.phone?.trim() &&
-      profile.country?.trim() &&
-      profile.dateOfBirth,
-  );
-}
-
-export function buildBankProfileInput({
-  firstName,
-  lastName,
-  phone,
-  country,
-  dateOfBirth,
-}: Omit<BankProfileInput, 'acceptedTerms'>): BankProfileInput {
-  return {
-    firstName: firstName.trim(),
-    lastName: lastName.trim(),
-    phone: phone.trim(),
-    country: country.trim(),
-    dateOfBirth,
-    acceptedTerms: true,
-  };
-}
-
-export function getProfileCompletionError({
-  firstName,
-  lastName,
-  phone,
-  country,
-  dateOfBirth,
-  acceptedTerms,
-}: {
-  firstName: string;
-  lastName: string;
-  phone: string;
-  country: string;
-  dateOfBirth: string;
-  acceptedTerms: boolean;
-}) {
-  if (!firstName.trim()) return 'Enter your first name to continue.';
-  if (!lastName.trim()) return 'Enter your last name to continue.';
-  if (!phone.trim()) return 'Enter your phone number to continue.';
-  if (!country.trim()) return 'Choose your country or region to continue.';
-  if (!dateOfBirth) return 'Enter your date of birth to continue.';
-  if (!acceptedTerms) return 'Accept the account terms to finish setting up your profile.';
-  return null;
-}
-
-export async function verifyEmailCodeAndContinue(
+export async function verifyEmailCode(
   verify: () => Promise<{ error: { message?: string } | null }>,
-): Promise<{ ok: true; nextStage: 'profile' } | { ok: false; message: string }> {
+): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
     const result = await verify();
     if (result.error) {
@@ -171,7 +236,7 @@ export async function verifyEmailCodeAndContinue(
         message: result.error.message || 'That code could not be verified. Check it and try again.',
       };
     }
-    return { ok: true, nextStage: 'profile' };
+    return { ok: true };
   } catch {
     return {
       ok: false,
@@ -180,34 +245,78 @@ export async function verifyEmailCodeAndContinue(
   }
 }
 
-export async function finalizeSignupAndSaveProfile(
+export async function finalizeVerifiedSignup(
   finalize: () => Promise<{ error: { message?: string } | null }>,
-  saveProfile: () => Promise<unknown>,
-): Promise<
-  | { ok: true }
-  | { ok: false; kind: 'clerk' | 'profile'; message: string }
-> {
+): Promise<{ ok: true } | { ok: false; message: string }> {
   try {
     const result = await finalize();
     if (result.error) {
       return {
         ok: false,
-        kind: 'clerk',
-        message: result.error.message || 'Your account could not be activated. Review the required details and try again.',
+        message: result.error.message || 'Your verified account could not be activated. Review any remaining required account details and try again.',
       };
     }
+    return { ok: true };
   } catch {
     return {
       ok: false,
-      kind: 'clerk',
       message: 'Your verified account could not be activated right now. Check your connection and try again.',
     };
   }
+}
 
+export async function finalizeSignupAndOpenDashboard(
+  finalize: () => Promise<{ error: { message?: string } | null }>,
+  clearProgress: () => void,
+  openDashboard: () => void,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const result = await finalizeVerifiedSignup(finalize);
+  if (!result.ok) return result;
+  clearProgress();
+  openDashboard();
+  return { ok: true };
+}
+
+export async function saveSignupProfileWithoutBlocking(
+  saveProfile: () => Promise<unknown>,
+): Promise<boolean> {
   try {
     await saveProfile();
-    return { ok: true };
+    return true;
   } catch {
-    return { ok: false, kind: 'profile', message: PROFILE_SAVE_RETRY_MESSAGE };
+    return false;
+  }
+}
+
+export async function sendEmailVerificationAfterOptionalDetails(
+  persistDetails: () => boolean,
+  sendCode: () => Promise<{ error: { message?: string } | null }>,
+): Promise<
+  | { ok: true; detailsRetained: boolean }
+  | { ok: false; detailsRetained: boolean; message: string }
+> {
+  let detailsRetained = false;
+  try {
+    detailsRetained = persistDetails();
+  } catch {
+    // In-memory form state still lets the user continue to verification.
+  }
+
+  try {
+    const result = await sendCode();
+    if (result.error) {
+      return {
+        ok: false,
+        detailsRetained,
+        message: result.error.message || 'The email verification code could not be sent. Please try again.',
+      };
+    }
+    return { ok: true, detailsRetained };
+  } catch {
+    return {
+      ok: false,
+      detailsRetained,
+      message: 'The email verification code could not be sent. Check your connection and try again.',
+    };
   }
 }

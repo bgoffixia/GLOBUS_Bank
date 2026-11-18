@@ -48,6 +48,8 @@ export const GetBankProfileResponse = zod.object({
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getBankProfileResponseDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
@@ -700,6 +702,8 @@ export const GetBankDashboardResponse = zod.object({
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getBankDashboardResponseProfileDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
@@ -870,6 +874,10 @@ export const updateBankProfileBodyCountryMin = 2;
 export const updateBankProfileBodyCountryMax = 80;
 
 export const updateBankProfileBodyDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateBankProfileBodyCityOfOriginMax = 100;
+
+export const updateBankProfileBodyOccupationMax = 100;
+
 
 
 export const UpdateBankProfileBody = zod.object({
@@ -878,6 +886,8 @@ export const UpdateBankProfileBody = zod.object({
   "phone": zod.string().min(updateBankProfileBodyPhoneMin).max(updateBankProfileBodyPhoneMax),
   "country": zod.string().min(updateBankProfileBodyCountryMin).max(updateBankProfileBodyCountryMax),
   "dateOfBirth": zod.string().regex(updateBankProfileBodyDateOfBirthRegExp).optional(),
+  "cityOfOrigin": zod.string().max(updateBankProfileBodyCityOfOriginMax).optional(),
+  "occupation": zod.string().max(updateBankProfileBodyOccupationMax).optional(),
   "acceptedTerms": zod.literal(true)
 })
 
@@ -894,6 +904,64 @@ export const UpdateBankProfileResponse = zod.object({
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(updateBankProfileResponseDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
+  "transactionPinConfigured": zod.boolean(),
+  "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
+  "verificationNote": zod.string().nullable(),
+  "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
+  "vaultSubscriptionActive": zod.boolean(),
+  "depositAllowed": zod.boolean(),
+  "withdrawalAllowed": zod.boolean(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Save sign-up profile details after verification
+ */
+export const saveSignupProfileBodyFirstNameMax = 80;
+
+export const saveSignupProfileBodyLastNameMax = 80;
+
+export const saveSignupProfileBodyPhoneMax = 1024;
+
+export const saveSignupProfileBodyCountryMax = 1024;
+
+export const saveSignupProfileBodyCityOfOriginMax = 1024;
+
+export const saveSignupProfileBodyDateOfBirthMax = 1024;
+
+export const saveSignupProfileBodyOccupationMax = 1024;
+
+
+
+export const SaveSignupProfileBody = zod.object({
+  "firstName": zod.string().min(1).max(saveSignupProfileBodyFirstNameMax),
+  "lastName": zod.string().min(1).max(saveSignupProfileBodyLastNameMax),
+  "phone": zod.string().max(saveSignupProfileBodyPhoneMax).optional(),
+  "country": zod.string().max(saveSignupProfileBodyCountryMax).optional(),
+  "cityOfOrigin": zod.string().max(saveSignupProfileBodyCityOfOriginMax).optional(),
+  "dateOfBirth": zod.string().max(saveSignupProfileBodyDateOfBirthMax).optional(),
+  "occupation": zod.string().max(saveSignupProfileBodyOccupationMax).optional(),
+  "acceptedTerms": zod.literal(true).optional()
+})
+
+export const saveSignupProfileResponseCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
+export const saveSignupProfileResponseDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const SaveSignupProfileResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "customerId": zod.string().regex(saveSignupProfileResponseCustomerIdRegExp),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "dateOfBirth": zod.string().regex(saveSignupProfileResponseDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),

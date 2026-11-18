@@ -118,6 +118,7 @@ import type {
   SavedPaymentMethod,
   SavedPaymentMethodInput,
   ServiceUnavailableResponse,
+  SignupProfileInput,
   TooManyRequestsResponse,
   TransactionPinInput,
   TransactionPinUpdateResult,
@@ -3066,6 +3067,94 @@ export const useUpdateBankProfile = <TError = ErrorType<BadRequestResponse | Una
         TContext
       > => {
       return useMutation(getUpdateBankProfileMutationOptions(options));
+    }
+
+export const getSaveSignupProfileUrl = () => {
+
+
+
+
+  return `/api/bank/signup-profile`
+}
+
+/**
+ * @summary Save sign-up profile details after verification
+ */
+export const saveSignupProfile = async (signupProfileInput: SignupProfileInput, options?: Parameters<typeof customFetch>[1]): Promise<BankProfile> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BankProfile>(getSaveSignupProfileUrl(),
+  {
+    ...options,
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(signupProfileInput)
+  }
+);}
+
+
+
+
+
+export const getSaveSignupProfileMutationKey = () => ['saveSignupProfile'] as const;
+
+export const getSaveSignupProfileMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSignupProfile>>, TError,SaveSignupProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof saveSignupProfile>>, TError,SaveSignupProfileMutationVariables, TContext> => {
+
+const mutationKey = getSaveSignupProfileMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof saveSignupProfile>>, SaveSignupProfileMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  saveSignupProfile(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SaveSignupProfileMutationResult = NonNullable<Awaited<ReturnType<typeof saveSignupProfile>>>
+    export type SaveSignupProfileMutationBody = BodyType<SignupProfileInput>
+    export type SaveSignupProfileMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>
+    export type SaveSignupProfileMutationVariables = {data: BodyType<SignupProfileInput>}
+
+    /**
+ * @summary Save sign-up profile details after verification
+ */
+export const useSaveSignupProfile = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof saveSignupProfile>>, TError,SaveSignupProfileMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof saveSignupProfile>>,
+        TError,
+        SaveSignupProfileMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSaveSignupProfileMutationOptions(options));
     }
 
 export const getUpdateTransactionPinUrl = () => {
