@@ -430,11 +430,11 @@ test.describe('optional sign-up details responsive layout', () => {
 
       await expect(page.getByRole('heading', { name: 'Optional profile details' })).toBeVisible();
       await expect(page.locator('.gb-signup-optional-fields .gb-field-label')).toHaveText([
-        'Country of origin (optional)',
-        'City of origin (optional)',
-        'Date of birth (optional)',
-        'Occupation / employment status (optional)',
-        'Phone number (optional)',
+        'Country of origin',
+        'City of origin',
+        'Date of birth',
+        'Occupation / employment status',
+        'Phone number',
       ]);
       for (const field of [
         'input-signup-country',

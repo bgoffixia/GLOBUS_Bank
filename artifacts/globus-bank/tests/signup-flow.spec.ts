@@ -2,6 +2,7 @@ import { test, expect } from '@playwright/test';
 import {
   clearSignupProfileDraft,
   clearSignupProgress,
+  clearLocalSignupAttempt,
   finalizeSignupAndOpenDashboard,
   persistSignupProfileDraft,
   persistSignupProgress,
@@ -9,6 +10,7 @@ import {
   readSignupProgress,
   resolveSignupResumeStage,
   sanitizeOptionalSignupProfile,
+  signupCreationErrorMessage,
   saveSignupProfileWithoutBlocking,
   sendEmailVerificationAfterOptionalDetails,
   verifyEmailCode,
@@ -153,6 +155,38 @@ test('verification code errors keep the user on a retryable step', async () => {
   }));
 
   expect(result).toEqual({ ok: false, message: 'The code has expired.' });
+});
+
+test('clears the current local Clerk attempt and progress before retrying', async () => {
+  const actions: string[] = [];
+  const result = await clearLocalSignupAttempt(
+    async () => {
+      actions.push('reset-current-attempt');
+      return { error: null };
+    },
+    () => actions.push('clear-progress'),
+  );
+  expect(result).toEqual({ ok: true });
+  expect(actions).toEqual(['reset-current-attempt', 'clear-progress']);
+});
+
+test('keeps a failed reset retryable and reports a useful recovery path', async () => {
+  const actions: string[] = [];
+  const result = await clearLocalSignupAttempt(
+    async () => ({ error: { message: 'Temporary Clerk error.' } }),
+    () => actions.push('clear-progress'),
+  );
+  expect(result).toEqual({ ok: false, message: 'Temporary Clerk error.' });
+  expect(actions).toEqual([]);
+});
+
+test('signup errors offer sign-in and recovery without revealing account existence', () => {
+  const message = signupCreationErrorMessage({
+    errors: [{ code: 'form_identifier_exists' }],
+  });
+  expect(message).toContain('signing in or use account recovery');
+  expect(message).toContain('start over');
+  expect(message).not.toContain('already registered');
 });
 
 test('successful finalization clears progress and navigates directly to the dashboard', async () => {

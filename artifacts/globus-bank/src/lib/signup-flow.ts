@@ -245,6 +245,53 @@ export async function verifyEmailCode(
   }
 }
 
+export async function clearLocalSignupAttempt(
+  resetAttempt: () => Promise<{ error: { message?: string } | null }>,
+  clearProgress: () => void,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  try {
+    const result = await resetAttempt();
+    if (result.error) {
+      return {
+        ok: false,
+        message: result.error.message || 'This unfinished sign-up could not be cleared. You can retry or use account recovery.',
+      };
+    }
+    clearProgress();
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      message: 'This unfinished sign-up could not be cleared. You can retry or use account recovery.',
+    };
+  }
+}
+
+export function signupCreationErrorMessage(error: unknown): string {
+  if (!error || typeof error !== 'object') {
+    return 'We could not start your account. Retry, or sign in and use account recovery if you already have an account.';
+  }
+
+  const value = error as {
+    code?: unknown;
+    errors?: Array<{ code?: unknown }> | null;
+    message?: unknown;
+  };
+  const codes = [
+    value.code,
+    ...(Array.isArray(value.errors) ? value.errors.map((entry) => entry?.code) : []),
+  ].filter((code): code is string => typeof code === 'string');
+  if (codes.some((code) =>
+    ['form_identifier_exists', 'identifier_exists', 'email_address_taken'].includes(code)
+  )) {
+    return 'We could not continue sign-up with these details. Try signing in or use account recovery. If the attempt was unfinished, start over and retry with the same email.';
+  }
+
+  return typeof value.message === 'string' && value.message
+    ? value.message
+    : 'We could not start your account. Retry, or sign in and use account recovery if you already have an account.';
+}
+
 export async function finalizeVerifiedSignup(
   finalize: () => Promise<{ error: { message?: string } | null }>,
 ): Promise<{ ok: true } | { ok: false; message: string }> {

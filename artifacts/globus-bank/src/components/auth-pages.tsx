@@ -9,6 +9,7 @@ import { authFailureMessage, signInNextStep } from '../lib/auth-errors';
 import {
   clearSignupProgress,
   clearSignupProfileDraft,
+  clearLocalSignupAttempt,
   finalizeSignupAndOpenDashboard,
   persistSignupProfileDraft,
   persistSignupProgress,
@@ -17,6 +18,7 @@ import {
   resolveSignupResumeStage,
   sanitizeOptionalSignupProfile,
   saveSignupProfileWithoutBlocking,
+  signupCreationErrorMessage,
   sendEmailVerificationAfterOptionalDetails,
   verifyEmailCode,
   type OptionalSignupProfile,
@@ -976,6 +978,10 @@ export function ClerkSignUpForm() {
     signUp.requiredFields.includes('legal_accepted') ||
     signUp.missingFields.includes('legal_accepted');
   const emailVerified = signUp.verifications.emailAddress.status === 'verified';
+  const canResetSignupAttempt =
+    Boolean(signUp.id) &&
+    signUp.status !== 'complete' &&
+    !emailVerified;
   const updateOptionalField = (
     field: keyof OptionalSignupProfile,
     value: string,
@@ -1109,18 +1115,50 @@ export function ClerkSignUpForm() {
         return;
       }
 
-      if (!signUp.id) {
-        const created = await signUp.password({
-          emailAddress: email.trim(),
-          password,
-          username: username.trim(),
-          ...(clerkSupportsFirstName ? { firstName: firstName.trim() } : {}),
-          ...(clerkSupportsLastName ? { lastName: lastName.trim() } : {}),
-        });
-        if (created.error) {
-          setError(created.error.message || 'Your account could not be created. Check your details and try again.');
+      const submittedEmail = email.trim().toLowerCase();
+      const currentAttemptEmail = signUp.emailAddress?.trim().toLowerCase();
+      if (
+        signUp.id &&
+        currentAttemptEmail &&
+        currentAttemptEmail !== submittedEmail
+      ) {
+        const reset = await clearLocalSignupAttempt(
+          () => signUp.reset(),
+          () => clearSignupProgress(signUp.id),
+        );
+        if (!reset.ok) {
+          setError(reset.message);
           return;
         }
+        clearSignupProfileDraft();
+      } else if (signUp.status === 'abandoned') {
+        const reset = await clearLocalSignupAttempt(
+          () => signUp.reset(),
+          () => clearSignupProgress(signUp.id),
+        );
+        if (!reset.ok) {
+          setError(reset.message);
+          return;
+        }
+      }
+
+      if (signUp.status === 'complete' || emailVerified) {
+        persistSignupProgress(signUp.id, 'optional-profile');
+        setStage('optional-profile');
+        setNotice('Your account is ready. Continue to email verification and profile setup.');
+        return;
+      }
+
+      const created = await signUp.password({
+        emailAddress: email.trim(),
+        password,
+        username: username.trim(),
+        ...(clerkSupportsFirstName ? { firstName: firstName.trim() } : {}),
+        ...(clerkSupportsLastName ? { lastName: lastName.trim() } : {}),
+      });
+      if (created.error) {
+        setError(signupCreationErrorMessage(created.error));
+        return;
       }
 
       if (signUp.missingFields.includes('legal_accepted') && acceptedTerms) {
@@ -1134,6 +1172,31 @@ export function ClerkSignUpForm() {
       persistSignupProgress(signUp.id, 'optional-profile');
       setStage('optional-profile');
       setNotice('Your account details are ready. The profile information on the next page is optional.');
+    } finally {
+      operationRef.current = false;
+      setSubmitting(false);
+    }
+  };
+
+  const startOver = async () => {
+    if (operationRef.current || (!canResetSignupAttempt && !error)) return;
+    operationRef.current = true;
+    setSubmitting(true);
+    setError('');
+    setNotice('');
+    try {
+      const reset = await clearLocalSignupAttempt(
+        () => signUp.reset(),
+        () => clearSignupProgress(signUp.id),
+      );
+      if (!reset.ok) {
+        setError(reset.message);
+        return;
+      }
+      finalizationAttemptedRef.current = null;
+      setVerificationCode('');
+      setStage('details');
+      setNotice('The unfinished sign-up was cleared in this browser. Retry with the same email, or sign in and use account recovery if an account was already created.');
     } finally {
       operationRef.current = false;
       setSubmitting(false);
@@ -1279,9 +1342,15 @@ export function ClerkSignUpForm() {
   };
 
   const changeEmail = async () => {
-    clearSignupProgress(signUp.id);
+    const reset = await clearLocalSignupAttempt(
+      () => signUp.reset(),
+      () => clearSignupProgress(signUp.id),
+    );
+    if (!reset.ok) {
+      setError(reset.message);
+      return;
+    }
     clearSignupProfileDraft();
-    await signUp.reset();
     setVerificationCode('');
     setPassword('');
     setAcceptedTerms(false);
@@ -1337,6 +1406,11 @@ export function ClerkSignUpForm() {
               <span>{busy ? 'Creating your account…' : 'Continue'}</span>
             </button>
           </form>
+          {(canResetSignupAttempt || error) && (
+            <button className="gb-recovery-secondary" type="button" onClick={() => void startOver()} disabled={busy}>
+              Start over
+            </button>
+          )}
           <p className="gb-switch-copy gb-signup-switch">Already have an account? <Link data-testid="link-signup-sign-in" href="/sign-in">Sign in</Link></p>
         </>
       )}
@@ -1363,6 +1437,11 @@ export function ClerkSignUpForm() {
             <button data-testid="button-signup-profile-skip" className="gb-optional-skip" type="button" disabled={busy} onClick={() => void continueToVerification(undefined, true)}>
               Skip for now
             </button>
+            {canResetSignupAttempt && (
+              <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={() => void startOver()}>
+                Start over
+              </button>
+            )}
           </form>
         </>
       )}
@@ -1391,9 +1470,16 @@ export function ClerkSignUpForm() {
             </button>
           </form>
           <div className="gb-verification-actions">
-            <button type="button" onClick={() => void resendCode()} disabled={busy}>Resend code</button>
-            <button type="button" onClick={returnToOptionalProfile} disabled={busy}>Back to optional details</button>
-            <button type="button" onClick={() => void changeEmail()} disabled={busy}>Use a different email</button>
+            {!emailVerified && signUp.status !== 'complete' && (
+              <>
+                <button type="button" onClick={() => void resendCode()} disabled={busy}>Resend code</button>
+                <button type="button" onClick={returnToOptionalProfile} disabled={busy}>Back to profile details</button>
+                <button type="button" onClick={() => void changeEmail()} disabled={busy}>Use a different email</button>
+                {canResetSignupAttempt && (
+                  <button type="button" onClick={() => void startOver()} disabled={busy}>Start over</button>
+                )}
+              </>
+            )}
           </div>
         </>
       )}
