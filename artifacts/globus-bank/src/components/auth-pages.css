@@ -274,8 +274,11 @@
 .gb-signin-form-wrap { width: 100%; }
 .gb-signin-spaced-label { margin-top: 20px; }
 .gb-customer-id-input { font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 650; letter-spacing: .15em; }
-.gb-login-recovery-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 13px; }
+.gb-login-recovery-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; margin-top: 10px; }
 .gb-login-recovery-action {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
   padding: 3px 0;
   border: 0;
   background: transparent;
@@ -285,6 +288,19 @@
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+}
+.gb-signin-form-wrap .gb-signin-field-error {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.gb-signin-form-wrap .gb-auth-form > .gb-auth-error:not(.gb-signin-field-error) {
+  margin-top: 8px;
+  padding: 9px 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .gb-login-recovery-action:hover { color: #173b62; text-decoration: underline; text-underline-offset: 2px; }
 .gb-login-recovery-action:focus-visible { outline: 3px solid rgba(55, 125, 131, .32); outline-offset: 3px; border-radius: 2px; }

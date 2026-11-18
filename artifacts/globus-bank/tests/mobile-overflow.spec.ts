@@ -92,7 +92,7 @@ async function openAndCheck(page: Page, path: string, width: number, context: st
   await expectNoHorizontalOverflow(page, `${context} at ${width}px (${path})`);
 }
 
-async function expectNoSignUpLayoutOverlap(page: Page, context: string) {
+async function expectNoAuthLayoutOverlap(page: Page, context: string) {
   const overlaps = await page.evaluate(() => {
     const isVisible = (element: Element) => {
       const style = window.getComputedStyle(element);
@@ -106,6 +106,10 @@ async function expectNoSignUpLayoutOverlap(page: Page, context: string) {
       'form.gb-signup-form',
       '.gb-signup-fields',
       '.gb-signup-fields .gb-field',
+      '.gb-signin-form-wrap',
+      'form.gb-auth-form',
+      '.gb-login-recovery-actions',
+      '.gb-verification-actions',
     ];
     const collisions: string[] = [];
 
@@ -198,7 +202,7 @@ test.describe('Globus sign-up design', () => {
       expect(shellStyle).toBe('rgb(255, 255, 255)');
       await expect(page.getByText('Already have an account?')).toBeVisible();
       await expect(page.getByTestId('link-signup-sign-in')).toHaveText('Sign in');
-      await expectNoSignUpLayoutOverlap(page, `Sign-up at ${viewport.width}px`);
+      await expectNoAuthLayoutOverlap(page, `Sign-up at ${viewport.width}px`);
       const footer = page.getByText('Secured by Clerk');
       await footer.evaluate((element) => element.scrollIntoView({ block: 'center', inline: 'nearest' }));
       await expect(footer).toBeVisible();
@@ -254,7 +258,7 @@ test.describe('Globus sign-up design', () => {
       expect(messageBox).not.toBeNull();
       expect(buttonBox).not.toBeNull();
       expect(messageBox!.y + messageBox!.height).toBeLessThanOrEqual(buttonBox!.y + 1);
-      await expectNoSignUpLayoutOverlap(page, `Sign-up validation at ${viewport.width}px`);
+      await expectNoAuthLayoutOverlap(page, `Sign-up validation at ${viewport.width}px`);
       await expectNoHorizontalOverflow(page, `Sign-up validation at ${viewport.width}px`);
     }
   });
@@ -269,6 +273,8 @@ test.describe('Globus sign-up design', () => {
       await expect(page.locator('#gb-customer-id')).toBeVisible();
       await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
       await expectNoHorizontalOverflow(page, `Sign-in at ${viewport.width}px`);
+      await expectNoAuthLayoutOverlap(page, `Sign-in at ${viewport.width}px`);
+      await expect(page.locator('#gb-signup-first-name, #gb-signup-last-name, #gb-signup-phone, #gb-signup-country, #gb-signup-dob, [data-testid="checkbox-signup-terms"]')).toHaveCount(0);
     }
   });
 
@@ -281,6 +287,64 @@ test.describe('Globus sign-up design', () => {
       await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
       await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
       await expectNoHorizontalOverflow(page, `Recovery at ${viewport.width}px`);
+      await expectNoAuthLayoutOverlap(page, `Recovery at ${viewport.width}px`);
+    }
+  });
+
+  test('shows readable inline errors for invalid sign-in identifiers and a missing password', async ({ page }) => {
+    for (const viewport of authViewports) {
+      await page.setViewportSize(viewport);
+      await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
+
+      const submit = page.getByRole('button', { name: 'Sign in with password' });
+      const customerId = page.locator('#gb-customer-id');
+      await expect(customerId).toBeVisible();
+      await expect(customerId).toHaveAttribute('required', '');
+      await expect(page.locator('#gb-customer-password')).toHaveAttribute('required', '');
+      await expect(page.locator('#gb-signup-first-name, #gb-signup-last-name, #gb-signup-phone, #gb-signup-country, #gb-signup-dob, [data-testid="checkbox-signup-terms"]')).toHaveCount(0);
+
+      await submit.click();
+      await expect(page.getByRole('alert')).toHaveText('Enter your Customer ID.');
+      await expect(customerId).toHaveAttribute('aria-invalid', 'true');
+      await expectNoAuthLayoutOverlap(page, `Missing Customer ID at ${viewport.width}px`);
+      await expectNoHorizontalOverflow(page, `Missing Customer ID at ${viewport.width}px`);
+
+      await customerId.fill('ABC1234');
+      await submit.click();
+      await expect(page.getByRole('alert')).toHaveText('Enter your password.');
+      await expect(page.locator('#gb-customer-password')).toHaveAttribute('aria-invalid', 'true');
+
+      await page.getByRole('button', { name: 'Forgot your ID? Use email' }).click();
+      const email = page.locator('#gb-signin-email');
+      await expect(page.getByRole('button', { name: 'Sign in with an email verification code' })).toBeVisible();
+      await email.fill('not-an-email');
+      await page.locator('#gb-customer-password').fill('placeholder-only');
+      await submit.click();
+      await expect(page.getByRole('alert')).toHaveText('Enter a valid email address.');
+      await expect(email).toHaveAttribute('aria-describedby', 'gb-signin-field-error');
+      await expectNoAuthLayoutOverlap(page, `Invalid email at ${viewport.width}px`);
+      await expectNoHorizontalOverflow(page, `Invalid email at ${viewport.width}px`);
+
+      if (await page.getByRole('button', { name: 'Sign in with username' }).count()) {
+        await page.getByRole('button', { name: 'Sign in with username' }).click();
+        const username = page.locator('#gb-signin-username');
+        const minLength = Number(await username.getAttribute('minlength'));
+        const maxLength = Number(await username.getAttribute('maxlength'));
+        await expect(username).toHaveAttribute('minlength', String(minLength));
+        await expect(username).toHaveAttribute('maxlength', String(maxLength));
+        const invalidUsername = 'abc'.slice(0, Math.min(3, Math.max(0, minLength - 1)));
+        await username.fill(invalidUsername);
+        await submit.click();
+        if (invalidUsername) {
+          await expect(page.getByRole('alert')).toHaveText(
+            `Username must be between ${minLength} and ${maxLength} characters.`,
+          );
+        } else {
+          await expect(page.getByRole('alert')).toHaveText('Enter your username.');
+        }
+        await expectNoAuthLayoutOverlap(page, `Username validation at ${viewport.width}px`);
+        await expectNoHorizontalOverflow(page, `Username validation at ${viewport.width}px`);
+      }
     }
   });
 });

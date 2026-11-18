@@ -18,6 +18,7 @@ import {
 import {
   getSignInIdentifierModes,
   resolveSignInIdentifierMode,
+  supportsEmailCodeSignIn,
   validateSignInCredentials,
   type SignInIdentifierMode,
   type SignInValidationField,
@@ -27,10 +28,14 @@ import './auth-pages.css';
 const basePath = import.meta.env.BASE_URL.replace(/\/$/, '');
 const asset = (file: string) => `${basePath}/${file}`;
 
-type ClerkRuntimeSignInSettings = ReturnType<typeof useClerk> & {
+type ClerkRuntimeSignInSettings = {
+  loaded?: boolean;
   environment?: {
     userSettings?: {
-      attributes?: Partial<Record<'email_address' | 'username' | 'password', { enabled: boolean }>>;
+      attributes?: Partial<Record<
+        'email_address' | 'username' | 'password' | 'phone_number',
+        { enabled: boolean; first_factors?: string[]; verifications?: string[] }
+      >>;
       usernameSettings?: { min_length?: number; max_length?: number };
     };
   };
@@ -112,12 +117,13 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
 
 export function ClerkSignInForm() {
   const [, setLocation] = useLocation();
-  const clerk = useClerk() as ClerkRuntimeSignInSettings;
+  const clerk = (window as Window & { Clerk?: ClerkRuntimeSignInSettings }).Clerk;
   const { signIn, fetchStatus } = useSignIn();
   const lookupCustomerId = useLookupCustomerId();
   const [customerId, setCustomerId] = useState('');
   const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
   const [identifierMode, setIdentifierMode] = useState<SignInIdentifierMode>('customerId');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -126,34 +132,45 @@ export function ClerkSignInForm() {
   >(null);
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState<SignInValidationField | null>(null);
-  const userSettings = clerk.environment?.userSettings;
+  const userSettings = clerk?.environment?.userSettings;
   const emailIdentifierEnabled = userSettings?.attributes?.email_address?.enabled === true;
   const usernameIdentifierEnabled = userSettings?.attributes?.username?.enabled === true;
+  const phoneIdentifierEnabled = userSettings?.attributes?.phone_number?.enabled === true;
   const passwordSignInEnabled = userSettings?.attributes?.password?.enabled === true;
+  const emailCodeSignInEnabled = supportsEmailCodeSignIn(
+    emailIdentifierEnabled,
+    userSettings?.attributes?.email_address?.first_factors,
+    userSettings?.attributes?.email_address?.verifications,
+  );
   const usernameMinLength = userSettings?.usernameSettings?.min_length ?? 1;
   const usernameMaxLength = userSettings?.usernameSettings?.max_length ?? 64;
   const supportedIdentifierModes = getSignInIdentifierModes(
     emailIdentifierEnabled,
     usernameIdentifierEnabled,
+    phoneIdentifierEnabled,
   );
   const activeIdentifierMode = resolveSignInIdentifierMode(identifierMode, supportedIdentifierModes);
   const activeIdentifier = activeIdentifierMode === 'email'
     ? email
     : activeIdentifierMode === 'username'
       ? username
-      : customerId;
+      : activeIdentifierMode === 'phone'
+        ? phoneNumber
+        : customerId;
   const identifierInputId = activeIdentifierMode === 'email'
     ? 'gb-signin-email'
     : activeIdentifierMode === 'username'
       ? 'gb-signin-username'
-      : 'gb-customer-id';
+      : activeIdentifierMode === 'phone'
+        ? 'gb-signin-phone'
+        : 'gb-customer-id';
   const busy = fetchStatus === 'fetching' || lookupCustomerId.isPending;
-  const showFormUnavailable = !clerk.loaded
+  const showFormUnavailable = !clerk?.loaded
     ? 'Loading secure sign-in options…'
     : !userSettings
       ? 'Secure sign-in options could not be loaded. Reload this page to try again.'
       : !activeIdentifierMode
-        ? 'No supported email or username sign-in is enabled. Contact Globus support.'
+        ? 'No supported identifier sign-in is enabled. Contact Globus support.'
         : !passwordSignInEnabled
           ? 'Password sign-in is not enabled for this Clerk account.'
           : '';
@@ -298,7 +315,7 @@ export function ClerkSignInForm() {
       <div className="gb-form-heading">
         <span className="gb-step-label">MEMBER ACCESS <i /></span>
         <h1>Welcome back</h1>
-        <p>{activeIdentifierMode === 'email' ? 'Sign in with your email address and password.' : activeIdentifierMode === 'username' ? 'Sign in with your Clerk username and password.' : 'Use your Globus Customer ID to access your account.'}</p>
+        <p>{activeIdentifierMode === 'email' ? 'Sign in with your email address and password.' : activeIdentifierMode === 'username' ? 'Sign in with your Clerk username and password.' : activeIdentifierMode === 'phone' ? 'Sign in with the phone number on your account.' : 'Use your Globus Customer ID to access your account.'}</p>
       </div>
       {verificationFactor ? (
         <form className="gb-auth-form" onSubmit={submitVerificationCode}>
@@ -346,18 +363,18 @@ export function ClerkSignInForm() {
         ) : (
           <form className="gb-auth-form" noValidate onSubmit={submit}>
             <label className="gb-field-label" htmlFor={identifierInputId}>
-              {activeIdentifierMode === 'email' ? 'Email address' : activeIdentifierMode === 'username' ? 'Username' : 'Customer ID'}
+              {activeIdentifierMode === 'email' ? 'Email address' : activeIdentifierMode === 'username' ? 'Username' : activeIdentifierMode === 'phone' ? 'Phone number' : 'Customer ID'}
             </label>
             <input
               id={identifierInputId}
               className={`gb-input ${activeIdentifierMode === 'customerId' ? 'gb-customer-id-input' : ''}`}
-              type={activeIdentifierMode === 'email' ? 'email' : 'text'}
-              autoComplete={activeIdentifierMode === 'email' ? 'email' : 'username'}
+              type={activeIdentifierMode === 'email' ? 'email' : activeIdentifierMode === 'phone' ? 'tel' : 'text'}
+              autoComplete={activeIdentifierMode === 'email' ? 'email' : activeIdentifierMode === 'phone' ? 'tel' : 'username'}
               autoCapitalize={activeIdentifierMode === 'customerId' ? 'off' : 'none'}
               spellCheck={false}
-              inputMode={activeIdentifierMode === 'email' ? 'email' : 'text'}
+              inputMode={activeIdentifierMode === 'email' ? 'email' : activeIdentifierMode === 'phone' ? 'tel' : 'text'}
               minLength={activeIdentifierMode === 'customerId' ? 7 : activeIdentifierMode === 'username' ? usernameMinLength : undefined}
-              maxLength={activeIdentifierMode === 'customerId' ? 7 : activeIdentifierMode === 'username' ? usernameMaxLength : 254}
+              maxLength={activeIdentifierMode === 'customerId' ? 7 : activeIdentifierMode === 'username' ? usernameMaxLength : activeIdentifierMode === 'email' ? 254 : undefined}
               pattern={activeIdentifierMode === 'customerId' ? '[A-Za-z0-9]{7}' : undefined}
               value={activeIdentifier}
               aria-invalid={errorField === 'identifier' ? true : undefined}
@@ -366,6 +383,7 @@ export function ClerkSignInForm() {
                 clearFormError();
                 if (activeIdentifierMode === 'email') setEmail(event.target.value);
                 else if (activeIdentifierMode === 'username') setUsername(event.target.value);
+                else if (activeIdentifierMode === 'phone') setPhoneNumber(event.target.value);
                 else setCustomerId(event.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 7));
               }}
               required
@@ -396,7 +414,7 @@ export function ClerkSignInForm() {
               <span>{busy ? 'Securely signing in…' : 'Sign in with password'}</span>
               <span aria-hidden="true">→</span>
             </button>
-            {activeIdentifierMode === 'email' && (
+            {activeIdentifierMode === 'email' && emailCodeSignInEnabled && (
               <button
                 className="gb-recovery-secondary"
                 type="button"
@@ -428,7 +446,7 @@ export function ClerkSignInForm() {
         )
       )}
       <div className="gb-login-recovery-actions">
-        {emailIdentifierEnabled && activeIdentifierMode !== 'username' && (
+        {emailIdentifierEnabled && activeIdentifierMode !== 'username' && activeIdentifierMode !== 'phone' && (
           <button
             type="button"
             className="gb-login-recovery-action"
@@ -449,9 +467,23 @@ export function ClerkSignInForm() {
             Use email instead
           </button>
         )}
+        {emailIdentifierEnabled && activeIdentifierMode === 'phone' && (
+          <button
+            type="button"
+            className="gb-login-recovery-action"
+            onClick={() => { setIdentifierMode('email'); clearFormError(); }}
+          >
+            Use email instead
+          </button>
+        )}
         {usernameIdentifierEnabled && activeIdentifierMode !== 'username' && (
           <button type="button" className="gb-login-recovery-action" onClick={() => { setIdentifierMode('username'); clearFormError(); }}>
             Sign in with username
+          </button>
+        )}
+        {phoneIdentifierEnabled && activeIdentifierMode !== 'phone' && (
+          <button type="button" className="gb-login-recovery-action" onClick={() => { setIdentifierMode('phone'); clearFormError(); }}>
+            Sign in with phone
           </button>
         )}
         <Link className="gb-login-recovery-action" href="/sign-in/email">Forgot password</Link>
