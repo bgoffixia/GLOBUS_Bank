@@ -95,6 +95,89 @@ test.describe('public and authentication pages at phone widths', () => {
   }
 });
 
+test.describe('Globus sign-up design', () => {
+  for (const viewport of [
+    { name: 'small mobile', width: 320, height: 760 },
+    { name: 'mobile', width: 390, height: 844 },
+    { name: 'desktop', width: 1440, height: 1000 },
+  ]) {
+    test(`shows the requested account fields and layout on ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.goto('/sign-up', { waitUntil: 'domcontentloaded' });
+
+      const shell = page.locator('.gb-auth-signup-shell');
+      await expect(shell).toBeVisible();
+      await expect(page.getByRole('img', { name: 'Globus Bank' })).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
+      await expect(page.getByText('Welcome! Please fill in the details to get started.')).toBeVisible();
+
+      await expect(page.locator('.gb-signup-fields .gb-field-label')).toHaveText([
+        'First name',
+        'Last name',
+        'Username',
+        'Email address',
+        'Password',
+      ]);
+      await expect(page.getByTestId('input-signup-first-name')).toHaveAttribute('required', '');
+      await expect(page.getByTestId('input-signup-username')).toHaveAttribute('required', '');
+      await expect(page.getByTestId('input-signup-email')).toHaveAttribute('required', '');
+      await expect(page.getByTestId('input-signup-password')).toHaveAttribute('required', '');
+      await expect(page.getByTestId('input-signup-password')).toHaveAttribute('minlength', '8');
+
+      const form = page.locator('form.gb-signup-form');
+      const button = form.getByRole('button', { name: 'Continue' });
+      await expect(button).toBeVisible();
+      await expect(button).toHaveCSS('background-image', /linear-gradient/);
+      await expect(button).toHaveCSS('color', 'rgb(255, 255, 255)');
+      const [formBox, buttonBox, inputStyle, shellStyle] = await Promise.all([
+        form.boundingBox(),
+        button.boundingBox(),
+        page.locator('#gb-signup-first-name').evaluate((element) => {
+          const style = getComputedStyle(element);
+          return { height: Number.parseFloat(style.height), borderRadius: style.borderRadius };
+        }),
+        shell.evaluate((element) => getComputedStyle(element).backgroundColor),
+      ]);
+
+      expect(formBox).not.toBeNull();
+      expect(buttonBox).not.toBeNull();
+      expect(buttonBox!.width).toBeGreaterThanOrEqual(formBox!.width - 1);
+      expect(inputStyle.height).toBeGreaterThanOrEqual(50);
+      expect(inputStyle.borderRadius).toBe('12px');
+      expect(shellStyle).toBe('rgb(255, 255, 255)');
+      await expect(page.getByText('Already have an account?')).toBeVisible();
+      await expect(page.getByTestId('link-signup-sign-in')).toHaveText('Sign in');
+      const footer = page.getByText('Secured by Clerk');
+      await footer.scrollIntoViewIfNeeded();
+      await expect(footer).toBeVisible();
+      const footerBox = await footer.boundingBox();
+      expect(footerBox).not.toBeNull();
+      expect(footerBox!.y).toBeGreaterThanOrEqual(0);
+      expect(footerBox!.y + footerBox!.height).toBeLessThanOrEqual(viewport.height);
+      await expectNoHorizontalOverflow(page, `Sign-up at ${viewport.width}px`);
+    });
+  }
+
+  test('keeps the existing sign-in layout separate', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.locator('.gb-auth-shell')).toBeVisible();
+    await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
+    await expect(page.locator('#gb-customer-id')).toBeVisible();
+    await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
+  });
+
+  test('keeps the existing email-recovery route available', async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/sign-in/email', { waitUntil: 'domcontentloaded' });
+
+    await expect(page.locator('.gb-auth-shell')).toBeVisible();
+    await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
+    await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
+  });
+});
+
 test.describe('signed-in member pages at phone widths', () => {
   if (validAuthenticatedState) {
     test.use({ storageState: validAuthenticatedState });

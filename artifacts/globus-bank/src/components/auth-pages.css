@@ -454,3 +454,343 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* Sign-up is a focused, single-column entry point. Keep every override inside
+   its dedicated shell so the established sign-in experience is untouched. */
+.gb-auth-signup-shell {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto;
+  overflow: auto;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(28px, 6vh, 64px) 24px;
+  background: #fff;
+  color: #1d2540;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.gb-auth-signup-shell .gb-brand-panel {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-form-side {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.gb-auth-signup-shell .gb-auth-content,
+.gb-auth-signup-shell .gb-signup-content {
+  width: 100%;
+  max-width: 454px;
+  margin: 0 auto;
+  animation: gb-arrive .42s cubic-bezier(.2,.7,.2,1) both;
+}
+
+.gb-auth-signup-shell .gb-signup-brand {
+  display: flex;
+  width: min(218px, 62vw);
+  margin: 0 auto clamp(36px, 6vh, 56px);
+  align-items: center;
+  justify-content: center;
+}
+
+.gb-auth-signup-shell .gb-signup-brand img,
+.gb-auth-signup-shell img.gb-signup-brand {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.gb-auth-signup-shell .gb-mobile-brand.gb-signup-brand {
+  gap: 0;
+}
+
+.gb-auth-signup-shell .gb-mobile-brand.gb-signup-brand img:first-child {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-mobile-brand.gb-signup-brand img:last-child {
+  width: 100%;
+}
+
+.gb-auth-signup-shell .gb-signup-heading {
+  margin: 0 0 29px;
+  text-align: center;
+}
+
+.gb-auth-signup-shell .gb-signup-heading h1,
+.gb-auth-signup-shell h1.gb-signup-heading {
+  margin: 0 0 11px;
+  color: #20233c;
+  font-family: Manrope, 'DM Sans', sans-serif;
+  font-size: clamp(30px, 4vw, 36px);
+  font-weight: 750;
+  line-height: 1.16;
+  letter-spacing: -.045em;
+  overflow-wrap: normal;
+}
+
+.gb-auth-signup-shell .gb-signup-heading p {
+  max-width: 390px;
+  margin: 0 auto;
+  color: #777b8e;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-form-heading {
+  margin-bottom: 29px;
+  text-align: center;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-form-heading .gb-step-label {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-form-heading h1 {
+  margin: 0 0 11px;
+  color: #20233c;
+  font-family: Manrope, 'DM Sans', sans-serif;
+  font-size: clamp(30px, 4vw, 36px);
+  font-weight: 750;
+  line-height: 1.16;
+  letter-spacing: -.045em;
+  overflow-wrap: normal;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-form-heading p {
+  color: #777b8e;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.gb-auth-signup-shell .gb-signup-fields,
+.gb-auth-signup-shell .gb-signup-content .gb-auth-form,
+.gb-auth-signup-shell .gb-signup-content .gb-field-grid {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-field-grid {
+  display: flex;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-field,
+.gb-auth-signup-shell .gb-signup-fields .gb-field {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-field-label,
+.gb-auth-signup-shell .gb-signup-fields .gb-field-label {
+  margin: 0 0 7px;
+  color: #36394f;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-input,
+.gb-auth-signup-shell .gb-signup-fields .gb-input,
+.gb-auth-signup-shell .gb-signup-fields input {
+  width: 100%;
+  height: 54px;
+  padding: 0 17px;
+  border: 1px solid #dedfe6;
+  border-radius: 12px;
+  background: #f8f8fa;
+  color: #292c43;
+  box-shadow: none;
+  font: inherit;
+  font-size: 15px;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-input::placeholder,
+.gb-auth-signup-shell .gb-signup-fields input::placeholder {
+  color: #a1a2af;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-input:focus-visible,
+.gb-auth-signup-shell .gb-signup-fields input:focus-visible {
+  border-color: #9873e8;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(133, 91, 220, .13);
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-spaced-label {
+  margin-top: 0;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-terms-check {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-password-hint {
+  display: block;
+  margin: -7px 0 0;
+  color: #777b8e;
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-terms {
+  display: flex;
+  margin-top: 2px;
+  color: #696d7f;
+  font-size: 12px;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-continue,
+.gb-auth-signup-shell .gb-signup-content .gb-primary-button {
+  width: 100%;
+  min-height: 56px;
+  margin-top: 8px;
+  padding: 0 22px;
+  justify-content: center;
+  border: 0;
+  border-radius: 12px;
+  background: linear-gradient(105deg, #7048d6 0%, #925fe7 100%);
+  color: #fff;
+  box-shadow: 0 8px 18px rgba(112, 72, 214, .18);
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: .005em;
+  transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-continue:hover:not(:disabled),
+.gb-auth-signup-shell .gb-signup-content .gb-primary-button:hover:not(:disabled) {
+  background: linear-gradient(105deg, #6840ce 0%, #8754dc 100%);
+  box-shadow: 0 10px 22px rgba(112, 72, 214, .23);
+  transform: translateY(-1px);
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-continue span[aria-hidden="true"],
+.gb-auth-signup-shell .gb-signup-content .gb-primary-button span[aria-hidden="true"] {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-primary-button span:not([aria-hidden="true"]) {
+  color: #fff;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-switch-copy {
+  margin: 22px 0 0;
+  color: #777b8e;
+  font-size: 13px;
+  text-align: center;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-switch-copy a {
+  color: #744bd3;
+  font-weight: 700;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-switch-copy a:hover {
+  color: #5736ad;
+}
+
+.gb-auth-signup-shell .gb-signup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  margin: 35px 0 0;
+  padding: 0;
+  color: #9698a5;
+  font-size: 11px;
+  letter-spacing: .01em;
+  text-align: center;
+}
+
+.gb-auth-signup-shell .gb-signup-footer svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-auth-error,
+.gb-auth-signup-shell .gb-signup-content .gb-auth-notice {
+  margin-top: 0;
+}
+
+@media (max-width: 760px) {
+  .gb-auth-signup-shell {
+    display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: auto;
+    padding: max(18px, env(safe-area-inset-top)) max(22px, env(safe-area-inset-right)) max(18px, env(safe-area-inset-bottom)) max(22px, env(safe-area-inset-left));
+  }
+
+  .gb-auth-signup-shell .gb-form-side {
+    display: flex;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .gb-auth-signup-shell .gb-auth-content,
+  .gb-auth-signup-shell .gb-signup-content {
+    max-width: 454px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-brand {
+    width: min(198px, 62vw);
+    margin-bottom: 18px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-heading,
+  .gb-auth-signup-shell .gb-signup-content .gb-form-heading {
+    margin-bottom: 18px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-content .gb-auth-form,
+  .gb-auth-signup-shell .gb-signup-fields,
+  .gb-auth-signup-shell .gb-signup-content .gb-field-grid {
+    gap: 10px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-content .gb-input,
+  .gb-auth-signup-shell .gb-signup-fields .gb-input,
+  .gb-auth-signup-shell .gb-signup-fields input {
+    height: 54px;
+    font-size: 16px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-footer {
+    display: flex;
+    margin-top: 18px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-content .gb-switch-copy {
+    margin-top: 16px;
+  }
+}
+
+@media (max-width: 390px) {
+  .gb-auth-signup-shell {
+    padding-right: max(18px, env(safe-area-inset-right));
+    padding-left: max(18px, env(safe-area-inset-left));
+  }
+
+  .gb-auth-signup-shell .gb-signup-heading h1,
+  .gb-auth-signup-shell h1.gb-signup-heading,
+  .gb-auth-signup-shell .gb-signup-content .gb-form-heading h1 {
+    font-size: 29px;
+  }
+}

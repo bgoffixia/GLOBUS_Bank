@@ -17,7 +17,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
   const isSignUp = mode === 'sign-up';
 
   return (
-    <main className="gb-auth-shell">
+    <main className={`gb-auth-shell${isSignUp ? ' gb-auth-signup-shell' : ''}`}>
       <aside className="gb-brand-panel">
         <div className="gb-brand-lockup">
           <span className="gb-mark-wrap">
@@ -49,16 +49,33 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
       </aside>
 
       <section className="gb-form-side">
-        <div className="gb-mobile-brand">
-          <img src={asset('globus-mark-transparent.png')} alt="" />
-          <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
-        </div>
-        <div className={`gb-auth-content ${isSignUp ? 'gb-signup-content' : ''}`}>
-          {children}
-          <div className="gb-form-footer">
-            <span>Globus Bank</span>
-            <span>Member account access</span>
+        {!isSignUp && (
+          <div className="gb-mobile-brand">
+            <img src={asset('globus-mark-transparent.png')} alt="" />
+            <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
           </div>
+        )}
+        <div className={`gb-auth-content ${isSignUp ? 'gb-signup-content' : ''}`}>
+          {isSignUp && (
+            <div className="gb-signup-brand">
+              <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
+            </div>
+          )}
+          {children}
+          {isSignUp ? (
+            <div className="gb-signup-footer">
+              <svg aria-hidden="true" viewBox="0 0 16 16" fill="none">
+                <rect x="3.25" y="7" width="9.5" height="7" rx="1.4" stroke="currentColor" strokeWidth="1.4" />
+                <path d="M5.25 7V4.9a2.75 2.75 0 0 1 5.5 0V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+              </svg>
+              <span>Secured by Clerk</span>
+            </div>
+          ) : (
+            <div className="gb-form-footer">
+              <span>Globus Bank</span>
+              <span>Member account access</span>
+            </div>
+          )}
         </div>
       </section>
     </main>
@@ -635,13 +652,15 @@ export function RequiredPasswordResetPage() {
   );
 }
 
-type SignUpStage = 'details' | 'verify' | 'finishing' | 'profile-error';
+type SignUpStage = 'details' | 'verify' | 'profile' | 'finishing' | 'profile-error';
 
 export function ClerkSignUpForm() {
   const [, setLocation] = useLocation();
   const { signUp, fetchStatus } = useSignUp();
   const updateProfile = useUpdateBankProfile();
-  const [fullName, setFullName] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [username, setUsername] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
@@ -654,9 +673,10 @@ export function ClerkSignUpForm() {
   const [notice, setNotice] = useState('');
 
   const busy = fetchStatus === 'fetching' || updateProfile.isPending || stage === 'finishing';
-  const names = fullName.trim().split(/\s+/).filter(Boolean);
-  const firstName = names[0] ?? '';
-  const lastName = names.slice(1).join(' ');
+  const clerkRequiresLastName = signUp.requiredFields.includes('last_name');
+  const clerkFields = [...signUp.requiredFields, ...signUp.optionalFields];
+  const clerkSupportsFirstName = clerkFields.includes('first_name');
+  const clerkSupportsLastName = clerkFields.includes('last_name');
 
   const saveBankProfile = async () => {
     setError('');
@@ -664,8 +684,8 @@ export function ClerkSignUpForm() {
     try {
       await updateProfile.mutateAsync({
         data: {
-          firstName,
-          lastName,
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
           phone: phone.trim(),
           country: country.trim(),
           dateOfBirth,
@@ -684,11 +704,24 @@ export function ClerkSignUpForm() {
     setError('');
     const result = await signUp.finalize({ navigate: () => undefined });
     if (result.error) {
-      setStage('verify');
+      setStage('profile');
       setError(result.error.message || 'Your account could not be activated. Please try again.');
       return;
     }
     await saveBankProfile();
+  };
+
+  const completeProfile = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setError('');
+    setNotice('');
+
+    if (!phone.trim() || !country.trim() || !dateOfBirth || !acceptedTerms) {
+      setError('Complete each required profile field and accept the account terms.');
+      return;
+    }
+
+    await finishSignUp();
   };
 
   const startSignUp = async (event: FormEvent<HTMLFormElement>) => {
@@ -696,18 +729,23 @@ export function ClerkSignUpForm() {
     setError('');
     setNotice('');
 
-    if (names.length === 0 || !phone.trim() || !country.trim() || !dateOfBirth || !email.trim() || !password) {
+    if (
+      !firstName.trim() ||
+      (clerkRequiresLastName && !lastName.trim()) ||
+      !username.trim() ||
+      !email.trim() ||
+      !password
+    ) {
       setError('Complete each required field before continuing.');
-      return;
-    }
-    if (!acceptedTerms) {
-      setError('Accept the Globus account terms to continue.');
       return;
     }
 
     const created = await signUp.password({
       emailAddress: email.trim(),
       password,
+      username: username.trim(),
+      ...(clerkSupportsFirstName ? { firstName: firstName.trim() } : {}),
+      ...(clerkSupportsLastName ? { lastName: lastName.trim() } : {}),
     });
     if (created.error) {
       setError(created.error.message || 'Your account could not be created. Check your details and try again.');
@@ -715,7 +753,7 @@ export function ClerkSignUpForm() {
     }
 
     if (signUp.status === 'complete') {
-      await finishSignUp();
+      setStage('profile');
       return;
     }
 
@@ -741,7 +779,7 @@ export function ClerkSignUpForm() {
       setError('Email verified, but the account still needs information. Please contact support.');
       return;
     }
-    await finishSignUp();
+    setStage('profile');
   };
 
   const resendCode = async () => {
@@ -767,55 +805,42 @@ export function ClerkSignUpForm() {
     <div className="gb-signup-form-wrap">
       {stage === 'details' && (
         <>
-          <div className="gb-form-heading">
+          <div className="gb-form-heading gb-signup-heading">
             <span className="gb-step-label">GET STARTED <i /></span>
             <h1>Create your account</h1>
-            <p>Set up your secure Globus member access.</p>
+            <p>Welcome! Please fill in the details to get started.</p>
           </div>
           <form className="gb-auth-form gb-signup-form" onSubmit={startSignUp}>
-            <div className="gb-field-grid">
-              <div className="gb-field gb-field-wide">
-                <label className="gb-field-label" htmlFor="gb-signup-name">Full name</label>
-                <input id="gb-signup-name" className="gb-input" type="text" autoComplete="name" maxLength={160} placeholder="Your full name" value={fullName} onChange={event => setFullName(event.target.value)} required />
-              </div>
-              <div className="gb-field gb-field-wide">
-                <label className="gb-field-label" htmlFor="gb-signup-phone">Phone number</label>
-                <input id="gb-signup-phone" className="gb-input" type="tel" autoComplete="tel" maxLength={32} placeholder="+1 (555) 000-0000" value={phone} onChange={event => setPhone(event.target.value)} required />
+            <div className="gb-signup-fields">
+              <div className="gb-field">
+                <label className="gb-field-label" htmlFor="gb-signup-first-name">First name</label>
+                <input id="gb-signup-first-name" data-testid="input-signup-first-name" className="gb-input" type="text" autoComplete="given-name" maxLength={80} placeholder="First name" value={firstName} onChange={event => setFirstName(event.target.value)} required />
               </div>
               <div className="gb-field">
-                <label className="gb-field-label" htmlFor="gb-signup-country">Country</label>
-                <input id="gb-signup-country" className="gb-input" type="text" autoComplete="country-name" maxLength={80} placeholder="Country or region" value={country} onChange={event => setCountry(event.target.value)} required />
+                <label className="gb-field-label" htmlFor="gb-signup-last-name">Last name</label>
+                <input id="gb-signup-last-name" data-testid="input-signup-last-name" className="gb-input" type="text" autoComplete="family-name" maxLength={80} placeholder="Last name" value={lastName} onChange={event => setLastName(event.target.value)} required={clerkRequiresLastName} />
               </div>
               <div className="gb-field">
-                <label className="gb-field-label" htmlFor="gb-signup-dob">Date of birth</label>
-                <input id="gb-signup-dob" className="gb-input" type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} required />
+                <label className="gb-field-label" htmlFor="gb-signup-username">Username</label>
+                <input id="gb-signup-username" data-testid="input-signup-username" className="gb-input" type="text" autoComplete="username" autoCapitalize="none" spellCheck={false} placeholder="Choose a username" value={username} onChange={event => setUsername(event.target.value)} required />
               </div>
-              <div className="gb-field gb-field-wide">
+              <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-email">Email address</label>
-                <input id="gb-signup-email" className="gb-input" type="email" autoComplete="email" maxLength={254} placeholder="name@example.com" value={email} onChange={event => setEmail(event.target.value)} required />
+                <input id="gb-signup-email" data-testid="input-signup-email" className="gb-input" type="email" autoComplete="email" maxLength={254} placeholder="Email address" value={email} onChange={event => setEmail(event.target.value)} required />
               </div>
-              <div className="gb-field gb-field-wide">
+              <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-password">Password</label>
-                <input id="gb-signup-password" className="gb-input" type="password" autoComplete="new-password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required />
+                <input id="gb-signup-password" data-testid="input-signup-password" className="gb-input" type="password" autoComplete="new-password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required />
               </div>
             </div>
-            <p className="gb-password-hint">Use at least 8 characters. Additional security rules are checked securely by Clerk.</p>
 
-            <label className="gb-terms-check">
-              <input type="checkbox" checked={acceptedTerms} onChange={event => setAcceptedTerms(event.target.checked)} required />
-              <span>
-                I confirm my profile details are accurate and accept the Globus{' '}
-                account terms.
-              </span>
-            </label>
-
+            <p className="gb-password-hint">Use at least 8 characters. Clerk checks any additional password requirements.</p>
             {error && <p role="alert" className="gb-auth-error">{error}</p>}
-            <button className="gb-primary-button" type="submit" disabled={busy || !acceptedTerms}>
-              <span>{busy ? 'Creating your account…' : 'Create account'}</span>
-              <span aria-hidden="true">→</span>
+            <button data-testid="button-signup-continue" className="gb-primary-button gb-signup-continue" type="submit" disabled={busy}>
+              <span>{busy ? 'Creating your account…' : 'Continue'}</span>
             </button>
           </form>
-          <p className="gb-switch-copy gb-signup-switch">Already have an account? <Link href="/sign-in">Sign in <span aria-hidden="true">→</span></Link></p>
+          <p className="gb-switch-copy gb-signup-switch">Already have an account? <Link data-testid="link-signup-sign-in" href="/sign-in">Sign in</Link></p>
         </>
       )}
 
@@ -840,6 +865,40 @@ export function ClerkSignUpForm() {
             <button type="button" onClick={resendCode} disabled={busy}>Resend code</button>
             <button type="button" onClick={changeEmail} disabled={busy}>Use a different email</button>
           </div>
+        </>
+      )}
+
+      {stage === 'profile' && (
+        <>
+          <div className="gb-form-heading gb-signup-heading">
+            <h1>Complete your profile</h1>
+            <p>Add the details needed to finish your Globus account.</p>
+          </div>
+          <form className="gb-auth-form gb-signup-fields" onSubmit={completeProfile}>
+            <div className="gb-field">
+              <label className="gb-field-label" htmlFor="gb-signup-phone">Phone number</label>
+              <input id="gb-signup-phone" data-testid="input-signup-phone" className="gb-input" type="tel" autoComplete="tel" maxLength={32} placeholder="Phone number" value={phone} onChange={event => setPhone(event.target.value)} required />
+            </div>
+            <div className="gb-field">
+              <label className="gb-field-label" htmlFor="gb-signup-country">Country</label>
+              <input id="gb-signup-country" data-testid="input-signup-country" className="gb-input" type="text" autoComplete="country-name" maxLength={80} placeholder="Country or region" value={country} onChange={event => setCountry(event.target.value)} required />
+            </div>
+            <div className="gb-field">
+              <label className="gb-field-label" htmlFor="gb-signup-dob">Date of birth</label>
+              <input id="gb-signup-dob" data-testid="input-signup-date-of-birth" className="gb-input" type="date" autoComplete="bday" max={new Date().toISOString().slice(0, 10)} value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} required />
+            </div>
+            <label className="gb-terms-check gb-signup-terms">
+              <input data-testid="checkbox-signup-terms" type="checkbox" checked={acceptedTerms} onChange={event => setAcceptedTerms(event.target.checked)} required />
+              <span>
+                I confirm my profile details are accurate and accept the Globus{' '}
+                account terms.
+              </span>
+            </label>
+            {error && <p role="alert" className="gb-auth-error">{error}</p>}
+            <button data-testid="button-signup-profile-continue" className="gb-primary-button gb-signup-continue" type="submit" disabled={busy}>
+              <span>{busy ? 'Finishing your account…' : 'Continue'}</span>
+            </button>
+          </form>
         </>
       )}
 
