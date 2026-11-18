@@ -838,3 +838,289 @@ body:has(.gb-auth-signup-shell) #root {
     font-size: 29px;
   }
 }
+
+/* Keep sign-in and sign-up visually consistent while limiting login to
+   the credentials Clerk is configured to accept. */
+.gb-auth-signin-shell {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: clamp(20px, 4vh, 48px) 24px;
+  background: #fff;
+  color: #1d2540;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.gb-auth-signin-shell .gb-brand-panel {
+  display: none;
+}
+
+.gb-auth-signin-shell .gb-form-side {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 0;
+}
+
+.gb-auth-signin-shell .gb-auth-content {
+  width: 100%;
+  max-width: 454px;
+  margin: 0 auto;
+  animation: gb-arrive .42s cubic-bezier(.2,.7,.2,1) both;
+}
+
+.gb-auth-signin-shell .gb-signin-brand {
+  display: flex;
+  width: min(218px, 62vw);
+  margin: 0 auto clamp(16px, 3.5vh, 28px);
+  align-items: center;
+  justify-content: center;
+}
+
+.gb-auth-signin-shell .gb-signin-brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading {
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading .gb-step-label {
+  display: none;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading h1 {
+  margin: 0 0 8px;
+  color: #20233c;
+  font-family: Manrope, 'DM Sans', sans-serif;
+  font-size: clamp(30px, 4vw, 36px);
+  font-weight: 750;
+  line-height: 1.16;
+  letter-spacing: -.045em;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading p {
+  margin: 0;
+  color: #777b8e;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-auth-form {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-field {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-field-label {
+  margin: 0 0 4px;
+  color: #36394f;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #dedfe6;
+  border-radius: 10px;
+  background: #f8f8fa;
+  color: #292c43;
+  box-shadow: none;
+  font: inherit;
+  font-size: 14px;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-input:focus-visible {
+  border-color: #9873e8;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(133, 91, 220, .13);
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-primary-button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  margin: 2px 0 0;
+  padding: 0 18px;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(105deg, #7048d6 0%, #925fe7 100%);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(112, 72, 214, .16);
+  font-size: 14px;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-primary-button span[aria-hidden="true"] {
+  display: none;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-auth-error,
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-auth-notice {
+  margin: 0;
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-signin-field-error {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.gb-auth-signin-shell .gb-recovery-type {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.gb-auth-signin-shell .gb-recovery-type button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #dedfe6;
+  border-radius: 9px;
+  background: #fff;
+  color: #5e6175;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.gb-auth-signin-shell .gb-recovery-type button.is-active {
+  border-color: #8059db;
+  background: #f2edff;
+  color: #6844c4;
+}
+
+.gb-auth-signin-shell .gb-recovery-type button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.gb-auth-signin-shell .gb-recovery-secondary {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: #744bd3;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.gb-auth-signin-shell .gb-recovery-link {
+  margin: 10px 0 0;
+  text-align: center;
+}
+
+.gb-auth-signin-shell .gb-recovery-link a,
+.gb-auth-signin-shell .gb-login-recovery-action,
+.gb-auth-signin-shell .gb-switch-copy a {
+  color: #744bd3;
+}
+
+.gb-auth-signin-shell .gb-switch-copy {
+  margin: 9px 0 0;
+  color: #777b8e;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.gb-auth-signin-shell .gb-signup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 16px 0 0;
+  color: #9698a5;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.gb-auth-signin-shell .gb-signup-footer svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+html:has(.gb-auth-signin-shell) {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-y: auto;
+}
+
+body:has(.gb-auth-signin-shell),
+body:has(.gb-auth-signin-shell) #root {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+@media (max-width: 760px) {
+  .gb-auth-signin-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-items: flex-start;
+    padding: clamp(28px, 6vh, 48px) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  }
+
+  .gb-auth-signin-shell .gb-form-side {
+    align-items: flex-start;
+  }
+
+  .gb-auth-signin-shell .gb-signin-brand {
+    width: min(198px, 62vw);
+    margin-bottom: 14px;
+  }
+
+  .gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading {
+    margin-bottom: 12px;
+  }
+
+  .gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading h1 {
+    font-size: 29px;
+  }
+}
+
+@media (max-width: 390px) {
+  .gb-auth-signin-shell {
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+
+  .gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading h1 {
+    font-size: 27px;
+  }
+}

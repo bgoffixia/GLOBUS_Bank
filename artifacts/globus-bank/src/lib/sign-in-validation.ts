@@ -1,5 +1,4 @@
-export type SignInIdentifierMode = 'customerId' | 'email' | 'username' | 'phone';
-export type SignInValidationField = 'identifier' | 'password';
+export type SignInValidationField = 'username' | 'password';
 
 export type SignInValidationError = {
   field: SignInValidationField;
@@ -7,35 +6,45 @@ export type SignInValidationError = {
 };
 
 export type SignInValidationInput = {
-  mode: SignInIdentifierMode | null;
-  identifier: string;
+  username: string;
   password: string;
   usernameMinLength: number;
   usernameMaxLength: number;
 };
 
-export function getSignInIdentifierModes(
-  emailEnabled: boolean,
-  usernameEnabled: boolean,
-  phoneEnabled = false,
-): SignInIdentifierMode[] {
-  return [
-    ...(emailEnabled ? (['customerId', 'email'] as const) : []),
-    ...(usernameEnabled ? (['username'] as const) : []),
-    ...(phoneEnabled ? (['phone'] as const) : []),
-  ];
+export type RecoveryLookup =
+  | { type: 'customerId'; customerId: string }
+  | { type: 'email'; email: string };
+
+export type UsernameRecoveryNextStep =
+  | 'reveal-username'
+  | 'verify-second-factor'
+  | 'blocked';
+
+export function getUsernameRecoveryNextStep(
+  status: string | null,
+  hasVerificationError: boolean,
+): UsernameRecoveryNextStep {
+  if (hasVerificationError) return 'blocked';
+  if (status === 'complete') return 'reveal-username';
+  if (status === 'needs_second_factor' || status === 'needs_client_trust') {
+    return 'verify-second-factor';
+  }
+  return 'blocked';
 }
 
-export function resolveSignInIdentifierMode(
-  preferredMode: SignInIdentifierMode,
-  supportedModes: SignInIdentifierMode[],
-): SignInIdentifierMode | null {
-  return supportedModes.includes(preferredMode)
-    ? preferredMode
-    : supportedModes[0] ?? null;
+export function parseRecoveryLookup(value: string): RecoveryLookup | null {
+  const trimmed = value.trim();
+  if (/^[A-Za-z0-9]{7}$/.test(trimmed)) {
+    return { type: 'customerId', customerId: trimmed.toUpperCase() };
+  }
+  if (/^[^\s@]+@[^\s@]+$/.test(trimmed)) {
+    return { type: 'email', email: trimmed };
+  }
+  return null;
 }
 
-export function supportsEmailCodeSignIn(
+export function supportsEmailCodeRecovery(
   emailEnabled: boolean,
   firstFactors: string[] | undefined,
   verificationStrategies: string[] | undefined,
@@ -47,56 +56,23 @@ export function supportsEmailCodeSignIn(
 }
 
 export function validateSignInCredentials({
-  mode,
-  identifier,
+  username,
   password,
   usernameMinLength,
   usernameMaxLength,
 }: SignInValidationInput): SignInValidationError | null {
-  const value = identifier.trim();
-  if (!mode) {
+  const normalizedUsername = username.trim();
+  if (!normalizedUsername) {
+    return { field: 'username', message: 'Enter your username.' };
+  }
+  if (normalizedUsername.length < usernameMinLength || normalizedUsername.length > usernameMaxLength) {
     return {
-      field: 'identifier',
-      message: 'No supported identifier sign-in is enabled. Contact Globus support.',
+      field: 'username',
+      message: `Username must be between ${usernameMinLength} and ${usernameMaxLength} characters.`,
     };
   }
-
-  if (mode === 'customerId') {
-    if (!value) {
-      return { field: 'identifier', message: 'Enter your Customer ID.' };
-    }
-    if (!/^[A-Za-z0-9]{7}$/.test(value)) {
-      return {
-        field: 'identifier',
-        message: 'Enter a seven-character Customer ID using letters and numbers.',
-      };
-    }
-  } else if (mode === 'email') {
-    if (!value) {
-      return { field: 'identifier', message: 'Enter your email address.' };
-    }
-    if (!/^[^\s@]+@[^\s@]+$/.test(value)) {
-      return { field: 'identifier', message: 'Enter a valid email address.' };
-    }
-  } else if (mode === 'phone') {
-    if (!value) {
-      return { field: 'identifier', message: 'Enter your phone number.' };
-    }
-  } else {
-    if (!value) {
-      return { field: 'identifier', message: 'Enter your username.' };
-    }
-    if (value.length < usernameMinLength || value.length > usernameMaxLength) {
-      return {
-        field: 'identifier',
-        message: `Username must be between ${usernameMinLength} and ${usernameMaxLength} characters.`,
-      };
-    }
-  }
-
   if (!password) {
     return { field: 'password', message: 'Enter your password.' };
   }
-
   return null;
 }

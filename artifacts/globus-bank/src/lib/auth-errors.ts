@@ -22,10 +22,10 @@ export function authFailureMessage(error: unknown, phase: AuthPhase): string {
   const code = errorCode(error);
   if (code && credentialErrors.has(code)) {
     // Keep unknown identifiers indistinguishable from incorrect passwords.
-    return 'The sign-in details were not accepted. Check your identifier and password, then try again.';
+    return 'The username or password was not accepted. Check your details and try again.';
   }
   const messages: Record<string, string> = {
-    form_identifier_format_invalid: 'Check the identifier format and try again.',
+    form_identifier_format_invalid: 'Check your username format and try again.',
     form_param_format_invalid: 'Check the sign-in details and try again.',
     form_password_pwned: 'This password needs a security update. Use Forgot password to choose a new password before signing in.',
     form_password_length_too_short: 'Choose a longer password that meets your account’s security requirements.',

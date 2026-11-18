@@ -16,11 +16,10 @@ import {
   verifyEmailCodeAndContinue,
 } from '../lib/signup-flow';
 import {
-  getSignInIdentifierModes,
-  resolveSignInIdentifierMode,
-  supportsEmailCodeSignIn,
+  getUsernameRecoveryNextStep,
+  parseRecoveryLookup,
+  supportsEmailCodeRecovery,
   validateSignInCredentials,
-  type SignInIdentifierMode,
   type SignInValidationField,
 } from '../lib/sign-in-validation';
 import './auth-pages.css';
@@ -50,7 +49,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
   const isSignUp = mode === 'sign-up';
 
   return (
-    <main className={`gb-auth-shell${isSignUp ? ' gb-auth-signup-shell' : ''}`}>
+    <main className={`gb-auth-shell ${isSignUp ? 'gb-auth-signup-shell' : 'gb-auth-signin-shell'}`}>
       <aside className="gb-brand-panel">
         <div className="gb-brand-lockup">
           <span className="gb-mark-wrap">
@@ -82,33 +81,18 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
       </aside>
 
       <section className="gb-form-side">
-        {!isSignUp && (
-          <div className="gb-mobile-brand">
-            <img src={asset('globus-mark-transparent.png')} alt="" />
+        <div className={`gb-auth-content ${isSignUp ? 'gb-signup-content' : ''}`}>
+          <div className={`gb-signup-brand${isSignUp ? '' : ' gb-signin-brand'}`}>
             <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
           </div>
-        )}
-        <div className={`gb-auth-content ${isSignUp ? 'gb-signup-content' : ''}`}>
-          {isSignUp && (
-            <div className="gb-signup-brand">
-              <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
-            </div>
-          )}
           {children}
-          {isSignUp ? (
-            <div className="gb-signup-footer">
-              <svg aria-hidden="true" viewBox="0 0 16 16" fill="none">
-                <rect x="3.25" y="7" width="9.5" height="7" rx="1.4" stroke="currentColor" strokeWidth="1.4" />
-                <path d="M5.25 7V4.9a2.75 2.75 0 0 1 5.5 0V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
-              </svg>
-              <span>Secured by Clerk</span>
-            </div>
-          ) : (
-            <div className="gb-form-footer">
-              <span>Globus Bank</span>
-              <span>Member account access</span>
-            </div>
-          )}
+          <div className="gb-signup-footer">
+            <svg aria-hidden="true" viewBox="0 0 16 16" fill="none">
+              <rect x="3.25" y="7" width="9.5" height="7" rx="1.4" stroke="currentColor" strokeWidth="1.4" />
+              <path d="M5.25 7V4.9a2.75 2.75 0 0 1 5.5 0V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
+            </svg>
+            <span>Secured by Clerk</span>
+          </div>
         </div>
       </section>
     </main>
@@ -119,12 +103,7 @@ export function ClerkSignInForm() {
   const [, setLocation] = useLocation();
   const clerk = (window as Window & { Clerk?: ClerkRuntimeSignInSettings }).Clerk;
   const { signIn, fetchStatus } = useSignIn();
-  const lookupCustomerId = useLookupCustomerId();
-  const [customerId, setCustomerId] = useState('');
-  const [email, setEmail] = useState('');
   const [username, setUsername] = useState('');
-  const [phoneNumber, setPhoneNumber] = useState('');
-  const [identifierMode, setIdentifierMode] = useState<SignInIdentifierMode>('customerId');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [verificationFactor, setVerificationFactor] = useState<
@@ -133,44 +112,17 @@ export function ClerkSignInForm() {
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState<SignInValidationField | null>(null);
   const userSettings = clerk?.environment?.userSettings;
-  const emailIdentifierEnabled = userSettings?.attributes?.email_address?.enabled === true;
   const usernameIdentifierEnabled = userSettings?.attributes?.username?.enabled === true;
-  const phoneIdentifierEnabled = userSettings?.attributes?.phone_number?.enabled === true;
   const passwordSignInEnabled = userSettings?.attributes?.password?.enabled === true;
-  const emailCodeSignInEnabled = supportsEmailCodeSignIn(
-    emailIdentifierEnabled,
-    userSettings?.attributes?.email_address?.first_factors,
-    userSettings?.attributes?.email_address?.verifications,
-  );
   const usernameMinLength = userSettings?.usernameSettings?.min_length ?? 1;
   const usernameMaxLength = userSettings?.usernameSettings?.max_length ?? 64;
-  const supportedIdentifierModes = getSignInIdentifierModes(
-    emailIdentifierEnabled,
-    usernameIdentifierEnabled,
-    phoneIdentifierEnabled,
-  );
-  const activeIdentifierMode = resolveSignInIdentifierMode(identifierMode, supportedIdentifierModes);
-  const activeIdentifier = activeIdentifierMode === 'email'
-    ? email
-    : activeIdentifierMode === 'username'
-      ? username
-      : activeIdentifierMode === 'phone'
-        ? phoneNumber
-        : customerId;
-  const identifierInputId = activeIdentifierMode === 'email'
-    ? 'gb-signin-email'
-    : activeIdentifierMode === 'username'
-      ? 'gb-signin-username'
-      : activeIdentifierMode === 'phone'
-        ? 'gb-signin-phone'
-        : 'gb-customer-id';
-  const busy = fetchStatus === 'fetching' || lookupCustomerId.isPending;
+  const busy = fetchStatus === 'fetching';
   const showFormUnavailable = !clerk?.loaded
     ? 'Loading secure sign-in options…'
     : !userSettings
       ? 'Secure sign-in options could not be loaded. Reload this page to try again.'
-      : !activeIdentifierMode
-        ? 'No supported identifier sign-in is enabled. Contact Globus support.'
+      : !usernameIdentifierEnabled
+        ? 'Username sign-in is not enabled for this Clerk account.'
         : !passwordSignInEnabled
           ? 'Password sign-in is not enabled for this Clerk account.'
           : '';
@@ -254,8 +206,7 @@ export function ClerkSignInForm() {
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const validationError = validateSignInCredentials({
-      mode: activeIdentifierMode,
-      identifier: activeIdentifier,
+      username,
       password,
       usernameMinLength,
       usernameMaxLength,
@@ -263,22 +214,15 @@ export function ClerkSignInForm() {
     if (validationError) {
       showFormError(validationError.message, validationError.field);
       const focusTarget = validationError.field === 'password'
-        ? 'gb-customer-password'
-        : identifierInputId;
+        ? 'gb-signin-password'
+        : 'gb-signin-username';
       requestAnimationFrame(() => document.getElementById(focusTarget)?.focus());
       return;
     }
     clearFormError();
     try {
-      const identifier = activeIdentifierMode === 'email'
-        ? email.trim()
-        : activeIdentifierMode === 'username'
-          ? username.trim()
-          : (await lookupCustomerId.mutateAsync({
-              data: { customerId: customerId.trim().toUpperCase() },
-            })).email;
       const result = await signIn.password({
-        identifier,
+        identifier: username.trim(),
         password,
       });
       await continueSignIn(result.error, 'sign-in');
@@ -312,10 +256,9 @@ export function ClerkSignInForm() {
 
   return (
     <div className="gb-signin-form-wrap">
-      <div className="gb-form-heading">
-        <span className="gb-step-label">MEMBER ACCESS <i /></span>
+      <div className="gb-form-heading gb-signin-heading">
         <h1>Welcome back</h1>
-        <p>{activeIdentifierMode === 'email' ? 'Sign in with your email address and password.' : activeIdentifierMode === 'username' ? 'Sign in with your Clerk username and password.' : activeIdentifierMode === 'phone' ? 'Sign in with the phone number on your account.' : 'Use your Globus Customer ID to access your account.'}</p>
+        <p>Sign in with your username and password.</p>
       </div>
       {verificationFactor ? (
         <form className="gb-auth-form" onSubmit={submitVerificationCode}>
@@ -362,133 +305,62 @@ export function ClerkSignInForm() {
           <p role="status" className="gb-auth-notice">{showFormUnavailable}</p>
         ) : (
           <form className="gb-auth-form" noValidate onSubmit={submit}>
-            <label className="gb-field-label" htmlFor={identifierInputId}>
-              {activeIdentifierMode === 'email' ? 'Email address' : activeIdentifierMode === 'username' ? 'Username' : activeIdentifierMode === 'phone' ? 'Phone number' : 'Customer ID'}
-            </label>
-            <input
-              id={identifierInputId}
-              className={`gb-input ${activeIdentifierMode === 'customerId' ? 'gb-customer-id-input' : ''}`}
-              type={activeIdentifierMode === 'email' ? 'email' : activeIdentifierMode === 'phone' ? 'tel' : 'text'}
-              autoComplete={activeIdentifierMode === 'email' ? 'email' : activeIdentifierMode === 'phone' ? 'tel' : 'username'}
-              autoCapitalize={activeIdentifierMode === 'customerId' ? 'off' : 'none'}
-              spellCheck={false}
-              inputMode={activeIdentifierMode === 'email' ? 'email' : activeIdentifierMode === 'phone' ? 'tel' : 'text'}
-              minLength={activeIdentifierMode === 'customerId' ? 7 : activeIdentifierMode === 'username' ? usernameMinLength : undefined}
-              maxLength={activeIdentifierMode === 'customerId' ? 7 : activeIdentifierMode === 'username' ? usernameMaxLength : activeIdentifierMode === 'email' ? 254 : undefined}
-              pattern={activeIdentifierMode === 'customerId' ? '[A-Za-z0-9]{7}' : undefined}
-              value={activeIdentifier}
-              aria-invalid={errorField === 'identifier' ? true : undefined}
-              aria-describedby={errorField === 'identifier' ? 'gb-signin-field-error' : undefined}
-              onChange={event => {
-                clearFormError();
-                if (activeIdentifierMode === 'email') setEmail(event.target.value);
-                else if (activeIdentifierMode === 'username') setUsername(event.target.value);
-                else if (activeIdentifierMode === 'phone') setPhoneNumber(event.target.value);
-                else setCustomerId(event.target.value.replace(/[^A-Za-z0-9]/g, '').toUpperCase().slice(0, 7));
-              }}
-              required
-            />
-            {error && errorField === 'identifier' && (
-              <p id="gb-signin-field-error" role="alert" className="gb-auth-error gb-signin-field-error">{error}</p>
-            )}
-            <label className="gb-field-label gb-signin-spaced-label" htmlFor="gb-customer-password">Password</label>
-            <input
-              id="gb-customer-password"
-              className="gb-input"
-              type="password"
-              autoComplete="current-password"
-              value={password}
-              aria-invalid={errorField === 'password' ? true : undefined}
-              aria-describedby={errorField === 'password' ? 'gb-signin-field-error' : undefined}
-              onChange={event => {
-                clearFormError();
-                setPassword(event.target.value);
-              }}
-              required
-            />
-            {error && errorField === 'password' && (
-              <p id="gb-signin-field-error" role="alert" className="gb-auth-error gb-signin-field-error">{error}</p>
-            )}
+            <div className="gb-field">
+              <label className="gb-field-label" htmlFor="gb-signin-username">Username</label>
+              <input
+                id="gb-signin-username"
+                className="gb-input"
+                type="text"
+                autoComplete="username"
+                autoCapitalize="none"
+                spellCheck={false}
+                minLength={usernameMinLength}
+                maxLength={usernameMaxLength}
+                value={username}
+                aria-invalid={errorField === 'username' ? true : undefined}
+                aria-describedby={errorField === 'username' ? 'gb-signin-field-error' : undefined}
+                onChange={event => {
+                  clearFormError();
+                  setUsername(event.target.value);
+                }}
+                required
+              />
+              {error && errorField === 'username' && (
+                <p id="gb-signin-field-error" role="alert" className="gb-auth-error gb-signin-field-error">{error}</p>
+              )}
+            </div>
+            <div className="gb-field">
+              <label className="gb-field-label" htmlFor="gb-signin-password">Password</label>
+              <input
+                id="gb-signin-password"
+                className="gb-input"
+                type="password"
+                autoComplete="current-password"
+                value={password}
+                aria-invalid={errorField === 'password' ? true : undefined}
+                aria-describedby={errorField === 'password' ? 'gb-signin-field-error' : undefined}
+                onChange={event => {
+                  clearFormError();
+                  setPassword(event.target.value);
+                }}
+                required
+              />
+              {error && errorField === 'password' && (
+                <p id="gb-signin-field-error" role="alert" className="gb-auth-error gb-signin-field-error">{error}</p>
+              )}
+            </div>
             {error && !errorField && <p role="alert" className="gb-auth-error">{error}</p>}
             <button className="gb-primary-button" type="submit" disabled={busy}>
-              <span>{busy ? 'Securely signing in…' : 'Sign in with password'}</span>
+              <span>{busy ? 'Signing in…' : 'Sign in'}</span>
               <span aria-hidden="true">→</span>
             </button>
-            {activeIdentifierMode === 'email' && emailCodeSignInEnabled && (
-              <button
-                className="gb-recovery-secondary"
-                type="button"
-                disabled={busy || !email.trim()}
-                onClick={async () => {
-                  clearFormError();
-                  try {
-                    const created = await signIn.create({ identifier: email.trim() });
-                    if (created.error) {
-                      showFormError(authFailureMessage(created.error, 'sign-in'));
-                      return;
-                    }
-                    const sent = await signIn.emailCode.sendCode();
-                    if (sent.error) {
-                      showFormError(authFailureMessage(sent.error, 'verification'));
-                      return;
-                    }
-                    setVerificationCode('');
-                    setVerificationFactor('first_email_code');
-                  } catch (signInError) {
-                    showFormError(authFailureMessage(signInError, 'sign-in'));
-                  }
-                }}
-              >
-                Sign in with an email verification code
-              </button>
-            )}
           </form>
         )
       )}
-      <div className="gb-login-recovery-actions">
-        {emailIdentifierEnabled && activeIdentifierMode !== 'username' && activeIdentifierMode !== 'phone' && (
-          <button
-            type="button"
-            className="gb-login-recovery-action"
-            onClick={() => {
-              setIdentifierMode(current => current === 'customerId' ? 'email' : 'customerId');
-              clearFormError();
-            }}
-          >
-            {activeIdentifierMode === 'customerId' ? 'Forgot your ID? Use email' : 'Use Customer ID'}
-          </button>
-        )}
-        {emailIdentifierEnabled && activeIdentifierMode === 'username' && (
-          <button
-            type="button"
-            className="gb-login-recovery-action"
-            onClick={() => { setIdentifierMode('email'); clearFormError(); }}
-          >
-            Use email instead
-          </button>
-        )}
-        {emailIdentifierEnabled && activeIdentifierMode === 'phone' && (
-          <button
-            type="button"
-            className="gb-login-recovery-action"
-            onClick={() => { setIdentifierMode('email'); clearFormError(); }}
-          >
-            Use email instead
-          </button>
-        )}
-        {usernameIdentifierEnabled && activeIdentifierMode !== 'username' && (
-          <button type="button" className="gb-login-recovery-action" onClick={() => { setIdentifierMode('username'); clearFormError(); }}>
-            Sign in with username
-          </button>
-        )}
-        {phoneIdentifierEnabled && activeIdentifierMode !== 'phone' && (
-          <button type="button" className="gb-login-recovery-action" onClick={() => { setIdentifierMode('phone'); clearFormError(); }}>
-            Sign in with phone
-          </button>
-        )}
-        <Link className="gb-login-recovery-action" href="/sign-in/email">Forgot password</Link>
-      </div>
-      <p className="gb-switch-copy">New to Globus? <Link href="/sign-up">Create an account <span aria-hidden="true">→</span></Link></p>
+      <p className="gb-recovery-link">
+        <Link href="/sign-in/email">Forgot username or password?</Link>
+      </p>
+      <p className="gb-switch-copy">New to Globus? <Link href="/sign-up">Create an account</Link></p>
     </div>
   );
 }
@@ -496,74 +368,208 @@ export function ClerkSignInForm() {
 export function EmailRecoverySignInForm() {
   const [, setLocation] = useLocation();
   const { signIn, fetchStatus } = useSignIn();
+  const clerk = (window as Window & { Clerk?: ClerkRuntimeSignInSettings }).Clerk;
+  const { isLoaded: userLoaded, user } = useUser();
+  const lookupCustomerId = useLookupCustomerId();
   const profile = useGetBankProfile({ query: { queryKey: getGetBankProfileQueryKey(), enabled: false } });
-  const [email, setEmail] = useState('');
+  const [lookup, setLookup] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [customerId, setCustomerId] = useState('');
-  const [stage, setStage] = useState<'email' | 'code' | 'password' | 'complete'>('email');
+  const [stage, setStage] = useState<
+    'lookup' | 'code' | 'username-factor' | 'username-revealed' | 'password' | 'complete'
+  >('lookup');
+  const [recoveryType, setRecoveryType] = useState<'password' | 'username'>('password');
+  const [usernameFactor, setUsernameFactor] = useState<
+    'email_code' | 'phone_code' | 'totp' | 'backup_code' | null
+  >(null);
+  const [hasRecoveryAttempt, setHasRecoveryAttempt] = useState(false);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
-  const busy = fetchStatus === 'fetching';
+  const emailSettings = clerk?.environment?.userSettings?.attributes?.email_address;
+  const emailCodeRecoveryAvailable = supportsEmailCodeRecovery(
+    emailSettings?.enabled === true,
+    emailSettings?.first_factors,
+    emailSettings?.verifications,
+  );
+  const busy = fetchStatus === 'fetching' || lookupCustomerId.isPending;
+  const genericRecoveryNotice = 'If the details match an account, a verification code was sent to its email.';
 
-  const sendRecoveryCode = async (startNewAttempt: boolean) => {
+  const sendRecoveryCode = async (startNewAttempt: boolean): Promise<boolean> => {
     setError('');
-    setNotice('');
+    setNotice(genericRecoveryNotice);
     setVerificationCode('');
-    try {
-      if (startNewAttempt) {
-        const created = await signIn.create({ identifier: email.trim() });
-        if (created.error) {
-          setNotice('If an account can be recovered using that address, a verification code has been sent. Use only the newest code; an earlier code may no longer work.');
-          return;
-        }
-      }
-      const sent = await signIn.resetPasswordEmailCode.sendCode();
-      if (sent.error) {
-        setNotice('If an account can be recovered using that address, a verification code has been sent. Use only the newest code; an earlier code may no longer work.');
-        return;
-      }
-    } catch {
-      // Keep the same response for unknown addresses and other recovery failures.
+    if (recoveryType === 'username' && !emailCodeRecoveryAvailable) {
+      setError('Username recovery is unavailable because email-code verification is not enabled.');
+      return false;
     }
-    setNotice('If an account can be recovered using that address, a verification code has been sent. Use only the newest code; an earlier code may no longer work.');
+
+    if (startNewAttempt) {
+      const parsedLookup = parseRecoveryLookup(lookup);
+      if (!parsedLookup) {
+        setError('Enter an email address or a seven-character Customer ID.');
+        return false;
+      }
+      await signIn.reset().catch(() => undefined);
+      setHasRecoveryAttempt(false);
+      setCustomerId(parsedLookup.type === 'customerId' ? parsedLookup.customerId : '');
+      let recoveryEmail: string;
+      try {
+        recoveryEmail = parsedLookup.type === 'customerId'
+          ? (await lookupCustomerId.mutateAsync({
+              data: { customerId: parsedLookup.customerId },
+            })).email
+          : parsedLookup.email;
+      } catch {
+        setStage('code');
+        return true;
+      }
+
+      let created: Awaited<ReturnType<typeof signIn.create>>;
+      try {
+        created = await signIn.create({ identifier: recoveryEmail });
+      } catch {
+        setStage('code');
+        return true;
+      }
+      if (created.error) {
+        setStage('code');
+        return true;
+      }
+    } else if (!hasRecoveryAttempt) {
+      return sendRecoveryCode(true);
+    }
+
+    try {
+      const sent = recoveryType === 'username'
+        ? await signIn.emailCode.sendCode()
+        : await signIn.resetPasswordEmailCode.sendCode();
+      if (sent.error) {
+        setHasRecoveryAttempt(false);
+        setStage('code');
+        return true;
+      }
+      setHasRecoveryAttempt(true);
+    } catch {
+      setHasRecoveryAttempt(false);
+      setStage('code');
+    }
+    return true;
   };
 
   const requestCode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    await sendRecoveryCode(true);
-    setStage('code');
+    if (await sendRecoveryCode(true)) setStage('code');
   };
 
   const resendCode = async () => {
     await sendRecoveryCode(false);
   };
 
-  const changeRecoveryEmail = async () => {
-    await signIn.reset();
-    setStage('email');
+  const changeRecoveryLookup = async () => {
+    await signIn.reset().catch(() => undefined);
+    setStage('lookup');
+    setHasRecoveryAttempt(false);
+    setUsernameFactor(null);
     setError('');
     setNotice('');
     setVerificationCode('');
   };
 
+  const finishUsernameRecovery = async () => {
+    const finalized = await signIn.finalize({ navigate: () => undefined });
+    if (finalized.error) {
+      setError(authFailureMessage(finalized.error, 'verification'));
+      return;
+    }
+    setHasRecoveryAttempt(false);
+    setStage('username-revealed');
+    setNotice('');
+  };
+
+  const continueUsernameRecovery = async (verificationError: unknown) => {
+    const nextStep = getUsernameRecoveryNextStep(signIn.status, Boolean(verificationError));
+    if (nextStep === 'blocked' && verificationError) {
+      setError(authFailureMessage(verificationError, 'verification'));
+      return;
+    }
+    if (nextStep === 'reveal-username') {
+      await finishUsernameRecovery();
+      return;
+    }
+    if (nextStep === 'verify-second-factor') {
+      const available = new Set((signIn.supportedSecondFactors ?? []).map(factor => factor.strategy));
+      const factor = (['email_code', 'phone_code', 'totp', 'backup_code'] as const)
+        .find(strategy => available.has(strategy));
+      if (!factor) {
+        setError('This account needs another sign-in method before its username can be shown. Contact Globus support.');
+        return;
+      }
+      const prepared = factor === 'email_code'
+        ? await signIn.mfa.sendEmailCode()
+        : factor === 'phone_code'
+          ? await signIn.mfa.sendPhoneCode()
+          : { error: null };
+      if (prepared.error) {
+        setError(authFailureMessage(prepared.error, 'verification'));
+        return;
+      }
+      setUsernameFactor(factor);
+      setVerificationCode('');
+      setStage('username-factor');
+      setNotice('Enter the additional code to continue.');
+      return;
+    }
+    setError('The email was verified, but another sign-in step is required. Try your username and password or contact Globus support.');
+  };
+
   const verifyCode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
+    if (!hasRecoveryAttempt) {
+      setError('No code request is active. Enter your email or Customer ID and request a new code.');
+      return;
+    }
     try {
-      const verified = await signIn.resetPasswordEmailCode.verifyCode({
-        code: verificationCode.trim(),
-      });
-      if (verified.error) {
-        setError(authFailureMessage(verified.error, 'verification'));
-        return;
+      if (recoveryType === 'username') {
+        const verified = await signIn.emailCode.verifyCode({ code: verificationCode.trim() });
+        await continueUsernameRecovery(verified.error);
+      } else {
+        const verified = await signIn.resetPasswordEmailCode.verifyCode({
+          code: verificationCode.trim(),
+        });
+        if (verified.error) {
+          setError(authFailureMessage(verified.error, 'verification'));
+          return;
+        }
+        if (signIn.status !== 'needs_new_password') {
+          setError('Recovery needs another verification step. Request a fresh code or contact Globus support.');
+          return;
+        }
+        setStage('password');
+        setNotice('');
       }
-      if (signIn.status !== 'needs_new_password') {
-        setError('Recovery needs another verification step. Request a fresh code or contact Globus support.');
-        return;
+    } catch (error) {
+      setError(authFailureMessage(error, 'verification'));
+    }
+  };
+
+  const verifyUsernameFactor = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!usernameFactor || !verificationCode.trim()) return;
+    setError('');
+    try {
+      let result: { error: unknown | null };
+      if (usernameFactor === 'email_code') {
+        result = await signIn.mfa.verifyEmailCode({ code: verificationCode.trim() });
+      } else if (usernameFactor === 'phone_code') {
+        result = await signIn.mfa.verifyPhoneCode({ code: verificationCode.trim() });
+      } else if (usernameFactor === 'totp') {
+        result = await signIn.mfa.verifyTOTP({ code: verificationCode.trim() });
+      } else {
+        result = await signIn.mfa.verifyBackupCode({ code: verificationCode.trim() });
       }
-      setStage('password');
-      setNotice('');
+      await continueUsernameRecovery(result.error);
     } catch (error) {
       setError(authFailureMessage(error, 'verification'));
     }
@@ -598,27 +604,62 @@ export function EmailRecoverySignInForm() {
   return (
     <div className="gb-signin-form-wrap">
       <div className="gb-form-heading">
-        <span className="gb-step-label">PASSWORD RESET <i /></span>
+        <span className="gb-step-label">ACCOUNT RECOVERY <i /></span>
         <h1>
-          {stage === 'email' && 'Recover your account'}
+          {stage === 'lookup' && (recoveryType === 'password' ? 'Reset your password' : 'Recover your username')}
           {stage === 'code' && 'Check your email'}
+          {stage === 'username-factor' && 'Verify it’s you'}
+          {stage === 'username-revealed' && 'Username recovered'}
           {stage === 'password' && 'Choose a new password'}
           {stage === 'complete' && 'Recovery complete'}
         </h1>
         <p>
-          {stage === 'email' && 'Enter the email address on your account to reset your password.'}
-          {stage === 'code' && 'Enter the recovery code if one was sent to you.'}
+          {stage === 'lookup' && recoveryType === 'password' && 'Use your email or Customer ID.'}
+          {stage === 'lookup' && recoveryType === 'username' && 'Verify your email to view your username. This also signs you in.'}
+          {stage === 'code' && recoveryType === 'username' && 'Enter the email code to view your username.'}
+          {stage === 'code' && recoveryType === 'password' && 'Enter the code to reset your password.'}
+          {stage === 'username-factor' && 'Complete the additional sign-in check.'}
+          {stage === 'username-revealed' && 'Your email is verified. Your username is below.'}
           {stage === 'password' && 'Set a new password for your Globus account.'}
           {stage === 'complete' && 'Your password has been reset.'}
         </p>
       </div>
-      {stage === 'email' && (
+      {stage === 'lookup' && (
         <form className="gb-auth-form" onSubmit={requestCode}>
-          <label className="gb-field-label" htmlFor="gb-recovery-email">Email address</label>
-          <input id="gb-recovery-email" className="gb-input" type="email" autoComplete="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} required />
+          <div className="gb-recovery-type" role="group" aria-label="Recovery type">
+            <button
+              type="button"
+              aria-pressed={recoveryType === 'password'}
+              className={recoveryType === 'password' ? 'is-active' : ''}
+              onClick={() => { setRecoveryType('password'); setError(''); }}
+            >
+              Password
+            </button>
+            <button
+              type="button"
+              aria-pressed={recoveryType === 'username'}
+              className={recoveryType === 'username' ? 'is-active' : ''}
+              disabled={!emailCodeRecoveryAvailable}
+              onClick={() => { setRecoveryType('username'); setError(''); }}
+            >
+              Username
+            </button>
+          </div>
+          <label className="gb-field-label" htmlFor="gb-recovery-lookup">Email or Customer ID</label>
+          <input
+            id="gb-recovery-lookup"
+            className="gb-input"
+            type="text"
+            autoComplete="email"
+            maxLength={254}
+            placeholder="Email or 7-character Customer ID"
+            value={lookup}
+            onChange={event => { setLookup(event.target.value); setError(''); }}
+            required
+          />
           {error && <p role="alert" className="gb-auth-error">{error}</p>}
-          <button className="gb-primary-button" type="submit" disabled={busy || !email.trim()}>
-            <span>{busy ? 'Sending reset code…' : 'Send password reset code'}</span>
+          <button className="gb-primary-button" type="submit" disabled={busy || !lookup.trim()}>
+            <span>{busy ? 'Sending code…' : 'Continue'}</span>
             <span aria-hidden="true">→</span>
           </button>
         </form>
@@ -636,10 +677,55 @@ export function EmailRecoverySignInForm() {
           <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={resendCode}>
             Send another code
           </button>
-          <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={changeRecoveryEmail}>
-            Use a different email address
+          <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={changeRecoveryLookup}>
+            Use different details
           </button>
         </form>
+      )}
+      {stage === 'username-factor' && (
+        <form className="gb-auth-form" onSubmit={verifyUsernameFactor}>
+          <label className="gb-field-label" htmlFor="gb-username-recovery-factor">Verification code</label>
+          <input
+            id="gb-username-recovery-factor"
+            className="gb-input"
+            type="text"
+            inputMode={usernameFactor === 'backup_code' ? 'text' : 'numeric'}
+            autoComplete="one-time-code"
+            value={verificationCode}
+            onChange={event => setVerificationCode(event.target.value.trim())}
+            required
+          />
+          {notice && <p className="gb-auth-notice" role="status">{notice}</p>}
+          {error && <p role="alert" className="gb-auth-error">{error}</p>}
+          <button className="gb-primary-button" type="submit" disabled={busy || !verificationCode.trim()}>
+            <span>{busy ? 'Verifying…' : 'Verify code'}</span>
+            <span aria-hidden="true">→</span>
+          </button>
+        </form>
+      )}
+      {stage === 'username-revealed' && (
+        <div className="gb-auth-form">
+          {userLoaded && user?.username ? (
+            <>
+              <label className="gb-field-label" htmlFor="gb-recovered-username">Your username</label>
+              <output id="gb-recovered-username" className="gb-input">{user.username}</output>
+              <button className="gb-primary-button" type="button" onClick={() => setLocation('/dashboard')}>
+                <span>Continue to your account</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </>
+          ) : userLoaded ? (
+            <>
+              <p role="alert" className="gb-auth-error">Your email is verified, but no username is set on this account.</p>
+              <button className="gb-primary-button" type="button" onClick={() => setLocation('/profile')}>
+                <span>Open your profile</span>
+                <span aria-hidden="true">→</span>
+              </button>
+            </>
+          ) : (
+            <p role="status" className="gb-auth-notice">Loading your verified account…</p>
+          )}
+        </div>
       )}
       {stage === 'password' && (
         <form className="gb-auth-form" onSubmit={resetPassword}>
@@ -669,7 +755,9 @@ export function EmailRecoverySignInForm() {
           </button>
         </div>
       )}
-      <p className="gb-switch-copy"><Link href="/sign-in">Back to sign in</Link></p>
+      {stage !== 'username-revealed' && (
+        <p className="gb-switch-copy"><Link href="/sign-in">Back to sign in</Link></p>
+      )}
     </div>
   );
 }
@@ -1119,26 +1207,26 @@ export function ClerkSignUpForm() {
           <div className="gb-form-heading gb-signup-heading">
             <span className="gb-step-label">GET STARTED <i /></span>
             <h1>Create your account</h1>
-            <p>Welcome! Please fill in the details to get started.</p>
+            <p>Enter your details to get started.</p>
           </div>
           <form className="gb-auth-form gb-signup-form" onSubmit={startSignUp}>
             <div className="gb-signup-fields">
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-first-name">First name</label>
-                <input id="gb-signup-first-name" data-testid="input-signup-first-name" className="gb-input" type="text" autoComplete="given-name" maxLength={80} placeholder="First name" value={firstName} onChange={event => setFirstName(event.target.value)} required />
+                <input id="gb-signup-first-name" data-testid="input-signup-first-name" className="gb-input" type="text" autoComplete="given-name" maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} required />
               </div>
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-last-name">Last name</label>
-                <input id="gb-signup-last-name" data-testid="input-signup-last-name" className="gb-input" type="text" autoComplete="family-name" maxLength={80} placeholder="Last name" value={lastName} onChange={event => setLastName(event.target.value)} required />
+                <input id="gb-signup-last-name" data-testid="input-signup-last-name" className="gb-input" type="text" autoComplete="family-name" maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} required />
               </div>
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-username">Username</label>
-                <input id="gb-signup-username" data-testid="input-signup-username" className="gb-input" type="text" autoComplete="username" autoCapitalize="off" spellCheck={false} minLength={6} maxLength={12} pattern="(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}" placeholder="Choose a 6–12 character username" value={username} onChange={event => setUsername(event.target.value.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12))} required />
-                <p className="gb-password-hint">Use 6–12 characters. Include at least one letter; letters, numbers, hyphens and underscores are accepted.</p>
+                <input id="gb-signup-username" data-testid="input-signup-username" className="gb-input" type="text" autoComplete="username" autoCapitalize="off" spellCheck={false} minLength={6} maxLength={12} pattern="(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}" value={username} onChange={event => setUsername(event.target.value.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12))} required />
+                <p className="gb-password-hint">6–12 characters with a letter; letters, numbers, hyphens, underscores.</p>
               </div>
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-email">Email address</label>
-                <input id="gb-signup-email" data-testid="input-signup-email" className="gb-input" type="email" autoComplete="email" maxLength={254} placeholder="Email address" value={email} onChange={event => setEmail(event.target.value)} required />
+                <input id="gb-signup-email" data-testid="input-signup-email" className="gb-input" type="email" autoComplete="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} required />
               </div>
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-password">Password</label>
@@ -1146,7 +1234,7 @@ export function ClerkSignUpForm() {
               </div>
             </div>
 
-            <p className="gb-password-hint">Use at least 8 characters. Clerk checks any additional password requirements.</p>
+            <p className="gb-password-hint">8+ characters; Clerk checks additional requirements.</p>
             {error && <p role="alert" className="gb-auth-error">{error}</p>}
             <button data-testid="button-signup-continue" className="gb-primary-button gb-signup-continue" type="submit" disabled={busy}>
               <span>{busy ? 'Creating your account…' : 'Continue'}</span>

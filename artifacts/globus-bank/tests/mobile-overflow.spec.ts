@@ -86,8 +86,8 @@ async function openAndCheck(page: Page, path: string, width: number, context: st
     await expect(page.locator('.gb-auth-shell')).toBeVisible();
   }
   if (path === '/sign-in') {
-    await expect(page.locator('#gb-customer-id')).toHaveCount(1);
-    expect(await page.locator('#gb-customer-id').getAttribute('placeholder')).toBeNull();
+    await expect(page.locator('#gb-signin-username')).toBeVisible();
+    await expect(page.locator('#gb-signin-password')).toBeVisible();
   }
   await expectNoHorizontalOverflow(page, `${context} at ${width}px (${path})`);
 }
@@ -157,7 +157,9 @@ test.describe('Globus sign-up design', () => {
       await expect(shell).toBeVisible();
       await expect(page.getByRole('img', { name: 'Globus Bank' })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
-      await expect(page.getByText('Welcome! Please fill in the details to get started.')).toBeVisible();
+      await expect(page.getByText('Enter your details to get started.')).toBeVisible();
+      await expect(page.getByText('6–12 characters with a letter; letters, numbers, hyphens, underscores.')).toBeVisible();
+      await expect(page.getByText('8+ characters; Clerk checks additional requirements.')).toBeVisible();
 
       await expect(page.locator('.gb-signup-fields .gb-field-label')).toHaveText([
         'First name',
@@ -263,88 +265,116 @@ test.describe('Globus sign-up design', () => {
     }
   });
 
-  test('keeps the existing sign-in layout separate', async ({ page }) => {
+  test('matches the sign-up shell with username-and-password sign-in', async ({ page }) => {
     for (const viewport of authViewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
 
-      await expect(page.locator('.gb-auth-shell')).toBeVisible();
+      const shell = page.locator('.gb-auth-signin-shell');
+      await expect(shell).toBeVisible();
       await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
-      await expect(page.locator('#gb-customer-id')).toBeVisible();
-      await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
+      await expect(page.locator('#gb-signin-username')).toBeVisible();
+      await expect(page.locator('#gb-signin-password')).toBeVisible();
+      await expect(page.getByRole('link', { name: 'Forgot username or password?' })).toBeVisible();
+      const signInLogo = page.locator('.gb-signin-brand');
+      await expect(signInLogo).toBeVisible();
+      const signInLogoBox = await signInLogo.boundingBox();
+      expect(signInLogoBox).not.toBeNull();
+      await expect(shell).toHaveCSS('background-color', 'rgb(255, 255, 255)');
+      const [button, input] = await Promise.all([
+        page.locator('.gb-signin-form-wrap .gb-primary-button').evaluate(element => getComputedStyle(element).backgroundImage),
+        page.locator('#gb-signin-username').evaluate(element => getComputedStyle(element).borderRadius),
+      ]);
+      expect(button).toContain('linear-gradient');
+      expect(input).toBe('10px');
       await expectNoHorizontalOverflow(page, `Sign-in at ${viewport.width}px`);
       await expectNoAuthLayoutOverlap(page, `Sign-in at ${viewport.width}px`);
       await expect(page.locator('#gb-signup-first-name, #gb-signup-last-name, #gb-signup-phone, #gb-signup-country, #gb-signup-dob, [data-testid="checkbox-signup-terms"]')).toHaveCount(0);
+      await expect(page.locator('#gb-customer-id, #gb-signin-email, #gb-signin-phone')).toHaveCount(0);
+      if (viewport.width <= 760) {
+        await page.goto('/sign-up', { waitUntil: 'domcontentloaded' });
+        const signUpLogoBox = await page.getByRole('img', { name: 'Globus Bank' }).boundingBox();
+        expect(signUpLogoBox).not.toBeNull();
+        expect(Math.abs(signInLogoBox!.y - signUpLogoBox!.y)).toBeLessThan(36);
+      }
     }
   });
 
-  test('keeps the existing email-recovery route available', async ({ page }) => {
+  test('accepts email or Customer ID for password and username recovery', async ({ page }) => {
     for (const viewport of authViewports) {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await page.goto('/sign-in/email', { waitUntil: 'domcontentloaded' });
 
-      await expect(page.locator('.gb-auth-shell')).toBeVisible();
+      await expect(page.locator('.gb-auth-signin-shell')).toBeVisible();
       await expect(page.locator('.gb-auth-signup-shell')).toHaveCount(0);
-      await expect(page.locator('.gb-signup-brand')).toHaveCount(0);
+      await expect(page.getByLabel('Email or Customer ID')).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Password' })).toBeVisible();
+      await expect(page.getByRole('button', { name: 'Username' })).toBeVisible();
       await expectNoHorizontalOverflow(page, `Recovery at ${viewport.width}px`);
       await expectNoAuthLayoutOverlap(page, `Recovery at ${viewport.width}px`);
     }
+
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto('/sign-in/email', { waitUntil: 'domcontentloaded' });
+    await page.getByLabel('Email or Customer ID').fill('not-an-email');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.getByRole('alert')).toHaveText('Enter an email address or a seven-character Customer ID.');
+    await expect(page.locator('#gb-recovered-username')).toHaveCount(0);
+
+    await page.route('**/api/bank/customer-id/lookup', route => route.fulfill({
+      status: 404,
+      contentType: 'application/json',
+      body: JSON.stringify({ error: 'Customer not found' }),
+    }));
+    await page.getByRole('button', { name: 'Username' }).click();
+    await page.getByLabel('Email or Customer ID').fill('ABC1234');
+    await page.getByRole('button', { name: 'Continue' }).click();
+    await expect(page.getByRole('heading', { name: 'Check your email' })).toBeVisible();
+    await expect(page.getByRole('status')).toHaveText(
+      'If the details match an account, a verification code was sent to its email.',
+    );
+    await expect(page.locator('#gb-recovered-username')).toHaveCount(0);
+    await page.getByLabel('Recovery code').fill('123456');
+    await page.getByRole('button', { name: 'Verify code' }).click();
+    await expect(page.getByRole('alert')).toHaveText(
+      'No code request is active. Enter your email or Customer ID and request a new code.',
+    );
   });
 
-  test('shows readable inline errors for invalid sign-in identifiers and a missing password', async ({ page }) => {
+  test('shows username and password validation errors without calling Clerk', async ({ page }) => {
     for (const viewport of authViewports) {
       await page.setViewportSize(viewport);
       await page.goto('/sign-in', { waitUntil: 'domcontentloaded' });
 
-      const submit = page.getByRole('button', { name: 'Sign in with password' });
-      const customerId = page.locator('#gb-customer-id');
-      await expect(customerId).toBeVisible();
-      await expect(customerId).toHaveAttribute('required', '');
-      await expect(page.locator('#gb-customer-password')).toHaveAttribute('required', '');
+      const submit = page.getByRole('button', { name: 'Sign in' });
+      const username = page.locator('#gb-signin-username');
+      await expect(username).toBeVisible();
+      await expect(username).toHaveAttribute('required', '');
+      await expect(page.locator('#gb-signin-password')).toHaveAttribute('required', '');
       await expect(page.locator('#gb-signup-first-name, #gb-signup-last-name, #gb-signup-phone, #gb-signup-country, #gb-signup-dob, [data-testid="checkbox-signup-terms"]')).toHaveCount(0);
 
       await submit.click();
-      await expect(page.getByRole('alert')).toHaveText('Enter your Customer ID.');
-      await expect(customerId).toHaveAttribute('aria-invalid', 'true');
-      await expectNoAuthLayoutOverlap(page, `Missing Customer ID at ${viewport.width}px`);
-      await expectNoHorizontalOverflow(page, `Missing Customer ID at ${viewport.width}px`);
+      await expect(page.getByRole('alert')).toHaveText('Enter your username.');
+      await expect(username).toHaveAttribute('aria-invalid', 'true');
+      await expectNoAuthLayoutOverlap(page, `Missing username at ${viewport.width}px`);
+      await expectNoHorizontalOverflow(page, `Missing username at ${viewport.width}px`);
 
-      await customerId.fill('ABC1234');
+      await username.fill('abc');
+      await submit.click();
+      const minLength = Number(await username.getAttribute('minlength'));
+      const maxLength = Number(await username.getAttribute('maxlength'));
+      await expect(username).toHaveAttribute('minlength', String(minLength));
+      await expect(username).toHaveAttribute('maxlength', String(maxLength));
+      await expect(page.getByRole('alert')).toHaveText(
+        `Username must be between ${minLength} and ${maxLength} characters.`,
+      );
+
+      await username.fill('u'.repeat(minLength));
       await submit.click();
       await expect(page.getByRole('alert')).toHaveText('Enter your password.');
-      await expect(page.locator('#gb-customer-password')).toHaveAttribute('aria-invalid', 'true');
-
-      await page.getByRole('button', { name: 'Forgot your ID? Use email' }).click();
-      const email = page.locator('#gb-signin-email');
-      await expect(page.getByRole('button', { name: 'Sign in with an email verification code' })).toBeVisible();
-      await email.fill('not-an-email');
-      await page.locator('#gb-customer-password').fill('placeholder-only');
-      await submit.click();
-      await expect(page.getByRole('alert')).toHaveText('Enter a valid email address.');
-      await expect(email).toHaveAttribute('aria-describedby', 'gb-signin-field-error');
-      await expectNoAuthLayoutOverlap(page, `Invalid email at ${viewport.width}px`);
-      await expectNoHorizontalOverflow(page, `Invalid email at ${viewport.width}px`);
-
-      if (await page.getByRole('button', { name: 'Sign in with username' }).count()) {
-        await page.getByRole('button', { name: 'Sign in with username' }).click();
-        const username = page.locator('#gb-signin-username');
-        const minLength = Number(await username.getAttribute('minlength'));
-        const maxLength = Number(await username.getAttribute('maxlength'));
-        await expect(username).toHaveAttribute('minlength', String(minLength));
-        await expect(username).toHaveAttribute('maxlength', String(maxLength));
-        const invalidUsername = 'abc'.slice(0, Math.min(3, Math.max(0, minLength - 1)));
-        await username.fill(invalidUsername);
-        await submit.click();
-        if (invalidUsername) {
-          await expect(page.getByRole('alert')).toHaveText(
-            `Username must be between ${minLength} and ${maxLength} characters.`,
-          );
-        } else {
-          await expect(page.getByRole('alert')).toHaveText('Enter your username.');
-        }
-        await expectNoAuthLayoutOverlap(page, `Username validation at ${viewport.width}px`);
-        await expectNoHorizontalOverflow(page, `Username validation at ${viewport.width}px`);
-      }
+      await expect(page.locator('#gb-signin-password')).toHaveAttribute('aria-invalid', 'true');
+      await expectNoAuthLayoutOverlap(page, `Missing password at ${viewport.width}px`);
+      await expectNoHorizontalOverflow(page, `Missing password at ${viewport.width}px`);
     }
   });
 });
