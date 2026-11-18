@@ -19,6 +19,7 @@ import {
   resolveSignupResumeStage,
   sanitizeOptionalSignupProfile,
   saveSignupProfileWithoutBlocking,
+  syncMissingSignupNames,
   signupCreationErrorMessage,
   sendEmailVerificationAfterOptionalDetails,
   verifyEmailCode,
@@ -973,8 +974,10 @@ export function ClerkSignUpForm() {
   });
   const busy = fetchStatus === 'fetching' || submitting || stage === 'finishing';
   const clerkFields = [...signUp.requiredFields, ...signUp.optionalFields];
-  const clerkSupportsFirstName = clerkFields.includes('first_name');
-  const clerkSupportsLastName = clerkFields.includes('last_name');
+  const clerkSupportsFirstName =
+    clerkFields.includes('first_name') || signUp.missingFields.includes('first_name');
+  const clerkSupportsLastName =
+    clerkFields.includes('last_name') || signUp.missingFields.includes('last_name');
   const legalAcceptanceRequired =
     signUp.requiredFields.includes('legal_accepted') ||
     signUp.missingFields.includes('legal_accepted');
@@ -1201,6 +1204,19 @@ export function ClerkSignUpForm() {
         setError(readiness.ready
           ? 'Your email is verified, but Clerk did not create a sign-in session. Try signing in or use account recovery.'
           : readiness.message);
+        return;
+      }
+
+      const nameUpdate = signUp.id
+        ? await syncMissingSignupNames(
+          signUp.missingFields,
+          firstName,
+          lastName,
+          (values) => signUp.update(values),
+        )
+        : { ok: true as const };
+      if (!nameUpdate.ok) {
+        setError(nameUpdate.message);
         return;
       }
 

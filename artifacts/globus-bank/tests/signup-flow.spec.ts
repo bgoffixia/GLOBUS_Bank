@@ -14,6 +14,7 @@ import {
   sanitizeOptionalSignupProfile,
   signupCreationErrorMessage,
   saveSignupProfileWithoutBlocking,
+  syncMissingSignupNames,
   sendEmailVerificationAfterOptionalDetails,
   verifyEmailCode,
 } from '../src/lib/signup-flow';
@@ -189,6 +190,51 @@ test('signup errors offer sign-in and recovery without revealing account existen
   expect(message).toContain('signing in or use account recovery');
   expect(message).toContain('start over');
   expect(message).not.toContain('already registered');
+});
+
+test('updates entered name fields when Clerk still marks them missing', async () => {
+  const calls: unknown[] = [];
+  const result = await syncMissingSignupNames(
+    ['first_name', 'last_name'],
+    ' Ada ',
+    ' Mensah ',
+    async (values) => {
+      calls.push(values);
+      return { error: null };
+    },
+  );
+  expect(result).toEqual({ ok: true });
+  expect(calls).toEqual([{ firstName: 'Ada', lastName: 'Mensah' }]);
+});
+
+test('reports Clerk name update errors without proceeding', async () => {
+  let updateCalled = false;
+  const result = await syncMissingSignupNames(
+    ['first_name'],
+    'Ada',
+    'Mensah',
+    async () => {
+      updateCalled = true;
+      return { error: { message: 'First name is invalid.' } };
+    },
+  );
+  expect(updateCalled).toBe(true);
+  expect(result).toEqual({ ok: false, message: 'First name is invalid.' });
+});
+
+test('skips name updates when Clerk has no missing name fields', async () => {
+  let updateCalled = false;
+  const result = await syncMissingSignupNames(
+    [],
+    'Ada',
+    'Mensah',
+    async () => {
+      updateCalled = true;
+      return { error: null };
+    },
+  );
+  expect(result).toEqual({ ok: true });
+  expect(updateCalled).toBe(false);
 });
 
 test('successful finalization clears progress and navigates directly to the dashboard', async () => {

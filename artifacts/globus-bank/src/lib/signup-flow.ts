@@ -292,6 +292,49 @@ export function signupCreationErrorMessage(error: unknown): string {
     : 'We could not start your account. Retry, or sign in and use account recovery if you already have an account.';
 }
 
+export function getMissingSignupNameUpdates(
+  missingFields: readonly string[],
+  firstName: string,
+  lastName: string,
+): { firstName?: string; lastName?: string } {
+  const updates: { firstName?: string; lastName?: string } = {};
+  if (missingFields.includes('first_name') && firstName.trim()) {
+    updates.firstName = firstName.trim();
+  }
+  if (missingFields.includes('last_name') && lastName.trim()) {
+    updates.lastName = lastName.trim();
+  }
+  return updates;
+}
+
+export async function syncMissingSignupNames(
+  missingFields: readonly string[],
+  firstName: string,
+  lastName: string,
+  update: (values: { firstName?: string; lastName?: string }) => Promise<{
+    error: { message?: string } | null;
+  }>,
+): Promise<{ ok: true } | { ok: false; message: string }> {
+  const values = getMissingSignupNameUpdates(missingFields, firstName, lastName);
+  if (Object.keys(values).length === 0) return { ok: true };
+
+  try {
+    const result = await update(values);
+    if (result.error) {
+      return {
+        ok: false,
+        message: result.error.message || 'Clerk could not save the required name details. Check them and try again.',
+      };
+    }
+    return { ok: true };
+  } catch {
+    return {
+      ok: false,
+      message: 'Clerk could not save the required name details right now. Check your connection and try again.',
+    };
+  }
+}
+
 export async function finalizeVerifiedSignup(
   finalize: () => Promise<{ error: { message?: string } | null }>,
 ): Promise<{ ok: true } | { ok: false; message: string }> {
