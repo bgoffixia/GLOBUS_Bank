@@ -1,7 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { SaveSignupProfileBody, UpdateBankProfileBody } from "@workspace/api-zod";
-import { sanitizeSignupProfileDetails } from "../src/lib/signup-profile";
+import {
+  normalizeRequiredProfileName,
+  sanitizeBankProfileUpdateDetails,
+  sanitizeSignupProfileDetails,
+} from "../src/lib/signup-profile";
 
 test("accepts required names with each supplied optional registration field", () => {
   const parsed = SaveSignupProfileBody.safeParse({
@@ -56,19 +60,16 @@ test("valid optional values are trimmed and kept", () => {
   );
 });
 
-test("provided optional text is retained without format checks; invalid dates are skipped", () => {
+test("invalid optional formats are skipped while valid profile details are kept", () => {
   assert.deepEqual(
     sanitizeSignupProfileDetails({
       phone: "phone me",
       country: "Nigeri@",
-      cityOfOrigin: "A".repeat(101),
+      cityOfOrigin: "A".repeat(1025),
       dateOfBirth: "2023-02-30",
       occupation: "Student / part-time",
     }),
     {
-      phone: "phone me",
-      country: "Nigeri@",
-      cityOfOrigin: "A".repeat(101),
       occupation: "Student / part-time",
     },
   );
@@ -110,8 +111,32 @@ test("invalid optional dates are ignored without rejecting other supplied detail
   assert.deepEqual(
     sanitizeSignupProfileDetails({
       dateOfBirth: "2999-01-01",
-      phone: "+1 55",
+      phone: "+1 555 234 5678",
     }),
-    { phone: "+1 55" },
+    { phone: "+1 555 234 5678" },
   );
+});
+
+test("profile update ignores invalid optional values but allows explicit clearing", () => {
+  assert.deepEqual(
+    sanitizeBankProfileUpdateDetails({
+      phone: "phone me",
+      country: null,
+      cityOfOrigin: "Accra",
+      dateOfBirth: "not-a-date",
+      occupation: null,
+    }),
+    {
+      country: null,
+      cityOfOrigin: "Accra",
+      occupation: null,
+    },
+  );
+});
+
+test("required profile names are trimmed and blank or overlong names are rejected", () => {
+  assert.equal(normalizeRequiredProfileName(" Ada "), "Ada");
+  assert.equal(normalizeRequiredProfileName("  "), undefined);
+  assert.equal(normalizeRequiredProfileName("A".repeat(81)), undefined);
+  assert.equal(normalizeRequiredProfileName("Ada\u0000"), undefined);
 });

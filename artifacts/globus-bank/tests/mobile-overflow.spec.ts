@@ -546,6 +546,7 @@ test.describe('signed-in member pages at phone widths', () => {
           const toolbar = page.getByTestId('dashboard-bottom-toolbar');
           const quickActions = page.getByTestId('dashboard-action-toolbar');
           await expect(toolbar).toBeVisible();
+          await expect(page.getByTestId('dashboard-profile-completion')).toBeVisible();
           await expect(quickActions.locator('[data-testid^="dashboard-quick-"]')).toHaveCount(6);
           const columnCount = await quickActions.locator('[role="toolbar"]').evaluate(element =>
             getComputedStyle(element).gridTemplateColumns.split(' ').length,
@@ -554,6 +555,8 @@ test.describe('signed-in member pages at phone widths', () => {
           await page.getByTestId('link-header-profile').click();
           await expect(page).toHaveURL(/\/profile$/);
           await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
+          await page.getByTestId('profile-tab-button-details').click();
+          await expect(page.locator('#profile-tab-panel form input[required]')).toHaveCount(2);
           await page.getByTestId('link-app-home').click();
           await expect(page).toHaveURL(/\/home$/);
           await expect(page.locator('.public-viewport-scroll')).toBeVisible();

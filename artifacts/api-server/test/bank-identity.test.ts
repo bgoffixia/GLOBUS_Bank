@@ -100,12 +100,19 @@ test("signed-in identity reuse preserves the canonical wallet and transaction hi
       mockIdentityLoader,
     );
     assert.equal(resolvedUser.id, canonicalUserId);
+    assert.match(resolvedUser.customerId ?? "", /^[A-Z0-9]{7}$/);
 
     const duplicateEmailProfiles = await db
-      .select({ id: bankUsersTable.id })
+      .select({
+        id: bankUsersTable.id,
+        customerId: bankUsersTable.customerId,
+      })
       .from(bankUsersTable)
       .where(sql`lower(${bankUsersTable.email}) = ${verifiedEmail.toLowerCase()}`);
-    assert.deepEqual(duplicateEmailProfiles, [{ id: canonicalUserId }]);
+    assert.deepEqual(duplicateEmailProfiles, [{
+      id: canonicalUserId,
+      customerId: resolvedUser.customerId,
+    }]);
 
     const walletsAfter = await getWalletsForUser(canonicalUserId);
     const transactionsAfter = await listUserTransactions(canonicalUserId, {
@@ -146,6 +153,7 @@ test("signed-in identity reuse preserves the canonical wallet and transaction hi
       unrelatedClerkUserId,
       "an unrelated verified email creates its own profile, not access to another member",
     );
+    assert.match(unrelatedUser.customerId ?? "", /^[A-Z0-9]{7}$/);
 
     const alternateProfile = await db
       .select({ id: bankUsersTable.id })

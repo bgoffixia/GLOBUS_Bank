@@ -189,28 +189,23 @@ test('valid optional profile values are trimmed and retained', () => {
   });
 });
 
-test('optional profile text is saved as supplied while malformed dates are skipped', () => {
+test('invalid optional profile values are ignored while valid values remain', () => {
   expect(
     sanitizeOptionalSignupProfile({
       country: 'Nigeri@',
-      cityOfOrigin: 'A'.repeat(101),
+      cityOfOrigin: 'A'.repeat(1025),
       dateOfBirth: '2023-02-30',
       occupation: 'Engineer / Analyst',
       phone: 'call me',
     }),
-  ).toEqual({
-    country: 'Nigeri@',
-    cityOfOrigin: 'A'.repeat(101),
-    occupation: 'Engineer / Analyst',
-    phone: 'call me',
-  });
+  ).toEqual({ occupation: 'Engineer / Analyst' });
 
   expect(
     sanitizeOptionalSignupProfile({
       dateOfBirth: '2999-01-01',
       phone: '+1 55',
     }),
-  ).toEqual({ phone: '+1 55' });
+  ).toEqual({});
 });
 
 test('step and optional profile draft survive refresh and clear after saving', () => {
@@ -360,6 +355,38 @@ test('successful finalization clears progress and navigates directly to the dash
     'clear-signup-step',
     'open-dashboard',
   ]);
+});
+
+test('successful email verification opens dashboard despite incomplete optional profile details', async () => {
+  const optionalDetails = sanitizeOptionalSignupProfile({
+    phone: 'phone me',
+    country: 'Nigeri@',
+    cityOfOrigin: '',
+    dateOfBirth: 'not-a-date',
+    occupation: 'Designer / Analyst',
+  });
+  expect(optionalDetails).toEqual({ occupation: 'Designer / Analyst' });
+
+  const verification = await verifyEmailCode(async () => ({ error: null }));
+  expect(verification).toEqual({ ok: true });
+
+  const steps: string[] = [];
+  const finalization = await finalizeSignupWhenSessionReady(
+    {
+      status: 'complete',
+      createdSessionId: 'session_after_email_otp',
+      missingFields: ['phone_number'],
+    },
+    async () => {
+      steps.push('finalize-session');
+      return { error: null };
+    },
+    () => steps.push('clear-progress'),
+    () => steps.push('dashboard'),
+  );
+
+  expect(finalization).toEqual({ ok: true });
+  expect(steps).toEqual(['finalize-session', 'clear-progress', 'dashboard']);
 });
 
 test('failed Clerk finalization does not redirect to the dashboard', async () => {

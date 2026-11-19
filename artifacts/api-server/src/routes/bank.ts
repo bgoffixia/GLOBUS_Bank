@@ -128,7 +128,11 @@ import {
   CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
   normalizeCustomerEmailSenderLocalPart,
 } from "../lib/customer-email-sender";
-import { sanitizeSignupProfileDetails } from "../lib/signup-profile";
+import {
+  normalizeRequiredProfileName,
+  sanitizeBankProfileUpdateDetails,
+  sanitizeSignupProfileDetails,
+} from "../lib/signup-profile";
 import { getExchangeRate } from "../lib/exchange-rates";
 import {
   addVaultSubscriptionMonths,
@@ -666,8 +670,8 @@ router.put("/bank/signup-profile", async (req, res): Promise<void> => {
     return;
   }
 
-  const firstName = parsed.data.firstName.trim();
-  const lastName = parsed.data.lastName.trim();
+  const firstName = normalizeRequiredProfileName(parsed.data.firstName);
+  const lastName = normalizeRequiredProfileName(parsed.data.lastName);
   if (!firstName || !lastName) {
     res.status(400).json({ error: "Enter your first and last name to save your profile." });
     return;
@@ -1045,30 +1049,18 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
     return;
   }
 
+  const firstName = normalizeRequiredProfileName(parsed.data.firstName);
+  const lastName = normalizeRequiredProfileName(parsed.data.lastName);
+  if (!firstName || !lastName) {
+    res.status(400).json({ error: "Enter both your first and last name to update your profile." });
+    return;
+  }
+
   const currentUser = await getOrCreateBankUser(authUserId);
-  const sanitizedDetails = sanitizeSignupProfileDetails(parsed.data);
-  const hasOwnField = (field: string) =>
-    Object.prototype.hasOwnProperty.call(parsed.data, field);
   const profileUpdates = {
-    firstName: parsed.data.firstName.trim(),
-    lastName: parsed.data.lastName.trim() || null,
-    ...(hasOwnField("phone")
-      ? { phone: typeof parsed.data.phone === "string" ? parsed.data.phone.trim() || null : null }
-      : {}),
-    ...(hasOwnField("country")
-      ? { country: typeof parsed.data.country === "string" ? parsed.data.country.trim() || null : null }
-      : {}),
-    ...(hasOwnField("cityOfOrigin")
-      ? { cityOfOrigin: typeof parsed.data.cityOfOrigin === "string" ? parsed.data.cityOfOrigin.trim() || null : null }
-      : {}),
-    ...(parsed.data.dateOfBirth === null
-      ? { dateOfBirth: null }
-      : sanitizedDetails.dateOfBirth
-        ? { dateOfBirth: sanitizedDetails.dateOfBirth }
-        : {}),
-    ...(hasOwnField("occupation")
-      ? { occupation: typeof parsed.data.occupation === "string" ? parsed.data.occupation.trim() || null : null }
-      : {}),
+    firstName,
+    lastName,
+    ...sanitizeBankProfileUpdateDetails(parsed.data),
     ...(parsed.data.acceptedTerms === true
       ? { acceptedTermsAt: new Date() }
       : {}),

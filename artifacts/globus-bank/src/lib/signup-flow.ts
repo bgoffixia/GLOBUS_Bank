@@ -33,6 +33,7 @@ type SignupStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 const SIGNUP_PROGRESS_STORAGE_KEY = 'globus-bank:signup-progress:v1';
 const SIGNUP_PROFILE_DRAFT_STORAGE_KEY = 'globus-bank:signup-profile-draft:v1';
 let inMemorySignupProfileDraft: SignupProfileDraft | null = null;
+const PLACE_TEXT_PATTERN = /^[\p{L}\p{M}\p{N} .,'’()&/-]+$/u;
 
 function getBrowserSessionStorage(): SignupStorage | undefined {
   try {
@@ -45,7 +46,35 @@ function getBrowserSessionStorage(): SignupStorage | undefined {
 function optionalText(value: unknown, maxLength: number) {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
-  return trimmed && trimmed.length <= maxLength ? trimmed : undefined;
+  return trimmed &&
+    trimmed.length <= maxLength &&
+    PLACE_TEXT_PATTERN.test(trimmed)
+    ? trimmed
+    : undefined;
+}
+
+function optionalOccupation(value: unknown) {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed &&
+    trimmed.length <= 1024 &&
+    /[\p{L}\p{N}]/u.test(trimmed) &&
+    !/[\p{Cc}\p{Cf}]/u.test(trimmed)
+    ? trimmed
+    : undefined;
+}
+
+function optionalPhone(value: unknown) {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  const digitCount = trimmed.replace(/\D/g, '').length;
+  return trimmed &&
+    trimmed.length <= 1024 &&
+    /^\+?[0-9(). -]+$/.test(trimmed) &&
+    digitCount >= 7 &&
+    digitCount <= 15
+    ? trimmed
+    : undefined;
 }
 
 function isValidDateOfBirth(value: unknown) {
@@ -63,10 +92,8 @@ export function sanitizeOptionalSignupProfile(
 ): OptionalSignupProfile {
   const normalized: OptionalSignupProfile = {};
 
-  const phone = typeof input.phone === 'string' ? input.phone.trim() : '';
-  if (phone && phone.length <= 1024) {
-    normalized.phone = phone;
-  }
+  const phone = optionalPhone(input.phone);
+  if (phone) normalized.phone = phone;
 
   const country = optionalText(input.country, 1024);
   if (country) normalized.country = country;
@@ -78,7 +105,7 @@ export function sanitizeOptionalSignupProfile(
     normalized.dateOfBirth = input.dateOfBirth as string;
   }
 
-  const occupation = optionalText(input.occupation, 1024);
+  const occupation = optionalOccupation(input.occupation);
   if (occupation) normalized.occupation = occupation;
 
   return normalized;

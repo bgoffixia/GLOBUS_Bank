@@ -189,6 +189,38 @@ export function generateCustomerId(): string {
   ).join("");
 }
 
+async function ensureCustomerIdForUser(userId: string) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      const [updated] = await db
+        .update(bankUsersTable)
+        .set({ customerId: generateCustomerId(), updatedAt: new Date() })
+        .where(and(eq(bankUsersTable.id, userId), isNull(bankUsersTable.customerId)))
+        .returning();
+      if (updated) return updated;
+    } catch (error) {
+      const uniqueConflict =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "23505";
+      if (!uniqueConflict) throw error;
+    }
+
+    const [current] = await db
+      .select()
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, userId))
+      .limit(1);
+    if (!current) {
+      throw new Error("Could not resolve the Globus account for this user.");
+    }
+    if (current.customerId) return current;
+  }
+
+  throw new Error("Could not allocate a unique Globus Customer ID.");
+}
+
 export async function backfillCustomerIds(): Promise<void> {
   const missing = await db
     .select({ id: bankUsersTable.id })
@@ -303,7 +335,9 @@ export async function ensureBankUser(
     .limit(1);
 
   if (existing) {
-    return existing;
+    return existing.customerId
+      ? existing
+      : ensureCustomerIdForUser(existing.id);
   }
 
   const identity = await loadClerkIdentity(clerkUserId);
@@ -316,7 +350,7 @@ export async function ensureBankUser(
     throw new Error("A verified email address is required for a Globus account.");
   }
 
-  return db.transaction(async (tx) => {
+  const resolvedUser = await db.transaction(async (tx) => {
     const [existingByEmail] = await tx
       .select()
       .from(bankUsersTable)
@@ -384,6 +418,10 @@ export async function ensureBankUser(
 
     return resolvedUser;
   });
+
+  return resolvedUser.customerId
+    ? resolvedUser
+    : ensureCustomerIdForUser(resolvedUser.id);
 }
 
 export async function getWalletsForUser(userId: string) {

@@ -8,3 +8,4 @@
 - [Exchange-rate quote boundary](grey-quote-boundary.md) — Prefer Frankfurter reference rates with Grey as a read-only fallback; rate feeds never move money.
 - [Resend sender configuration](resend-sender.md) — Transactional mail uses an explicitly configured verified sender because the connected Resend access cannot list domains.
 - [Private Vault subscription renewal](private-vault-subscription-renewal.md) — Renewal is customer opt-in; expose it only after Paystack webhook processing is configured and tested.
+- [Verified signup and dashboard continuity](verified-signup-dashboard.md) — A verified Clerk session must reach the dashboard with a Customer ID despite missing or invalid optional profile details.

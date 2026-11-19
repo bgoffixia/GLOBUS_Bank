@@ -263,6 +263,7 @@ export function DashboardPage() {
   });
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null);
   const dash = query.data;
+  const missingProfileFields = getMissingCustomerProfileFields(dash?.profile);
   const selectedWallet = dash?.wallets.find(wallet => wallet.currency === selectedCurrency)
     ?? dash?.wallets.find(wallet => wallet.currency === dash.referenceCurrency)
     ?? dash?.wallets[0];
@@ -346,6 +347,13 @@ export function DashboardPage() {
           <div className="mt-3 space-y-2.5">
             <StatusLine label="Account" value={humanize(dash?.profile.accountStatus)} positive={dash?.profile.accountStatus === 'active'} />
             <StatusLine label="Private Vault" value={dash?.profile.vaultSubscriptionActive ? 'Active' : 'Inactive'} positive={dash?.profile.vaultSubscriptionActive === true} />
+            <div data-testid="dashboard-profile-completion">
+              <StatusLine
+                label="Profile details"
+                value={missingProfileFields.length ? `${missingProfileFields.length} missing` : 'Complete'}
+                positive={missingProfileFields.length === 0}
+              />
+            </div>
           </div>
           <Link href="/profile" data-testid="link-dashboard-profile" className="mt-3 inline-flex items-center gap-1 text-[9px] font-bold text-[#377b82]">Review profile <ChevronRight size={12} /></Link>
         </section>
@@ -975,6 +983,10 @@ export function ProfilePage() {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setNote('');
+    if (!firstName.trim() || !lastName.trim()) {
+      setNote('Enter both your first and last name.');
+      return;
+    }
     update.mutate({ data: {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
@@ -1179,7 +1191,7 @@ export function ProfilePage() {
           <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">Keep your account information current.</p></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="First name"><input required maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} className={inputClass} /></Field>
-            <Field label="Last name"><input maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
+            <Field label="Last name"><input required maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
             <Field label="Phone number"><input maxLength={1024} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
             <Field label="Country of origin"><input maxLength={1024} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
             <Field label="City of origin"><input maxLength={1024} value={cityOfOrigin} onChange={event => setCityOfOrigin(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
