@@ -20,8 +20,6 @@ type SignupStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 const SIGNUP_PROGRESS_STORAGE_KEY = 'globus-bank:signup-progress:v1';
 const SIGNUP_PROFILE_DRAFT_STORAGE_KEY = 'globus-bank:signup-profile-draft:v1';
-const allowedText = /^[\p{L}\p{M}\p{N}\s.'’&(),/-]+$/u;
-const allowedPhone = /^[+0-9().\-\s]+$/;
 let inMemorySignupProfileDraft: SignupProfileDraft | null = null;
 
 function getBrowserSessionStorage(): SignupStorage | undefined {
@@ -35,10 +33,7 @@ function getBrowserSessionStorage(): SignupStorage | undefined {
 function optionalText(value: unknown, maxLength: number) {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
-  if (!trimmed || trimmed.length > maxLength || !allowedText.test(trimmed)) {
-    return undefined;
-  }
-  return trimmed;
+  return trimmed && trimmed.length <= maxLength ? trimmed : undefined;
 }
 
 function isValidDateOfBirth(value: unknown) {
@@ -57,23 +52,21 @@ export function sanitizeOptionalSignupProfile(
   const normalized: OptionalSignupProfile = {};
 
   const phone = typeof input.phone === 'string' ? input.phone.trim() : '';
-  const phoneDigits = phone.replace(/\D/g, '');
-  if (phone && phone.length <= 32 && allowedPhone.test(phone) &&
-      phoneDigits.length >= 7 && phoneDigits.length <= 15) {
+  if (phone && phone.length <= 1024) {
     normalized.phone = phone;
   }
 
-  const country = optionalText(input.country, 80);
+  const country = optionalText(input.country, 1024);
   if (country) normalized.country = country;
 
-  const cityOfOrigin = optionalText(input.cityOfOrigin, 100);
+  const cityOfOrigin = optionalText(input.cityOfOrigin, 1024);
   if (cityOfOrigin) normalized.cityOfOrigin = cityOfOrigin;
 
   if (isValidDateOfBirth(input.dateOfBirth)) {
     normalized.dateOfBirth = input.dateOfBirth as string;
   }
 
-  const occupation = optionalText(input.occupation, 100);
+  const occupation = optionalText(input.occupation, 1024);
   if (occupation) normalized.occupation = occupation;
 
   return normalized;

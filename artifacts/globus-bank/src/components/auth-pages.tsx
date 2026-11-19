@@ -1296,11 +1296,6 @@ export function ClerkSignUpForm() {
       const details = skipProfileDetails
         ? {}
         : sanitizeOptionalSignupProfile(enteredDetails);
-      const hasRejectedValues = !skipProfileDetails &&
-        Object.entries(enteredDetails).some(([key, value]) => {
-          if (typeof value !== 'string' || !value.trim()) return false;
-          return !(key in details);
-        });
       const draft: SignupProfileDraft = {
         emailAddress: email.trim() || signUp.emailAddress || '',
         firstName: firstName.trim() || signUp.firstName || '',
@@ -1315,9 +1310,7 @@ export function ClerkSignUpForm() {
         setNotice(
           !retained
             ? 'Optional details could not be retained across a refresh; account creation will continue.'
-            : hasRejectedValues
-              ? 'Some invalid optional values were skipped. You can update your profile later.'
-              : '',
+            : '',
         );
       }
 
@@ -1340,20 +1333,15 @@ export function ClerkSignUpForm() {
         setNotice(
           !retained
             ? 'Optional details could not be retained across a refresh; account creation can still continue.'
-            : hasRejectedValues
-              ? 'Some invalid optional values were skipped. You can update your profile later.'
-              : '',
+            : '',
         );
         setError(delivery.message);
         return;
       }
-      const prefix = hasRejectedValues
-        ? 'Some invalid optional values were skipped. '
-        : '';
       const storageNote = retained
         ? ''
         : 'Optional details may not be restored after a browser refresh. ';
-      setNotice(`${prefix}${storageNote}Enter the verification code sent to ${draft.emailAddress}.`);
+      setNotice(`${storageNote}Enter the verification code sent to ${draft.emailAddress}.`);
     } finally {
       operationRef.current = false;
       setSubmitting(false);

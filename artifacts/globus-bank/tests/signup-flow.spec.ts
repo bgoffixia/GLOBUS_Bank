@@ -88,7 +88,7 @@ test('valid optional profile values are trimmed and retained', () => {
   });
 });
 
-test('malformed or invalid optional values are discarded independently', () => {
+test('optional profile text is saved as supplied while malformed dates are skipped', () => {
   expect(
     sanitizeOptionalSignupProfile({
       country: 'Nigeri@',
@@ -97,14 +97,19 @@ test('malformed or invalid optional values are discarded independently', () => {
       occupation: 'Engineer / Analyst',
       phone: 'call me',
     }),
-  ).toEqual({ occupation: 'Engineer / Analyst' });
+  ).toEqual({
+    country: 'Nigeri@',
+    cityOfOrigin: 'A'.repeat(101),
+    occupation: 'Engineer / Analyst',
+    phone: 'call me',
+  });
 
   expect(
     sanitizeOptionalSignupProfile({
       dateOfBirth: '2999-01-01',
       phone: '+1 55',
     }),
-  ).toEqual({});
+  ).toEqual({ phone: '+1 55' });
 });
 
 test('step and optional profile draft survive refresh and clear after saving', () => {

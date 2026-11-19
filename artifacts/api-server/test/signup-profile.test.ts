@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { SaveSignupProfileBody } from "@workspace/api-zod";
+import { SaveSignupProfileBody, UpdateBankProfileBody } from "@workspace/api-zod";
 import { sanitizeSignupProfileDetails } from "../src/lib/signup-profile";
 
 test("accepts required names with each supplied optional registration field", () => {
@@ -56,7 +56,7 @@ test("valid optional values are trimmed and kept", () => {
   );
 });
 
-test("malformed optional values are discarded without discarding valid fields", () => {
+test("provided optional text is retained without format checks; invalid dates are skipped", () => {
   assert.deepEqual(
     sanitizeSignupProfileDetails({
       phone: "phone me",
@@ -65,16 +65,53 @@ test("malformed optional values are discarded without discarding valid fields", 
       dateOfBirth: "2023-02-30",
       occupation: "Student / part-time",
     }),
-    { occupation: "Student / part-time" },
+    {
+      phone: "phone me",
+      country: "Nigeri@",
+      cityOfOrigin: "A".repeat(101),
+      occupation: "Student / part-time",
+    },
   );
 });
 
-test("future birth dates and impossible phone lengths are ignored", () => {
+test("profile updates accept omitted optional details and explicit clearing values", () => {
+  assert.equal(
+    UpdateBankProfileBody.safeParse({
+      firstName: "Ada",
+      lastName: "Mensah",
+    }).success,
+    true,
+  );
+  assert.equal(
+    UpdateBankProfileBody.safeParse({
+      firstName: "Ada",
+      lastName: "Mensah",
+      phone: null,
+      country: null,
+      cityOfOrigin: null,
+      dateOfBirth: null,
+      occupation: null,
+    }).success,
+    true,
+  );
+  assert.equal(
+    UpdateBankProfileBody.safeParse({
+      firstName: "Ada",
+      lastName: "Mensah",
+      phone: "phone me",
+      country: "Nigeri@",
+      dateOfBirth: "not-a-date",
+    }).success,
+    true,
+  );
+});
+
+test("invalid optional dates are ignored without rejecting other supplied details", () => {
   assert.deepEqual(
     sanitizeSignupProfileDetails({
       dateOfBirth: "2999-01-01",
       phone: "+1 55",
     }),
-    {},
+    { phone: "+1 55" },
   );
 });
