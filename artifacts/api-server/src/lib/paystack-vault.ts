@@ -33,6 +33,7 @@ function asRecord(value: unknown): Record<string, unknown> | null {
 export function getPaystackSecretKey(): string | null {
   return (
     process.env.PAYSTACK_SECRET_KEY?.trim() ||
+    process.env.PAYSTACK_API_SECRET?.trim() ||
     process.env.PAYSTACK_SCRET_KEY?.trim() ||
     null
   );

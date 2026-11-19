@@ -569,7 +569,7 @@ test.describe('signed-in member pages at phone widths', () => {
         }
         if (path === '/dashboard') {
           await expect(page.getByTestId('dashboard-account-tier-badge')).toBeVisible();
-          await expect(page.getByTestId('dashboard-profile-completion')).toBeVisible();
+          await expect(page.getByText('Your details, in order')).toHaveCount(0);
         }
         if (path === '/private-vault') {
           await expect(page.getByTestId('private-vault-panel')).toBeVisible();
@@ -601,7 +601,7 @@ test.describe('signed-in member pages at phone widths', () => {
           const toolbar = page.getByTestId('dashboard-bottom-toolbar');
           const quickActions = page.getByTestId('dashboard-action-toolbar');
           await expect(toolbar).toBeVisible();
-          await expect(page.getByTestId('dashboard-profile-completion')).toBeVisible();
+          await expect(page.getByText('Your details, in order')).toHaveCount(0);
           await expect(quickActions.locator('[data-testid^="dashboard-quick-"]')).toHaveCount(6);
           const columnCount = await quickActions.locator('[role="toolbar"]').evaluate(element =>
             getComputedStyle(element).gridTemplateColumns.split(' ').length,

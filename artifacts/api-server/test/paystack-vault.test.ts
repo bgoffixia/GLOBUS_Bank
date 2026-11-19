@@ -256,18 +256,24 @@ test("Paystack verification rejects malformed or mismatched references", async (
   );
 });
 
-test("Paystack secret lookup supports the existing secret name without exposing it", () => {
+test("Paystack secret lookup supports the canonical and deployment aliases", () => {
   const previousCorrect = process.env.PAYSTACK_SECRET_KEY;
+  const previousApiSecret = process.env.PAYSTACK_API_SECRET;
   const previousLegacy = process.env.PAYSTACK_SCRET_KEY;
   try {
     delete process.env.PAYSTACK_SECRET_KEY;
+    delete process.env.PAYSTACK_API_SECRET;
     process.env.PAYSTACK_SCRET_KEY = "existing-secret";
     assert.equal(getPaystackSecretKey(), "existing-secret");
+    process.env.PAYSTACK_API_SECRET = "api-secret-alias";
+    assert.equal(getPaystackSecretKey(), "api-secret-alias");
     process.env.PAYSTACK_SECRET_KEY = "preferred-secret";
     assert.equal(getPaystackSecretKey(), "preferred-secret");
   } finally {
     if (previousCorrect === undefined) delete process.env.PAYSTACK_SECRET_KEY;
     else process.env.PAYSTACK_SECRET_KEY = previousCorrect;
+    if (previousApiSecret === undefined) delete process.env.PAYSTACK_API_SECRET;
+    else process.env.PAYSTACK_API_SECRET = previousApiSecret;
     if (previousLegacy === undefined) delete process.env.PAYSTACK_SCRET_KEY;
     else process.env.PAYSTACK_SCRET_KEY = previousLegacy;
   }

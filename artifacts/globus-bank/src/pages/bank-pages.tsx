@@ -264,7 +264,6 @@ export function DashboardPage() {
   });
   const [selectedCurrency, setSelectedCurrency] = useState<Currency | null>(null);
   const dash = query.data;
-  const missingProfileFields = getMissingCustomerProfileFields(dash?.profile);
   const selectedWallet = dash?.wallets.find(wallet => wallet.currency === selectedCurrency)
     ?? dash?.wallets.find(wallet => wallet.currency === dash.referenceCurrency)
     ?? dash?.wallets[0];
@@ -346,25 +345,7 @@ export function DashboardPage() {
           </nav>
         </section>
 
-        <section className="rounded-[16px] border border-[#e2e9ef] bg-white p-3.5 sm:p-4 xl:col-start-2 xl:row-start-1">
-          <div className="flex items-start justify-between">
-            <div><p className="text-[9px] font-medium text-[#78889a]">Account standing</p><h2 className="mt-1 text-[15px] font-semibold text-[#203851]">Your details, in order</h2></div>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef5f6] text-[#43888e]"><ShieldCheck size={16} /></span>
-          </div>
-          <div className="mt-3 space-y-2.5">
-            <StatusLine label="Account" value={humanize(dash?.profile.accountStatus)} positive={dash?.profile.accountStatus === 'active'} />
-            <StatusLine label="Private Vault" value={!dash?.profile.vaultAccessActive ? 'Inactive' : dash.profile.vaultAccessSource === 'admin_grant' ? 'Active · Admin grant' : 'Active · Paid'} positive={dash?.profile.vaultAccessActive === true} />
-            <div data-testid="dashboard-profile-completion">
-              <StatusLine
-                label="Profile details"
-                value={missingProfileFields.length ? `${missingProfileFields.length} missing` : 'Complete'}
-                positive={missingProfileFields.length === 0}
-              />
-            </div>
-          </div>
-          <Link href="/profile" data-testid="link-dashboard-profile" className="mt-3 inline-flex items-center gap-1 text-[9px] font-bold text-[#377b82]">Review profile <ChevronRight size={12} /></Link>
-        </section>
-        <section className="min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white xl:col-start-2 xl:row-start-2">
+        <section className="min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white xl:col-start-2 xl:row-start-1">
           <div className="flex items-center justify-between gap-2 border-b border-[#edf0f3] px-3.5 py-2.5">
             <div><h2 className="text-[12px] font-bold text-[#203851]">Recent activity{selectedWallet ? ` · ${selectedWallet.currency}` : ''}</h2><p className="mt-0.5 text-[9px] text-[#8592a1]">Latest wallet entries</p></div>
             <Link href={currencyActionHref('/transactions', actionCurrency)} aria-label="View all activity" className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#397d83]">View all <ChevronRight size={12} /></Link>
