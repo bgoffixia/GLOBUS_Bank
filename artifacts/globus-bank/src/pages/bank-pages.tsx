@@ -1935,10 +1935,9 @@ function TransactionStatusDialog({
   transaction: BankTransaction;
   pending: boolean;
   onClose: () => void;
-  onSave: (status: BankTransaction['status'], reason: string, transactionPin: string) => Promise<void>;
+  onSave: (status: BankTransaction['status'], transactionPin: string) => Promise<void>;
 }) {
   const [status, setStatus] = useState<BankTransaction['status']>(transaction.status);
-  const [reason, setReason] = useState('');
   const [transactionPin, setTransactionPin] = useState('');
   const [error, setError] = useState('');
   const allowedStatuses: BankTransaction['status'][] =
@@ -1952,7 +1951,6 @@ function TransactionStatusDialog({
 
   useEffect(() => {
     setStatus(transaction.status);
-    setReason('');
     setTransactionPin('');
     setError('');
   }, [transaction.id, transaction.status]);
@@ -1961,7 +1959,7 @@ function TransactionStatusDialog({
     event.preventDefault();
     setError('');
     try {
-      await onSave(status, reason.trim(), transactionPin);
+      await onSave(status, transactionPin);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'The transaction status could not be updated.');
     }
@@ -1982,9 +1980,6 @@ function TransactionStatusDialog({
               {allowedStatuses.map(value => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
             </select>
           </Field>
-          <Field label="Audit reason">
-            <textarea required minLength={5} maxLength={500} rows={3} value={reason} onChange={event => setReason(event.target.value)} placeholder="Explain why this recorded status is being changed." className={`${inputClass} h-auto py-3`} />
-          </Field>
           <Field label="Your 6-digit transaction PIN">
             <input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={transactionPin} onChange={event => setTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} />
           </Field>
@@ -1992,7 +1987,7 @@ function TransactionStatusDialog({
           {error && <p role="alert" className="rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{error}</p>}
           <div className="flex flex-wrap justify-end gap-2">
             <button type="button" onClick={onClose} className="rounded-xl border border-[#dfe6eb] px-4 py-3 text-[10px] font-bold text-[#546b80] hover:bg-[#f5f8f9]">Cancel</button>
-            <button disabled={pending || !allowedStatuses.includes(status) || reason.trim().length < 5 || transactionPin.length !== 6} className="rounded-xl bg-[#142f51] px-4 py-3 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Saving status…' : 'Confirm status correction'}</button>
+            <button disabled={pending || !allowedStatuses.includes(status) || transactionPin.length !== 6} className="rounded-xl bg-[#142f51] px-4 py-3 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Saving status…' : 'Confirm status correction'}</button>
           </div>
         </form>
       </section>
