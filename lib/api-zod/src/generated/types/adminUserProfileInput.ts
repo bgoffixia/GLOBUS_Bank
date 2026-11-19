@@ -27,6 +27,21 @@ export interface AdminUserProfileInput {
      * @nullable
      */
   country?: string | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  cityOfOrigin?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  dateOfBirth?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  occupation?: string | null;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }

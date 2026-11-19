@@ -29,6 +29,13 @@
       "when": 1795100085242,
       "tag": "0003_fair_mikhail_rasputin",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795123034316,
+      "tag": "0004_aberrant_shaman",
+      "breakpoints": true
     }
   ]
 }

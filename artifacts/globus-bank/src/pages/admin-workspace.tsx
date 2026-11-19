@@ -1,4 +1,4 @@
-import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
+import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { useClerk, useUser } from '@clerk/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
@@ -28,6 +28,7 @@ import {
   useResetAdminUserPassword, useResetAdminUserTransactionPin, useReviewAdminFunding, useReviewAdminLedgerRequest,
   useProcessAdminInternalTransfer, useRemoveAdminRestriction,
   useUpdateAdminSettings, useUpdateAdminTransactionStatus, useUpdateAdminUserProfile,
+  useUpdateAdminUserAccessControls,
   useUpdateAdminUserStatus, useUpdateAdminWalletStatus,
   useUpdateAdminUserVaultSubscription,
 } from '@workspace/api-client-react';
@@ -264,16 +265,26 @@ function MemberDetail({ userId }: { userId: string }) {
       : 'overview';
   });
   const u = detail.data?.user;
-  const statusMutation = useUpdateAdminUserStatus(); const profileMutation = useUpdateAdminUserProfile(); const pinMutation = useResetAdminUserTransactionPin(); const passwordMutation = useResetAdminUserPassword(); const vaultSubscriptionMutation = useUpdateAdminUserVaultSubscription();
+  const statusMutation = useUpdateAdminUserStatus(); const profileMutation = useUpdateAdminUserProfile(); const accessControlsMutation = useUpdateAdminUserAccessControls(); const pinMutation = useResetAdminUserTransactionPin(); const passwordMutation = useResetAdminUserPassword(); const vaultSubscriptionMutation = useUpdateAdminUserVaultSubscription();
   const [modal, setModal] = useState<'status' | 'profile' | 'pin' | 'password-reset' | 'vault-subscription' | null>(null);
-  const [form, setForm] = useState({ transactionPin: '', firstName: '', lastName: '', phone: '', country: '', decision: 'approved', confirmed: false, expiresAt: '' });
+  const [form, setForm] = useState({ transactionPin: '', firstName: '', lastName: '', phone: '', country: '', cityOfOrigin: '', dateOfBirth: '', occupation: '', decision: 'approved', confirmed: false, expiresAt: '' });
+  const [testingModeDisabled, setTestingModeDisabled] = useState(false);
+  const [transferAccessGranted, setTransferAccessGranted] = useState(false);
+  const [accessControlsPin, setAccessControlsPin] = useState('');
+  const [accessControlsConfirmed, setAccessControlsConfirmed] = useState(false);
+  const [accessControlsError, setAccessControlsError] = useState('');
   const [message, setMessage] = useState(''); const [error, setError] = useState('');
+  useEffect(() => {
+    if (!detail.data) return;
+    setTestingModeDisabled(detail.data.testingModeDisabled);
+    setTransferAccessGranted(detail.data.transferAccessGranted);
+  }, [detail.data?.testingModeDisabled, detail.data?.transferAccessGranted]);
   const refresh = async () => { await Promise.all([client.invalidateQueries({ queryKey: getGetAdminUserDetailQueryKey(userId) }), client.invalidateQueries({ queryKey: getListAdminUsersQueryKey() }), client.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() })]); };
-  const open = (kind: typeof modal) => { if (kind === 'profile' && detail.data) setForm({ ...form, firstName: u?.firstName || '', lastName: u?.lastName || '', phone: detail.data.phone || '', country: u?.country || '', transactionPin: '', confirmed: false }); else if (kind === 'status') setForm({ ...form, transactionPin: '', decision: u?.accountStatus === 'active' ? 'suspended' : 'active', confirmed: false }); else if (kind === 'vault-subscription') setForm({ ...form, decision: 'inactive', confirmed: false }); else setForm({ ...form, transactionPin: '', confirmed: false }); setError(''); setModal(kind); };
+  const open = (kind: typeof modal) => { if (kind === 'profile' && detail.data) setForm({ ...form, firstName: u?.firstName || '', lastName: u?.lastName || '', phone: detail.data.phone || '', country: u?.country || '', cityOfOrigin: detail.data.cityOfOrigin || '', dateOfBirth: detail.data.dateOfBirth || '', occupation: detail.data.occupation || '', transactionPin: '', confirmed: false }); else if (kind === 'status') setForm({ ...form, transactionPin: '', decision: u?.accountStatus === 'active' ? 'suspended' : 'active', confirmed: false }); else if (kind === 'vault-subscription') setForm({ ...form, decision: 'inactive', confirmed: false }); else setForm({ ...form, transactionPin: '', confirmed: false }); setError(''); setModal(kind); };
   const submit = async (e: FormEvent) => { e.preventDefault(); if (!u || !modal) return; setError(''); try {
     let successMessage = 'Change saved and added to administrative history.';
     if (modal === 'status') await statusMutation.mutateAsync({ userId, data: { accountStatus: form.decision as 'active' | 'restricted' | 'suspended' } });
-    if (modal === 'profile') await profileMutation.mutateAsync({ userId, data: { firstName: form.firstName.trim(), lastName: form.lastName.trim(), phone: form.phone.trim(), country: form.country.trim(), transactionPin: form.transactionPin } });
+    if (modal === 'profile') await profileMutation.mutateAsync({ userId, data: { firstName: form.firstName.trim(), lastName: form.lastName.trim(), phone: form.phone.trim(), country: form.country.trim(), cityOfOrigin: form.cityOfOrigin.trim(), dateOfBirth: form.dateOfBirth || null, occupation: form.occupation.trim(), transactionPin: form.transactionPin } });
     if (modal === 'pin') await pinMutation.mutateAsync({ userId, data: {} });
     if (modal === 'password-reset') {
       const result = await passwordMutation.mutateAsync({ userId, data: { confirmed: true } });
@@ -290,6 +301,35 @@ function MemberDetail({ userId }: { userId: string }) {
     }
     await refresh(); setMessage(successMessage); setModal(null);
   } catch (err) { setError(err instanceof Error ? err.message : 'The requested change could not be saved.'); } };
+  const saveAccessControls = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAccessControlsError('');
+    if (accessControlsPin.length !== 6) {
+      setAccessControlsError('Enter your six-digit transaction PIN.');
+      return;
+    }
+    if (!accessControlsConfirmed) {
+      setAccessControlsError('Confirm these customer access-control changes.');
+      return;
+    }
+    try {
+      await accessControlsMutation.mutateAsync({
+        userId,
+        data: {
+          testingModeDisabled,
+          transferAccessGranted,
+          transactionPin: accessControlsPin,
+          confirmed: true,
+        },
+      });
+      setAccessControlsPin('');
+      setAccessControlsConfirmed(false);
+      await refresh();
+      setMessage('Customer access controls saved and recorded.');
+    } catch (err) {
+      setAccessControlsError(err instanceof Error ? err.message : 'Access controls could not be saved.');
+    }
+  };
   if (detail.isLoading) return <><Heading kicker="Member management" title="Loading member record" subtitle="Fetching the authorized account record." /><div className={box}><Skeleton /></div></>;
   if (detail.isError || !detail.data || !u) return <><Heading kicker="Member management" title="Member record unavailable" subtitle="The member record could not be loaded." /><InlineError text="Try loading this member record again." retry={() => detail.refetch()} /></>;
   const fullName = nameOf(u);
@@ -319,6 +359,22 @@ function MemberDetail({ userId }: { userId: string }) {
          <div className="grid items-start gap-3 xl:grid-cols-[1.25fr_.75fr]">
             <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['Customer ID', u.customerId || '—'], ['Private Vault access', human(u.vaultSubscriptionStatus || 'inactive')], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Member since', date(u.createdAt)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
          </div>
+         <Panel title="Customer access controls" eyebrow="Independent from Private Vault">
+           <form onSubmit={saveAccessControls} className="grid gap-3 p-4 sm:p-5">
+             <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
+               <input type="checkbox" checked={testingModeDisabled} onChange={event => setTestingModeDisabled(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
+               <span><strong className="block text-[#3c5960]">Turn off Testing Mode</strong>Does not grant Private Vault access.</span>
+             </label>
+             <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
+               <input type="checkbox" checked={transferAccessGranted} onChange={event => setTransferAccessGranted(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
+               <span><strong className="block text-[#3c5960]">Grant separate transfer access</strong>Allows eligible transfers without granting Vault access. Wallet controls and account restrictions still apply.</span>
+             </label>
+             <Field label="Your six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={accessControlsPin} onChange={event => setAccessControlsPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={input} autoComplete="current-password" /></Field>
+             <label className="flex items-start gap-2 text-[10px] text-[#657a7e]"><input type="checkbox" checked={accessControlsConfirmed} onChange={event => setAccessControlsConfirmed(event.target.checked)} className="mt-0.5 accent-[#43898a]" />I confirm these settings apply only to this customer.</label>
+             {accessControlsError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{accessControlsError}</p>}
+             <button type="submit" disabled={accessControlsMutation.isPending || accessControlsPin.length !== 6 || !accessControlsConfirmed} className={button}>{accessControlsMutation.isPending ? 'Saving controls…' : 'Save access controls'}</button>
+           </form>
+         </Panel>
          <div className="grid items-start gap-3 xl:grid-cols-2">
            <Panel title="Transaction PIN" eyebrow="Account security"><div className="flex flex-wrap items-center justify-between gap-3 p-4"><div><p className="text-[9px] leading-4 text-[#718588]">PIN values are never visible to administrators.</p><p className="mt-1 text-[9px] font-semibold">Status: {detail.data.transactionPinConfigured ? 'Configured' : 'Not configured'}</p></div><button disabled={!detail.data.transactionPinConfigured} onClick={() => open('pin')} className={quietButton}>Reset PIN</button></div></Panel>
            <Panel title="Password access" eyebrow="Account security"><div className="flex flex-wrap items-center justify-between gap-3 p-4"><p className="max-w-lg text-[9px] leading-4 text-[#718588]">A reset ends active sessions and emails a secure recovery link. Administrators never view or assign passwords.</p><button onClick={() => open('password-reset')} className={quietButton}>Require password reset</button></div></Panel>
@@ -333,7 +389,7 @@ function MemberDetail({ userId }: { userId: string }) {
        {activeTab === 'restrictions' && <RestrictionsPage memberId={userId} compact />}
      </div>
         {modal && <Modal title={modal === 'status' ? 'Change account status' : modal === 'profile' ? 'Edit member profile' : modal === 'pin' ? 'Reset transaction PIN' : modal === 'password-reset' ? 'Require password reset' : 'Remove Private Vault access'} close={() => setModal(null)}><form onSubmit={submit} className="space-y-3">
-      {modal === 'profile' && <><div className="grid gap-3 sm:grid-cols-2"><Field label="First name"><input className={input} value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} maxLength={80} /></Field><Field label="Last name"><input className={input} value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} maxLength={80} /></Field><Field label="Phone"><input className={input} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={40} /></Field><Field label="Country"><input className={input} value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} maxLength={80} /></Field></div><Field label="Your six-digit transaction PIN"><input className={input} type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.transactionPin} onChange={e => setForm({ ...form, transactionPin: e.target.value.replace(/\D/g, '').slice(0, 6) })} /></Field></>}
+      {modal === 'profile' && <><div className="grid gap-3 sm:grid-cols-2"><Field label="First name"><input className={input} value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} maxLength={80} /></Field><Field label="Last name"><input className={input} value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} maxLength={80} /></Field><Field label="Phone"><input className={input} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={40} /></Field><Field label="Country"><input className={input} value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} maxLength={80} /></Field><Field label="City of origin"><input className={input} value={form.cityOfOrigin} onChange={e => setForm({ ...form, cityOfOrigin: e.target.value })} maxLength={80} /></Field><Field label="Date of birth"><input className={input} type="date" value={form.dateOfBirth} onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} /></Field><Field label="Occupation / employment"><input className={input} value={form.occupation} onChange={e => setForm({ ...form, occupation: e.target.value })} maxLength={120} /></Field></div><Field label="Your six-digit transaction PIN"><input className={input} type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.transactionPin} onChange={e => setForm({ ...form, transactionPin: e.target.value.replace(/\D/g, '').slice(0, 6) })} /></Field></>}
       {modal === 'status' && <><p className="rounded-lg bg-[#f5f7f1] p-3 text-[10px] text-[#728487]">This consequential action changes member access and is recorded automatically in the audit trail.</p><Field label="New account state"><select className={input} value={form.decision === 'approved' ? (u.accountStatus === 'active' ? 'suspended' : 'active') : form.decision} onChange={e => setForm({ ...form, decision: e.target.value })}><option value="active">Active — restore access</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select></Field></>}
       {modal === 'pin' && <p className="rounded-lg bg-[#f5f7f1] p-3 text-[10px] leading-5 text-[#728487]">The member will need to create a new PIN before transacting. This action is logged.</p>}
        {modal === 'password-reset' && <><p className="rounded-lg bg-[#f5f7f1] p-3 text-[10px] leading-5 text-[#728487]">This ends the member’s active sessions, emails a one-time recovery link to their verified primary email, and requires a new password before protected account pages open. The reset requirement remains active if email delivery fails.</p><label className="flex items-start gap-2 text-[10px] leading-5 text-[#546b70]"><input type="checkbox" checked={form.confirmed} onChange={e => setForm({ ...form, confirmed: e.target.checked })} className="mt-1" required /><span>I confirm this password-reset requirement and session revocation.</span></label></>}

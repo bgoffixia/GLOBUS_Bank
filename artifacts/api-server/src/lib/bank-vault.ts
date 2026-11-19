@@ -139,8 +139,16 @@ export function resolveEffectiveAccountTier(
 
 export function isVaultTestingMode(
   accessSource: "none" | "paystack_subscription" | "admin_grant",
+  testingModeDisabled = false,
 ): boolean {
-  return accessSource === "none";
+  return accessSource === "none" && !testingModeDisabled;
+}
+
+export function hasImmediateTransferAccess(
+  vaultAccessActive: boolean,
+  transferAccessGranted: boolean,
+): boolean {
+  return vaultAccessActive || transferAccessGranted;
 }
 
 type VaultAccessExecutor = Pick<typeof db, "select">;

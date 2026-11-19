@@ -104,6 +104,9 @@ import {
   SetAdminUserAccountTierBody,
   SetAdminUserAccountTierParams,
   SetAdminUserAccountTierResponse,
+  UpdateAdminUserAccessControlsBody,
+  UpdateAdminUserAccessControlsParams,
+  UpdateAdminUserAccessControlsResponse,
   UpdateAdminAccountTierBody,
   UpdateAdminAccountTierParams,
   UpdateAdminAccountTierResponse,
@@ -182,6 +185,7 @@ const adminAuditOperationLabels: Array<[string, string]> = [
   ["/bank/admin/users/:userId/password-reset", "customer password reset"],
   ["/bank/admin/users/:userId/status", "customer account status change"],
   ["/bank/admin/users/:userId/profile", "customer profile update"],
+  ["/bank/admin/users/:userId/access-controls", "customer access controls update"],
   ["/bank/admin/users/:userId/vault-subscription", "Private Vault subscription access removal"],
   ["/bank/admin/users/:userId/funding", "customer wallet adjustment"],
   ["/bank/admin/transactions/:transactionId/process", "internal transfer processing"],
@@ -197,6 +201,8 @@ const adminAuditDetailFields = [
   "type",
   "tierId",
   "vaultPlanCode",
+  "testingModeDisabled",
+  "transferAccessGranted",
   "direction",
   "currency",
   "amount",
@@ -2900,6 +2906,10 @@ router.get(
         },
         phone: user.phone,
         dateOfBirth: user.dateOfBirth,
+        cityOfOrigin: user.cityOfOrigin,
+        occupation: user.occupation,
+        testingModeDisabled: user.testingModeDisabled,
+        transferAccessGranted: user.transferAccessGranted,
         transactionPinConfigured: !!user.transactionPinHash,
         transactionCount: Number(transactionCountRows[0]?.value ?? 0),
         wallets,
@@ -3266,6 +3276,15 @@ router.patch(
       ...(parsed.data.country !== undefined
         ? { country: parsed.data.country?.trim() || null }
         : {}),
+      ...(parsed.data.cityOfOrigin !== undefined
+        ? { cityOfOrigin: parsed.data.cityOfOrigin?.trim() || null }
+        : {}),
+      ...(parsed.data.dateOfBirth !== undefined
+        ? { dateOfBirth: parsed.data.dateOfBirth || null }
+        : {}),
+      ...(parsed.data.occupation !== undefined
+        ? { occupation: parsed.data.occupation?.trim() || null }
+        : {}),
     };
     if (Object.keys(profileFields).length === 0) {
       res.status(400).json({
@@ -3313,6 +3332,79 @@ router.patch(
           updated.user.accountRestrictedAt?.toISOString() ?? null,
         walletCount: updated.walletCount,
         createdAt: updated.user.createdAt.toISOString(),
+      }),
+    );
+  },
+);
+
+router.patch(
+  "/bank/admin/users/:userId/access-controls",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = UpdateAdminUserAccessControlsParams.safeParse(req.params);
+    const parsed = UpdateAdminUserAccessControlsBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success
+          ? params.error.message
+          : parsed.error?.message ?? "Invalid access-control request.",
+      });
+      return;
+    }
+    const clerkUserId = getAuth(req).userId;
+    if (!clerkUserId) {
+      res.status(401).json({ error: "Sign in to access administrative controls." });
+      return;
+    }
+    const actorUserId = (await ensureBankUser(clerkUserId)).id;
+    const pinResult = await verifyTransactionPin(
+      actorUserId,
+      parsed.data.transactionPin,
+    );
+    if (pinResult !== "valid") {
+      respondWithTransactionPinError(res, pinResult);
+      return;
+    }
+
+    const reason = generatedAdminAuditReason(req);
+    const result = await db.transaction(async (tx) => {
+      const [target] = await tx
+        .select({ id: bankUsersTable.id })
+        .from(bankUsersTable)
+        .where(eq(bankUsersTable.id, params.data.userId))
+        .for("update");
+      if (!target) return null;
+      const [updated] = await tx
+        .update(bankUsersTable)
+        .set({
+          testingModeDisabled: parsed.data.testingModeDisabled,
+          transferAccessGranted: parsed.data.transferAccessGranted,
+          updatedAt: new Date(),
+        })
+        .where(eq(bankUsersTable.id, target.id))
+        .returning({
+          id: bankUsersTable.id,
+          testingModeDisabled: bankUsersTable.testingModeDisabled,
+          transferAccessGranted: bankUsersTable.transferAccessGranted,
+        });
+      if (!updated) return null;
+      await tx.insert(bankAuditLogsTable).values({
+        actorUserId,
+        targetUserId: updated.id,
+        action: "update_customer_access_controls",
+        reason: `${reason} Testing Mode disabled: ${updated.testingModeDisabled}; separate transfer access granted: ${updated.transferAccessGranted}. Neither setting grants Private Vault access.`,
+      });
+      return updated;
+    });
+    if (!result) {
+      res.status(404).json({ error: "User record not found." });
+      return;
+    }
+    res.json(
+      UpdateAdminUserAccessControlsResponse.parse({
+        userId: result.id,
+        testingModeDisabled: result.testingModeDisabled,
+        transferAccessGranted: result.transferAccessGranted,
       }),
     );
   },

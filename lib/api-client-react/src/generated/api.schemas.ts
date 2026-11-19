@@ -302,6 +302,8 @@ export interface BankProfile {
   cityOfOrigin: string | null;
   /** @nullable */
   occupation: string | null;
+  profileSetupComplete: boolean;
+  transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
   verificationStatus: BankProfileVerificationStatus;
   /** @nullable */
@@ -1409,6 +1411,12 @@ export interface AdminUserDetail {
      * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
      */
   dateOfBirth: string | null;
+  /** @nullable */
+  cityOfOrigin: string | null;
+  /** @nullable */
+  occupation: string | null;
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
   transactionCount: number;
   wallets: Wallet[];
@@ -1450,8 +1458,37 @@ export interface AdminUserProfileInput {
      * @nullable
      */
   country?: string | null;
+  /**
+     * @maxLength 80
+     * @nullable
+     */
+  cityOfOrigin?: string | null;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  dateOfBirth?: string | null;
+  /**
+     * @maxLength 120
+     * @nullable
+     */
+  occupation?: string | null;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
+}
+
+export interface AdminUserAccessControlsInput {
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
+  /** @pattern ^[0-9]{6}$ */
+  transactionPin: string;
+  confirmed: true;
+}
+
+export interface AdminUserAccessControlsResult {
+  userId: string;
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
 }
 
 export type AdminVaultSubscriptionInputStatus = typeof AdminVaultSubscriptionInputStatus[keyof typeof AdminVaultSubscriptionInputStatus];

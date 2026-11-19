@@ -168,6 +168,7 @@ import {
 } from "../lib/password-reset";
 import {
   classifyVaultPaystackChargeFailure,
+  hasImmediateTransferAccess,
   initializeVaultPasscode,
   getEffectiveAccountTier,
   getVaultAccessSource,
@@ -653,6 +654,8 @@ router.get("/bank/me", async (req, res): Promise<void> => {
       customerId: user.customerId,
       firstName: user.firstName,
       lastName: user.lastName,
+      profileSetupComplete: Boolean(user.profileSetupCompletedAt),
+      transferAccessGranted: user.transferAccessGranted,
       phone: user.phone,
       country: user.country,
       cityOfOrigin: user.cityOfOrigin,
@@ -690,20 +693,36 @@ router.put("/bank/signup-profile", async (req, res): Promise<void> => {
   }
 
   const currentUser = await getOrCreateBankUser(authUserId);
+  if (currentUser.profileSetupCompletedAt) {
+    res.status(409).json({
+      error: "Initial profile setup is complete. Contact an administrator to update personal details.",
+    });
+    return;
+  }
   const optionalDetails = sanitizeSignupProfileDetails(parsed.data);
   const [user] = await db
     .update(bankUsersTable)
     .set({
       firstName,
       lastName,
+      profileSetupCompletedAt: new Date(),
       ...optionalDetails,
       ...(parsed.data.acceptedTerms === true
         ? { acceptedTermsAt: new Date() }
         : {}),
       updatedAt: new Date(),
     })
-    .where(eq(bankUsersTable.id, currentUser.id))
+    .where(and(
+      eq(bankUsersTable.id, currentUser.id),
+      isNull(bankUsersTable.profileSetupCompletedAt),
+    ))
     .returning();
+  if (!user) {
+    res.status(409).json({
+      error: "Initial profile setup has already been completed.",
+    });
+    return;
+  }
 
   const [accountStatus, operationEligibility, accountTier] = await Promise.all([
     getEffectiveBankAccountStatus(
@@ -724,6 +743,8 @@ router.put("/bank/signup-profile", async (req, res): Promise<void> => {
       customerId: user.customerId,
       firstName: user.firstName,
       lastName: user.lastName,
+      profileSetupComplete: Boolean(user.profileSetupCompletedAt),
+      transferAccessGranted: user.transferAccessGranted,
       phone: user.phone,
       country: user.country,
       cityOfOrigin: user.cityOfOrigin,
@@ -777,6 +798,8 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
         customerId: profile.customerId,
         firstName: profile.firstName,
         lastName: profile.lastName,
+        profileSetupComplete: Boolean(profile.profileSetupCompletedAt),
+        transferAccessGranted: profile.transferAccessGranted,
         phone: profile.phone,
         country: profile.country,
         cityOfOrigin: profile.cityOfOrigin,
@@ -788,7 +811,10 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
         accountStatus,
         ...operationEligibility,
         accountTier: effectiveAccountTier,
-        testingMode: isVaultTestingMode(accessSource),
+        testingMode: isVaultTestingMode(
+          accessSource,
+          profile.testingModeDisabled,
+        ),
         vaultAccessActive: accessSource !== "none",
         vaultAccessSource: accessSource,
         createdAt: profile.createdAt.toISOString(),
@@ -1083,9 +1109,16 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
   }
 
   const currentUser = await getOrCreateBankUser(authUserId);
+  if (currentUser.profileSetupCompletedAt) {
+    res.status(403).json({
+      error: "Personal details are read-only after initial setup. Contact an administrator to request a change.",
+    });
+    return;
+  }
   const profileUpdates = {
     firstName,
     lastName,
+    profileSetupCompletedAt: new Date(),
     ...sanitizeBankProfileUpdateDetails(parsed.data),
     ...(parsed.data.acceptedTerms === true
       ? { acceptedTermsAt: new Date() }
@@ -1095,8 +1128,17 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
   const [user] = await db
     .update(bankUsersTable)
     .set(profileUpdates)
-    .where(eq(bankUsersTable.id, currentUser.id))
+    .where(and(
+      eq(bankUsersTable.id, currentUser.id),
+      isNull(bankUsersTable.profileSetupCompletedAt),
+    ))
     .returning();
+  if (!user) {
+    res.status(403).json({
+      error: "Personal details are read-only after initial setup. Contact an administrator to request a change.",
+    });
+    return;
+  }
 
   const [accountStatus, operationEligibility] = await Promise.all([
     getEffectiveBankAccountStatus(
@@ -1116,6 +1158,8 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
       customerId: user.customerId,
       firstName: user.firstName,
       lastName: user.lastName,
+      profileSetupComplete: Boolean(user.profileSetupCompletedAt),
+      transferAccessGranted: user.transferAccessGranted,
       phone: user.phone,
       country: user.country,
       cityOfOrigin: user.cityOfOrigin,
@@ -1506,7 +1550,10 @@ router.post(
 
     const status = resolveFutureTransferStatus(
       lockedWallet.futureTransferMode,
-      await hasActiveVaultAccess(lockedSender, tx),
+      hasImmediateTransferAccess(
+        await hasActiveVaultAccess(lockedSender, tx),
+        lockedSender.transferAccessGranted,
+      ),
     );
     const reference = createReference();
     const conversionSummary = `${formatMinorAmount(amountMinor)} ${parsed.data.sourceCurrency} converted to ${formatMinorAmount(destinationAmountMinor, parsed.data.destinationCurrency)} ${parsed.data.destinationCurrency} at ${rate}`;

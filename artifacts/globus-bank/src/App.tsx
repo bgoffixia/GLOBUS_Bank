@@ -287,7 +287,6 @@ function ClerkRoutes() {
         <Route path="/admin/settings"><ProtectedAdminPage /></Route>
         <Route path="/admin/logout"><ProtectedAdminPage /></Route>
         <Route path="/admin"><ProtectedAdminPage /></Route>
-        <Route path="/help"><DisclosurePage path="/help" /></Route>
         <Route path="/fees"><DisclosurePage path="/fees" /></Route>
         <Route path="/contact"><DisclosurePage path="/contact" /></Route>
         <Route component={NotFound} />

@@ -50,6 +50,8 @@ export const GetBankProfileResponse = zod.object({
   "dateOfBirth": zod.string().regex(getBankProfileResponseDateOfBirthRegExp).nullable(),
   "cityOfOrigin": zod.string().nullable(),
   "occupation": zod.string().nullable(),
+  "profileSetupComplete": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
@@ -726,6 +728,8 @@ export const GetBankDashboardResponse = zod.object({
   "dateOfBirth": zod.string().regex(getBankDashboardResponseProfileOneDateOfBirthRegExp).nullable(),
   "cityOfOrigin": zod.string().nullable(),
   "occupation": zod.string().nullable(),
+  "profileSetupComplete": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
@@ -941,6 +945,8 @@ export const UpdateBankProfileResponse = zod.object({
   "dateOfBirth": zod.string().regex(updateBankProfileResponseDateOfBirthRegExp).nullable(),
   "cityOfOrigin": zod.string().nullable(),
   "occupation": zod.string().nullable(),
+  "profileSetupComplete": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
@@ -1004,6 +1010,8 @@ export const SaveSignupProfileResponse = zod.object({
   "dateOfBirth": zod.string().regex(saveSignupProfileResponseDateOfBirthRegExp).nullable(),
   "cityOfOrigin": zod.string().nullable(),
   "occupation": zod.string().nullable(),
+  "profileSetupComplete": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
@@ -2174,6 +2182,10 @@ export const GetAdminUserDetailResponse = zod.object({
 }),
   "phone": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getAdminUserDetailResponseDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "transactionCount": zod.number().int(),
   "wallets": zod.array(zod.object({
@@ -2318,6 +2330,11 @@ export const updateAdminUserProfileBodyPhoneMax = 40;
 
 export const updateAdminUserProfileBodyCountryMax = 80;
 
+export const updateAdminUserProfileBodyCityOfOriginMax = 80;
+
+export const updateAdminUserProfileBodyDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateAdminUserProfileBodyOccupationMax = 120;
+
 export const updateAdminUserProfileBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
@@ -2326,6 +2343,9 @@ export const UpdateAdminUserProfileBody = zod.object({
   "lastName": zod.string().max(updateAdminUserProfileBodyLastNameMax).nullish(),
   "phone": zod.string().max(updateAdminUserProfileBodyPhoneMax).nullish(),
   "country": zod.string().max(updateAdminUserProfileBodyCountryMax).nullish(),
+  "cityOfOrigin": zod.string().max(updateAdminUserProfileBodyCityOfOriginMax).nullish(),
+  "dateOfBirth": zod.string().regex(updateAdminUserProfileBodyDateOfBirthRegExp).nullish(),
+  "occupation": zod.string().max(updateAdminUserProfileBodyOccupationMax).nullish(),
   "transactionPin": zod.string().regex(updateAdminUserProfileBodyTransactionPinRegExp)
 })
 
@@ -2357,6 +2377,33 @@ export const UpdateAdminUserProfileResponse = zod.object({
   "vaultSubscriptionAutoRenew": zod.boolean().optional(),
   "walletCount": zod.number().int(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update independent per-customer Testing Mode and transfer access
+ */
+
+
+
+export const UpdateAdminUserAccessControlsParams = zod.object({
+  "userId": zod.coerce.string().min(1)
+})
+
+export const updateAdminUserAccessControlsBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const UpdateAdminUserAccessControlsBody = zod.object({
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
+  "transactionPin": zod.string().regex(updateAdminUserAccessControlsBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const UpdateAdminUserAccessControlsResponse = zod.object({
+  "userId": zod.string(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean()
 })
 
 

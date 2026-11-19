@@ -134,7 +134,6 @@ export function HomePage() {
         </Link>
         <nav className="hidden items-center gap-8 text-[13px] font-medium text-[#607187] md:flex">
           <Link href="/fees" className="hover:text-[#142d4d]">Fees</Link>
-          <Link href="/help" className="hover:text-[#142d4d]">Help</Link>
         </nav>
         <div className="flex shrink-0 items-center gap-0.5 sm:gap-3">
           <InstallAppButton className="inline-flex items-center gap-1 rounded-xl border border-[#dbe5eb] bg-white px-2 py-2.5 text-[10px] font-bold text-[#36516d] hover:bg-[#f0f5f7] sm:gap-1.5 sm:px-3 sm:text-[12px]" />
@@ -278,8 +277,6 @@ export function DashboardPage() {
   if (query.isError) return <Failure title="Your overview isn’t available" retry={() => query.refetch()} />;
   return (
     <>
-      <PageHeading eyebrow="Your dashboard" title={`Good to see you${dash?.profile.firstName ? `, ${dash.profile.firstName}` : ''}.`} subtitle="Wallets, quick actions, and recent activity." titleClassName="text-[14px] leading-5" />
-
       {dash?.profile.testingMode && <div role="status" data-testid="dashboard-testing-mode-warning" className="mt-3 flex items-start gap-2 rounded-xl border border-[#ead9a8] bg-[#fff9e9] px-3.5 py-2.5 text-[10px] leading-4 text-[#765e2d]">
         <ShieldCheck size={14} className="mt-0.5 shrink-0" />
         <p><strong className="font-bold">Testing Mode</strong> · Private Vault is not active for this account.</p>
@@ -336,8 +333,7 @@ export function DashboardPage() {
             </div>
             {selectedWallet && <span className="shrink-0 rounded-full bg-[#eff5f6] px-2 py-1 text-[8px] font-bold text-[#456c73]">{selectedWallet.currency} wallet</span>}
           </div>
-          <nav role="toolbar" aria-label="Dashboard actions" className="grid min-w-0 grid-cols-3 gap-2">
-            <ActionTile href="/profile" icon={<UserRound size={16} />} label="Profile" testId="dashboard-quick-profile" />
+          <nav role="toolbar" aria-label="Dashboard actions" className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
             <ActionTile href={currencyActionHref('/withdraw', actionCurrency)} icon={<ArrowUpRight size={16} />} label="Withdraw" testId="dashboard-quick-withdraw" />
             <ActionTile href={currencyActionHref('/transfer', actionCurrency)} icon={<ArrowLeftRight size={16} />} label="Transfer" testId="dashboard-quick-transfer" />
             <ActionTile href="/calculator" icon={<Calculator size={16} />} label="Convert" testId="dashboard-quick-converter" />
@@ -1175,8 +1171,18 @@ export function ProfilePage() {
           </section>
           <button type="button" onClick={() => setProfileTab('details')} className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-[#173858] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269]">Review personal details <ArrowRight size={12} /></button>
         </section>}
-        {profileTab === 'details' && <form onSubmit={submit} className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
-          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">Keep your account information current.</p></div>
+        {profileTab === 'details' && (profile.profileSetupComplete ? <section className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5" data-testid="profile-details-readonly">
+          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">These details are read-only after initial setup. Contact an administrator to request a correction.</p></div>
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {customerProfileFieldLabels.map(([key, label]) => {
+              const value = profile[key];
+              const provided = typeof value === 'string' && value.trim().length > 0;
+              return <div key={key} className="min-w-0 rounded-xl bg-[#f7f9fa] p-3"><dt className="text-[8px] font-bold uppercase tracking-[.1em] text-[#8291a0]">{label}</dt><dd className={`mt-1 break-words text-[10px] font-semibold ${provided ? 'text-[#40566e]' : 'text-[#a07855]'}`}>{provided ? value : 'Missing'}</dd></div>;
+            })}
+          </dl>
+          <p className="mt-3 text-[9px] text-[#7c8b9a]">Email address · {profile.email}</p>
+        </section> : <form onSubmit={submit} className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
+          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Complete your personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">This initial setup can be completed once. Later changes require an administrator.</p></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="First name"><input required maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} className={inputClass} /></Field>
             <Field label="Last name"><input required maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
@@ -1189,7 +1195,7 @@ export function ProfilePage() {
           </div>
           {note && <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-[9px] ${note.startsWith('Profile saved') ? 'bg-[#f0f8f4] text-[#41755f]' : 'bg-[#fff1ef] text-[#a24940]'}`}>{note}</p>}
           <button disabled={update.isPending} className="mt-3 h-9 rounded-lg bg-[#142f51] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45">{update.isPending ? 'Saving profile…' : 'Save profile'}</button>
-        </form>}
+        </form>)}
         {profileTab === 'security' && <section id="transaction-security" className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -1743,9 +1749,8 @@ export function AdminUserManagementPage() {
 }
 
 const disclosureCopy: Record<string, { eyebrow: string; title: string; intro: string; sections: [string, string][] }> = {
-  '/help': { eyebrow: 'Support', title: 'Help with your Globus account.', intro: 'Understand how account activity and requests are handled.', sections: [['How do deposits work?', 'An active Private Vault subscription is required to add funds. The wallet is credited immediately after the PIN and account checks pass. Account restrictions still apply.'], ['How do withdrawals work?', 'A pending withdrawal reserves the requested amount. Approval records the change in Globus; rejection releases the reserve. No outside payout is made.'], ['Can I send someone money?', 'Globus does not support member-to-member transfers. Transfer requests record the details in Globus but do not contact the recipient’s bank or send outside funds.'], ['How do international requests work?', 'Frankfurter reference rates are used to show converted amounts, with Grey available as a rate-only fallback. Rate quotes do not execute transfers; Globus does not contact the destination bank or send outside funds.'], ['Where can I find my Customer ID?', 'Open your Profile page to view or copy your Customer ID. It identifies your Globus account, not a bank account or payment address.']] },
   '/fees': { eyebrow: 'Fees and rates', title: 'Understand transfer requests and rates.', intro: 'Globus does not process external deposits, payouts, or card payments.', sections: [['Rate quotes', 'Globus uses Frankfurter reference rates, with Grey as a fallback source. Availability depends on currency-pair support; quotes can change and are not confirmation of a payment.'], ['Fees', 'Globus records account requests and does not charge an outside transaction fee through a payment provider.'], ['Currency balances', 'Currency wallets are recorded separately. The rate and converted amount shown on a transfer receipt match the quote used when Globus recorded that request.']] },
-  '/contact': { eyebrow: 'Contact', title: 'Contact information is not configured yet.', intro: 'A verified support channel has not been configured for Globus.', sections: [['Account help', 'Visit Help for guidance about the software. Do not include passwords, verification codes or sensitive payment details in support requests.'], ['Recorded activity', 'Include the transaction reference when asking about an account record.'], ['Operational disclosure', 'Globus support cannot complete, trace or reverse an external payment through this product.']] },
+  '/contact': { eyebrow: 'Contact', title: 'Contact information is not configured yet.', intro: 'A verified support channel has not been configured for Globus.', sections: [['Account help', 'Do not include passwords, verification codes or sensitive payment details in support requests.'], ['Recorded activity', 'Include the transaction reference when asking about an account record.'], ['Operational disclosure', 'Globus support cannot complete, trace or reverse an external payment through this product.']] },
 };
 
 export function DisclosurePage({ path }: { path: string }) {

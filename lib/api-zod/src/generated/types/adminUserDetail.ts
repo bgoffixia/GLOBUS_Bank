@@ -19,6 +19,12 @@ export interface AdminUserDetail {
      * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
      */
   dateOfBirth: string | null;
+  /** @nullable */
+  cityOfOrigin: string | null;
+  /** @nullable */
+  occupation: string | null;
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
   transactionCount: number;
   wallets: Wallet[];

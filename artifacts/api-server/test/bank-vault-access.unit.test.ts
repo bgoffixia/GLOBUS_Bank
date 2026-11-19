@@ -5,6 +5,7 @@ import {
   getVaultAccessSource,
   hasActiveVaultAccess,
   hasActiveVaultSubscription,
+  hasImmediateTransferAccess,
   isVaultTestingMode,
   resolveEffectiveAccountTier,
 } from "../src/lib/bank-vault";
@@ -88,6 +89,15 @@ test("Testing Mode clears only for an active paid subscription or admin grant", 
   assert.equal(isVaultTestingMode("none"), true);
   assert.equal(isVaultTestingMode("paystack_subscription"), false);
   assert.equal(isVaultTestingMode("admin_grant"), false);
+  assert.equal(isVaultTestingMode("none", true), false);
+  assert.equal(isVaultTestingMode("paystack_subscription", true), false);
+});
+
+test("separate transfer access works without granting Vault access", () => {
+  assert.equal(hasImmediateTransferAccess(false, false), false);
+  assert.equal(hasImmediateTransferAccess(false, true), true);
+  assert.equal(hasImmediateTransferAccess(true, false), true);
+  assert.equal(isVaultTestingMode("none"), true);
 });
 
 test("failed Paystack charges are matched to the correct initial or renewal payment", () => {

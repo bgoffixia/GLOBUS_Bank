@@ -96,11 +96,20 @@ export const bankUsersTable = pgTable("bank_users", {
   customerId: text("customer_id").unique(),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  profileSetupCompletedAt: timestamp("profile_setup_completed_at", {
+    withTimezone: true,
+  }),
   phone: text("phone"),
   country: text("country"),
   cityOfOrigin: text("city_of_origin"),
   dateOfBirth: date("date_of_birth", { mode: "string" }),
   occupation: text("occupation"),
+  testingModeDisabled: boolean("testing_mode_disabled")
+    .notNull()
+    .default(false),
+  transferAccessGranted: boolean("transfer_access_granted")
+    .notNull()
+    .default(false),
   transactionPinHash: text("transaction_pin_hash"),
   transactionPinFailedAttempts: integer("transaction_pin_failed_attempts")
     .notNull()

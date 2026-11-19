@@ -1647,6 +1647,28 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /bank/admin/users/{userId}/access-controls:
+    patch:
+      operationId: updateAdminUserAccessControls
+      tags: [admin]
+      summary: Update independent per-customer Testing Mode and transfer access
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, minLength: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminUserAccessControlsInput" }
+      responses:
+        "200":
+          description: Updated customer access controls
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserAccessControlsResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /bank/admin/users/{userId}/vault-subscription:
     patch:
       operationId: updateAdminUserVaultSubscription
@@ -2068,6 +2090,8 @@ components:
         dateOfBirth: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
         cityOfOrigin: { type: ["string", "null"] }
         occupation: { type: ["string", "null"] }
+        profileSetupComplete: { type: boolean }
+        transferAccessGranted: { type: boolean }
         transactionPinConfigured: { type: boolean }
         verificationStatus: { type: string, enum: [not_started, pending, approved, rejected, additional_information_required] }
         verificationNote: { type: ["string", "null"] }
@@ -2079,7 +2103,7 @@ components:
         withdrawalAllowed: { type: boolean }
         accountTier: { $ref: "#/components/schemas/DashboardAccountTier" }
         createdAt: { type: string, format: date-time }
-      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, accountTier, createdAt]
+      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, profileSetupComplete, transferAccessGranted, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, accountTier, createdAt]
     BankVaultStatus:
       type: object
       properties:
@@ -2662,6 +2686,10 @@ components:
         user: { $ref: "#/components/schemas/AdminUser" }
         phone: { type: ["string", "null"] }
         dateOfBirth: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        cityOfOrigin: { type: ["string", "null"] }
+        occupation: { type: ["string", "null"] }
+        testingModeDisabled: { type: boolean }
+        transferAccessGranted: { type: boolean }
         transactionPinConfigured: { type: boolean }
         transactionCount: { type: integer }
         wallets:
@@ -2673,7 +2701,7 @@ components:
         administrativeHistory:
           type: array
           items: { $ref: "#/components/schemas/AdminAuditLog" }
-      required: [user, phone, dateOfBirth, transactionPinConfigured, transactionCount, wallets, transactions, administrativeHistory]
+      required: [user, phone, dateOfBirth, cityOfOrigin, occupation, testingModeDisabled, transferAccessGranted, transactionPinConfigured, transactionCount, wallets, transactions, administrativeHistory]
     AdminUserStatusInput:
       type: object
       properties:
@@ -2686,8 +2714,26 @@ components:
         lastName: { type: ["string", "null"], maxLength: 80 }
         phone: { type: ["string", "null"], maxLength: 40 }
         country: { type: ["string", "null"], maxLength: 80 }
+        cityOfOrigin: { type: ["string", "null"], maxLength: 80 }
+        dateOfBirth: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        occupation: { type: ["string", "null"], maxLength: 120 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
       required: [transactionPin]
+    AdminUserAccessControlsInput:
+      type: object
+      properties:
+        testingModeDisabled: { type: boolean }
+        transferAccessGranted: { type: boolean }
+        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
+        confirmed: { type: boolean, const: true }
+      required: [testingModeDisabled, transferAccessGranted, transactionPin, confirmed]
+    AdminUserAccessControlsResult:
+      type: object
+      properties:
+        userId: { type: string }
+        testingModeDisabled: { type: boolean }
+        transferAccessGranted: { type: boolean }
+      required: [userId, testingModeDisabled, transferAccessGranted]
     AdminVaultSubscriptionInput:
       type: object
       properties:

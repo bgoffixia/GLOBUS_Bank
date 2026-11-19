@@ -150,9 +150,17 @@ test.describe('public and authentication pages at phone widths', () => {
     test(`landing, sign-in, and sign-up fit at ${width}px`, async ({ page }) => {
       for (const path of ['/', '/sign-in', '/sign-up']) {
         await openAndCheck(page, path, width, 'Public/authentication page');
+        if (path === '/') {
+          await expect(page.getByRole('link', { name: 'Help', exact: true })).toHaveCount(0);
+        }
       }
     });
   }
+});
+
+test('the removed Help Center route no longer renders support content', async ({ page }) => {
+  await page.goto('/help', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByText('404 Page Not Found')).toBeVisible();
 });
 
 test('short Vault URL redirects to the canonical Private Vault page', async ({ page }) => {
@@ -602,16 +610,19 @@ test.describe('signed-in member pages at phone widths', () => {
           const quickActions = page.getByTestId('dashboard-action-toolbar');
           await expect(toolbar).toBeVisible();
           await expect(page.getByText('Your details, in order')).toHaveCount(0);
-          await expect(quickActions.locator('[data-testid^="dashboard-quick-"]')).toHaveCount(6);
+          await expect(quickActions.locator('[data-testid^="dashboard-quick-"]')).toHaveCount(4);
+          await expect(quickActions.getByTestId('dashboard-quick-profile')).toHaveCount(0);
           const columnCount = await quickActions.locator('[role="toolbar"]').evaluate(element =>
             getComputedStyle(element).gridTemplateColumns.split(' ').length,
           );
-          expect(columnCount, 'Dashboard quick actions should use three columns').toBe(3);
+          const expectedColumns = width < 640 ? 2 : 4;
+          expect(columnCount, 'Dashboard quick actions should fit the viewport').toBe(expectedColumns);
+          await expect(page.getByTestId('dashboard-header-greeting')).toBeVisible();
           await page.getByTestId('link-header-profile').click();
           await expect(page).toHaveURL(/\/profile$/);
           await expect(page.getByRole('heading', { name: 'Your profile' })).toBeVisible();
           await page.getByTestId('profile-tab-button-details').click();
-          await expect(page.locator('#profile-tab-panel form input[required]')).toHaveCount(2);
+          await expect(page.getByTestId('profile-details-readonly')).toBeVisible();
           await page.getByTestId('link-app-home').click();
           await expect(page).toHaveURL(/\/home$/);
           await expect(page.locator('.public-viewport-scroll')).toBeVisible();

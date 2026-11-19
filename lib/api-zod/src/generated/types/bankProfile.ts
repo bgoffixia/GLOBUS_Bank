@@ -32,6 +32,8 @@ export interface BankProfile {
   cityOfOrigin: string | null;
   /** @nullable */
   occupation: string | null;
+  profileSetupComplete: boolean;
+  transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
   verificationStatus: BankProfileVerificationStatus;
   /** @nullable */
