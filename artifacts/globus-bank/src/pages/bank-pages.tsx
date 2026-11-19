@@ -130,13 +130,13 @@ export function HomePage() {
     <div className="public-viewport-scroll bg-[#f6f8fa] text-[#192e49]">
       <header className="relative z-10 mx-auto flex max-w-[1320px] items-center justify-between gap-2 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5 sm:gap-3 sm:px-6 sm:py-6 lg:px-12">
           <Link href={isSignedIn ? '/home' : '/'} aria-label="Globus Bank home" className="flex shrink-0 items-center">
-          <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank — Your world. Our priority." className="h-auto w-[108px] sm:w-[156px]" />
+          <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank — Your world. Our priority." className="h-auto w-[96px] min-[380px]:w-[108px] sm:w-[156px]" />
         </Link>
         <nav className="hidden items-center gap-8 text-[13px] font-medium text-[#607187] md:flex">
           <Link href="/fees" className="hover:text-[#142d4d]">Fees</Link>
           <Link href="/help" className="hover:text-[#142d4d]">Help</Link>
         </nav>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-3">
           <InstallAppButton className="inline-flex items-center gap-1 rounded-xl border border-[#dbe5eb] bg-white px-2 py-2.5 text-[10px] font-bold text-[#36516d] hover:bg-[#f0f5f7] sm:gap-1.5 sm:px-3 sm:text-[12px]" />
           {isSignedIn ? (
             <Link href="/dashboard" className="whitespace-nowrap rounded-xl bg-[#142f51] px-3 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#1b4269] sm:px-5 sm:text-[13px]">Dashboard</Link>

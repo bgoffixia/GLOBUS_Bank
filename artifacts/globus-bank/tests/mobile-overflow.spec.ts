@@ -86,6 +86,9 @@ async function openAndCheck(page: Page, path: string, width: number, context: st
   await page.goto(path, { waitUntil: 'domcontentloaded' });
   if (path === '/') {
     await expect(page.locator('h1').first()).toBeVisible();
+    await expect(page).toHaveURL(/\/$/);
+    await expect.poll(() => page.locator('a[href="/sign-in"]').count()).toBeGreaterThan(0);
+    await expect.poll(() => page.locator('a[href="/sign-up"]').count()).toBeGreaterThan(0);
   } else {
     await expect(page.locator('.gb-auth-shell')).toBeVisible();
   }
