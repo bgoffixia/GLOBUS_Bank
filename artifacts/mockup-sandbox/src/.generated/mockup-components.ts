@@ -4,6 +4,7 @@ export const modules: ModuleMap = {
   "./components/mockups/admin-workspace/BatchVerificationTriage.tsx": () => import("../components/mockups/admin-workspace/BatchVerificationTriage.tsx"),
   "./components/mockups/admin-workspace/Compact.tsx": () => import("../components/mockups/admin-workspace/Compact.tsx"),
   "./components/mockups/admin-workspace/Current.tsx": () => import("../components/mockups/admin-workspace/Current.tsx"),
+  "./components/mockups/admin-workspace/LedgerReview.tsx": () => import("../components/mockups/admin-workspace/LedgerReview.tsx"),
   "./components/mockups/admin-workspace/MemberBatchTriage.tsx": () => import("../components/mockups/admin-workspace/MemberBatchTriage.tsx"),
   "./components/mockups/admin-workspace/MemberInvestigationTimeline.tsx": () => import("../components/mockups/admin-workspace/MemberInvestigationTimeline.tsx"),
   "./components/mockups/admin-workspace/MemberReviewDesk.tsx": () => import("../components/mockups/admin-workspace/MemberReviewDesk.tsx"),
