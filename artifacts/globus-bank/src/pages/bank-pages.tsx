@@ -1667,6 +1667,9 @@ export function AdminPage() {
             accountRestrictionReason: null,
             accountRestrictionNotes: null,
             accountRestrictedAt: null,
+            profileSetupCompletedAt: null,
+            testingModeDisabled: false,
+            transferAccessGranted: false,
             walletCount: 0,
             createdAt: adminProfile.data!.createdAt,
           })} className="rounded-lg bg-[#142f51] px-3 py-2.5 text-[10px] font-bold text-white hover:bg-[#1b4269]">Review my identity</button>}

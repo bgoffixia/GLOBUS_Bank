@@ -1243,6 +1243,10 @@ export interface AdminUser {
   accountRestrictionNotes: string | null;
   /** @nullable */
   accountRestrictedAt: string | null;
+  /** @nullable */
+  profileSetupCompletedAt: string | null;
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
   vaultSubscriptionStatus?: AdminUserVaultSubscriptionStatus;
   /** @nullable */
   vaultSubscriptionRequestedAt?: string | null;
@@ -1278,6 +1282,8 @@ export interface AdminUserDetail {
      * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
      */
   dateOfBirth: string | null;
+  /** @nullable */
+  profileSetupCompletedAt: string | null;
   transactionPinConfigured: boolean;
   transactionCount: number;
   wallets: Wallet[];
@@ -1333,6 +1339,25 @@ export interface AdminUserProfileInput {
   reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
+}
+
+export interface AdminUserAccessControlsInput {
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
+  /**
+     * @minLength 8
+     * @maxLength 500
+     */
+  reason: string;
+  /** @pattern ^[0-9]{6}$ */
+  transactionPin: string;
+  confirmed: true;
+}
+
+export interface AdminUserAccessControlsResult {
+  userId: string;
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
 }
 
 export type AdminVaultSubscriptionInputStatus = typeof AdminVaultSubscriptionInputStatus[keyof typeof AdminVaultSubscriptionInputStatus];

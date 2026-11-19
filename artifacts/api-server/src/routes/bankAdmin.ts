@@ -65,6 +65,9 @@ import {
   UpdateAdminUserProfileBody,
   UpdateAdminUserProfileParams,
   UpdateAdminUserProfileResponse,
+  UpdateAdminUserAccessControlsBody,
+  UpdateAdminUserAccessControlsParams,
+  UpdateAdminUserAccessControlsResponse,
   UpdateAdminUserVaultSubscriptionBody,
   UpdateAdminUserVaultSubscriptionParams,
   UpdateAdminUserVaultSubscriptionResponse,
@@ -143,6 +146,10 @@ import {
 } from "../lib/identityDocumentStorage";
 import { verifyTransactionPin } from "../lib/transaction-pin";
 import { vaultSubscriptionStatus } from "../lib/bank-vault";
+import {
+  buildAdminAccessControlsAuditEntry,
+  normalizeAdminAccessReason,
+} from "../lib/admin-access-controls";
 import {
   notifyTransferRecipient,
   sendPushToUser,
@@ -2174,6 +2181,9 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       accountRestrictionReason: bankUsersTable.accountRestrictionReason,
       accountRestrictionNotes: bankUsersTable.accountRestrictionNotes,
       accountRestrictedAt: bankUsersTable.accountRestrictedAt,
+      profileSetupCompletedAt: bankUsersTable.profileSetupCompletedAt,
+      testingModeDisabled: bankUsersTable.testingModeDisabled,
+      transferAccessGranted: bankUsersTable.transferAccessGranted,
       createdAt: bankUsersTable.createdAt,
       walletCount: count(bankWalletsTable.id),
     })
@@ -2192,6 +2202,9 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       bankUsersTable.accountRestrictionReason,
       bankUsersTable.accountRestrictionNotes,
       bankUsersTable.accountRestrictedAt,
+      bankUsersTable.profileSetupCompletedAt,
+      bankUsersTable.testingModeDisabled,
+      bankUsersTable.transferAccessGranted,
       bankUsersTable.createdAt,
     )
     .orderBy(desc(bankUsersTable.createdAt))
@@ -2252,6 +2265,8 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
             row.accountRestrictedAt?.toISOString() ??
             restrictionsByUser.get(row.id)?.[0]?.effectiveAt.toISOString() ??
             null,
+          profileSetupCompletedAt:
+            row.profileSetupCompletedAt?.toISOString() ?? null,
           createdAt: row.createdAt.toISOString(),
           walletCount: Number(row.walletCount),
         })),
@@ -2357,6 +2372,10 @@ router.get(
             user.accountRestrictedAt?.toISOString() ??
             primaryRestriction?.effectiveAt.toISOString() ??
             null,
+          profileSetupCompletedAt:
+            user.profileSetupCompletedAt?.toISOString() ?? null,
+          testingModeDisabled: user.testingModeDisabled,
+          transferAccessGranted: user.transferAccessGranted,
           vaultSubscriptionStatus: vaultSubscriptionStatus(
             user.vaultSubscriptionStatus,
             user.vaultSubscriptionExpiresAt,
@@ -2374,6 +2393,8 @@ router.get(
         },
         phone: user.phone,
         dateOfBirth: user.dateOfBirth,
+        profileSetupCompletedAt:
+          user.profileSetupCompletedAt?.toISOString() ?? null,
         transactionPinConfigured: !!user.transactionPinHash,
         transactionCount: Number(transactionCountRows[0]?.value ?? 0),
         wallets,
@@ -2795,6 +2816,88 @@ router.patch(
           updated.user.accountRestrictedAt?.toISOString() ?? null,
         walletCount: updated.walletCount,
         createdAt: updated.user.createdAt.toISOString(),
+      }),
+    );
+  },
+);
+
+router.patch(
+  "/bank/admin/users/:userId/access-controls",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = UpdateAdminUserAccessControlsParams.safeParse(req.params);
+    const parsed = UpdateAdminUserAccessControlsBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success
+          ? params.error.message
+          : parsed.error?.message ?? "Invalid access-control request.",
+      });
+      return;
+    }
+    const reason = normalizeAdminAccessReason(parsed.data.reason);
+    if (!reason) {
+      res.status(400).json({
+        error: "Enter a reason between 8 and 500 non-space characters.",
+      });
+      return;
+    }
+    const clerkUserId = getAuth(req).userId;
+    if (!clerkUserId) {
+      res.status(401).json({ error: "Sign in to access administrative controls." });
+      return;
+    }
+    const actorUserId = (await ensureBankUser(clerkUserId)).id;
+    const pinResult = await verifyTransactionPin(
+      actorUserId,
+      parsed.data.transactionPin,
+    );
+    if (pinResult !== "valid") {
+      respondWithTransactionPinError(res, pinResult);
+      return;
+    }
+
+    const result = await db.transaction(async (tx) => {
+      const [target] = await tx
+        .select({ id: bankUsersTable.id })
+        .from(bankUsersTable)
+        .where(eq(bankUsersTable.id, params.data.userId))
+        .for("update");
+      if (!target) return null;
+      const [updated] = await tx
+        .update(bankUsersTable)
+        .set({
+          testingModeDisabled: parsed.data.testingModeDisabled,
+          transferAccessGranted: parsed.data.transferAccessGranted,
+          updatedAt: new Date(),
+        })
+        .where(eq(bankUsersTable.id, target.id))
+        .returning({
+          id: bankUsersTable.id,
+          testingModeDisabled: bankUsersTable.testingModeDisabled,
+          transferAccessGranted: bankUsersTable.transferAccessGranted,
+        });
+      if (!updated) return null;
+      await tx.insert(bankAuditLogsTable).values({
+        ...buildAdminAccessControlsAuditEntry({
+          actorUserId,
+          targetUserId: updated.id,
+          reason,
+          testingModeDisabled: updated.testingModeDisabled,
+          transferAccessGranted: updated.transferAccessGranted,
+        }),
+      });
+      return updated;
+    });
+    if (!result) {
+      res.status(404).json({ error: "User record not found." });
+      return;
+    }
+    res.json(
+      UpdateAdminUserAccessControlsResponse.parse({
+        userId: result.id,
+        testingModeDisabled: result.testingModeDisabled,
+        transferAccessGranted: result.transferAccessGranted,
       }),
     );
   },

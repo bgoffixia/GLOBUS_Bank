@@ -186,6 +186,13 @@ export const bankUsersTable = pgTable("bank_users", {
   accountRestrictionNotes: text("account_restriction_notes"),
   accountRestrictedByUserId: text("account_restricted_by_user_id"),
   accountRestrictedAt: timestamp("account_restricted_at", { withTimezone: true }),
+  profileSetupCompletedAt: timestamp("profile_setup_completed_at", {
+    withTimezone: true,
+  }),
+  testingModeDisabled: boolean("testing_mode_disabled").notNull().default(false),
+  transferAccessGranted: boolean("transfer_access_granted")
+    .notNull()
+    .default(false),
   acceptedTermsAt: timestamp("accepted_terms_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

@@ -51,6 +51,8 @@ export * from './adminTransactionProcessInput';
 export * from './adminTransactionStatusChange';
 export * from './adminTransactionStatusUpdateInput';
 export * from './adminUser';
+export * from './adminUserAccessControlsInput';
+export * from './adminUserAccessControlsResult';
 export * from './adminUserAccountStatus';
 export * from './adminUserDetail';
 export * from './adminUserPage';

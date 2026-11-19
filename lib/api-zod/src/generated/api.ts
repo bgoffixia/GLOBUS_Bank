@@ -1368,7 +1368,8 @@ export const CreateIncomingExternalTransferResponse = zod.void()
 
 
 /**
- * @summary Request an internal ledger deposit or withdrawal
+ * Deposit requests are credited immediately only for customers with an active Private Vault subscription and eligible account and wallet status. Withdrawal requests remain subject to administrator review.
+ * @summary Add funds with active Vault access or request a withdrawal
  */
 export const createLedgerRequestBodyAmountRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const createLedgerRequestBodyDescriptionMax = 140;
@@ -1845,7 +1846,7 @@ export const UpdateAdminSettingsResponse = zod.object({
 
 
 /**
- * @summary List pending internal ledger deposit and withdrawal requests
+ * @summary List pending withdrawal requests
  */
 export const listAdminLedgerRequestsQueryUserIdMax = 128;
 
@@ -1875,7 +1876,7 @@ export const ListAdminLedgerRequestsResponse = zod.array(ListAdminLedgerRequests
 
 
 /**
- * @summary Approve or reject an internal ledger request
+ * @summary Approve or reject a withdrawal request
  */
 
 
@@ -1953,6 +1954,9 @@ export const ListAdminUsersResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -1998,6 +2002,9 @@ export const GetAdminUserDetailResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -2010,6 +2017,7 @@ export const GetAdminUserDetailResponse = zod.object({
 }),
   "phone": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getAdminUserDetailResponseDateOfBirthRegExp).nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
   "transactionPinConfigured": zod.boolean(),
   "transactionCount": zod.number().int(),
   "wallets": zod.array(zod.object({
@@ -2142,6 +2150,9 @@ export const UpdateAdminUserStatusResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -2204,6 +2215,9 @@ export const UpdateAdminUserProfileResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -2213,6 +2227,37 @@ export const UpdateAdminUserProfileResponse = zod.object({
   "vaultSubscriptionAutoRenew": zod.boolean().optional(),
   "walletCount": zod.number().int(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a member's Testing Mode and transfer-access controls
+ */
+
+
+
+export const UpdateAdminUserAccessControlsParams = zod.object({
+  "userId": zod.coerce.string().min(1)
+})
+
+export const updateAdminUserAccessControlsBodyReasonMin = 8;
+export const updateAdminUserAccessControlsBodyReasonMax = 500;
+
+export const updateAdminUserAccessControlsBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const UpdateAdminUserAccessControlsBody = zod.object({
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
+  "reason": zod.string().min(updateAdminUserAccessControlsBodyReasonMin).max(updateAdminUserAccessControlsBodyReasonMax),
+  "transactionPin": zod.string().regex(updateAdminUserAccessControlsBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const UpdateAdminUserAccessControlsResponse = zod.object({
+  "userId": zod.string(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean()
 })
 
 
@@ -2318,6 +2363,9 @@ export const UpdateAdminUserVerificationResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),

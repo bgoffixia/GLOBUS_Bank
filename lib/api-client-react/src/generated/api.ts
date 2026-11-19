@@ -45,6 +45,8 @@ import type {
   AdminTransactionStatusChange,
   AdminTransactionStatusUpdateInput,
   AdminUser,
+  AdminUserAccessControlsInput,
+  AdminUserAccessControlsResult,
   AdminUserDetail,
   AdminUserPage,
   AdminUserPasswordResetInput,
@@ -4425,7 +4427,8 @@ export const getCreateLedgerRequestUrl = () => {
 }
 
 /**
- * @summary Request an internal ledger deposit or withdrawal
+ * Deposit requests are credited immediately only for customers with an active Private Vault subscription and eligible account and wallet status. Withdrawal requests remain subject to administrator review.
+ * @summary Add funds with active Vault access or request a withdrawal
  */
 export const createLedgerRequest = async (ledgerRequestInput: LedgerRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<LedgerRequest> => {
 
@@ -4458,7 +4461,7 @@ return customFetch<LedgerRequest>(getCreateLedgerRequestUrl(),
 
 export const getCreateLedgerRequestMutationKey = () => ['createLedgerRequest'] as const;
 
-export const getCreateLedgerRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>,
+export const getCreateLedgerRequestMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLedgerRequest>>, TError,CreateLedgerRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
 ): UseMutationOptions<Awaited<ReturnType<typeof createLedgerRequest>>, TError,CreateLedgerRequestMutationVariables, TContext> => {
 
@@ -4487,13 +4490,13 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
 
     export type CreateLedgerRequestMutationResult = NonNullable<Awaited<ReturnType<typeof createLedgerRequest>>>
     export type CreateLedgerRequestMutationBody = BodyType<LedgerRequestInput>
-    export type CreateLedgerRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>
+    export type CreateLedgerRequestMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
     export type CreateLedgerRequestMutationVariables = {data: BodyType<LedgerRequestInput>}
 
     /**
- * @summary Request an internal ledger deposit or withdrawal
+ * @summary Add funds with active Vault access or request a withdrawal
  */
-export const useCreateLedgerRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ConflictResponse>,
+export const useCreateLedgerRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createLedgerRequest>>, TError,CreateLedgerRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
  ): UseMutationResult<
         Awaited<ReturnType<typeof createLedgerRequest>>,
@@ -5522,7 +5525,7 @@ export const getListAdminLedgerRequestsUrl = (params?: ListAdminLedgerRequestsPa
 }
 
 /**
- * @summary List pending internal ledger deposit and withdrawal requests
+ * @summary List pending withdrawal requests
  */
 export const listAdminLedgerRequests = async (params?: ListAdminLedgerRequestsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminLedgerRequest[]> => {
 
@@ -5569,7 +5572,7 @@ export type ListAdminLedgerRequestsQueryError = ErrorType<UnauthorizedResponse |
 
 
 /**
- * @summary List pending internal ledger deposit and withdrawal requests
+ * @summary List pending withdrawal requests
  */
 
 export function useListAdminLedgerRequests<TData = Awaited<ReturnType<typeof listAdminLedgerRequests>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
@@ -5599,7 +5602,7 @@ export const getReviewAdminLedgerRequestUrl = (requestId: string,) => {
 }
 
 /**
- * @summary Approve or reject an internal ledger request
+ * @summary Approve or reject a withdrawal request
  */
 export const reviewAdminLedgerRequest = async (requestId: string,
     adminLedgerRequestReviewInput: AdminLedgerRequestReviewInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminLedgerRequest> => {
@@ -5666,7 +5669,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type ReviewAdminLedgerRequestMutationVariables = {requestId: string;data: BodyType<AdminLedgerRequestReviewInput>}
 
     /**
- * @summary Approve or reject an internal ledger request
+ * @summary Approve or reject a withdrawal request
  */
 export const useReviewAdminLedgerRequest = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof reviewAdminLedgerRequest>>, TError,ReviewAdminLedgerRequestMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
@@ -6194,6 +6197,95 @@ export const useUpdateAdminUserProfile = <TError = ErrorType<BadRequestResponse 
         TContext
       > => {
       return useMutation(getUpdateAdminUserProfileMutationOptions(options));
+    }
+
+export const getUpdateAdminUserAccessControlsUrl = (userId: string,) => {
+
+
+
+
+  return `/api/bank/admin/users/${userId}/access-controls`
+}
+
+/**
+ * @summary Update a member's Testing Mode and transfer-access controls
+ */
+export const updateAdminUserAccessControls = async (userId: string,
+    adminUserAccessControlsInput: AdminUserAccessControlsInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminUserAccessControlsResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminUserAccessControlsResult>(getUpdateAdminUserAccessControlsUrl(userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminUserAccessControlsInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminUserAccessControlsMutationKey = () => ['updateAdminUserAccessControls'] as const;
+
+export const getUpdateAdminUserAccessControlsMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminUserAccessControls>>, TError,UpdateAdminUserAccessControlsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminUserAccessControls>>, TError,UpdateAdminUserAccessControlsMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminUserAccessControlsMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminUserAccessControls>>, UpdateAdminUserAccessControlsMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  updateAdminUserAccessControls(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminUserAccessControlsMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminUserAccessControls>>>
+    export type UpdateAdminUserAccessControlsMutationBody = BodyType<AdminUserAccessControlsInput>
+    export type UpdateAdminUserAccessControlsMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type UpdateAdminUserAccessControlsMutationVariables = {userId: string;data: BodyType<AdminUserAccessControlsInput>}
+
+    /**
+ * @summary Update a member's Testing Mode and transfer-access controls
+ */
+export const useUpdateAdminUserAccessControls = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminUserAccessControls>>, TError,UpdateAdminUserAccessControlsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminUserAccessControls>>,
+        TError,
+        UpdateAdminUserAccessControlsMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminUserAccessControlsMutationOptions(options));
     }
 
 export const getListAdminIdentityDocumentsUrl = (userId: string,) => {

@@ -1583,6 +1583,28 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /bank/admin/users/{userId}/access-controls:
+    patch:
+      operationId: updateAdminUserAccessControls
+      tags: [admin]
+      summary: Update a member's Testing Mode and transfer-access controls
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, minLength: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminUserAccessControlsInput" }
+      responses:
+        "200":
+          description: Updated member access controls
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminUserAccessControlsResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /bank/admin/users/{userId}/verification-documents:
     get:
       operationId: listAdminIdentityDocuments
@@ -2582,6 +2604,9 @@ components:
         accountRestrictionReason: { type: ["string", "null"] }
         accountRestrictionNotes: { type: ["string", "null"] }
         accountRestrictedAt: { type: ["string", "null"], format: date-time }
+        profileSetupCompletedAt: { type: ["string", "null"], format: date-time }
+        testingModeDisabled: { type: boolean }
+        transferAccessGranted: { type: boolean }
         vaultSubscriptionStatus: { type: string, enum: [inactive, pending, active, rejected, expired] }
         vaultSubscriptionRequestedAt: { type: ["string", "null"], format: date-time }
         vaultSubscriptionExpiresAt: { type: ["string", "null"], format: date-time }
@@ -2591,7 +2616,7 @@ components:
         vaultSubscriptionAutoRenew: { type: boolean }
         walletCount: { type: integer }
         createdAt: { type: string, format: date-time }
-      required: [id, email, customerId, firstName, lastName, country, verificationStatus, verificationNote, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, walletCount, createdAt]
+      required: [id, email, customerId, firstName, lastName, country, verificationStatus, verificationNote, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, profileSetupCompletedAt, testingModeDisabled, transferAccessGranted, walletCount, createdAt]
     AdminUserPage:
       type: object
       properties:
@@ -2608,6 +2633,7 @@ components:
         user: { $ref: "#/components/schemas/AdminUser" }
         phone: { type: ["string", "null"] }
         dateOfBirth: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        profileSetupCompletedAt: { type: ["string", "null"], format: date-time }
         transactionPinConfigured: { type: boolean }
         transactionCount: { type: integer }
         wallets:
@@ -2619,7 +2645,7 @@ components:
         administrativeHistory:
           type: array
           items: { $ref: "#/components/schemas/AdminAuditLog" }
-      required: [user, phone, dateOfBirth, transactionPinConfigured, transactionCount, wallets, transactions, administrativeHistory]
+      required: [user, phone, dateOfBirth, profileSetupCompletedAt, transactionPinConfigured, transactionCount, wallets, transactions, administrativeHistory]
     AdminUserStatusInput:
       type: object
       properties:
@@ -2637,6 +2663,22 @@ components:
         reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
       required: [reason, transactionPin]
+    AdminUserAccessControlsInput:
+      type: object
+      properties:
+        testingModeDisabled: { type: boolean }
+        transferAccessGranted: { type: boolean }
+        reason: { type: string, minLength: 8, maxLength: 500 }
+        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
+        confirmed: { type: boolean, const: true }
+      required: [testingModeDisabled, transferAccessGranted, reason, transactionPin, confirmed]
+    AdminUserAccessControlsResult:
+      type: object
+      properties:
+        userId: { type: string }
+        testingModeDisabled: { type: boolean }
+        transferAccessGranted: { type: boolean }
+      required: [userId, testingModeDisabled, transferAccessGranted]
     AdminVaultSubscriptionInput:
       type: object
       properties:

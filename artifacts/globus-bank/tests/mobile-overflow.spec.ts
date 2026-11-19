@@ -93,6 +93,104 @@ test.describe('public and authentication pages at phone widths', () => {
       }
     });
   }
+
+  test('member access statuses and reasoned controls render and submit', async ({ page }) => {
+    let submitted: Record<string, unknown> | null = null;
+    let testingModeDisabled = false;
+    let transferAccessGranted = false;
+    const member = {
+      id: 'viewport-member',
+      email: 'viewport-member@example.test',
+      customerId: 'ABC1234',
+      firstName: 'Viewport',
+      lastName: 'Member',
+      country: 'US',
+      verificationStatus: 'approved',
+      verificationNote: null,
+      accountStatus: 'active',
+      accountRestrictionReason: null,
+      accountRestrictionNotes: null,
+      accountRestrictedAt: null,
+      profileSetupCompletedAt: '2026-11-19T10:00:00.000Z',
+      testingModeDisabled,
+      transferAccessGranted,
+      vaultSubscriptionStatus: 'inactive',
+      vaultSubscriptionRequestedAt: null,
+      vaultSubscriptionExpiresAt: null,
+      vaultSubscriptionReason: null,
+      vaultSubscriptionPlan: null,
+      vaultSubscriptionAmountMinor: null,
+      vaultSubscriptionAutoRenew: false,
+      walletCount: 1,
+      createdAt: '2026-11-18T10:00:00.000Z',
+    };
+    await page.route('**/api/bank/admin/**', async (route) => {
+      const request = route.request();
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.endsWith('/access')) {
+        await route.fulfill({ json: { allowed: true, roles: ['operations'] } });
+      } else if (pathname.endsWith('/access-controls') && request.method() === 'PATCH') {
+        submitted = request.postDataJSON() as Record<string, unknown>;
+        testingModeDisabled = submitted.testingModeDisabled === true;
+        transferAccessGranted = submitted.transferAccessGranted === true;
+        await route.fulfill({
+          json: { userId: member.id, testingModeDisabled, transferAccessGranted },
+        });
+      } else if (pathname.endsWith('/users/viewport-member')) {
+        await route.fulfill({
+          json: {
+            user: { ...member, testingModeDisabled, transferAccessGranted },
+            phone: null,
+            dateOfBirth: null,
+            profileSetupCompletedAt: member.profileSetupCompletedAt,
+            transactionPinConfigured: true,
+            transactionCount: 0,
+            wallets: [],
+            transactions: [],
+            administrativeHistory: [],
+          },
+        });
+      } else if (pathname.endsWith('/users')) {
+        await route.fulfill({
+          json: {
+            items: [{ ...member, testingModeDisabled, transferAccessGranted }],
+            total: 1,
+            page: 1,
+            pageSize: 25,
+          },
+        });
+      } else {
+        await route.fulfill({ json: [] });
+      }
+    });
+
+    await page.setViewportSize({ width: 390, height: 850 });
+    await page.goto('/admin/users', { waitUntil: 'domcontentloaded' });
+    const row = page.locator('tr').filter({ hasText: 'viewport-member@example.test' });
+    await expect(row).toBeVisible();
+    await expect(page.getByTestId('member-profile-setup-viewport-member')).toContainText('Complete');
+    await expect(row).toContainText('On');
+    await expect(row).toContainText('Not granted');
+    await row.getByRole('link', { name: 'Open' }).click();
+    await expect(page).toHaveURL(/\/admin\/users\/viewport-member$/);
+    await expect(page.getByText('Profile setup')).toBeVisible();
+    await expect(page.getByTestId('admin-access-control-form')).toBeVisible();
+
+    await page.getByTestId('checkbox-testing-mode-disabled').check();
+    await page.getByTestId('checkbox-transfer-access-granted').check();
+    await page.getByLabel('Reason for this change').fill('Approved transfer access for this customer.');
+    await page.getByLabel('Your six-digit transaction PIN').fill('482731');
+    await page.getByTestId('checkbox-access-controls-confirmed').check();
+    await page.getByRole('button', { name: 'Save access controls' }).click();
+    await expect.poll(() => submitted).toMatchObject({
+      testingModeDisabled: true,
+      transferAccessGranted: true,
+      reason: 'Approved transfer access for this customer.',
+      transactionPin: '482731',
+      confirmed: true,
+    });
+    await expect(page.getByRole('status')).toContainText('saved and recorded');
+  });
 });
 
 test.describe('signed-in member pages at phone widths', () => {
