@@ -6,20 +6,10 @@ export type SanitizedSignupProfileDetails = {
   occupation?: string;
 };
 
-const profileTextPattern = /^[\p{L}\p{M}\p{N}\s.'’&(),/-]+$/u;
-const phonePattern = /^[+0-9().\-\s]+$/;
-
 function validText(value: unknown, maxLength: number): string | undefined {
   if (typeof value !== "string") return undefined;
   const trimmed = value.trim();
-  if (
-    !trimmed ||
-    trimmed.length > maxLength ||
-    !profileTextPattern.test(trimmed)
-  ) {
-    return undefined;
-  }
-  return trimmed;
+  return trimmed && trimmed.length <= maxLength ? trimmed : undefined;
 }
 
 function validDateOfBirth(value: unknown): string | undefined {
@@ -44,28 +34,19 @@ export function sanitizeSignupProfileDetails(
 
   if (typeof input.phone === "string") {
     const phone = input.phone.trim();
-    const digits = phone.replace(/\D/g, "");
-    if (
-      phone &&
-      phone.length <= 32 &&
-      phonePattern.test(phone) &&
-      digits.length >= 7 &&
-      digits.length <= 15
-    ) {
-      details.phone = phone;
-    }
+    if (phone && phone.length <= 1024) details.phone = phone;
   }
 
-  const country = validText(input.country, 80);
+  const country = validText(input.country, 1024);
   if (country) details.country = country;
 
-  const cityOfOrigin = validText(input.cityOfOrigin, 100);
+  const cityOfOrigin = validText(input.cityOfOrigin, 1024);
   if (cityOfOrigin) details.cityOfOrigin = cityOfOrigin;
 
   const dateOfBirth = validDateOfBirth(input.dateOfBirth);
   if (dateOfBirth) details.dateOfBirth = dateOfBirth;
 
-  const occupation = validText(input.occupation, 100);
+  const occupation = validText(input.occupation, 1024);
   if (occupation) details.occupation = occupation;
 
   return details;

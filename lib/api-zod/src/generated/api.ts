@@ -867,28 +867,27 @@ export const updateBankProfileBodyFirstNameMax = 80;
 export const updateBankProfileBodyLastNameMin = 0;
 export const updateBankProfileBodyLastNameMax = 80;
 
-export const updateBankProfileBodyPhoneMin = 3;
-export const updateBankProfileBodyPhoneMax = 32;
+export const updateBankProfileBodyPhoneMax = 1024;
 
-export const updateBankProfileBodyCountryMin = 2;
-export const updateBankProfileBodyCountryMax = 80;
+export const updateBankProfileBodyCountryMax = 1024;
 
-export const updateBankProfileBodyDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
-export const updateBankProfileBodyCityOfOriginMax = 100;
+export const updateBankProfileBodyDateOfBirthMax = 1024;
 
-export const updateBankProfileBodyOccupationMax = 100;
+export const updateBankProfileBodyCityOfOriginMax = 1024;
+
+export const updateBankProfileBodyOccupationMax = 1024;
 
 
 
 export const UpdateBankProfileBody = zod.object({
   "firstName": zod.string().min(1).max(updateBankProfileBodyFirstNameMax),
   "lastName": zod.string().min(updateBankProfileBodyLastNameMin).max(updateBankProfileBodyLastNameMax),
-  "phone": zod.string().min(updateBankProfileBodyPhoneMin).max(updateBankProfileBodyPhoneMax),
-  "country": zod.string().min(updateBankProfileBodyCountryMin).max(updateBankProfileBodyCountryMax),
-  "dateOfBirth": zod.string().regex(updateBankProfileBodyDateOfBirthRegExp).optional(),
-  "cityOfOrigin": zod.string().max(updateBankProfileBodyCityOfOriginMax).optional(),
-  "occupation": zod.string().max(updateBankProfileBodyOccupationMax).optional(),
-  "acceptedTerms": zod.literal(true)
+  "phone": zod.string().max(updateBankProfileBodyPhoneMax).nullish(),
+  "country": zod.string().max(updateBankProfileBodyCountryMax).nullish(),
+  "dateOfBirth": zod.string().max(updateBankProfileBodyDateOfBirthMax).nullish(),
+  "cityOfOrigin": zod.string().max(updateBankProfileBodyCityOfOriginMax).nullish(),
+  "occupation": zod.string().max(updateBankProfileBodyOccupationMax).nullish(),
+  "acceptedTerms": zod.literal(true).optional()
 })
 
 export const updateBankProfileResponseCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');

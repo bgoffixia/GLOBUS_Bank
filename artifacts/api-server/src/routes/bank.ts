@@ -1045,33 +1045,38 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
     return;
   }
 
-  if (
-    parsed.data.dateOfBirth &&
-    (!Number.isFinite(Date.parse(`${parsed.data.dateOfBirth}T00:00:00.000Z`)) ||
-      new Date(`${parsed.data.dateOfBirth}T00:00:00.000Z`)
-        .toISOString()
-        .slice(0, 10) !== parsed.data.dateOfBirth ||
-      parsed.data.dateOfBirth > new Date().toISOString().slice(0, 10))
-  ) {
-    res.status(400).json({ error: "Enter a valid date of birth that is not in the future." });
-    return;
-  }
-
   const currentUser = await getOrCreateBankUser(authUserId);
+  const sanitizedDetails = sanitizeSignupProfileDetails(parsed.data);
+  const hasOwnField = (field: string) =>
+    Object.prototype.hasOwnProperty.call(parsed.data, field);
+  const profileUpdates = {
+    firstName: parsed.data.firstName.trim(),
+    lastName: parsed.data.lastName.trim() || null,
+    ...(hasOwnField("phone")
+      ? { phone: typeof parsed.data.phone === "string" ? parsed.data.phone.trim() || null : null }
+      : {}),
+    ...(hasOwnField("country")
+      ? { country: typeof parsed.data.country === "string" ? parsed.data.country.trim() || null : null }
+      : {}),
+    ...(hasOwnField("cityOfOrigin")
+      ? { cityOfOrigin: typeof parsed.data.cityOfOrigin === "string" ? parsed.data.cityOfOrigin.trim() || null : null }
+      : {}),
+    ...(parsed.data.dateOfBirth === null
+      ? { dateOfBirth: null }
+      : sanitizedDetails.dateOfBirth
+        ? { dateOfBirth: sanitizedDetails.dateOfBirth }
+        : {}),
+    ...(hasOwnField("occupation")
+      ? { occupation: typeof parsed.data.occupation === "string" ? parsed.data.occupation.trim() || null : null }
+      : {}),
+    ...(parsed.data.acceptedTerms === true
+      ? { acceptedTermsAt: new Date() }
+      : {}),
+    updatedAt: new Date(),
+  };
   const [user] = await db
     .update(bankUsersTable)
-    .set({
-      firstName: parsed.data.firstName.trim(),
-      lastName: parsed.data.lastName.trim() || null,
-      phone: parsed.data.phone.trim(),
-      country: parsed.data.country.trim(),
-      ...sanitizeSignupProfileDetails(parsed.data),
-      ...(parsed.data.dateOfBirth
-        ? { dateOfBirth: parsed.data.dateOfBirth }
-        : {}),
-      acceptedTermsAt: new Date(),
-      updatedAt: new Date(),
-    })
+    .set(profileUpdates)
     .where(eq(bankUsersTable.id, currentUser.id))
     .returning();
 

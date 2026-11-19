@@ -85,6 +85,7 @@ import { BankSelect } from '@/components/bank-select';
 import { CountrySelect } from '@/components/country-select';
 import { InstallAppButton } from '@/components/pwa-install-prompt';
 import { countries } from '@/lib/countries';
+import { customerProfileFieldLabels, getMissingCustomerProfileFields } from '@/lib/customer-profile';
 import { destinationCurrencyForCountry } from '@/lib/destination-currency';
 import { TransferReceiptModal } from '@/components/transfer/transfer-receipt';
 import { PrivateVaultPanel } from '@/components/private-vault-panel';
@@ -929,9 +930,21 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
 
 export function ProfilePage() {
   const queryClient = useQueryClient();
-  const query = useGetBankProfile({ query: { queryKey: getGetBankProfileQueryKey() } });
+  const { isLoaded: userLoaded, user } = useUser();
+  const query = useGetBankProfile({
+    query: {
+      queryKey: getGetBankProfileQueryKey(),
+      enabled: userLoaded && Boolean(user),
+      retry: (failureCount, error) => {
+        if (failureCount >= 2) return false;
+        if (error instanceof Error && /401|unauthorized/i.test(error.message)) return false;
+        return true;
+      },
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+    },
+  });
   const update = useUpdateBankProfile();
-  const { user } = useUser();
   const [note, setNote] = useState('');
   const [customerIdCopied, setCustomerIdCopied] = useState(false);
   const [photoMessage, setPhotoMessage] = useState('');
@@ -946,7 +959,6 @@ export function ProfilePage() {
   const [cityOfOrigin, setCityOfOrigin] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
   const [occupation, setOccupation] = useState('');
-  const [accepted, setAccepted] = useState(false);
   const [initialised, setInitialised] = useState(false);
   useEffect(() => {
     if (profile && !initialised) {
@@ -963,11 +975,18 @@ export function ProfilePage() {
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setNote('');
-    update.mutate({ data: { firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), country: country.trim(), ...(cityOfOrigin.trim() ? { cityOfOrigin: cityOfOrigin.trim() } : {}), ...(dateOfBirth ? { dateOfBirth } : {}), ...(occupation.trim() ? { occupation: occupation.trim() } : {}), acceptedTerms: true } }, {
+    update.mutate({ data: {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone.trim() || null,
+      country: country.trim() || null,
+      cityOfOrigin: cityOfOrigin.trim() || null,
+      dateOfBirth: dateOfBirth || null,
+      occupation: occupation.trim() || null,
+    } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetBankProfileQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetBankDashboardQueryKey() });
-        setAccepted(false);
         setNote('Profile saved.');
       },
       onError: error => setNote(error instanceof Error ? error.message : 'Profile could not be saved. Please try again.'),
@@ -1048,8 +1067,10 @@ export function ProfilePage() {
       setPhotoPending(false);
     }
   };
-  if (query.isLoading) return <PageSkeleton />;
-  if (query.isError) return <Failure title="Your profile is unavailable" retry={() => query.refetch()} />;
+  if (!userLoaded || query.isLoading) return <PageSkeleton />;
+  if (query.isError) return <Failure title="Your profile is unavailable" text="Your saved details are unchanged. Check your connection and try again." retry={() => void query.refetch()} />;
+  if (!profile) return <Failure title="Your profile is unavailable" text="Your saved details are unchanged. Try loading your profile again." retry={() => void query.refetch()} />;
+  const missingProfileFields = getMissingCustomerProfileFields(profile);
   const profileTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'details', label: 'Personal details' },
@@ -1134,6 +1155,24 @@ export function ProfilePage() {
             <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account</p><span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[9px] font-bold ${profile?.accountStatus === 'active' ? 'bg-[#edf6f1] text-[#4c836e]' : 'bg-[#fbf7eb] text-[#927944]'}`}>{humanize(profile?.accountStatus)}</span></div>
             <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Member since</p><p className="mt-1 text-[10px] font-semibold text-[#324962]">{formatDate(profile?.createdAt)}</p></div>
           </div>
+          <section className="mt-4 rounded-xl border border-[#e1e8ee] bg-white p-3" aria-label="Customer profile information" data-testid="customer-profile-completeness">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-[10px] font-bold text-[#29425c]">Personal information</h2>
+              <span className="text-[8px] text-[#8492a0]">{missingProfileFields.length ? `${missingProfileFields.length} missing` : 'All details supplied'}</span>
+            </div>
+            <dl className="mt-2 grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+              {customerProfileFieldLabels.map(([key, label]) => {
+                const value = profile[key];
+                const provided = typeof value === 'string' && value.trim().length > 0;
+                return <div key={key} data-testid={`profile-field-${key}`} className="min-w-0">
+                  <dt className="text-[8px] font-semibold text-[#8492a0]">{label}</dt>
+                  <dd className={`mt-0.5 break-words text-[9px] font-semibold ${provided ? 'text-[#40566e]' : 'text-[#a07855]'}`}>
+                    {provided ? value : 'Missing'}
+                  </dd>
+                </div>;
+              })}
+            </dl>
+          </section>
           <button type="button" onClick={() => setProfileTab('details')} className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-[#173858] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269]">Review personal details <ArrowRight size={12} /></button>
         </section>}
         {profileTab === 'details' && <form onSubmit={submit} className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
@@ -1141,16 +1180,15 @@ export function ProfilePage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="First name"><input required maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} className={inputClass} /></Field>
             <Field label="Last name"><input maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
-            <Field label="Phone"><input required minLength={3} maxLength={32} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} /></Field>
-            <Field label="Country of origin"><input required minLength={2} maxLength={80} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} /></Field>
-            <Field label="City of origin (optional)"><input maxLength={100} value={cityOfOrigin} onChange={event => setCityOfOrigin(event.target.value)} className={inputClass} /></Field>
+            <Field label="Phone number"><input maxLength={1024} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
+            <Field label="Country of origin"><input maxLength={1024} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
+            <Field label="City of origin"><input maxLength={1024} value={cityOfOrigin} onChange={event => setCityOfOrigin(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
             <Field label="Date of birth"><input type="date" value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} className={inputClass} /></Field>
-            <Field label="Occupation / employment status (optional)"><input maxLength={100} value={occupation} onChange={event => setOccupation(event.target.value)} className={inputClass} /></Field>
+            <Field label="Occupation / employment status"><input maxLength={1024} value={occupation} onChange={event => setOccupation(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
             <Field label="Email address"><input disabled value={profile?.email ?? ''} className={`${inputClass} bg-[#f4f7f9] text-[#8190a0]`} /></Field>
           </div>
-          <label className="mt-3 flex items-start gap-2.5 text-[9px] leading-4 text-[#728296]"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-0.5 accent-[#387e84]" /><span>I confirm these profile details are accurate and accept the Globus account terms.</span></label>
           {note && <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-[9px] ${note.startsWith('Profile saved') ? 'bg-[#f0f8f4] text-[#41755f]' : 'bg-[#fff1ef] text-[#a24940]'}`}>{note}</p>}
-          <button disabled={!accepted || update.isPending} className="mt-3 h-9 rounded-lg bg-[#142f51] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45">{update.isPending ? 'Saving profile…' : 'Save profile'}</button>
+          <button disabled={update.isPending} className="mt-3 h-9 rounded-lg bg-[#142f51] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45">{update.isPending ? 'Saving profile…' : 'Save profile'}</button>
         </form>}
         {profileTab === 'security' && <section id="transaction-security" className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
