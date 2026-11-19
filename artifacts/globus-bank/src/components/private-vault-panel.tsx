@@ -35,6 +35,7 @@ import {
 } from '@workspace/api-client-react';
 import type { BankTransaction, BankVaultEmailPreferences, BankVaultWalletControl } from '@workspace/api-client-react';
 import { fetchWebpushrSubscriberId, loadWebpushr } from '../lib/webpushr-client';
+import { canLoadVaultPrivateData, isVaultSessionRejected } from '../lib/vault-error-state';
 import { VaultFundingForm } from './vault-funding-form';
 
 const fieldClass = 'h-9 w-full rounded-lg border border-[#dfe6eb] bg-white px-3 text-[11px] text-[#344b64] outline-none focus:border-[#77aeb0] focus:ring-2 focus:ring-[#77aeb0]/15';
@@ -84,7 +85,10 @@ export function PrivateVaultPanel() {
   const [subscriptionStep, setSubscriptionStep] = useState<SubscriptionStep>('closed');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const paymentCallbackHandled = useRef('');
-  const lastSubscriptionStatus = useRef<string | undefined>(undefined);
+  const privateVaultDataEnabled = canLoadVaultPrivateData(
+    sessionToken,
+    status.data?.accessActive,
+  );
   const billing = useGetBankVaultBilling({
     query: {
       queryKey: getGetBankVaultBillingQueryKey(),
@@ -131,7 +135,7 @@ export function PrivateVaultPanel() {
   const controls = useListBankVaultWalletControls({
     query: {
       queryKey: getListBankVaultWalletControlsQueryKey(),
-      enabled: !!sessionToken,
+      enabled: privateVaultDataEnabled,
       retry: false,
     },
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
@@ -139,7 +143,7 @@ export function PrivateVaultPanel() {
   const emailPreferences = useGetBankVaultEmailPreferences({
     query: {
       queryKey: getGetBankVaultEmailPreferencesQueryKey(),
-      enabled: !!sessionToken,
+      enabled: privateVaultDataEnabled,
       retry: false,
     },
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
@@ -158,7 +162,7 @@ export function PrivateVaultPanel() {
     {
       query: {
         queryKey: getListBankTransactionsQueryKey({ limit: 100 }),
-        enabled: !!sessionToken,
+        enabled: privateVaultDataEnabled,
         staleTime: 30_000,
       },
     },
@@ -166,7 +170,7 @@ export function PrivateVaultPanel() {
   const transactionNotes = useListBankVaultTransactionNotes({
     query: {
       queryKey: getListBankVaultTransactionNotesQueryKey(),
-      enabled: !!sessionToken,
+      enabled: privateVaultDataEnabled,
       retry: false,
     },
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
@@ -239,23 +243,19 @@ export function PrivateVaultPanel() {
     return () => window.clearTimeout(timeout);
   }, [expiresAt, queryClient, sessionToken]);
   useEffect(() => {
-    const currentStatus = status.data?.subscriptionStatus;
-    if (!currentStatus) return;
-    const previousStatus = lastSubscriptionStatus.current;
-    lastSubscriptionStatus.current = currentStatus;
-    if (previousStatus && previousStatus !== currentStatus && currentStatus !== 'pending' && sessionToken) {
-      void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
-      void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
-      void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
-      queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
-      queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
-      queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
-      setSessionToken('');
-      setExpiresAt('');
-      setSubscriptionStep('closed');
-      setMessage('Vault access changed. Enter your passcode again to continue.');
+    if (status.data?.accessActive !== false) return;
+    const privateQueryKeys = [
+      getListBankVaultWalletControlsQueryKey(),
+      getGetBankVaultEmailPreferencesQueryKey(),
+      getListBankVaultTransactionNotesQueryKey(),
+    ];
+    for (const queryKey of privateQueryKeys) {
+      void queryClient.cancelQueries({ queryKey });
+      queryClient.removeQueries({ queryKey });
     }
-  }, [queryClient, sessionToken, status.data?.subscriptionStatus]);
+    setSelectedTransactionId('');
+    setPrivateNoteDraft('');
+  }, [queryClient, status.data?.accessActive]);
 
   const submitPasscode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -305,15 +305,49 @@ export function PrivateVaultPanel() {
     void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
     queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
     queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
     queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+    queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
     setSessionToken('');
     setExpiresAt('');
     setPasscode('');
     setNewPasscode('');
     setSubscriptionStep('closed');
   };
+  useEffect(() => {
+    if (!sessionToken) return;
+    const rejected = [
+      controls.error,
+      emailPreferences.error,
+      transactionNotes.error,
+    ].some(isVaultSessionRejected);
+    if (!rejected) return;
+
+    void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
+    queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
+    queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+    queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+    queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
+    queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
+    setSessionToken('');
+    setExpiresAt('');
+    setSubscriptionStep('closed');
+    setMessage('');
+    setError('Your Vault session expired or access changed. Unlock it again to continue.');
+    void queryClient.invalidateQueries({ queryKey: getGetBankVaultStatusQueryKey() });
+  }, [
+    controls.error,
+    emailPreferences.error,
+    queryClient,
+    sessionToken,
+    transactionNotes.error,
+  ]);
   const startPaystackCheckout = async () => {
     setError('');
     setMessage('');
@@ -659,10 +693,11 @@ export function PrivateVaultPanel() {
                   <button type="submit" disabled={loading || newPasscode.length !== 4} data-testid="button-vault-change-passcode" className="mt-2 h-8 rounded-lg border border-[#dfe6eb] px-3 text-[9px] font-bold text-[#405a73] disabled:opacity-50">{updatePasscode.isPending ? 'Updating…' : 'Update passcode'}</button>
                 </form> : <div className="rounded-xl border border-[#e7ecef] bg-[#f8fafb] p-3"><h3 className="text-[10px] font-bold text-[#344b64]">Vault settings are read-only</h3><p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Active Private Vault access is required to change the passcode or wallet and email settings.</p></div>}
                 <div className="rounded-xl border border-[#e7ecef] p-3">
-                  <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold text-[#344b64]">Wallet policies</h3><button type="button" onClick={() => void controls.refetch()} data-testid="button-refresh-wallet-controls" className="text-[9px] font-bold text-[#397b80]">Refresh</button></div>
+                  <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold text-[#344b64]">Wallet policies</h3><button type="button" disabled={!vaultAccessActive} onClick={() => void controls.refetch()} data-testid="button-refresh-wallet-controls" className="text-[9px] font-bold text-[#397b80] disabled:cursor-not-allowed disabled:opacity-50">Refresh</button></div>
                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Policy choices apply to future requests only. Existing transactions keep their recorded status.</p>
-                    <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Add funds above; withdrawal requests remain on their dedicated page. Subscription, wallet, and account restrictions still apply.</p>
-                  {controls.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> : controls.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Wallet controls could not be loaded. Refresh to try again.</p> : controls.data?.length ? (
+                  <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Add funds above; withdrawal requests remain on their dedicated page. Subscription, wallet, and account restrictions still apply.</p>
+                  {!vaultAccessActive ? <p role="status" className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] text-[#8492a1]">Activate Private Vault access to view wallet policies.</p> :
+                    controls.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> : controls.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Wallet policies could not be loaded. Refresh to try again.</p> : controls.data?.length ? (
                     <div className="mt-2 space-y-2">{controls.data.map(control => <article key={control.walletId} data-testid={`vault-wallet-control-${control.walletId}`} className="rounded-lg bg-[#f8fafb] p-2.5">
                       <div className="flex items-center justify-between gap-2"><strong className="text-[10px] text-[#324962]">{control.currency} wallet</strong><label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.transfersEnabled} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { transfersEnabled: event.target.checked })} data-testid={`toggle-vault-transfers-${control.walletId}`} />Transfers</label></div>
                       <div className="mt-2 grid grid-cols-2 gap-2">
@@ -709,8 +744,8 @@ export function PrivateVaultPanel() {
               <details className="mt-3 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Personal transaction notes</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">These notes are private to your Vault. They never change balances, official transaction details, receipts, or notifications.</p>
-                {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Notes are read-only until Vault access is active.</p>}
-                {transactions.isLoading || transactionNotes.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
+                {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Activate Private Vault access to load personal notes.</p>}
+                {!vaultAccessActive ? null : transactions.isLoading || transactionNotes.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
                   transactions.isError || transactionNotes.isError ? <div className="mt-2 rounded-lg border border-[#eadfda] bg-[#fff8f6] p-3 text-[9px] text-[#a24940]"><p>Transaction notes could not be loaded.</p><button type="button" onClick={() => { void transactions.refetch(); void transactionNotes.refetch(); }} className="mt-1 font-bold underline">Try again</button></div> :
                     !transactions.data?.length ? <p className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] text-[#8492a1]">Your transactions will appear here when available.</p> :
                       <div className="mt-3 grid gap-2">
@@ -736,8 +771,8 @@ export function PrivateVaultPanel() {
               <details className="mt-3 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-email-banner-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Transaction email banner</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose whether to email recipients, then customize the banner and optional support footer link.</p>
-                {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Read-only until Vault access is active.</p>}
-                {emailPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> : emailPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Email alert settings could not be loaded.</p> : <form onSubmit={submitEmailPreferences} className="mt-3 grid gap-3 sm:grid-cols-2">
+                {!vaultAccessActive ? <p role="status" className="mt-2 text-[9px] font-semibold text-[#8a784c]">Activate Private Vault access to load these settings.</p> :
+                  emailPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> : emailPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Email alert settings could not be loaded.</p> : <form onSubmit={submitEmailPreferences} className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="flex items-start gap-2 rounded-lg border border-[#e4eaee] bg-white px-3 py-2 text-[9px] leading-4 text-[#64798d] sm:col-span-2">
                     <input disabled={!vaultAccessActive} type="checkbox" checked={transactionEmailAlertsEnabled} onChange={event => setTransactionEmailAlertsEnabled(event.currentTarget.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-transaction-email-alerts" />
                     <span><strong className="text-[#344b64]">Send recipient transaction email alerts.</strong> When off, the recipient email field is hidden from the transfer form and no recipient email is stored or sent.</span>

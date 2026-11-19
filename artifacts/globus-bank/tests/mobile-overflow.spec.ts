@@ -155,6 +155,13 @@ test.describe('public and authentication pages at phone widths', () => {
   }
 });
 
+test('short Vault URL redirects to the canonical Private Vault page', async ({ page }) => {
+  await page.goto('/vault', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('.gb-auth-shell')).toBeVisible();
+  await expect(page).toHaveURL(/\/sign-in$/);
+  await expect(page.getByText('404 Page Not Found')).toHaveCount(0);
+});
+
 test.describe('landing feature layout after removing wallet-funding copy', () => {
   for (const viewport of authViewports) {
     test(`keeps the remaining features gap-free at ${viewport.name}`, async ({ page }) => {

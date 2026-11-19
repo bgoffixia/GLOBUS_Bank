@@ -266,6 +266,7 @@ function ClerkRoutes() {
         <Route path="/transfer"><ProtectedPage><InternationalTransferPage /></ProtectedPage></Route>
         <Route path="/international-transfer"><ProtectedPage><InternationalTransferPage /></ProtectedPage></Route>
         <Route path="/add-money"><Redirect to="/private-vault" /></Route>
+        <Route path="/vault"><Redirect to="/private-vault" /></Route>
         <Route path="/withdraw"><ProtectedPage><ProviderRequestPage type="withdrawal" /></ProtectedPage></Route>
         <Route path="/customer-id"><Redirect to="/profile" /></Route>
         <Route path="/receive"><Redirect to="/profile" /></Route>
