@@ -6,6 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BankProfileAccountStatus } from './bankProfileAccountStatus';
+import type { BankProfileVaultAccessSource } from './bankProfileVaultAccessSource';
 import type { BankProfileVerificationStatus } from './bankProfileVerificationStatus';
 
 export interface BankProfile {
@@ -36,6 +37,8 @@ export interface BankProfile {
   verificationNote: string | null;
   accountStatus: BankProfileAccountStatus;
   vaultSubscriptionActive: boolean;
+  vaultAccessActive: boolean;
+  vaultAccessSource: BankProfileVaultAccessSource;
   depositAllowed: boolean;
   withdrawalAllowed: boolean;
   createdAt: Date;

@@ -7,6 +7,7 @@ import {
 import { and, eq, gt, inArray, lte } from "drizzle-orm";
 import {
   bankUsersTable,
+  bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
   db,
 } from "@workspace/db";
@@ -53,6 +54,47 @@ export function hasActiveVaultSubscription(user: {
   ) === "active";
 }
 
+type VaultAccessExecutor = Pick<typeof db, "select">;
+
+export async function hasAdminVaultEntitlement(
+  userId: string,
+  executor: VaultAccessExecutor = db,
+): Promise<boolean> {
+  const [entitlement] = await executor
+    .select({ userId: bankVaultAdminEntitlementsTable.userId })
+    .from(bankVaultAdminEntitlementsTable)
+    .where(eq(bankVaultAdminEntitlementsTable.userId, userId))
+    .limit(1);
+  return Boolean(entitlement);
+}
+
+export async function getVaultAccessSource(
+  user: {
+    id: string;
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+  },
+  executor: VaultAccessExecutor = db,
+  now = new Date(),
+): Promise<"none" | "paystack_subscription" | "admin_grant"> {
+  if (await hasAdminVaultEntitlement(user.id, executor)) return "admin_grant";
+  return hasActiveVaultSubscription(user, now)
+    ? "paystack_subscription"
+    : "none";
+}
+
+export async function hasActiveVaultAccess(
+  user: {
+    id: string;
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+  },
+  executor: VaultAccessExecutor = db,
+  now = new Date(),
+): Promise<boolean> {
+  return (await getVaultAccessSource(user, executor, now)) !== "none";
+}
+
 export async function expireVaultSubscriptions(now = new Date()): Promise<number> {
   return db.transaction(async (tx) => {
     const expiredUsers = await tx
@@ -82,17 +124,19 @@ export async function expireVaultSubscriptions(now = new Date()): Promise<number
   });
 }
 
-export function vaultTransferEmailAlertsEnabled(
+export async function vaultTransferEmailAlertsEnabled(
   user: {
+    id: string;
     vaultEmailAlertsEnabled: boolean;
     vaultSubscriptionStatus: string;
     vaultSubscriptionExpiresAt: Date | null;
   },
+  executor: VaultAccessExecutor = db,
   now = new Date(),
-): boolean {
+): Promise<boolean> {
   return (
     user.vaultEmailAlertsEnabled &&
-    hasActiveVaultSubscription(user, now)
+    await hasActiveVaultAccess(user, executor, now)
   );
 }
 
@@ -269,13 +313,14 @@ export async function isVaultSessionActive(
 ): Promise<boolean> {
   const [user] = await db
     .select({
+      id: bankUsersTable.id,
       vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
       vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
     })
     .from(bankUsersTable)
     .where(eq(bankUsersTable.id, userId))
     .limit(1);
-  if (!user || !hasActiveVaultSubscription(user)) return false;
+  if (!user || !(await hasActiveVaultAccess(user))) return false;
   return hasValidVaultPasscodeSession(userId, sessionToken);
 }
 
@@ -289,13 +334,14 @@ export async function updateVaultPasscode(
   return db.transaction(async (tx) => {
     const [user] = await tx
       .select({
+        id: bankUsersTable.id,
         vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
         vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
       })
       .from(bankUsersTable)
       .where(eq(bankUsersTable.id, userId))
       .for("update");
-    if (!user || !hasActiveVaultSubscription(user)) return false;
+    if (!user || !(await hasActiveVaultAccess(user, tx))) return false;
     const [session] = await tx
       .select({ id: bankVaultSessionsTable.id })
       .from(bankVaultSessionsTable)

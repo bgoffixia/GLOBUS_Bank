@@ -262,6 +262,15 @@ export const BankProfileAccountStatus = {
   suspended: 'suspended',
 } as const;
 
+export type BankProfileVaultAccessSource = typeof BankProfileVaultAccessSource[keyof typeof BankProfileVaultAccessSource];
+
+
+export const BankProfileVaultAccessSource = {
+  none: 'none',
+  paystack_subscription: 'paystack_subscription',
+  admin_grant: 'admin_grant',
+} as const;
+
 export interface BankProfile {
   id: string;
   email: string;
@@ -290,6 +299,8 @@ export interface BankProfile {
   verificationNote: string | null;
   accountStatus: BankProfileAccountStatus;
   vaultSubscriptionActive: boolean;
+  vaultAccessActive: boolean;
+  vaultAccessSource: BankProfileVaultAccessSource;
   depositAllowed: boolean;
   withdrawalAllowed: boolean;
   createdAt: string;
@@ -304,6 +315,15 @@ export const BankVaultStatusSubscriptionStatus = {
   active: 'active',
   rejected: 'rejected',
   expired: 'expired',
+} as const;
+
+export type BankVaultStatusAccessSource = typeof BankVaultStatusAccessSource[keyof typeof BankVaultStatusAccessSource];
+
+
+export const BankVaultStatusAccessSource = {
+  none: 'none',
+  paystack_subscription: 'paystack_subscription',
+  admin_grant: 'admin_grant',
 } as const;
 
 /**
@@ -332,6 +352,9 @@ export interface BankVaultStatus {
   configured: boolean;
   subscriptionStatus: BankVaultStatusSubscriptionStatus;
   subscriptionActive: boolean;
+  adminGrantActive: boolean;
+  accessActive: boolean;
+  accessSource: BankVaultStatusAccessSource;
   /** @nullable */
   requestedAt: string | null;
   /** @nullable */
@@ -356,6 +379,15 @@ export type BankVaultBillingProvider = typeof BankVaultBillingProvider[keyof typ
 export const BankVaultBillingProvider = {
   paystack: 'paystack',
   unavailable: 'unavailable',
+} as const;
+
+export type BankVaultBillingAccessSource = typeof BankVaultBillingAccessSource[keyof typeof BankVaultBillingAccessSource];
+
+
+export const BankVaultBillingAccessSource = {
+  none: 'none',
+  paystack_subscription: 'paystack_subscription',
+  admin_grant: 'admin_grant',
 } as const;
 
 export type BankVaultBillingPlansItemCode = typeof BankVaultBillingPlansItemCode[keyof typeof BankVaultBillingPlansItemCode];
@@ -386,6 +418,9 @@ export type BankVaultBillingPlansItem = {
 export interface BankVaultBilling {
   configured: boolean;
   provider: BankVaultBillingProvider;
+  adminGrantActive: boolean;
+  accessActive: boolean;
+  accessSource: BankVaultBillingAccessSource;
   /** True only after the server recurring flag and signed webhook are configured */
   recurringEnabled: boolean;
   plans: BankVaultBillingPlansItem[];
@@ -1219,6 +1254,65 @@ export interface AdminUserPage {
   pageSize: number;
 }
 
+export type AdminVaultAccessSource = typeof AdminVaultAccessSource[keyof typeof AdminVaultAccessSource];
+
+
+export const AdminVaultAccessSource = {
+  none: 'none',
+  paystack_subscription: 'paystack_subscription',
+  admin_grant: 'admin_grant',
+} as const;
+
+export type AdminVaultAccessRecordSubscriptionStatus = typeof AdminVaultAccessRecordSubscriptionStatus[keyof typeof AdminVaultAccessRecordSubscriptionStatus];
+
+
+export const AdminVaultAccessRecordSubscriptionStatus = {
+  inactive: 'inactive',
+  pending: 'pending',
+  active: 'active',
+  rejected: 'rejected',
+  expired: 'expired',
+} as const;
+
+export interface AdminVaultAccessRecord {
+  userId: string;
+  email: string;
+  /** @nullable */
+  customerId: string | null;
+  /** @nullable */
+  firstName: string | null;
+  /** @nullable */
+  lastName: string | null;
+  subscriptionStatus: AdminVaultAccessRecordSubscriptionStatus;
+  subscriptionActive: boolean;
+  /** @nullable */
+  subscriptionExpiresAt: string | null;
+  adminGrantActive: boolean;
+  /** @nullable */
+  adminGrantAt: string | null;
+  /** @nullable */
+  adminGrantByUserId: string | null;
+  /** @nullable */
+  adminGrantReason: string | null;
+  accessActive: boolean;
+  accessSource: AdminVaultAccessSource;
+}
+
+export interface AdminVaultAccessPage {
+  items: AdminVaultAccessRecord[];
+}
+
+export interface AdminVaultAccessActionInput {
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /** @pattern ^[0-9]{6}$ */
+  transactionPin: string;
+  confirmed: true;
+}
+
 export interface AdminUserDetail {
   user: AdminUser;
   /** @nullable */
@@ -2012,6 +2106,14 @@ export const ListAdminUsersVaultSubscriptionStatus = {
   rejected: 'rejected',
   expired: 'expired',
 } as const;
+
+export type ListAdminVaultAccessParams = {
+/**
+ * @minLength 2
+ * @maxLength 100
+ */
+search: string;
+};
 
 export type ListAdminLedgerParams = {
 currency?: CurrencyCode;

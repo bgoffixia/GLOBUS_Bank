@@ -1300,6 +1300,98 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /bank/admin/vault-access:
+    get:
+      operationId: listAdminVaultAccess
+      tags: [admin]
+      summary: Find users and inspect their Private Vault access source
+      parameters:
+        - name: search
+          in: query
+          required: true
+          schema:
+            type: string
+            minLength: 2
+            maxLength: 100
+      responses:
+        "200":
+          description: Matching users and their paid and administrator-granted Vault access
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminVaultAccessPage"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+  /bank/admin/users/{userId}/vault-access/grant:
+    post:
+      operationId: grantAdminVaultAccess
+      tags: [admin]
+      summary: Grant a separate administrator Vault entitlement
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminVaultAccessActionInput"
+      responses:
+        "200":
+          description: Administrator Vault entitlement granted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminVaultAccessRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /bank/admin/users/{userId}/vault-access/revoke:
+    post:
+      operationId: revokeAdminVaultAccess
+      tags: [admin]
+      summary: Revoke an administrator Vault entitlement without changing paid access
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminVaultAccessActionInput"
+      responses:
+        "200":
+          description: Administrator Vault entitlement revoked
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminVaultAccessRecord"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /bank/admin/users/{userId}:
     get:
       operationId: getAdminUserDetail
@@ -1875,16 +1967,21 @@ components:
         verificationNote: { type: ["string", "null"] }
         accountStatus: { type: string, enum: [active, restricted, suspended] }
         vaultSubscriptionActive: { type: boolean }
+        vaultAccessActive: { type: boolean }
+        vaultAccessSource: { type: string, enum: [none, paystack_subscription, admin_grant] }
         depositAllowed: { type: boolean }
         withdrawalAllowed: { type: boolean }
         createdAt: { type: string, format: date-time }
-      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, vaultSubscriptionActive, depositAllowed, withdrawalAllowed, createdAt]
+      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, createdAt]
     BankVaultStatus:
       type: object
       properties:
         configured: { type: boolean }
         subscriptionStatus: { type: string, enum: [inactive, pending, active, rejected, expired] }
         subscriptionActive: { type: boolean }
+        adminGrantActive: { type: boolean }
+        accessActive: { type: boolean }
+        accessSource: { type: string, enum: [none, paystack_subscription, admin_grant] }
         requestedAt: { type: ["string", "null"], format: date-time }
         expiresAt: { type: ["string", "null"], format: date-time }
         planCode: { type: ["string", "null"], enum: [1m, 3m, 1y, null] }
@@ -1893,12 +1990,15 @@ components:
         paymentReference: { type: ["string", "null"] }
         autoRenew: { type: boolean }
         renewalManagementReady: { type: boolean }
-      required: [configured, subscriptionStatus, subscriptionActive, requestedAt, expiresAt, planCode, amountMinor, paymentStatus, paymentReference, autoRenew, renewalManagementReady]
+      required: [configured, subscriptionStatus, subscriptionActive, adminGrantActive, accessActive, accessSource, requestedAt, expiresAt, planCode, amountMinor, paymentStatus, paymentReference, autoRenew, renewalManagementReady]
     BankVaultBilling:
       type: object
       properties:
         configured: { type: boolean }
         provider: { type: string, enum: [paystack, unavailable] }
+        adminGrantActive: { type: boolean }
+        accessActive: { type: boolean }
+        accessSource: { type: string, enum: [none, paystack_subscription, admin_grant] }
         recurringEnabled:
           type: boolean
           description: True only after the server recurring flag and signed webhook are configured
@@ -1913,7 +2013,7 @@ components:
               priceMinor: { type: string, pattern: "^[0-9]+$" }
               currency: { type: string, enum: [NGN] }
             required: [code, label, durationMonths, priceMinor, currency]
-      required: [configured, provider, recurringEnabled, plans]
+      required: [configured, provider, adminGrantActive, accessActive, accessSource, recurringEnabled, plans]
     BankVaultPaystackInitializeInput:
       type: object
       properties:
@@ -2352,6 +2452,41 @@ components:
         page: { type: integer }
         pageSize: { type: integer }
       required: [items, total, page, pageSize]
+    AdminVaultAccessSource:
+      type: string
+      enum: [none, paystack_subscription, admin_grant]
+    AdminVaultAccessRecord:
+      type: object
+      properties:
+        userId: { type: string }
+        email: { type: string, format: email }
+        customerId: { type: ["string", "null"] }
+        firstName: { type: ["string", "null"] }
+        lastName: { type: ["string", "null"] }
+        subscriptionStatus: { type: string, enum: [inactive, pending, active, rejected, expired] }
+        subscriptionActive: { type: boolean }
+        subscriptionExpiresAt: { type: ["string", "null"], format: date-time }
+        adminGrantActive: { type: boolean }
+        adminGrantAt: { type: ["string", "null"], format: date-time }
+        adminGrantByUserId: { type: ["string", "null"] }
+        adminGrantReason: { type: ["string", "null"] }
+        accessActive: { type: boolean }
+        accessSource: { $ref: "#/components/schemas/AdminVaultAccessSource" }
+      required: [userId, email, customerId, firstName, lastName, subscriptionStatus, subscriptionActive, subscriptionExpiresAt, adminGrantActive, adminGrantAt, adminGrantByUserId, adminGrantReason, accessActive, accessSource]
+    AdminVaultAccessPage:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminVaultAccessRecord" }
+      required: [items]
+    AdminVaultAccessActionInput:
+      type: object
+      properties:
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
+        confirmed: { type: boolean, enum: [true] }
+      required: [reason, transactionPin, confirmed]
     AdminUserDetail:
       type: object
       properties:

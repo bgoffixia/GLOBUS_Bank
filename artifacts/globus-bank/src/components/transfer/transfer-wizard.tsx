@@ -92,7 +92,7 @@ export function InternationalTransferPage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const pending = createRequest.isPending;
-  const subscriptionActive = profile.data?.vaultSubscriptionActive === true;
+  const subscriptionActive = profile.data?.vaultAccessActive === true;
   const pinConfigured = profile.data?.transactionPinConfigured !== false;
   const recipientEmailAlertsEnabled =
     emailAlertPreference.data?.enabled === true;
@@ -319,7 +319,7 @@ export function InternationalTransferPage() {
                 <RateWarning changed={rateChanged} lost={rateLost} onReview={() => { setRateSnapshot(liveRate); setConfirmed(false); }} />
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-[#f5f8f9] p-3 text-[11px] leading-5 text-[#3e566e]">
                   <input data-testid="checkbox-confirm-transfer" type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#173b62]" />
-                  <span>I confirm these details are correct. {subscriptionActive ? 'Globus will record this transfer once I enter my PIN.' : 'An active Private Vault subscription is required for immediate processing; otherwise an administrator will review it.'}</span>
+                  <span>I confirm these details are correct. {subscriptionActive ? 'Globus will record this transfer once I enter my PIN.' : 'Active Private Vault access is required for immediate processing; otherwise an administrator will review it.'}</span>
                 </label>
               </>}
 

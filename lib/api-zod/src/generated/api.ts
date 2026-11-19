@@ -55,6 +55,8 @@ export const GetBankProfileResponse = zod.object({
   "verificationNote": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
   "vaultSubscriptionActive": zod.boolean(),
+  "vaultAccessActive": zod.boolean(),
+  "vaultAccessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "depositAllowed": zod.boolean(),
   "withdrawalAllowed": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -71,6 +73,9 @@ export const GetBankVaultStatusResponse = zod.object({
   "configured": zod.boolean(),
   "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "subscriptionActive": zod.boolean(),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "requestedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable(),
   "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
@@ -99,6 +104,9 @@ export const InitializeBankVaultPasscodeResponse = zod.object({
   "configured": zod.boolean(),
   "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "subscriptionActive": zod.boolean(),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "requestedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable(),
   "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
@@ -128,6 +136,9 @@ export const getBankVaultBillingResponsePlansItemPriceMinorRegExp = new RegExp('
 export const GetBankVaultBillingResponse = zod.object({
   "configured": zod.boolean(),
   "provider": zod.enum(['paystack', 'unavailable']),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "recurringEnabled": zod.boolean().describe('True only after the server recurring flag and signed webhook are configured'),
   "plans": zod.array(zod.object({
   "code": zod.enum(['1m', '3m', '1y']),
@@ -193,6 +204,9 @@ export const VerifyBankVaultPaystackPaymentResponse = zod.object({
   "configured": zod.boolean(),
   "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "subscriptionActive": zod.boolean(),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "requestedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable(),
   "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
@@ -480,6 +494,9 @@ export const UpdateBankVaultPasscodeResponse = zod.object({
   "configured": zod.boolean(),
   "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "subscriptionActive": zod.boolean(),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "requestedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable(),
   "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
@@ -709,6 +726,8 @@ export const GetBankDashboardResponse = zod.object({
   "verificationNote": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
   "vaultSubscriptionActive": zod.boolean(),
+  "vaultAccessActive": zod.boolean(),
+  "vaultAccessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "depositAllowed": zod.boolean(),
   "withdrawalAllowed": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -910,6 +929,8 @@ export const UpdateBankProfileResponse = zod.object({
   "verificationNote": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
   "vaultSubscriptionActive": zod.boolean(),
+  "vaultAccessActive": zod.boolean(),
+  "vaultAccessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "depositAllowed": zod.boolean(),
   "withdrawalAllowed": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -966,6 +987,8 @@ export const SaveSignupProfileResponse = zod.object({
   "verificationNote": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
   "vaultSubscriptionActive": zod.boolean(),
+  "vaultAccessActive": zod.boolean(),
+  "vaultAccessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "depositAllowed": zod.boolean(),
   "withdrawalAllowed": zod.boolean(),
   "createdAt": zod.coerce.date()
@@ -1866,6 +1889,118 @@ export const ListAdminUsersResponse = zod.object({
   "total": zod.number().int(),
   "page": zod.number().int(),
   "pageSize": zod.number().int()
+})
+
+
+/**
+ * @summary Find users and inspect their Private Vault access source
+ */
+export const listAdminVaultAccessQuerySearchMin = 2;
+export const listAdminVaultAccessQuerySearchMax = 100;
+
+
+
+export const ListAdminVaultAccessQueryParams = zod.object({
+  "search": zod.coerce.string().min(listAdminVaultAccessQuerySearchMin).max(listAdminVaultAccessQuerySearchMax)
+})
+
+export const ListAdminVaultAccessResponse = zod.object({
+  "items": zod.array(zod.object({
+  "userId": zod.string(),
+  "email": zod.string().email(),
+  "customerId": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
+  "subscriptionActive": zod.boolean(),
+  "subscriptionExpiresAt": zod.coerce.date().nullable(),
+  "adminGrantActive": zod.boolean(),
+  "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantByUserId": zod.string().nullable(),
+  "adminGrantReason": zod.string().nullable(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant'])
+}))
+})
+
+
+/**
+ * @summary Grant a separate administrator Vault entitlement
+ */
+
+
+
+export const GrantAdminVaultAccessParams = zod.object({
+  "userId": zod.coerce.string().min(1)
+})
+
+export const grantAdminVaultAccessBodyReasonMin = 5;
+export const grantAdminVaultAccessBodyReasonMax = 500;
+
+export const grantAdminVaultAccessBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const GrantAdminVaultAccessBody = zod.object({
+  "reason": zod.string().min(grantAdminVaultAccessBodyReasonMin).max(grantAdminVaultAccessBodyReasonMax),
+  "transactionPin": zod.string().regex(grantAdminVaultAccessBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const GrantAdminVaultAccessResponse = zod.object({
+  "userId": zod.string(),
+  "email": zod.string().email(),
+  "customerId": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
+  "subscriptionActive": zod.boolean(),
+  "subscriptionExpiresAt": zod.coerce.date().nullable(),
+  "adminGrantActive": zod.boolean(),
+  "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantByUserId": zod.string().nullable(),
+  "adminGrantReason": zod.string().nullable(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant'])
+})
+
+
+/**
+ * @summary Revoke an administrator Vault entitlement without changing paid access
+ */
+
+
+
+export const RevokeAdminVaultAccessParams = zod.object({
+  "userId": zod.coerce.string().min(1)
+})
+
+export const revokeAdminVaultAccessBodyReasonMin = 5;
+export const revokeAdminVaultAccessBodyReasonMax = 500;
+
+export const revokeAdminVaultAccessBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const RevokeAdminVaultAccessBody = zod.object({
+  "reason": zod.string().min(revokeAdminVaultAccessBodyReasonMin).max(revokeAdminVaultAccessBodyReasonMax),
+  "transactionPin": zod.string().regex(revokeAdminVaultAccessBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const RevokeAdminVaultAccessResponse = zod.object({
+  "userId": zod.string(),
+  "email": zod.string().email(),
+  "customerId": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
+  "subscriptionActive": zod.boolean(),
+  "subscriptionExpiresAt": zod.coerce.date().nullable(),
+  "adminGrantActive": zod.boolean(),
+  "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantByUserId": zod.string().nullable(),
+  "adminGrantReason": zod.string().nullable(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant'])
 })
 
 

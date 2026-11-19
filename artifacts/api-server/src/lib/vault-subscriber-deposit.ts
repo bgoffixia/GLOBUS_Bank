@@ -15,7 +15,7 @@ import {
   formatMinorAmount,
   userWallet,
 } from "./bank";
-import { hasActiveVaultSubscription } from "./bank-vault";
+import { hasActiveVaultAccess } from "./bank-vault";
 import { storeNotification } from "./transfer-notifications";
 
 type BankTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -32,15 +32,16 @@ export async function createVaultSubscriberTopUp(
 ) {
   const [user] = await tx
     .select({
+      id: bankUsersTable.id,
       vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
       vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
     })
     .from(bankUsersTable)
     .where(eq(bankUsersTable.id, input.userId))
     .for("update");
-  if (!user || !hasActiveVaultSubscription(user)) {
+  if (!user || !(await hasActiveVaultAccess(user, tx))) {
     return {
-      error: "An active Private Vault subscription is required to add wallet funds.",
+      error: "Active Private Vault access is required to add wallet funds.",
     } as const;
   }
   if (input.amountMinor <= 0n || input.amountMinor > 100_000_000n) {

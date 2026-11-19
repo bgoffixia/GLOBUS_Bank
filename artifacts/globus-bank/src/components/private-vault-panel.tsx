@@ -384,8 +384,8 @@ export function PrivateVaultPanel() {
     event.preventDefault();
     setError('');
     setMessage('');
-    if (!status.data?.subscriptionActive) {
-      setError('An active Vault subscription is required to change settings.');
+    if (!status.data?.accessActive) {
+      setError('Active Private Vault access is required to change settings.');
       return;
     }
     try {
@@ -513,7 +513,7 @@ export function PrivateVaultPanel() {
     }
   };
   const changeControl = async (control: BankVaultWalletControl, input: Partial<BankVaultWalletControl>) => {
-    if (!sessionToken || !status.data?.subscriptionActive || busyWallet) return;
+    if (!sessionToken || !status.data?.accessActive || busyWallet) return;
     setBusyWallet(control.walletId);
     setError('');
     setMessage('');
@@ -529,7 +529,7 @@ export function PrivateVaultPanel() {
   };
 
   const loading = initialize.isPending || unlock.isPending || updatePasscode.isPending;
-  const subscriptionActive = !!status.data?.subscriptionActive;
+  const subscriptionActive = !!status.data?.accessActive;
   const checkoutPending = status.data?.paymentStatus === 'pending';
   return (
     <section className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5" data-testid="private-vault-panel">
@@ -561,9 +561,13 @@ export function PrivateVaultPanel() {
             <div className="mt-4">
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d9e8e9] bg-[#f3f8f8] px-3 py-2">
                 <p className="text-[10px] font-semibold text-[#426e70]" data-testid="status-vault-unlocked">
-                  {subscriptionActive ? 'Vault unlocked · subscription active' : 'Vault unlocked · read-only'}
+                  {status.data?.accessSource === 'admin_grant'
+                    ? 'Vault unlocked · Admin-granted access'
+                    : subscriptionActive
+                      ? 'Vault unlocked · paid subscription active'
+                      : 'Vault unlocked · read-only'}
                   {expiresAt ? ` · session ends ${new Date(expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
-                  {status.data?.expiresAt ? ` · plan ends ${new Date(status.data.expiresAt).toLocaleDateString()}` : ''}
+                  {status.data?.subscriptionActive && status.data?.expiresAt ? ` · plan ends ${new Date(status.data.expiresAt).toLocaleDateString()}` : ''}
                 </p>
                 <button type="button" disabled={updatePasscode.isPending || updateControl.isPending || billingBusy} data-testid="button-vault-lock" onClick={lockVault} className="rounded-md border border-[#d4e1e4] bg-white px-3 py-1.5 text-[9px] font-bold text-[#466577] disabled:opacity-50">Lock vault</button>
               </div>
@@ -585,7 +589,7 @@ export function PrivateVaultPanel() {
                           ? 'Your previous request was declined. You can choose a plan and pay securely.'
                           : status.data?.subscriptionStatus === 'expired'
                             ? 'Your subscription has expired. Choose a plan to renew Vault access.'
-                            : 'Choose a plan and complete checkout. Vault changes unlock after payment is verified.'}
+                            : 'Choose a plan and complete checkout. Vault access unlocks after payment is verified.'}
                     </p>
                   </div>
                   {!checkoutPending && subscriptionStep === 'closed' && <button type="button" onClick={() => { setError(''); setMessage(''); setSubscriptionStep('plans'); }} data-testid="button-vault-subscribe" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white hover:bg-[#214b70]">

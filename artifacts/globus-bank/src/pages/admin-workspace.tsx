@@ -31,6 +31,7 @@ import {
   useUpdateAdminUserStatus, useUpdateAdminWalletStatus,
   useUpdateAdminUserVaultSubscription,
 } from '@workspace/api-client-react';
+import { AdminVaultAccessPage } from '../components/admin-vault-access-page';
 import type {
   ActiveCurrencyCode, AdminAccount, AdminAuditLog, AdminLedgerRequest, AdminUser, BankTransaction, CurrencyCode,
   AdminRestriction, BankRestrictionType, ListAdminTransactionsParams, ListAdminUsersParams, TransactionType, Wallet,
@@ -42,6 +43,7 @@ const currencyLabel: Record<CurrencyCode, string> = { USD: 'US dollar', EUR: 'Eu
 const nav = [
   { path: '/admin', label: 'Overview', icon: LayoutDashboard },
   { path: '/admin/users', label: 'User Management', icon: Users },
+  { path: '/admin/vault-access', label: 'Vault Access', icon: ShieldCheck },
   { path: '/admin/accounts', label: 'Account Management', icon: WalletCards },
   { path: '/admin/transactions', label: 'Transaction Management', icon: Activity },
   { path: '/admin/funding', label: 'Funding & requests', icon: Banknote },
@@ -100,13 +102,14 @@ export function AdminWorkspace() {
   const access = useGetAdminAccess({ query: { queryKey: getGetAdminAccessQueryKey(), retry: false } });
   const isDetail = /^\/admin\/users\/[^/]+$/.test(path);
   const page = path === '/admin' ? 'overview' : isDetail ? 'member-detail' : path.split('/')[2] || 'overview';
-  const pageTitles: Record<string, string> = { overview: 'Operations overview', users: 'Member directory', accounts: 'Currency accounts', transactions: 'Transaction activity', funding: 'User funding', wallets: 'Wallet controls', restrictions: 'Restrictions', audit: 'Audit trail', settings: 'Operations settings', 'member-detail': 'Member record' };
+  const pageTitles: Record<string, string> = { overview: 'Operations overview', users: 'Member directory', 'vault-access': 'Private Vault access', accounts: 'Currency accounts', transactions: 'Transaction activity', funding: 'User funding', wallets: 'Wallet controls', restrictions: 'Restrictions', audit: 'Audit trail', settings: 'Operations settings', 'member-detail': 'Member record' };
   if (path === '/admin/logout') return <WorkspaceFrame active="logout" title="Sign out"><LogoutPage /></WorkspaceFrame>;
   if (access.isLoading) return <WorkspaceFrame active={page} title="Operations workspace"><div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map(x => <div key={x} className={`${box} h-36 animate-pulse bg-[#edf2ef]`} />)}</div></WorkspaceFrame>;
   if (access.isError || !access.data?.allowed) return <WorkspaceFrame active={page} title="Operations workspace"><div className={`${box} mx-auto max-w-xl p-8 text-center`}><Shield size={28} className="mx-auto text-[#9b6157]" /><h1 className="mt-4 text-xl font-bold text-[#263e4b]">Operations access restricted</h1><p className="mt-2 text-[12px] leading-5 text-[#7a8c91]">This workspace is available to authorized Globus operations administrators.</p><button onClick={() => access.refetch()} className={`${button} mt-5`}>Check access again</button></div></WorkspaceFrame>;
   return <WorkspaceFrame active={page} title={pageTitles[page] || 'Operations workspace'}>
     {page === 'overview' && <Overview />}
     {page === 'users' && <UsersPage />}
+    {page === 'vault-access' && <AdminVaultAccessPage />}
     {page === 'member-detail' && <MemberDetail userId={path.split('/')[3] || ''} />}
     {page === 'accounts' && <AccountsPage />}
     {page === 'wallets' && <AccountsPage controlsOnly />}
@@ -126,7 +129,7 @@ function WorkspaceFrame({ children, active, title }: { children: ReactNode; acti
   const initials = (user?.firstName?.[0] || email[0] || 'G').toUpperCase();
   const navigationGroups = [
     { title: 'Workspace', paths: ['/admin'] },
-    { title: 'Customer management', paths: ['/admin/users'] },
+    { title: 'Customer management', paths: ['/admin/users', '/admin/vault-access'] },
     { title: 'Oversight', paths: ['/admin/audit'] },
     { title: 'Configuration', paths: ['/admin/settings'] },
   ].map(group => ({ ...group, items: nav.filter(item => group.paths.includes(item.path)) }));

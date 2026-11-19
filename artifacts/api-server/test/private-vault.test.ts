@@ -194,22 +194,25 @@ test("private vault passcodes unlock a short session and revoke it when changed"
   );
 });
 
-test("vault subscription states and per-wallet transfer choices preserve ledger rules", () => {
+test("vault subscription states and per-wallet transfer choices preserve ledger rules", async () => {
   const now = new Date("2026-11-10T12:00:00.000Z");
   assert.equal(vaultSubscriptionStatus("active", null, now), "active");
   assert.equal(vaultSubscriptionStatus("active", new Date("2026-11-10T11:59:00.000Z"), now), "expired");
   assert.equal(hasActiveVaultSubscription({ vaultSubscriptionStatus: "pending", vaultSubscriptionExpiresAt: null }, now), false);
-  assert.equal(vaultTransferEmailAlertsEnabled({
+  assert.equal(await vaultTransferEmailAlertsEnabled({
+    id: userId,
     vaultEmailAlertsEnabled: false,
     vaultSubscriptionStatus: "active",
     vaultSubscriptionExpiresAt: null,
   }, now), false);
-  assert.equal(vaultTransferEmailAlertsEnabled({
+  assert.equal(await vaultTransferEmailAlertsEnabled({
+    id: userId,
     vaultEmailAlertsEnabled: true,
     vaultSubscriptionStatus: "active",
     vaultSubscriptionExpiresAt: null,
   }, now), true);
-  assert.equal(vaultTransferEmailAlertsEnabled({
+  assert.equal(await vaultTransferEmailAlertsEnabled({
+    id: userId,
     vaultEmailAlertsEnabled: true,
     vaultSubscriptionStatus: "active",
     vaultSubscriptionExpiresAt: new Date("2026-11-10T11:59:00.000Z"),

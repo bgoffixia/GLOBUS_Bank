@@ -166,7 +166,8 @@ import {
 } from "../lib/password-reset";
 import {
   initializeVaultPasscode,
-  hasActiveVaultSubscription,
+  getVaultAccessSource,
+  hasActiveVaultAccess,
   isVaultPasscodeSessionValid,
   isVaultSessionActive,
   resolveFutureTransferStatus,
@@ -261,7 +262,7 @@ async function getOrCreateAdminSettings() {
   return retried;
 }
 
-function bankVaultStatusPayload(user: typeof bankUsersTable.$inferSelect) {
+async function bankVaultStatusPayload(user: typeof bankUsersTable.$inferSelect) {
   const legacyManualRequest =
     user.vaultSubscriptionStatus === "pending" &&
     user.vaultSubscriptionPaymentStatus !== "pending" &&
@@ -270,10 +271,14 @@ function bankVaultStatusPayload(user: typeof bankUsersTable.$inferSelect) {
     legacyManualRequest ? "inactive" : user.vaultSubscriptionStatus,
     user.vaultSubscriptionExpiresAt,
   );
+  const accessSource = await getVaultAccessSource(user);
   return {
     configured: Boolean(user.vaultPasscodeHash),
     subscriptionStatus,
     subscriptionActive: subscriptionStatus === "active",
+    adminGrantActive: accessSource === "admin_grant",
+    accessActive: accessSource !== "none",
+    accessSource,
     requestedAt: legacyManualRequest
       ? null
       : user.vaultSubscriptionRequestedAt?.toISOString() ?? null,
@@ -383,9 +388,9 @@ function paystackCustomerFromEvent(data: Record<string, unknown>) {
   };
 }
 
-function bankVaultEmailPreferencesPayload(user: typeof bankUsersTable.$inferSelect) {
+async function bankVaultEmailPreferencesPayload(user: typeof bankUsersTable.$inferSelect) {
   return {
-    transactionEmailAlertsEnabled: vaultTransferEmailAlertsEnabled(user),
+    transactionEmailAlertsEnabled: await vaultTransferEmailAlertsEnabled(user),
     bannerTheme: user.vaultEmailBannerTheme,
     bannerHeadline: user.vaultEmailBannerHeadline,
     bannerBackgroundColor: user.vaultEmailBannerBackgroundColor,
@@ -840,7 +845,7 @@ router.post(
       res.status(409).json({ error: "Complete account setup before saving a payment method." });
       return;
     }
-    if (!hasActiveVaultSubscription(user)) {
+    if (!(await hasActiveVaultAccess(user))) {
       res.status(403).json({ error: "An active Private Vault subscription is required to save payment methods." });
       return;
     }
@@ -1309,7 +1314,7 @@ router.post(
   const requestedRecipientEmail =
     parsed.data.recipientEmail?.trim().toLowerCase() ?? "";
   const recipientEmailAlertsEnabled =
-    vaultTransferEmailAlertsEnabled(sender);
+    await vaultTransferEmailAlertsEnabled(sender);
   if (requestedRecipientEmail && !recipientEmailAlertsEnabled) {
     res.status(409).json({
       error: "Recipient email alerts are turned off. Enable them in your Private Vault before adding an email.",
@@ -1413,7 +1418,7 @@ router.post(
     if (!lockedSender) return { error: "The Globus account could not be found." };
     if (
       requestedRecipientEmail &&
-      !vaultTransferEmailAlertsEnabled(lockedSender)
+      !(await vaultTransferEmailAlertsEnabled(lockedSender, tx))
     ) {
       return {
         error:
@@ -1480,7 +1485,7 @@ router.post(
 
     const status = resolveFutureTransferStatus(
       lockedWallet.futureTransferMode,
-      hasActiveVaultSubscription(lockedSender),
+      await hasActiveVaultAccess(lockedSender, tx),
     );
     const reference = createReference();
     const conversionSummary = `${formatMinorAmount(amountMinor)} ${parsed.data.sourceCurrency} converted to ${formatMinorAmount(destinationAmountMinor, parsed.data.destinationCurrency)} ${parsed.data.destinationCurrency} at ${rate}`;
@@ -2005,7 +2010,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
 
   if (
     parsed.data.type === "deposit" &&
-    !hasActiveVaultSubscription(user)
+    !(await hasActiveVaultAccess(user))
   ) {
     res.status(403).json({
       error: "An active Private Vault subscription is required to add wallet funds.",
@@ -2218,7 +2223,7 @@ router.get("/bank/vault/status", async (req, res): Promise<void> => {
   }
   const user = await getOrCreateBankUser(authUserId);
   res.json(
-    GetBankVaultStatusResponse.parse(bankVaultStatusPayload(user)),
+    GetBankVaultStatusResponse.parse(await bankVaultStatusPayload(user)),
   );
 });
 
@@ -2243,10 +2248,14 @@ router.get("/bank/vault/billing", async (req, res): Promise<void> => {
   }
   const settings = await getOrCreateAdminSettings();
   const paystackConfigured = getPaystackSecretKey() !== null;
+  const accessSource = await getVaultAccessSource(user);
   res.json(
     GetBankVaultBillingResponse.parse({
       configured: paystackConfigured,
       provider: paystackConfigured ? "paystack" : "unavailable",
+      adminGrantActive: accessSource === "admin_grant",
+      accessActive: accessSource !== "none",
+      accessSource,
       recurringEnabled: paystackConfigured && isPaystackVaultRecurringEnabled(),
       plans: (["1m", "3m", "1y"] as const).map((code) => {
         const plan = getVaultSubscriptionPlan(code);
@@ -2273,7 +2282,7 @@ router.get("/bank/vault/transfer-email-alert", async (req, res): Promise<void> =
   res.json(
     GetBankVaultTransferEmailAlertResponse.parse({
       enabled:
-        vaultTransferEmailAlertsEnabled(user),
+        await vaultTransferEmailAlertsEnabled(user),
     }),
   );
 });
@@ -2540,7 +2549,7 @@ router.post(
       return;
     }
     if (user.vaultSubscriptionPaymentStatus === "success") {
-      res.json(VerifyBankVaultPaystackPaymentResponse.parse(bankVaultStatusPayload(user)));
+      res.json(VerifyBankVaultPaystackPaymentResponse.parse(await bankVaultStatusPayload(user)));
       return;
     }
     if (user.vaultSubscriptionPaymentStatus !== "pending") {
@@ -2683,7 +2692,7 @@ router.post(
     }
     res.json(
       VerifyBankVaultPaystackPaymentResponse.parse(
-        bankVaultStatusPayload(result.user),
+        await bankVaultStatusPayload(result.user),
       ),
     );
   },
@@ -3052,7 +3061,7 @@ router.post(
     });
     const refreshed = await getOrCreateBankUser(authUserId);
     res.json(
-      InitializeBankVaultPasscodeResponse.parse(bankVaultStatusPayload(refreshed)),
+      InitializeBankVaultPasscodeResponse.parse(await bankVaultStatusPayload(refreshed)),
     );
   },
 );
@@ -3129,7 +3138,7 @@ router.patch(
     });
     const refreshed = await getOrCreateBankUser(authUserId);
     res.json(
-      UpdateBankVaultPasscodeResponse.parse(bankVaultStatusPayload(refreshed)),
+      UpdateBankVaultPasscodeResponse.parse(await bankVaultStatusPayload(refreshed)),
     );
   },
 );
@@ -3151,13 +3160,13 @@ router.get(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
-    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }
     res.json(
       GetBankVaultEmailPreferencesResponse.parse(
-        bankVaultEmailPreferencesPayload(user),
+        await bankVaultEmailPreferencesPayload(user),
       ),
     );
   },
@@ -3354,7 +3363,7 @@ router.patch(
     }
     res.json(
       UpdateBankVaultEmailPreferencesResponse.parse(
-        bankVaultEmailPreferencesPayload(result.user),
+        await bankVaultEmailPreferencesPayload(result.user),
       ),
     );
   },
@@ -3377,7 +3386,7 @@ router.get(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
-    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }
@@ -3432,15 +3441,6 @@ router.put(
     const user = await getOrCreateBankUser(authUserId);
     if (!(await isVaultSessionActive(user.id, sessionToken))) {
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
-      return;
-    }
-    if (
-      vaultSubscriptionStatus(
-        user.vaultSubscriptionStatus,
-        user.vaultSubscriptionExpiresAt,
-      ) !== "active"
-    ) {
-      res.status(403).json({ error: "An active Vault subscription is required to change personal notes." });
       return;
     }
     const [transaction] = await db
@@ -3522,15 +3522,6 @@ router.delete(
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }
-    if (
-      vaultSubscriptionStatus(
-        user.vaultSubscriptionStatus,
-        user.vaultSubscriptionExpiresAt,
-      ) !== "active"
-    ) {
-      res.status(403).json({ error: "An active Vault subscription is required to change personal notes." });
-      return;
-    }
     const [deleted] = await db
       .delete(bankVaultTransactionNotesTable)
       .where(
@@ -3570,7 +3561,7 @@ router.get(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
-    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }

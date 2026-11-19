@@ -5,6 +5,7 @@
  * Globus internal ledger API; no external financial provider is connected
  * OpenAPI spec version: 0.1.0
  */
+import type { BankVaultStatusAccessSource } from './bankVaultStatusAccessSource';
 import type { BankVaultStatusPaymentStatus } from './bankVaultStatusPaymentStatus';
 import type { BankVaultStatusPlanCode } from './bankVaultStatusPlanCode';
 import type { BankVaultStatusSubscriptionStatus } from './bankVaultStatusSubscriptionStatus';
@@ -13,6 +14,9 @@ export interface BankVaultStatus {
   configured: boolean;
   subscriptionStatus: BankVaultStatusSubscriptionStatus;
   subscriptionActive: boolean;
+  adminGrantActive: boolean;
+  accessActive: boolean;
+  accessSource: BankVaultStatusAccessSource;
   /** @nullable */
   requestedAt: Date | null;
   /** @nullable */

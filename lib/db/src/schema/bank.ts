@@ -538,6 +538,28 @@ export const bankVaultPaystackEventsTable = pgTable(
   ],
 );
 
+export const bankVaultAdminEntitlementsTable = pgTable(
+  "bank_vault_admin_entitlements",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => bankUsersTable.id, { onDelete: "cascade" }),
+    grantedByUserId: text("granted_by_user_id")
+      .notNull()
+      .references(() => bankUsersTable.id),
+    reason: text("reason").notNull(),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("bank_vault_admin_entitlement_grantor_idx").on(
+      table.grantedByUserId,
+      table.grantedAt,
+    ),
+  ],
+);
+
 export const bankVaultSessionsTable = pgTable(
   "bank_vault_sessions",
   {

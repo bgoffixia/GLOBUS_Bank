@@ -346,7 +346,7 @@ export function DashboardPage() {
           </div>
           <div className="mt-3 space-y-2.5">
             <StatusLine label="Account" value={humanize(dash?.profile.accountStatus)} positive={dash?.profile.accountStatus === 'active'} />
-            <StatusLine label="Private Vault" value={dash?.profile.vaultSubscriptionActive ? 'Active' : 'Inactive'} positive={dash?.profile.vaultSubscriptionActive === true} />
+            <StatusLine label="Private Vault" value={!dash?.profile.vaultAccessActive ? 'Inactive' : dash.profile.vaultAccessSource === 'admin_grant' ? 'Active · Admin grant' : 'Active · Paid'} positive={dash?.profile.vaultAccessActive === true} />
             <div data-testid="dashboard-profile-completion">
               <StatusLine
                 label="Profile details"
@@ -729,7 +729,7 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
     ? profileQuery.data.depositAllowed
     : profileQuery.data.withdrawalAllowed;
   if (!operationAllowed) {
-    const needsSubscription = !profileQuery.data.vaultSubscriptionActive;
+    const needsSubscription = !profileQuery.data.vaultAccessActive;
     const needsDepositAccess = type === 'deposit';
     return (
       <div className="mx-auto min-w-0 max-w-[920px]" data-testid="financial-access-gate">

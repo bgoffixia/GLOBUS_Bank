@@ -50,6 +50,9 @@ import type {
   AdminUserPasswordResetResult,
   AdminUserProfileInput,
   AdminUserStatusInput,
+  AdminVaultAccessActionInput,
+  AdminVaultAccessPage,
+  AdminVaultAccessRecord,
   AdminVaultSubscriptionInput,
   AdminVaultSubscriptionResult,
   AdminWalletCurrencyMigrationInput,
@@ -112,6 +115,7 @@ import type {
   ListAdminRestrictionsParams,
   ListAdminTransactionsParams,
   ListAdminUsersParams,
+  ListAdminVaultAccessParams,
   ListBankTransactionsParams,
   NotFoundResponse,
   ReceiveBankVaultPaystackWebhook200,
@@ -5277,6 +5281,268 @@ export function useListAdminUsers<TData = Awaited<ReturnType<typeof listAdminUse
 
 
 
+
+export const getListAdminVaultAccessUrl = (params: ListAdminVaultAccessParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bank/admin/vault-access?${stringifiedParams}` : `/api/bank/admin/vault-access`
+}
+
+/**
+ * @summary Find users and inspect their Private Vault access source
+ */
+export const listAdminVaultAccess = async (params: ListAdminVaultAccessParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminVaultAccessPage> => {
+
+  return customFetch<AdminVaultAccessPage>(getListAdminVaultAccessUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminVaultAccessQueryKey = (params?: ListAdminVaultAccessParams,) => {
+    return [
+    `/api/bank/admin/vault-access`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminVaultAccessQueryOptions = <TData = Awaited<ReturnType<typeof listAdminVaultAccess>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(params: ListAdminVaultAccessParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminVaultAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminVaultAccessQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminVaultAccess>>> = ({ signal }) => listAdminVaultAccess(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminVaultAccess>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminVaultAccessQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminVaultAccess>>>
+export type ListAdminVaultAccessQueryError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary Find users and inspect their Private Vault access source
+ */
+
+export function useListAdminVaultAccess<TData = Awaited<ReturnType<typeof listAdminVaultAccess>>, TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>>(
+ params: ListAdminVaultAccessParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminVaultAccess>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminVaultAccessQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getGrantAdminVaultAccessUrl = (userId: string,) => {
+
+
+
+
+  return `/api/bank/admin/users/${userId}/vault-access/grant`
+}
+
+/**
+ * @summary Grant a separate administrator Vault entitlement
+ */
+export const grantAdminVaultAccess = async (userId: string,
+    adminVaultAccessActionInput: AdminVaultAccessActionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminVaultAccessRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminVaultAccessRecord>(getGrantAdminVaultAccessUrl(userId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminVaultAccessActionInput)
+  }
+);}
+
+
+
+
+
+export const getGrantAdminVaultAccessMutationKey = () => ['grantAdminVaultAccess'] as const;
+
+export const getGrantAdminVaultAccessMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grantAdminVaultAccess>>, TError,GrantAdminVaultAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof grantAdminVaultAccess>>, TError,GrantAdminVaultAccessMutationVariables, TContext> => {
+
+const mutationKey = getGrantAdminVaultAccessMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof grantAdminVaultAccess>>, GrantAdminVaultAccessMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  grantAdminVaultAccess(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type GrantAdminVaultAccessMutationResult = NonNullable<Awaited<ReturnType<typeof grantAdminVaultAccess>>>
+    export type GrantAdminVaultAccessMutationBody = BodyType<AdminVaultAccessActionInput>
+    export type GrantAdminVaultAccessMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type GrantAdminVaultAccessMutationVariables = {userId: string;data: BodyType<AdminVaultAccessActionInput>}
+
+    /**
+ * @summary Grant a separate administrator Vault entitlement
+ */
+export const useGrantAdminVaultAccess = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof grantAdminVaultAccess>>, TError,GrantAdminVaultAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof grantAdminVaultAccess>>,
+        TError,
+        GrantAdminVaultAccessMutationVariables,
+        TContext
+      > => {
+      return useMutation(getGrantAdminVaultAccessMutationOptions(options));
+    }
+
+export const getRevokeAdminVaultAccessUrl = (userId: string,) => {
+
+
+
+
+  return `/api/bank/admin/users/${userId}/vault-access/revoke`
+}
+
+/**
+ * @summary Revoke an administrator Vault entitlement without changing paid access
+ */
+export const revokeAdminVaultAccess = async (userId: string,
+    adminVaultAccessActionInput: AdminVaultAccessActionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminVaultAccessRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminVaultAccessRecord>(getRevokeAdminVaultAccessUrl(userId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminVaultAccessActionInput)
+  }
+);}
+
+
+
+
+
+export const getRevokeAdminVaultAccessMutationKey = () => ['revokeAdminVaultAccess'] as const;
+
+export const getRevokeAdminVaultAccessMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeAdminVaultAccess>>, TError,RevokeAdminVaultAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof revokeAdminVaultAccess>>, TError,RevokeAdminVaultAccessMutationVariables, TContext> => {
+
+const mutationKey = getRevokeAdminVaultAccessMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof revokeAdminVaultAccess>>, RevokeAdminVaultAccessMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  revokeAdminVaultAccess(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type RevokeAdminVaultAccessMutationResult = NonNullable<Awaited<ReturnType<typeof revokeAdminVaultAccess>>>
+    export type RevokeAdminVaultAccessMutationBody = BodyType<AdminVaultAccessActionInput>
+    export type RevokeAdminVaultAccessMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type RevokeAdminVaultAccessMutationVariables = {userId: string;data: BodyType<AdminVaultAccessActionInput>}
+
+    /**
+ * @summary Revoke an administrator Vault entitlement without changing paid access
+ */
+export const useRevokeAdminVaultAccess = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof revokeAdminVaultAccess>>, TError,RevokeAdminVaultAccessMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof revokeAdminVaultAccess>>,
+        TError,
+        RevokeAdminVaultAccessMutationVariables,
+        TContext
+      > => {
+      return useMutation(getRevokeAdminVaultAccessMutationOptions(options));
+    }
 
 export const getGetAdminUserDetailUrl = (userId: string,) => {
 

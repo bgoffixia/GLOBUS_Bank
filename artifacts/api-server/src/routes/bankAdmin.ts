@@ -51,6 +51,8 @@ import {
   ListAdminTransactionStatusHistoryResponse,
   ListAdminUsersQueryParams,
   ListAdminUsersResponse,
+  ListAdminVaultAccessQueryParams,
+  ListAdminVaultAccessResponse,
   ListAdminLedgerRequestsQueryParams,
   UpdateAdminUserStatusBody,
   UpdateAdminUserStatusParams,
@@ -61,6 +63,12 @@ import {
   UpdateAdminUserVaultSubscriptionBody,
   UpdateAdminUserVaultSubscriptionParams,
   UpdateAdminUserVaultSubscriptionResponse,
+  GrantAdminVaultAccessBody,
+  GrantAdminVaultAccessParams,
+  GrantAdminVaultAccessResponse,
+  RevokeAdminVaultAccessBody,
+  RevokeAdminVaultAccessParams,
+  RevokeAdminVaultAccessResponse,
   UpdateAdminSettingsBody,
   UpdateAdminSettingsResponse,
   UpdateAdminWalletStatusBody,
@@ -100,6 +108,7 @@ import {
   bankSandboxRequestsTable,
   bankTransactionsTable,
   bankUsersTable,
+  bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
   bankWalletsTable,
   db,
@@ -131,7 +140,7 @@ import {
 import { getExchangeRate } from "../lib/exchange-rates";
 import { verifyTransactionPin } from "../lib/transaction-pin";
 import {
-  hasActiveVaultSubscription,
+  hasActiveVaultAccess,
   vaultSubscriptionStatus,
 } from "../lib/bank-vault";
 import {
@@ -185,6 +194,88 @@ async function isAllowlistedAdmin(userId: string): Promise<boolean> {
     primaryEmail?.verification?.status === "verified" &&
       allowedEmails.has(primaryEmail.emailAddress.trim().toLowerCase()),
   );
+}
+
+function adminVaultAccessRecord(
+  user: typeof bankUsersTable.$inferSelect,
+  grant: typeof bankVaultAdminEntitlementsTable.$inferSelect | null,
+) {
+  const subscriptionStatus = vaultSubscriptionStatus(
+    user.vaultSubscriptionStatus,
+    user.vaultSubscriptionExpiresAt,
+  );
+  const subscriptionActive = subscriptionStatus === "active";
+  const accessSource = grant
+    ? "admin_grant"
+    : subscriptionActive
+      ? "paystack_subscription"
+      : "none";
+  return {
+    userId: user.id,
+    email: user.email,
+    customerId: user.customerId,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    subscriptionStatus,
+    subscriptionActive,
+    subscriptionExpiresAt: user.vaultSubscriptionExpiresAt?.toISOString() ?? null,
+    adminGrantActive: Boolean(grant),
+    adminGrantAt: grant?.grantedAt.toISOString() ?? null,
+    adminGrantByUserId: grant?.grantedByUserId ?? null,
+    adminGrantReason: grant?.reason ?? null,
+    accessActive: Boolean(grant) || subscriptionActive,
+    accessSource,
+  };
+}
+
+async function applyAdminVaultEntitlementAction(
+  actorUserId: string,
+  targetUserId: string,
+  reason: string,
+  action: "grant" | "revoke",
+) {
+  if (actorUserId === targetUserId) return { selfGrant: true as const };
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select()
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, targetUserId))
+      .for("update");
+    if (!target) return { notFound: true as const };
+
+    if (action === "grant") {
+      const [grant] = await tx
+        .insert(bankVaultAdminEntitlementsTable)
+        .values({
+          userId: target.id,
+          grantedByUserId: actorUserId,
+          reason,
+        })
+        .onConflictDoNothing()
+        .returning();
+      if (!grant) return { alreadyGranted: true as const };
+    } else {
+      const [grant] = await tx
+        .delete(bankVaultAdminEntitlementsTable)
+        .where(eq(bankVaultAdminEntitlementsTable.userId, target.id))
+        .returning({ userId: bankVaultAdminEntitlementsTable.userId });
+      if (!grant) return { notGranted: true as const };
+      await tx
+        .delete(bankVaultSessionsTable)
+        .where(eq(bankVaultSessionsTable.userId, target.id));
+    }
+
+    await tx.insert(bankAuditLogsTable).values({
+      actorUserId,
+      targetUserId: target.id,
+      action:
+        action === "grant"
+          ? "grant_admin_private_vault_access"
+          : "revoke_admin_private_vault_access",
+      reason,
+    });
+    return { target };
+  });
 }
 
 function restrictionStatus(
@@ -2174,6 +2265,197 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
 });
 
 router.get(
+  "/bank/admin/vault-access",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const parsed = ListAdminVaultAccessQueryParams.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const search = parsed.data.search.trim();
+    if (search.length < 2) {
+      res.status(400).json({ error: "Enter at least two characters to search." });
+      return;
+    }
+    const needle = `%${search.replace(/[\\%_]/g, "\\$&")}%`;
+    const rows = await db
+      .select({
+        user: bankUsersTable,
+        grant: bankVaultAdminEntitlementsTable,
+      })
+      .from(bankUsersTable)
+      .leftJoin(
+        bankVaultAdminEntitlementsTable,
+        eq(bankVaultAdminEntitlementsTable.userId, bankUsersTable.id),
+      )
+      .where(
+        or(
+          ilike(bankUsersTable.email, needle),
+          ilike(bankUsersTable.id, needle),
+          ilike(bankUsersTable.customerId, needle),
+        ),
+      )
+      .orderBy(desc(bankUsersTable.createdAt))
+      .limit(25);
+    res.json(
+      ListAdminVaultAccessResponse.parse({
+        items: rows.map(({ user, grant }) =>
+          adminVaultAccessRecord(user, grant),
+        ),
+      }),
+    );
+  },
+);
+
+router.post(
+  "/bank/admin/users/:userId/vault-access/grant",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    const params = GrantAdminVaultAccessParams.safeParse(req.params);
+    const parsed = GrantAdminVaultAccessBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success
+          ? params.error.message
+          : parsed.error?.message ?? "Invalid Private Vault grant.",
+      });
+      return;
+    }
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in with an administrator account." });
+      return;
+    }
+    if (params.data.userId === authUserId) {
+      res.status(403).json({ error: "Administrators cannot grant Vault access to themselves." });
+      return;
+    }
+    const reason = parsed.data.reason.trim();
+    if (reason.length < 5) {
+      res.status(400).json({ error: "Enter a grant reason of at least five characters." });
+      return;
+    }
+    const actor = await ensureBankUser(authUserId);
+    const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
+    if (pinResult !== "valid") {
+      const status = pinResult === "locked" ? 429 : pinResult === "not_configured" ? 409 : 403;
+      res.status(status).json({
+        error: pinResult === "not_configured"
+          ? "Set up an administrator transaction PIN before granting access."
+          : pinResult === "locked"
+            ? "Too many incorrect PIN attempts. Try again later."
+            : "The administrator transaction PIN is incorrect.",
+      });
+      return;
+    }
+    const result = await applyAdminVaultEntitlementAction(
+      actor.id,
+      params.data.userId,
+      reason,
+      "grant",
+    );
+    if ("selfGrant" in result) {
+      res.status(403).json({ error: "Administrators cannot grant Vault access to themselves." });
+      return;
+    }
+    if ("notFound" in result) {
+      res.status(404).json({ error: "User record not found." });
+      return;
+    }
+    if ("alreadyGranted" in result) {
+      res.status(409).json({ error: "This user already has Admin-granted Vault access." });
+      return;
+    }
+    if (!("target" in result) || !result.target) {
+      res.status(500).json({ error: "The Vault entitlement change could not be confirmed." });
+      return;
+    }
+    const [grant] = await db
+      .select()
+      .from(bankVaultAdminEntitlementsTable)
+      .where(eq(bankVaultAdminEntitlementsTable.userId, result.target.id))
+      .limit(1);
+    res.json(
+      GrantAdminVaultAccessResponse.parse(
+        adminVaultAccessRecord(result.target, grant ?? null),
+      ),
+    );
+  },
+);
+
+router.post(
+  "/bank/admin/users/:userId/vault-access/revoke",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    const params = RevokeAdminVaultAccessParams.safeParse(req.params);
+    const parsed = RevokeAdminVaultAccessBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success
+          ? params.error.message
+          : parsed.error?.message ?? "Invalid Private Vault revocation.",
+      });
+      return;
+    }
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in with an administrator account." });
+      return;
+    }
+    if (params.data.userId === authUserId) {
+      res.status(403).json({ error: "Administrators cannot manage their own Vault access." });
+      return;
+    }
+    const reason = parsed.data.reason.trim();
+    if (reason.length < 5) {
+      res.status(400).json({ error: "Enter a revocation reason of at least five characters." });
+      return;
+    }
+    const actor = await ensureBankUser(authUserId);
+    const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
+    if (pinResult !== "valid") {
+      const status = pinResult === "locked" ? 429 : pinResult === "not_configured" ? 409 : 403;
+      res.status(status).json({
+        error: pinResult === "not_configured"
+          ? "Set up an administrator transaction PIN before revoking access."
+          : pinResult === "locked"
+            ? "Too many incorrect PIN attempts. Try again later."
+            : "The administrator transaction PIN is incorrect.",
+      });
+      return;
+    }
+    const result = await applyAdminVaultEntitlementAction(
+      actor.id,
+      params.data.userId,
+      reason,
+      "revoke",
+    );
+    if ("selfGrant" in result) {
+      res.status(403).json({ error: "Administrators cannot manage their own Vault access." });
+      return;
+    }
+    if ("notFound" in result) {
+      res.status(404).json({ error: "User record not found." });
+      return;
+    }
+    if ("notGranted" in result) {
+      res.status(409).json({ error: "This user has no Admin-granted Vault access to revoke." });
+      return;
+    }
+    if (!("target" in result) || !result.target) {
+      res.status(500).json({ error: "The Vault entitlement change could not be confirmed." });
+      return;
+    }
+    res.json(
+      RevokeAdminVaultAccessResponse.parse(
+        adminVaultAccessRecord(result.target, null),
+      ),
+    );
+  },
+);
+
+router.get(
   "/bank/admin/users/:userId",
   requireAdmin,
   async (req, res): Promise<void> => {
@@ -3311,7 +3593,7 @@ router.patch(
       }
       if (
         parsed.data.decision === "approve" &&
-        !hasActiveVaultSubscription(target)
+        !(await hasActiveVaultAccess(target, tx))
       ) {
         return {
           error:

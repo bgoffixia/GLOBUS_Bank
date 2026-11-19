@@ -8,6 +8,7 @@ import {
   bankNotificationsTable,
   bankSandboxRequestsTable,
   bankTransactionsTable,
+  bankVaultAdminEntitlementsTable,
   bankUsersTable,
   bankWalletsTable,
   db,
@@ -16,6 +17,7 @@ import {
 import { createVaultSubscriberTopUp } from "../src/lib/vault-subscriber-deposit";
 
 const userId = `vault-deposit-${randomUUID()}`;
+const grantorId = `vault-deposit-admin-${randomUUID()}`;
 const email = `${userId}@example.test`;
 const idempotencyPrefix = `vault-subscriber-top-up:${randomUUID()}`;
 let walletId: string | null = null;
@@ -46,7 +48,9 @@ after(async () => {
   if (walletId) {
     await db.delete(bankWalletsTable).where(eq(bankWalletsTable.id, walletId));
   }
+  await db.delete(bankVaultAdminEntitlementsTable).where(eq(bankVaultAdminEntitlementsTable.userId, userId));
   await db.delete(bankUsersTable).where(eq(bankUsersTable.id, userId));
+  await db.delete(bankUsersTable).where(eq(bankUsersTable.id, grantorId));
   await pool.end();
 });
 
@@ -119,10 +123,52 @@ test("expired subscribers cannot create or post wallet top-ups", async () => {
     }),
   );
   assert.ok("error" in result);
-  assert.match(result.error, /active Private Vault subscription/i);
+  assert.match(result.error, /active Private Vault access/i);
   const transactions = await db
     .select({ id: bankTransactionsTable.id })
     .from(bankTransactionsTable)
     .where(eq(bankTransactionsTable.initiatedByUserId, userId));
   assert.equal(transactions.length, 1);
+});
+
+test("a separate admin entitlement permits Vault top-ups and revocation removes only that access", async () => {
+  await db.insert(bankUsersTable).values({
+    id: grantorId,
+    email: `${grantorId}@example.test`,
+  });
+  await db.insert(bankVaultAdminEntitlementsTable).values({
+    userId,
+    grantedByUserId: grantorId,
+    reason: "Approved access test",
+  });
+  const grantedResult = await db.transaction((tx) =>
+    createVaultSubscriberTopUp(tx, {
+      userId,
+      currency: "USD",
+      amountMinor: 1_200n,
+      idempotencyKey: `${idempotencyPrefix}:manual-grant`,
+    }),
+  );
+  assert.ok(!("error" in grantedResult));
+  const [userWithGrant] = await db
+    .select({
+      status: bankUsersTable.vaultSubscriptionStatus,
+      expiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
+    })
+    .from(bankUsersTable)
+    .where(eq(bankUsersTable.id, userId));
+  assert.equal(userWithGrant.status, "expired");
+  assert.ok(userWithGrant.expiresAt);
+
+  await db.delete(bankVaultAdminEntitlementsTable).where(eq(bankVaultAdminEntitlementsTable.userId, userId));
+  const revokedResult = await db.transaction((tx) =>
+    createVaultSubscriberTopUp(tx, {
+      userId,
+      currency: "USD",
+      amountMinor: 1_300n,
+      idempotencyKey: `${idempotencyPrefix}:revoked`,
+    }),
+  );
+  assert.ok("error" in revokedResult);
+  assert.match(revokedResult.error, /active Private Vault access/i);
 });

@@ -11,7 +11,11 @@ import {
   bankWalletsTable,
   db,
 } from "@workspace/db";
-import { hasActiveVaultSubscription } from "./bank-vault";
+import {
+  getVaultAccessSource,
+  hasActiveVaultAccess,
+  hasActiveVaultSubscription,
+} from "./bank-vault";
 
 type RestrictionExecutor = Pick<typeof db, "select">;
 
@@ -37,6 +41,7 @@ export async function bankOperationRestrictionError(
 ): Promise<string | null> {
   const [user] = await executor
     .select({
+        id: bankUsersTable.id,
       accountStatus: bankUsersTable.accountStatus,
       vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
       vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
@@ -50,9 +55,9 @@ export async function bankOperationRestrictionError(
   }
   if (
     (input.operation === "deposit" || input.operation === "withdrawal") &&
-    !hasActiveVaultSubscription(user)
+    !(await hasActiveVaultAccess(user, executor))
   ) {
-    return "An active Private Vault subscription is required for deposits or withdrawals.";
+    return "Active Private Vault access is required for deposits or withdrawals.";
   }
 
   const now = new Date();
@@ -123,11 +128,14 @@ export async function getBankOperationEligibility(
   depositAllowed: boolean;
   withdrawalAllowed: boolean;
   vaultSubscriptionActive: boolean;
+  vaultAccessActive: boolean;
+  vaultAccessSource: "none" | "paystack_subscription" | "admin_grant";
 }> {
   const now = new Date();
   const [subscription, restrictions] = await Promise.all([
     db
       .select({
+        id: bankUsersTable.id,
         status: bankUsersTable.vaultSubscriptionStatus,
         expiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
       })
@@ -151,10 +159,14 @@ export async function getBankOperationEligibility(
       ),
   ]);
   const types = new Set(restrictions.map((restriction) => restriction.type));
-  const subscriptionActive = hasActiveVaultSubscription({
+  const user = {
+    id: userId,
     vaultSubscriptionStatus: subscription[0]?.status ?? "inactive",
     vaultSubscriptionExpiresAt: subscription[0]?.expiresAt ?? null,
-  });
+  };
+  const subscriptionActive = hasActiveVaultSubscription(user, now);
+  const vaultAccessSource = await getVaultAccessSource(user, db, now);
+  const vaultAccessActive = vaultAccessSource !== "none";
   const commonRestriction =
     accountStatus !== "active" ||
     types.has("suspend_user") ||
@@ -163,14 +175,16 @@ export async function getBankOperationEligibility(
 
   return {
     vaultSubscriptionActive: subscriptionActive,
+    vaultAccessActive,
+    vaultAccessSource,
     depositAllowed:
       accountStatus === "active" &&
-      subscriptionActive &&
+      vaultAccessActive &&
       !commonRestriction &&
       !types.has("restrict_deposits"),
     withdrawalAllowed:
       accountStatus === "active" &&
-      subscriptionActive &&
+      vaultAccessActive &&
       !commonRestriction &&
       !types.has("restrict_withdrawals") &&
       !types.has("freeze_wallet"),
