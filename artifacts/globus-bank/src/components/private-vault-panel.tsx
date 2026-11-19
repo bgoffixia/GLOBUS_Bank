@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, LockKeyhole, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bell, FileText, LayoutDashboard, LockKeyhole, Menu, ReceiptText, ShieldCheck, WalletCards, X } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/react';
 import {
@@ -17,6 +17,7 @@ import {
   useGetBankPushPreferences,
   useGetBankVaultBilling,
   useGetBankVaultEmailPreferences,
+  useGetBankReceiptPreferences,
   useGetBankVaultStatus,
   useEmailBankVaultPaystackRenewalManagementLink,
   useInitializeBankVaultPaystackPayment,
@@ -28,6 +29,7 @@ import {
   useUnlockBankVault,
   useUpdateBankPushPreferences,
   useUpdateBankVaultEmailPreferences,
+  useUpdateBankReceiptPreferences,
   useUpdateBankVaultPasscode,
   useUpdateBankVaultTransactionNote,
   useUpdateBankVaultWalletControl,
@@ -35,6 +37,8 @@ import {
 } from '@workspace/api-client-react';
 import type { BankTransaction, BankVaultEmailPreferences, BankVaultWalletControl } from '@workspace/api-client-react';
 import { fetchWebpushrSubscriberId, loadWebpushr } from '../lib/webpushr-client';
+import { RECEIPT_LAYOUTS, receiptPreferencesQueryKey, type ReceiptTemplateId } from '../lib/receipt-layouts';
+import { TransferReceiptModal, type ReceiptTransaction } from './transfer/transfer-receipt';
 
 const fieldClass = 'h-9 w-full rounded-lg border border-[#dfe6eb] bg-white px-3 text-[11px] text-[#344b64] outline-none focus:border-[#77aeb0] focus:ring-2 focus:ring-[#77aeb0]/15';
 type VaultPlanCode = '1m' | '3m' | '1y';
@@ -82,8 +86,20 @@ export function PrivateVaultPanel() {
   const [autoRenew, setAutoRenew] = useState(false);
   const [subscriptionStep, setSubscriptionStep] = useState<SubscriptionStep>('closed');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
+  const [preferredReceiptTemplate, setPreferredReceiptTemplate] = useState<ReceiptTemplateId>('standard');
+  const [receiptPreview, setReceiptPreview] = useState<ReceiptTransaction | null>(null);
+  const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
+  const [activeNavigation, setActiveNavigation] = useState('vault-overview');
   const paymentCallbackHandled = useRef('');
   const lastSubscriptionStatus = useRef<string | undefined>(undefined);
+  const vaultNavigation = [
+    { id: 'vault-overview', label: 'Overview', icon: LayoutDashboard, requiresUnlock: false },
+    { id: 'vault-activity', label: 'Activity & receipts', icon: FileText, requiresUnlock: true },
+    { id: 'vault-receipts', label: 'Receipt style', icon: ReceiptText, requiresUnlock: false },
+    { id: 'vault-account-controls', label: 'Wallet controls', icon: WalletCards, requiresUnlock: true },
+    { id: 'vault-browser-alerts', label: 'Browser alerts', icon: Bell, requiresUnlock: true },
+    { id: 'vault-email-preferences', label: 'Email preferences', icon: ReceiptText, requiresUnlock: true },
+  ] as const;
   const billing = useGetBankVaultBilling({
     query: {
       queryKey: getGetBankVaultBillingQueryKey(),
@@ -116,6 +132,14 @@ export function PrivateVaultPanel() {
   const updateBrowserPushPreferences = useUpdateBankPushPreferences({
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
   });
+  const receiptPreferences = useGetBankReceiptPreferences({
+    query: {
+      queryKey: receiptPreferencesQueryKey(user?.id),
+      retry: false,
+      staleTime: 60_000,
+    },
+  });
+  const saveReceiptPreferences = useUpdateBankReceiptPreferences();
   useEffect(() => () => {
     void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
@@ -194,6 +218,19 @@ export function PrivateVaultPanel() {
     setSupportLabel(emailPreferences.data.supportLabel);
     setSenderLocalPart(emailPreferences.data.senderLocalPart ?? '');
   }, [emailPreferences.data]);
+  useEffect(() => {
+    if (receiptPreferences.data) {
+      setPreferredReceiptTemplate(receiptPreferences.data.preferredTemplate);
+    }
+  }, [receiptPreferences.data]);
+  useEffect(() => {
+    if (!mobileNavigationOpen) return;
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') setMobileNavigationOpen(false);
+    };
+    window.addEventListener('keydown', closeOnEscape);
+    return () => window.removeEventListener('keydown', closeOnEscape);
+  }, [mobileNavigationOpen]);
   useEffect(() => {
     if (!selectedTransactionId && transactions.data?.length) {
       setSelectedTransactionId(transactions.data[0].id);
@@ -277,6 +314,26 @@ export function PrivateVaultPanel() {
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The vault request could not be completed.');
+    }
+  };
+  const navigateToSection = (sectionId: string) => {
+    const section = document.getElementById(sectionId);
+    if (!section) return;
+    setActiveNavigation(sectionId);
+    setMobileNavigationOpen(false);
+    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+  const savePreferredReceiptTemplate = async () => {
+    setError('');
+    setMessage('');
+    try {
+      const updated = await saveReceiptPreferences.mutateAsync({
+        data: { preferredTemplate: preferredReceiptTemplate },
+      });
+      queryClient.setQueryData(receiptPreferencesQueryKey(user?.id), updated);
+      setMessage('Preferred receipt layout saved for all customer receipts.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The preferred receipt layout could not be saved.');
     }
   };
   const changeVaultPasscode = async (event: FormEvent<HTMLFormElement>) => {
@@ -532,16 +589,38 @@ export function PrivateVaultPanel() {
   const subscriptionActive = !!status.data?.subscriptionActive;
   const checkoutPending = status.data?.paymentStatus === 'pending';
   return (
-    <section className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5" data-testid="private-vault-panel">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-[.15em] text-[#55868b]">Private controls</p>
-          <h2 className="mt-1 text-[13px] font-bold text-[#29425c]">Private vault</h2>
-          <p className="mt-1 max-w-2xl text-[10px] leading-4 text-[#718296]">Protect wallet-level settings with a separate four-digit passcode. Wallet policy affects future requests only; it does not change existing activity.</p>
+    <>
+    <section className="overflow-hidden rounded-[20px] border border-[#dce5e8] bg-[#f5f8fa] shadow-[0_14px_40px_rgba(21,48,71,.08)]" data-testid="private-vault-panel">
+      <header className="sticky top-0 z-20 flex min-h-[68px] items-center justify-between gap-3 border-b border-[#e1e8eb] bg-white/95 px-3 py-3 backdrop-blur sm:px-5">
+        <div className="flex min-w-0 items-center gap-3">
+          <button type="button" aria-label="Open Vault workspace navigation" aria-expanded={mobileNavigationOpen} aria-controls="vault-workspace-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dfe7eb] bg-white text-[#29465d] hover:bg-[#f4f8f9] lg:hidden" data-testid="button-vault-navigation"><Menu size={17} /></button>
+          <div className="min-w-0">
+            <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#56878a]">Globus Bank · Customer workspace</p>
+            <h2 className="truncate text-[14px] font-bold text-[#233c54] sm:text-[16px]">Private Vault</h2>
+          </div>
         </div>
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eef6f6] text-[#43888e]"><ShieldCheck size={17} /></span>
-      </div>
-      {status.isLoading ? <div className="mt-4 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
+        <div className="flex shrink-0 items-center gap-2">
+          <span className="hidden max-w-[180px] truncate text-right text-[9px] font-medium text-[#708397] sm:block">{user?.firstName ? `Welcome, ${user.firstName}` : 'Secure account workspace'}</span>
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eef6f6] text-[#43888e]"><ShieldCheck size={17} /></span>
+        </div>
+      </header>
+      <div className="grid min-w-0 lg:grid-cols-[204px_minmax(0,1fr)]">
+        <aside className="sticky top-[68px] hidden h-[calc(100dvh-140px)] min-h-[440px] flex-col bg-[#173b4b] px-3 py-4 text-white lg:flex">
+          <p className="px-2 pb-3 text-[8px] font-bold uppercase tracking-[.16em] text-[#a9c8c0]">Vault workspace</p>
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Vault workspace navigation">
+            {vaultNavigation.map(item => {
+              const Icon = item.icon;
+              const disabled = !sessionToken && item.requiresUnlock;
+              return <button key={item.id} type="button" disabled={disabled} aria-current={activeNavigation === item.id ? 'page' : undefined} title={disabled ? 'Unlock your Vault to open this section' : undefined} onClick={() => navigateToSection(item.id)} className={`flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[9px] font-semibold transition ${activeNavigation === item.id ? 'bg-white/12 text-[#f1dc98]' : 'text-[#d5e2e1] hover:bg-white/[.07]'} disabled:cursor-not-allowed disabled:opacity-45`}><Icon size={14} />{item.label}{disabled && <LockKeyhole size={11} className="ml-auto" />}</button>;
+            })}
+          </nav>
+          <div className="mt-4 rounded-lg border border-white/10 bg-white/[.05] p-2.5 text-[8px] leading-4 text-[#c5d6d2]">
+            Wallet policies apply to future requests. Existing ledger activity and receipt details remain unchanged.
+          </div>
+        </aside>
+        <div className="min-w-0 space-y-3 p-3 sm:p-4">
+      <div id="vault-overview" className="scroll-mt-24">
+      {status.isLoading ? <div className="h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
         status.isError ? <div className="mt-4 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[10px] text-[#a24940]"><span>Vault status is unavailable.</span><button type="button" data-testid="button-retry-vault-status" onClick={() => void status.refetch()} className="font-bold underline">Try again</button></div> :
           !status.data?.configured ? (
             <form onSubmit={submitPasscode} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end" data-testid="form-vault-setup">
@@ -641,7 +720,7 @@ export function PrivateVaultPanel() {
                     </>}
               </section>}
 
-              <div className="mt-3 grid gap-3 lg:grid-cols-[.75fr_1.25fr]">
+              <div id="vault-account-controls" className="mt-3 scroll-mt-24 grid gap-3 lg:grid-cols-[.75fr_1.25fr]">
                 {subscriptionActive ? <form onSubmit={changeVaultPasscode} className="rounded-xl border border-[#e7ecef] p-3" data-testid="form-vault-change-passcode">
                   <h3 className="text-[10px] font-bold text-[#344b64]">Change passcode</h3>
                   <label className="mt-2 block text-[9px] font-semibold text-[#667a8d]">New four-digit passcode
@@ -670,7 +749,7 @@ export function PrivateVaultPanel() {
                   ) : <p className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] text-[#8492a1]">No wallet controls are available.</p>}
                 </div>
               </div>
-              <details className="mt-3 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-browser-alert-settings">
+              <details id="vault-browser-alerts" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-browser-alert-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Browser alerts</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose which account alerts can reach linked devices. In-app notifications remain available in the notification center.</p>
                 {browserPushConfig.isError && <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Browser alert setup is unavailable. Try again later.</p>}
@@ -697,7 +776,7 @@ export function PrivateVaultPanel() {
                 {browserPushError && <p role="alert" data-testid="status-vault-browser-push-error" className="mt-2 rounded-md bg-[#fff1ef] px-2 py-1.5 text-[8px] text-[#a24940]">{browserPushError}</p>}
                 {browserPushMessage && <p role="status" data-testid="status-vault-browser-push-message" className="mt-2 rounded-md bg-[#eef7f1] px-2 py-1.5 text-[8px] text-[#41755f]">{browserPushMessage}</p>}
               </details>
-              <details className="mt-3 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
+              <details id="vault-personal-notes" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Personal transaction notes</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">These notes are private to your Vault. They never change balances, official transaction details, receipts, or notifications.</p>
                 {!subscriptionActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Notes are read-only until your subscription is active.</p>}
@@ -724,7 +803,7 @@ export function PrivateVaultPanel() {
                         </>}
                       </div>}
               </details>
-              <details className="mt-3 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-email-banner-settings">
+              <details id="vault-email-preferences" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-email-banner-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Transaction email banner</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose whether to email recipients, then customize the banner and optional support footer link.</p>
                 {!subscriptionActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Read-only until your subscription is active.</p>}
@@ -779,8 +858,69 @@ export function PrivateVaultPanel() {
               </details>
             </div>
           )}
+      </div>
+      <section id="vault-activity" className="scroll-mt-24 rounded-xl border border-[#e1e8ee] bg-white p-3 sm:p-4" data-testid="vault-transaction-history">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Account activity</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Transactions & receipts</h3><p className="mt-1 text-[9px] text-[#77889a]">Open a customer receipt using your saved layout.</p></div>
+          {sessionToken && transactions.data?.[0] && <button type="button" onClick={() => setReceiptPreview(transactions.data![0])} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]" data-testid="button-preview-latest-receipt"><ReceiptText size={13} /> Latest receipt</button>}
+        </div>
+        {!sessionToken ? <div className="mt-3 rounded-lg border border-dashed border-[#dfe6eb] bg-[#f8fafb] px-3 py-4 text-center text-[9px] text-[#7c8c9b]"><LockKeyhole size={15} className="mx-auto mb-1 text-[#6a8a91]" />Unlock your Vault to view private transaction history.</div> :
+          transactions.isLoading ? <div className="mt-3 h-12 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
+            transactions.isError ? <div className="mt-3 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[9px] text-[#a24940]"><span>Transaction history could not be loaded.</span><button type="button" onClick={() => void transactions.refetch()} className="font-bold underline">Try again</button></div> :
+              !transactions.data?.length ? <p className="mt-3 rounded-lg border border-dashed border-[#dfe6eb] p-4 text-center text-[9px] text-[#8492a1]">Your transactions will appear here when available.</p> :
+                <div className="mt-3 divide-y divide-[#edf0f2]">
+                  {transactions.data.slice(0, 12).map(transaction => <div key={transaction.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 py-2.5" data-testid={`vault-transaction-${transaction.id}`}>
+                    <div className="min-w-0"><p className="truncate text-[9px] font-semibold text-[#364e66]">{transaction.description || transaction.type.replaceAll('_', ' ')}</p><p className="mt-0.5 truncate font-mono text-[8px] text-[#8794a2]">{transaction.reference} · {new Date(transaction.createdAt).toLocaleString()}</p></div>
+                    <div className="flex shrink-0 items-center gap-2"><span className="text-[9px] font-bold text-[#3d596c]">{transaction.currency} {transaction.amount}</span><button type="button" onClick={() => setReceiptPreview(transaction)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dfe7eb] px-2 text-[8px] font-bold text-[#42687a] hover:bg-[#f5f8f9]" aria-label={`Open receipt ${transaction.reference}`} data-testid={`button-vault-receipt-${transaction.id}`}><ReceiptText size={11} />Receipt</button></div>
+                  </div>)}
+                </div>}
+      </section>
+      <section id="vault-receipts" className="scroll-mt-24 rounded-xl border border-[#dce6e8] bg-white p-3 sm:p-4" data-testid="vault-receipt-preferences">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Receipt preferences</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Choose your transaction receipt</h3><p className="mt-1 max-w-xl text-[9px] leading-4 text-[#77889a]">Select one of five layouts. Your choice applies to receipts across Globus Bank; transaction amounts, dates, status, references, and counterparties always come from your account records.</p></div>
+          <span className="rounded-full bg-[#eef6f6] px-2.5 py-1 text-[8px] font-bold text-[#4a7c7e]">All customer receipts</span>
+        </div>
+        {receiptPreferences.isLoading ? <div className="mt-3 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
+          receiptPreferences.isError && <div role="alert" className="mt-3 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[9px] text-[#a24940]"><span>Receipt preferences could not be loaded.</span><button type="button" onClick={() => void receiptPreferences.refetch()} className="font-bold underline">Try again</button></div>}
+        <div role="radiogroup" aria-label="Preferred transaction receipt layout" className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
+          {RECEIPT_LAYOUTS.map(layout => <button key={layout.id} type="button" role="radio" aria-checked={preferredReceiptTemplate === layout.id} aria-pressed={preferredReceiptTemplate === layout.id} onClick={() => setPreferredReceiptTemplate(layout.id)} className={`min-w-0 rounded-lg border p-2.5 text-left transition ${preferredReceiptTemplate === layout.id ? 'border-[#4d8b8d] bg-[#f2f8f7] ring-1 ring-[#4d8b8d]/15' : 'border-[#e2e9ec] bg-[#fbfcfd] hover:border-[#b7d1d2]'}`} data-testid={`button-receipt-layout-${layout.id}`}>
+            <div aria-hidden="true" className={`flex h-12 items-center gap-1.5 overflow-hidden rounded-md border px-2 ${layout.id === 'settlement_statement' ? 'border-[#d7e0da] bg-[#f3f6f0]' : layout.id === 'transfer_ledger' ? 'border-[#173c4b] bg-[#173c4b]' : layout.id === 'transfer_journey' ? 'border-[#173951] bg-[#173951]' : 'border-[#dce5e8] bg-white'}`}>
+              <span className={`h-7 w-1/3 rounded-sm ${layout.id === 'settlement_statement' ? 'bg-[#173b4b]' : layout.id === 'transfer_ledger' || layout.id === 'transfer_journey' ? 'bg-[#84ada6]' : 'bg-[#173858]'}`} />
+              <span className="flex min-w-0 flex-1 flex-col gap-1.5"><i className={`h-1 w-3/4 rounded ${layout.id === 'settlement_statement' ? 'bg-[#90a59d]' : layout.id === 'transfer_ledger' || layout.id === 'transfer_journey' ? 'bg-white/50' : 'bg-[#aab9c3]'}`} /><i className={`h-1 w-full rounded ${layout.id === 'transfer_ledger' || layout.id === 'transfer_journey' ? 'bg-white/30' : 'bg-[#d6dfe4]'}`} /><i className={`h-1 w-2/3 rounded ${layout.id === 'transfer_ledger' || layout.id === 'transfer_journey' ? 'bg-white/30' : 'bg-[#d6dfe4]'}`} /></span>
+              <span className={`h-6 w-6 rounded-full ${layout.id === 'transfer_journey' ? 'border-2 border-[#70a899]' : layout.id === 'settlement_statement' ? 'bg-[#dcebe1]' : 'bg-[#e9f0ed]'}`} />
+            </div>
+            <span className="mt-2 block text-[9px] font-bold text-[#354c63]">{layout.label}</span>
+            <span className="mt-0.5 block text-[8px] leading-4 text-[#8090a0]">{layout.summary}</span>
+          </button>)}
+        </div>
+        <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf0f2] pt-3">
+          <p className="text-[8px] text-[#8391a0]">{receiptPreferences.data ? `Saved layout: ${RECEIPT_LAYOUTS.find(layout => layout.id === receiptPreferences.data?.preferredTemplate)?.label ?? 'Classic receipt'}` : 'Choose a layout to set your preferred receipt.'}</p>
+          <div className="flex flex-wrap gap-2">
+            {sessionToken && transactions.data?.[0] && <button type="button" onClick={() => setReceiptPreview(transactions.data![0])} className="h-8 rounded-lg border border-[#dfe7eb] bg-white px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]">Preview with latest transaction</button>}
+            <button type="button" disabled={saveReceiptPreferences.isPending || receiptPreferences.isLoading || preferredReceiptTemplate === receiptPreferences.data?.preferredTemplate} onClick={() => void savePreferredReceiptTemplate()} className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-save-receipt-preference">{saveReceiptPreferences.isPending ? 'Saving…' : 'Save preferred layout'}</button>
+          </div>
+        </div>
+      </section>
       {(error || updateControl.isError) && <p role="alert" data-testid="status-vault-error" className="mt-3 rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940]">{error || 'A wallet policy could not be saved.'}</p>}
       {message && <p role="status" data-testid="status-vault-message" className="mt-3 rounded-lg bg-[#f0f8f4] px-3 py-2 text-[9px] text-[#41755f]">{message}</p>}
+        </div>
+      </div>
+      {mobileNavigationOpen && <div className="fixed inset-0 z-[60] lg:hidden">
+        <button type="button" aria-label="Close Vault navigation overlay" className="absolute inset-0 bg-[#0b1b2d]/55" onClick={() => setMobileNavigationOpen(false)} />
+        <aside id="vault-workspace-mobile-navigation" role="dialog" aria-modal="true" aria-labelledby="vault-mobile-navigation-title" className="absolute inset-y-0 left-0 flex w-[min(290px,86vw)] flex-col bg-[#173b4b] p-4 text-white shadow-2xl">
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4"><div><p className="text-[8px] font-bold uppercase tracking-[.15em] text-[#a9c8c0]">Globus Bank</p><h3 id="vault-mobile-navigation-title" className="mt-1 text-[13px] font-bold">Vault workspace</h3></div><button type="button" aria-label="Close Vault navigation" onClick={() => setMobileNavigationOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-[#d5e2e1] hover:bg-white/10"><X size={16} /></button></div>
+          <nav className="mt-4 space-y-1" aria-label="Vault workspace navigation">
+            {vaultNavigation.map(item => {
+              const Icon = item.icon;
+              const disabled = !sessionToken && item.requiresUnlock;
+              return <button key={item.id} type="button" disabled={disabled} aria-current={activeNavigation === item.id ? 'page' : undefined} onClick={() => navigateToSection(item.id)} className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[10px] font-semibold ${activeNavigation === item.id ? 'bg-white/12 text-[#f1dc98]' : 'text-[#d5e2e1] hover:bg-white/[.07]'} disabled:cursor-not-allowed disabled:opacity-45`}><Icon size={15} />{item.label}{disabled && <LockKeyhole size={11} className="ml-auto" />}</button>;
+            })}
+          </nav>
+          <p className="mt-auto rounded-lg border border-white/10 bg-white/[.05] p-3 text-[8px] leading-4 text-[#c5d6d2]">Customer receipt facts are always taken from Globus account records.</p>
+        </aside>
+      </div>}
     </section>
+    {receiptPreview && <TransferReceiptModal transaction={receiptPreview} onClose={() => setReceiptPreview(null)} title={receiptPreview.type.replaceAll('_', ' ')} templateOverride={preferredReceiptTemplate} />}
+    </>
   );
 }

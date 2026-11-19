@@ -65,6 +65,36 @@ paths:
                 $ref: "#/components/schemas/BankProfile"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /bank/receipt-preferences:
+    get:
+      operationId: getBankReceiptPreferences
+      tags: [bank]
+      summary: Get the authenticated customer's preferred transaction receipt layout
+      responses:
+        "200":
+          description: Current transaction receipt preference
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankReceiptPreferences" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    patch:
+      operationId: updateBankReceiptPreferences
+      tags: [bank]
+      summary: Update the authenticated customer's preferred transaction receipt layout
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BankReceiptPreferencesInput" }
+      responses:
+        "200":
+          description: Updated transaction receipt preference
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankReceiptPreferences" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /bank/vault/status:
     get:
       operationId: getBankVaultStatus
@@ -2219,6 +2249,20 @@ components:
         supportLabel: { type: string, minLength: 1, maxLength: 40 }
         senderLocalPart: { type: ["string", "null"], minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$" }
       minProperties: 1
+    BankReceiptPreferences:
+      type: object
+      properties:
+        preferredTemplate:
+          type: string
+          enum: [standard, bank_payment, transfer_journey, transfer_ledger, settlement_statement]
+      required: [preferredTemplate]
+    BankReceiptPreferencesInput:
+      type: object
+      properties:
+        preferredTemplate:
+          type: string
+          enum: [standard, bank_payment, transfer_journey, transfer_ledger, settlement_statement]
+      required: [preferredTemplate]
     BankVaultTransactionNote:
       type: object
       properties:

@@ -59,6 +59,26 @@ export const GetBankProfileResponse = zod.object({
 
 
 /**
+ * @summary Get the authenticated customer's preferred transaction receipt layout
+ */
+export const GetBankReceiptPreferencesResponse = zod.object({
+  "preferredTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'])
+})
+
+
+/**
+ * @summary Update the authenticated customer's preferred transaction receipt layout
+ */
+export const UpdateBankReceiptPreferencesBody = zod.object({
+  "preferredTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'])
+})
+
+export const UpdateBankReceiptPreferencesResponse = zod.object({
+  "preferredTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'])
+})
+
+
+/**
  * @summary Check whether the customer's private vault is configured
  */
 export const getBankVaultStatusResponseAmountMinorRegExp = new RegExp('^[0-9]+$');

@@ -553,6 +553,36 @@ export interface BankVaultEmailPreferencesInput {
   senderLocalPart?: string | null;
 }
 
+export type BankReceiptPreferencesPreferredTemplate = typeof BankReceiptPreferencesPreferredTemplate[keyof typeof BankReceiptPreferencesPreferredTemplate];
+
+
+export const BankReceiptPreferencesPreferredTemplate = {
+  standard: 'standard',
+  bank_payment: 'bank_payment',
+  transfer_journey: 'transfer_journey',
+  transfer_ledger: 'transfer_ledger',
+  settlement_statement: 'settlement_statement',
+} as const;
+
+export interface BankReceiptPreferences {
+  preferredTemplate: BankReceiptPreferencesPreferredTemplate;
+}
+
+export type BankReceiptPreferencesInputPreferredTemplate = typeof BankReceiptPreferencesInputPreferredTemplate[keyof typeof BankReceiptPreferencesInputPreferredTemplate];
+
+
+export const BankReceiptPreferencesInputPreferredTemplate = {
+  standard: 'standard',
+  bank_payment: 'bank_payment',
+  transfer_journey: 'transfer_journey',
+  transfer_ledger: 'transfer_ledger',
+  settlement_statement: 'settlement_statement',
+} as const;
+
+export interface BankReceiptPreferencesInput {
+  preferredTemplate: BankReceiptPreferencesInputPreferredTemplate;
+}
+
 export interface BankVaultTransactionNote {
   id: string;
   transactionId: string;

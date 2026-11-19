@@ -1,6 +1,7 @@
 import {
   bigint,
   boolean,
+  check,
   date,
   index,
   integer,
@@ -170,6 +171,9 @@ export const bankUsersTable = pgTable("bank_users", {
   vaultEmailAlertsEnabled: boolean("vault_email_alerts_enabled")
     .notNull()
     .default(false),
+  preferredReceiptTemplate: text("preferred_receipt_template")
+    .notNull()
+    .default("standard"),
   pushTransferAlertsEnabled: boolean("push_transfer_alerts_enabled")
     .notNull()
     .default(false),
@@ -201,6 +205,10 @@ export const bankUsersTable = pgTable("bank_users", {
     .notNull()
     .defaultNow(),
 }, (table) => [
+  check(
+    "bank_users_preferred_receipt_template_check",
+    sql`${table.preferredReceiptTemplate} in ('standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement')`,
+  ),
   uniqueIndex("bank_users_vault_email_sender_local_part_unique").on(
     table.vaultEmailSenderLocalPart,
   ),

@@ -1,3 +1,5 @@
+import type { ReceiptTemplateId } from './receipt-layouts';
+
 export interface TransactionReceiptPdfData {
   reference: string;
   amount: string;
@@ -20,6 +22,7 @@ export interface TransactionReceiptPdfData {
   remark?: string;
   route?: string;
   fee?: string;
+  template?: ReceiptTemplateId;
 }
 
 const PAGE_WIDTH = 1240;
@@ -144,7 +147,15 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   const left = PAGE_MARGIN;
   const right = PAGE_WIDTH - PAGE_MARGIN;
   const contentWidth = right - left;
-  context.fillStyle = '#f3f6f7';
+  const template = receipt.template ?? 'standard';
+  const theme = {
+    standard: { canvas: '#e8efed', ink: '#173951', accent: '#347c78', kicker: 'GLOBUS TRANSACTION RECORD' },
+    bank_payment: { canvas: '#f3f6f7', ink: '#173858', accent: '#478783', kicker: 'GLOBUS BANK · TRANSACTION RECORD' },
+    transfer_journey: { canvas: '#e8f0ec', ink: '#173951', accent: '#347c78', kicker: 'INTERNAL PAYMENT RECORD' },
+    transfer_ledger: { canvas: '#e9efea', ink: '#173c4b', accent: '#39786d', kicker: 'GLOBUS · LEDGER RECORD' },
+    settlement_statement: { canvas: '#e8eeea', ink: '#173b4b', accent: '#39786d', kicker: 'INTERNAL TRANSACTION STATEMENT' },
+  }[template];
+  context.fillStyle = theme.canvas;
   context.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
 
   drawRoundedRect(context, left - 22, 52, contentWidth + 44, PAGE_HEIGHT - 104, 26);
@@ -177,12 +188,19 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   context.lineTo(right, 180);
   context.stroke();
 
-  context.fillStyle = '#478783';
+  context.fillStyle = theme.accent;
   context.font = '700 19px Arial, sans-serif';
-  context.fillText('GLOBUS BANK · TRANSACTION RECORD', left, 232);
-  context.fillStyle = '#183450';
+  context.fillText(theme.kicker, left, 232);
+  context.fillStyle = theme.ink;
   context.font = '700 48px Arial, sans-serif';
-  context.fillText('Payment receipt', left, 292);
+  const title = template === 'settlement_statement'
+    ? 'Transaction statement'
+    : template === 'transfer_journey'
+      ? 'Activity journey'
+      : template === 'transfer_ledger'
+        ? 'Ledger timeline'
+        : 'Payment receipt';
+  context.fillText(title, left, 292);
   context.fillStyle = '#7d8d9b';
   context.font = '400 23px Arial, sans-serif';
   const activityLines = wrapText(context, receipt.activity, contentWidth);
@@ -191,12 +209,12 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   const heroY = 370 + (Math.min(activityLines.length, 2) - 1) * 30;
   const heroHeight = receipt.sourceAmount && receipt.convertedAmount ? 310 : 215;
   drawRoundedRect(context, left, heroY, contentWidth, heroHeight, 24);
-  context.fillStyle = '#173858';
+  context.fillStyle = theme.ink;
   context.fill();
 
   context.fillStyle = '#a9d6d3';
   context.font = '700 18px Arial, sans-serif';
-  context.fillText('TRANSACTION AMOUNT', left + 34, heroY + 48);
+  context.fillText(template === 'settlement_statement' ? 'AMOUNT RECORDED' : 'TRANSACTION AMOUNT', left + 34, heroY + 48);
   context.fillStyle = '#ffffff';
   context.font = '700 58px Arial, sans-serif';
   context.fillText(receipt.amount, left + 34, heroY + 116);
@@ -229,10 +247,43 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
 
   let y = heroY + heroHeight + 40;
 
-  context.fillStyle = '#718599';
+  context.fillStyle = template === 'settlement_statement' ? '#183d4b' : '#718599';
   context.font = '700 18px Arial, sans-serif';
-  context.fillText('TRANSACTION DETAILS', left, y);
+  context.fillText(template === 'settlement_statement' ? 'RECORD PARTICULARS' : 'TRANSACTION DETAILS', left, y);
   y += 24;
+
+  if (template === 'transfer_journey' || template === 'transfer_ledger') {
+    context.fillStyle = theme.accent;
+    context.font = '700 16px Arial, sans-serif';
+    context.fillText(template === 'transfer_journey' ? 'ACTIVITY JOURNEY' : 'LEDGER ACTIVITY', left, y + 2);
+    y += 24;
+    context.strokeStyle = '#d8e5df';
+    context.beginPath();
+    context.moveTo(left + 7, y + 4);
+    context.lineTo(left + 7, y + 86);
+    context.stroke();
+    context.fillStyle = theme.accent;
+    context.beginPath();
+    context.arc(left + 7, y + 8, 6, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#344b63';
+    context.font = '700 17px Arial, sans-serif';
+    context.fillText('Activity recorded', left + 24, y + 14);
+    context.fillStyle = '#8291a0';
+    context.font = '400 15px Arial, sans-serif';
+    context.fillText(receipt.date, left + 24, y + 42);
+    context.fillStyle = theme.accent;
+    context.beginPath();
+    context.arc(left + 7, y + 68, 6, 0, Math.PI * 2);
+    context.fill();
+    context.fillStyle = '#344b63';
+    context.font = '700 17px Arial, sans-serif';
+    context.fillText('Current Globus status', left + 24, y + 74);
+    context.fillStyle = '#8291a0';
+    context.font = '400 15px Arial, sans-serif';
+    context.fillText(receipt.status, left + 24, y + 101);
+    y += 118;
+  }
 
   const fields: Array<[string, string | undefined]> = [
     ['Reference', receipt.reference],
@@ -282,13 +333,13 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   context.lineTo(right, footerY - 26);
   context.stroke();
   context.setLineDash([]);
-  context.fillStyle = '#4a826d';
+  context.fillStyle = theme.accent;
   context.font = '700 18px Arial, sans-serif';
   context.fillText('GLOBUS BANK', left, footerY + 5);
   context.fillStyle = '#7d8c98';
   context.font = '400 17px Arial, sans-serif';
   context.textAlign = 'right';
-  context.fillText('Keep this receipt for your records', right, footerY + 5);
+  context.fillText('Internal record · Not proof of outside payment or settlement', right, footerY + 5);
   context.textAlign = 'left';
 }
 

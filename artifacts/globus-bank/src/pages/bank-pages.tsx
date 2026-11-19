@@ -1341,12 +1341,7 @@ export function ProfilePage() {
 
 export function PrivateVaultPage() {
   return (
-    <div className="mx-auto min-w-0 max-w-[1040px] space-y-4" data-testid="private-vault-page">
-      <PageHeading
-        eyebrow="Private account controls"
-        title="Private Vault"
-        titleClassName="text-[24px] leading-tight sm:text-[28px]"
-      />
+    <div className="mx-auto min-w-0 max-w-[1240px]" data-testid="private-vault-page">
       <PrivateVaultPanel />
     </div>
   );

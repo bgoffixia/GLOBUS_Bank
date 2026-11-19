@@ -118,6 +118,7 @@ test.describe('signed-in member pages at phone widths', () => {
     '/withdraw',
     '/profile',
     '/settings',
+    '/private-vault',
   ];
 
   for (const width of viewportWidths) {
@@ -339,6 +340,39 @@ test.describe('signed-in member pages at phone widths', () => {
     });
     await expect(page.getByRole('status')).toContainText('saved and recorded');
   });
+});
+
+test.describe('Private Vault workspace at phone, tablet, and desktop widths', () => {
+  if (validAuthenticatedState) {
+    test.use({ storageState: validAuthenticatedState });
+  }
+
+  test.skip(
+    !validAuthenticatedState,
+    'Set GLOBUS_VIEWPORT_STORAGE_STATE to a valid Playwright storage-state file to run signed-in Vault checks.',
+  );
+
+  for (const width of [320, 360, 390, 768, 1280]) {
+    test(`Vault navigation and receipt preferences fit at ${width}px`, async ({ page }) => {
+      await page.setViewportSize({ width, height: 850 });
+      await page.goto('/private-vault', { waitUntil: 'domcontentloaded' });
+      await expect(page.locator('.app-shell')).toBeVisible();
+      await expect(page.getByTestId('private-vault-panel')).toBeVisible();
+      await expect(page.getByTestId('vault-receipt-preferences')).toBeVisible();
+      await expect(page.locator('[data-testid^="button-receipt-layout-"]')).toHaveCount(5);
+
+      if (width < 1024) {
+        await page.getByTestId('button-vault-navigation').click();
+        await expect(page.getByRole('dialog', { name: 'Vault workspace' })).toBeVisible();
+        await page.getByRole('dialog').getByRole('button', { name: 'Receipt style' }).click();
+        await expect(page.getByRole('dialog')).toHaveCount(0);
+      } else {
+        await expect(page.getByRole('navigation', { name: 'Vault workspace navigation' }).first()).toBeVisible();
+      }
+
+      await expectNoHorizontalOverflow(page, `Private Vault workspace at ${width}px`);
+    });
+  }
 });
 
 test.describe('admin pages and wide tables at phone widths', () => {

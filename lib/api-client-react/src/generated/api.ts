@@ -73,6 +73,8 @@ import type {
   BankPushPreferencesInput,
   BankPushSubscriptionInput,
   BankPushSubscriptionResult,
+  BankReceiptPreferences,
+  BankReceiptPreferencesInput,
   BankTransaction,
   BankVaultBilling,
   BankVaultEmailPreferences,
@@ -405,6 +407,171 @@ export function useGetBankProfile<TData = Awaited<ReturnType<typeof getBankProfi
 
 
 
+
+export const getGetBankReceiptPreferencesUrl = () => {
+
+
+
+
+  return `/api/bank/receipt-preferences`
+}
+
+/**
+ * @summary Get the authenticated customer's preferred transaction receipt layout
+ */
+export const getBankReceiptPreferences = async ( options?: Parameters<typeof customFetch>[1]): Promise<BankReceiptPreferences> => {
+
+  return customFetch<BankReceiptPreferences>(getGetBankReceiptPreferencesUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankReceiptPreferencesQueryKey = () => {
+    return [
+    `/api/bank/receipt-preferences`
+    ] as const;
+    }
+
+
+export const getGetBankReceiptPreferencesQueryOptions = <TData = Awaited<ReturnType<typeof getBankReceiptPreferences>>, TError = ErrorType<UnauthorizedResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankReceiptPreferences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankReceiptPreferencesQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankReceiptPreferences>>> = ({ signal }) => getBankReceiptPreferences({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankReceiptPreferences>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBankReceiptPreferencesQueryResult = NonNullable<Awaited<ReturnType<typeof getBankReceiptPreferences>>>
+export type GetBankReceiptPreferencesQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary Get the authenticated customer's preferred transaction receipt layout
+ */
+
+export function useGetBankReceiptPreferences<TData = Awaited<ReturnType<typeof getBankReceiptPreferences>>, TError = ErrorType<UnauthorizedResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankReceiptPreferences>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBankReceiptPreferencesQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getUpdateBankReceiptPreferencesUrl = () => {
+
+
+
+
+  return `/api/bank/receipt-preferences`
+}
+
+/**
+ * @summary Update the authenticated customer's preferred transaction receipt layout
+ */
+export const updateBankReceiptPreferences = async (bankReceiptPreferencesInput: BankReceiptPreferencesInput, options?: Parameters<typeof customFetch>[1]): Promise<BankReceiptPreferences> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BankReceiptPreferences>(getUpdateBankReceiptPreferencesUrl(),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankReceiptPreferencesInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateBankReceiptPreferencesMutationKey = () => ['updateBankReceiptPreferences'] as const;
+
+export const getUpdateBankReceiptPreferencesMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBankReceiptPreferences>>, TError,UpdateBankReceiptPreferencesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBankReceiptPreferences>>, TError,UpdateBankReceiptPreferencesMutationVariables, TContext> => {
+
+const mutationKey = getUpdateBankReceiptPreferencesMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBankReceiptPreferences>>, UpdateBankReceiptPreferencesMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  updateBankReceiptPreferences(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBankReceiptPreferencesMutationResult = NonNullable<Awaited<ReturnType<typeof updateBankReceiptPreferences>>>
+    export type UpdateBankReceiptPreferencesMutationBody = BodyType<BankReceiptPreferencesInput>
+    export type UpdateBankReceiptPreferencesMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>
+    export type UpdateBankReceiptPreferencesMutationVariables = {data: BodyType<BankReceiptPreferencesInput>}
+
+    /**
+ * @summary Update the authenticated customer's preferred transaction receipt layout
+ */
+export const useUpdateBankReceiptPreferences = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBankReceiptPreferences>>, TError,UpdateBankReceiptPreferencesMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBankReceiptPreferences>>,
+        TError,
+        UpdateBankReceiptPreferencesMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateBankReceiptPreferencesMutationOptions(options));
+    }
 
 export const getGetBankVaultStatusUrl = () => {
 

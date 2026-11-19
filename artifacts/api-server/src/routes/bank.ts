@@ -35,6 +35,7 @@ import {
   GetBankExchangeRateQuoteQueryParams,
   GetBankExchangeRateQuoteResponse,
   GetBankProfileResponse,
+  GetBankReceiptPreferencesResponse,
   GetBankPushConfigResponse,
   GetBankPushPreferencesResponse,
   GetBankVaultStatusResponse,
@@ -74,6 +75,8 @@ import {
   UpdateTransactionPinResponse,
   UpdateBankProfileBody,
   UpdateBankProfileResponse,
+  UpdateBankReceiptPreferencesBody,
+  UpdateBankReceiptPreferencesResponse,
   UpdateBankVaultPasscodeBody,
   UpdateBankVaultPasscodeHeader,
   UpdateBankVaultPasscodeResponse,
@@ -424,6 +427,10 @@ function bankVaultEmailPreferencesPayload(user: typeof bankUsersTable.$inferSele
   };
 }
 
+function bankReceiptPreferencesPayload(user: typeof bankUsersTable.$inferSelect) {
+  return { preferredTemplate: user.preferredReceiptTemplate };
+}
+
 function bankVaultTransactionNoteResponse(
   note: typeof bankVaultTransactionNotesTable.$inferSelect,
 ) {
@@ -737,6 +744,51 @@ router.get("/bank/me", async (req, res): Promise<void> => {
       ...operationEligibility,
       createdAt: user.createdAt.toISOString(),
     }),
+  );
+});
+
+router.get("/bank/receipt-preferences", async (req, res): Promise<void> => {
+  const authUserId = getAuth(req).userId;
+  if (!authUserId) {
+    res.status(401).json({ error: "Sign in to access your Globus account." });
+    return;
+  }
+  const user = await getOrCreateBankUser(authUserId);
+  res.json(
+    GetBankReceiptPreferencesResponse.parse(
+      bankReceiptPreferencesPayload(user),
+    ),
+  );
+});
+
+router.patch("/bank/receipt-preferences", async (req, res): Promise<void> => {
+  const authUserId = getAuth(req).userId;
+  if (!authUserId) {
+    res.status(401).json({ error: "Sign in to access your Globus account." });
+    return;
+  }
+  const parsed = UpdateBankReceiptPreferencesBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const user = await getOrCreateBankUser(authUserId);
+  const [updated] = await db
+    .update(bankUsersTable)
+    .set({
+      preferredReceiptTemplate: parsed.data.preferredTemplate,
+      updatedAt: new Date(),
+    })
+    .where(eq(bankUsersTable.id, user.id))
+    .returning();
+  if (!updated) {
+    res.status(404).json({ error: "The customer profile could not be found." });
+    return;
+  }
+  res.json(
+    UpdateBankReceiptPreferencesResponse.parse(
+      bankReceiptPreferencesPayload(updated),
+    ),
   );
 });
 
