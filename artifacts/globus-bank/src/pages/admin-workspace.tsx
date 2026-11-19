@@ -42,15 +42,15 @@ const historicalCurrencies: CurrencyCode[] = ['USD', 'EUR', 'GBP', 'NGN', 'CAD',
 const currencyLabel: Record<CurrencyCode, string> = { USD: 'US dollar', EUR: 'Euro', GBP: 'Pound sterling', NGN: 'Nigerian naira', CAD: 'Canadian dollar', AUD: 'Australian dollar' };
 const nav = [
   { path: '/admin', label: 'Overview', icon: LayoutDashboard },
-  { path: '/admin/users', label: 'User Management', icon: Users },
-  { path: '/admin/accounts', label: 'Account Management', icon: WalletCards },
-  { path: '/admin/transactions', label: 'Transaction Management', icon: Activity },
-  { path: '/admin/funding', label: 'Funding & requests', icon: Banknote },
-  { path: '/admin/wallets', label: 'Wallet Controls', icon: LockKeyhole },
+  { path: '/admin/users', label: 'Members', icon: Users },
+  { path: '/admin/accounts', label: 'Accounts', icon: WalletCards },
+  { path: '/admin/transactions', label: 'Transactions', icon: Activity },
+  { path: '/admin/funding', label: 'Funding', icon: Banknote },
+  { path: '/admin/wallets', label: 'Wallet controls', icon: LockKeyhole },
   { path: '/admin/restrictions', label: 'Restrictions', icon: Shield },
-  { path: '/admin/audit', label: 'Audit Logs', icon: FileClock },
+  { path: '/admin/audit', label: 'Audit log', icon: FileClock },
   { path: '/admin/settings', label: 'Settings', icon: Settings2 },
-  { path: '/admin/logout', label: 'Logout', icon: LogOut },
+  { path: '/admin/logout', label: 'Sign out', icon: LogOut },
 ];
 const box = 'rounded-[18px] border border-[#dce5e8] bg-[#fffefa] shadow-[0_4px_16px_rgba(28,53,69,.035)]';
 const input = 'h-10 w-full rounded-[9px] border border-[#d8e1e3] bg-[#fffefa] px-3 text-[12px] text-[#253c4c] outline-none transition focus:border-[#43898a] focus:ring-2 focus:ring-[#43898a]/10';
@@ -102,10 +102,10 @@ export function AdminWorkspace() {
   const isDetail = /^\/admin\/users\/[^/]+$/.test(path);
   const page = path === '/admin' ? 'overview' : isDetail ? 'member-detail' : path.split('/')[2] || 'overview';
   const pageTitles: Record<string, string> = { overview: 'Operations overview', users: 'Member directory', accounts: 'Currency accounts', transactions: 'Transaction activity', funding: 'User funding', wallets: 'Wallet controls', restrictions: 'Restrictions', audit: 'Audit trail', settings: 'Operations settings', 'member-detail': 'Member record' };
-  if (path === '/admin/logout') return <WorkspaceFrame active="logout" title="Sign out"><LogoutPage /></WorkspaceFrame>;
-  if (access.isLoading) return <WorkspaceFrame active={page} title="Operations workspace"><div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map(x => <div key={x} className={`${box} h-36 animate-pulse bg-[#edf2ef]`} />)}</div></WorkspaceFrame>;
-  if (access.isError || !access.data?.allowed) return <WorkspaceFrame active={page} title="Operations workspace"><div className={`${box} mx-auto max-w-xl p-8 text-center`}><Shield size={28} className="mx-auto text-[#9b6157]" /><h1 className="mt-4 text-xl font-bold text-[#263e4b]">Operations access restricted</h1><p className="mt-2 text-[12px] leading-5 text-[#7a8c91]">This workspace is available to authorized Globus operations administrators.</p><button onClick={() => access.refetch()} className={`${button} mt-5`}>Check access again</button></div></WorkspaceFrame>;
-  return <WorkspaceFrame active={page} title={pageTitles[page] || 'Operations workspace'}>
+  if (path === '/admin/logout') return <WorkspaceFrame active="logout" title="Sign out" authorized={access.data?.allowed === true}><LogoutPage /></WorkspaceFrame>;
+  if (access.isLoading) return <WorkspaceFrame active={page} title="Operations workspace" authorized={false}><div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map(x => <div key={x} className={`${box} h-36 animate-pulse bg-[#edf2ef]`} />)}</div></WorkspaceFrame>;
+  if (access.isError || !access.data?.allowed) return <WorkspaceFrame active={page} title="Operations workspace" authorized={false}><div className={`${box} mx-auto max-w-xl p-8 text-center`}><Shield size={28} className="mx-auto text-[#9b6157]" /><h1 className="mt-4 text-xl font-bold text-[#263e4b]">Operations access restricted</h1><p className="mt-2 text-[12px] leading-5 text-[#7a8c91]">This workspace is available to authorized Globus operations administrators.</p><button onClick={() => access.refetch()} className={`${button} mt-5`}>Check access again</button></div></WorkspaceFrame>;
+  return <WorkspaceFrame active={page} title={pageTitles[page] || 'Operations workspace'} authorized>
     {page === 'overview' && <Overview />}
     {page === 'users' && <UsersPage />}
     {page === 'member-detail' && <MemberDetail userId={path.split('/')[3] || ''} />}
@@ -120,18 +120,11 @@ export function AdminWorkspace() {
   </WorkspaceFrame>;
 }
 
-function WorkspaceFrame({ children, active, title }: { children: ReactNode; active: string; title: string }) {
+function WorkspaceFrame({ children, active, title, authorized }: { children: ReactNode; active: string; title: string; authorized: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user } = useUser();
   const email = user?.primaryEmailAddress?.emailAddress || '';
   const initials = (user?.firstName?.[0] || email[0] || 'G').toUpperCase();
-  const navigationGroups = [
-    { title: 'Workspace', paths: ['/admin'] },
-    { title: 'Customer management', paths: ['/admin/users'] },
-    { title: 'Oversight', paths: ['/admin/audit'] },
-    { title: 'Configuration', paths: ['/admin/settings'] },
-  ].map(group => ({ ...group, items: nav.filter(item => group.paths.includes(item.path)) }));
-  const logoutItem = nav.find(item => item.path === '/admin/logout')!;
   const isActive = (href: string) =>
     href === '/admin'
       ? active === 'overview'
@@ -146,64 +139,67 @@ function WorkspaceFrame({ children, active, title }: { children: ReactNode; acti
         href={item.path}
         onClick={onNavigate}
         aria-current={isActive(item.path) ? 'page' : undefined}
-        className={`flex w-full items-center gap-3 rounded-[10px] px-3 py-2.5 text-[11px] font-semibold transition ${
-          isActive(item.path) ? 'bg-[#e7f0eb] text-[#245b5d] shadow-[inset_3px_0_0_#43898a]' : 'text-[#536b70] hover:bg-[#f0f5f1]'
+        data-testid={`admin-nav-${item.path === '/admin' ? 'overview' : item.path.slice('/admin/'.length).replaceAll('/', '-')}`}
+        className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-[9px] text-[11px] font-semibold transition-colors ${
+          isActive(item.path) ? 'bg-[#d9c27f] text-[#1d3c48]' : 'text-[#c1d2d1] hover:bg-white/[.07] hover:text-white'
         }`}
       >
-        <Icon size={15} strokeWidth={1.9} />
-        <span>{item.label}</span>
-        {isActive(item.path) && <span className="ml-auto h-1.5 w-1.5 rounded-full bg-[#43898a]" aria-hidden="true" />}
+        <Icon size={15} strokeWidth={1.8} />
+        <span className="flex-1">{item.label}</span>
       </Link>
     );
   };
-  const navContent = (onNavigate?: () => void) => <>
-    <div className="space-y-5">
-      {navigationGroups.map(group => <section key={group.title}>
-        <h2 className="mb-1.5 px-3 text-[8px] font-extrabold uppercase tracking-[.18em] text-[#94a19d]">{group.title}</h2>
-        <div className="space-y-0.5">{group.items.map(item => navigationLink(item, onNavigate))}</div>
-      </section>)}
-    </div>
-    <div className="mt-5 border-t border-[#e5ebe6] pt-3">{navigationLink(logoutItem, onNavigate)}</div>
-  </>;
+  const navContent = (onNavigate?: () => void) => <nav aria-label="Administration navigation" className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5">{nav.map(item => navigationLink(item, onNavigate))}</nav>;
+  const identityCard = <div className="flex items-center gap-2.5 rounded-[9px] bg-white/[.045] p-2.5">
+    <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#d7e8e3] text-[10px] font-bold text-[#244a54]">{initials}</div>
+    <div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold text-white">{user?.fullName || 'Administrator'}</p><p className="truncate text-[9px] text-[#9eb5b6]">{email || 'Authorized operator'}</p></div>
+  </div>;
   return <div className="admin-viewport bg-[#f1f5f0] text-[#243d4b]">
-    <aside className="admin-sidebar hidden w-[248px] shrink-0 flex-col border-r border-[#dce5e0] bg-[#fbfcf8] px-4 pb-4 pt-5 lg:flex">
-      <div className="mb-8 flex items-center gap-3 px-2">
-        <div className="grid h-10 w-10 shrink-0 place-items-center rounded-[12px] bg-[#17394a] text-[#d7bd75] shadow-sm"><Landmark size={19} /></div>
-        <div><p className="text-[13px] font-extrabold tracking-[-.04em] text-[#193d4c]">GLOBUS <span className="font-semibold text-[#9a7c39]">BANK</span></p><p className="mt-0.5 text-[9px] font-semibold uppercase tracking-[.14em] text-[#8a9995]">Admin console</p></div>
+    <aside className="admin-sidebar hidden h-full w-[218px] shrink-0 flex-col bg-[#173b49] text-[#dbe8e5] lg:flex">
+      <div className="flex h-[66px] items-center gap-3 border-b border-white/[.09] px-5">
+        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[#d9c27f] text-[#173b49]"><span className="font-[family-name:var(--app-font-sans)] text-[19px] font-extrabold">G</span></div>
+        <div className="leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>
       </div>
-      <nav aria-label="Administration navigation" className="min-h-0 flex-1 overflow-y-auto pr-1">{navContent()}</nav>
-      <div className="mt-5 flex items-center gap-2.5 rounded-xl border border-[#e3eae5] bg-white p-3">
-        <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#eaf2ed] text-[10px] font-bold text-[#356d6c]">{initials}</div>
-        <div className="min-w-0"><p className="truncate text-[10px] font-bold text-[#34515a]">{user?.fullName || 'Administrator'}</p><p className="truncate text-[9px] text-[#849390]">{email || 'Authorized operator'}</p></div>
+      <div className="mx-3.5 my-4 rounded-[10px] border border-white/[.09] bg-white/[.045] px-3 py-2.5">
+        <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[.12em] text-[#9fcec1]"><span className={`h-1.5 w-1.5 rounded-full ${authorized ? 'bg-[#7cc6aa]' : 'bg-[#c19c50]'}`} />{authorized ? 'Operations live' : 'Access protected'}</p>
+        <p className="mt-1 text-[10px] text-[#a9c0c1]">Administrative workspace</p>
       </div>
+      <p className="px-5 pb-2 text-[8px] font-bold uppercase tracking-[.17em] text-[#839fa4]">Workspace</p>
+      {navContent()}
+      <div className="mx-3.5 mb-3 rounded-[9px] border border-white/[.08] bg-white/[.035] p-3">
+        <div className="flex items-center gap-2 text-[#c7d6d4]"><ShieldCheck size={14} /><span className="text-[10px] font-semibold">Protected workspace</span></div>
+        <p className="mt-1.5 pl-[22px] text-[9px] text-[#8fa9aa]">Financial changes are audited</p>
+      </div>
+      <div className="border-t border-white/[.09] p-3">{identityCard}</div>
     </aside>
     <div className="admin-main-column">
-      <header className="z-30 border-b border-[#dde6e3] bg-[#f7f8f3]/95 shadow-[0_2px_10px_rgba(28,53,69,.025)] backdrop-blur">
+      <header className="z-30 border-b border-[#e1e9e4] bg-[#f7f9f5]/95 shadow-[0_2px_10px_rgba(28,53,69,.025)] backdrop-blur">
         <div className="flex min-h-[58px] items-center justify-between gap-3 px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
-            <button type="button" aria-label="Open admin navigation" aria-expanded={mobileMenuOpen} aria-controls="admin-mobile-navigation" onClick={() => setMobileMenuOpen(true)} className="rounded-lg border border-[#dce5e1] bg-white p-2 text-[#3b6168] lg:hidden"><Menu size={16} /></button>
-            <div className="min-w-0"><p className="hidden text-[8px] font-bold uppercase tracking-[.16em] text-[#79908e] sm:block">Administration</p><h1 className="truncate text-[12px] font-bold text-[#284754] sm:mt-0.5 sm:text-[14px]">{title}</h1></div>
+            <button type="button" aria-label="Open admin navigation" aria-expanded={mobileMenuOpen} aria-controls="admin-mobile-navigation" onClick={() => setMobileMenuOpen(true)} data-testid="button-open-admin-navigation" className="rounded-md p-1.5 text-[#3b6168] hover:bg-[#e8efea] lg:hidden"><Menu size={18} /></button>
+            <div className="min-w-0"><p className="truncate text-[10px] text-[#859492]"><span className="hidden sm:inline">Globus Bank&nbsp; / &nbsp;</span><span className="font-semibold text-[#3e575b]">{title}</span></p></div>
           </div>
-          <div className="flex min-w-0 items-center gap-2">
-            <Pill tone="good">Authorized</Pill>
-            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#d9e3df] bg-white text-[10px] font-bold text-[#3c626a]">{initials}</div>
+          <div className="flex min-w-0 items-center gap-2.5">
+            {authorized && <div className="hidden items-center gap-1.5 rounded-full border border-[#dce7df] bg-[#f0f6f0] px-2.5 py-1.5 sm:flex"><ShieldCheck size={12} className="text-[#57816d]" /><span className="text-[9px] font-semibold text-[#557364]">Authorized</span></div>}
+            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#d9e3dd] bg-[#e7efea] text-[9px] font-bold text-[#365963]">{initials}</div>
           </div>
         </div>
       </header>
       <main className="page-enter mx-auto w-full max-w-[1450px] min-w-0 px-3 py-4 sm:px-6 sm:py-6 xl:px-8">{children}</main>
     </div>
     {mobileMenuOpen && <div className="fixed inset-0 z-[60] lg:hidden">
-      <button type="button" aria-label="Close admin navigation" className="absolute inset-0 bg-[#142a35]/45 backdrop-blur-[1px]" onClick={() => setMobileMenuOpen(false)} />
-      <aside id="admin-mobile-navigation" className="admin-sidebar absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col border-r border-[#dce5e0] bg-[#fbfcf8] px-4 pb-4 pt-4 shadow-2xl">
-        <div className="mb-6 flex items-center justify-between gap-3 px-2">
-          <div className="flex items-center gap-3"><div className="grid h-9 w-9 place-items-center rounded-[11px] bg-[#17394a] text-[#d7bd75]"><Landmark size={17} /></div><div><p className="text-[12px] font-extrabold tracking-[-.04em] text-[#193d4c]">GLOBUS <span className="font-semibold text-[#9a7c39]">BANK</span></p><p className="text-[8px] font-semibold uppercase tracking-[.14em] text-[#8a9995]">Admin console</p></div></div>
-          <button type="button" aria-label="Close admin navigation" onClick={() => setMobileMenuOpen(false)} className="rounded-lg p-2 text-[#71858b] hover:bg-[#eef4ef]"><X size={17} /></button>
+      <button type="button" aria-label="Close admin navigation" className="absolute inset-0 bg-[#183640]/35 backdrop-blur-[1px]" onClick={() => setMobileMenuOpen(false)} />
+      <aside id="admin-mobile-navigation" className="admin-sidebar absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col bg-[#173b49] text-[#dbe8e5] shadow-2xl">
+        <div className="flex h-[66px] items-center gap-3 border-b border-white/[.09] px-5">
+          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[#d9c27f] text-[#173b49]"><span className="font-[family-name:var(--app-font-sans)] text-[19px] font-extrabold">G</span></div>
+          <div className="leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>
+          <button type="button" aria-label="Close admin navigation" onClick={() => setMobileMenuOpen(false)} data-testid="button-close-admin-navigation" className="ml-auto rounded-md p-1.5 text-[#afc3c3] hover:bg-white/10"><X size={17} /></button>
         </div>
-        <nav aria-label="Administration navigation" className="min-h-0 flex-1 overflow-y-auto">{navContent(() => setMobileMenuOpen(false))}</nav>
-        <div className="mt-4 flex items-center gap-2.5 rounded-xl border border-[#e3eae5] bg-white p-3">
-          <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#eaf2ed] text-[10px] font-bold text-[#356d6c]">{initials}</div>
-          <div className="min-w-0"><p className="truncate text-[10px] font-bold text-[#34515a]">{user?.fullName || 'Administrator'}</p><p className="truncate text-[9px] text-[#849390]">{email || 'Authorized operator'}</p></div>
-        </div>
+        <div className="mx-3.5 my-4 rounded-[10px] border border-white/[.09] bg-white/[.045] px-3 py-2.5"><p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[.12em] text-[#9fcec1]"><span className={`h-1.5 w-1.5 rounded-full ${authorized ? 'bg-[#7cc6aa]' : 'bg-[#c19c50]'}`} />{authorized ? 'Operations live' : 'Access protected'}</p><p className="mt-1 text-[10px] text-[#a9c0c1]">Administrative workspace</p></div>
+        <p className="px-5 pb-2 text-[8px] font-bold uppercase tracking-[.17em] text-[#839fa4]">Workspace</p>
+        {navContent(() => setMobileMenuOpen(false))}
+        <div className="mx-3.5 mb-3 rounded-[9px] border border-white/[.08] bg-white/[.035] p-3"><div className="flex items-center gap-2 text-[#c7d6d4]"><ShieldCheck size={14} /><span className="text-[10px] font-semibold">Protected workspace</span></div><p className="mt-1.5 pl-[22px] text-[9px] text-[#8fa9aa]">Financial changes are audited</p></div>
+        <div className="border-t border-white/[.09] p-3">{identityCard}</div>
       </aside>
     </div>}
   </div>;
@@ -239,15 +235,134 @@ function Overview() {
 }
 
 function UsersPage() {
-  const [search, setSearch] = useState(''); const [page, setPage] = useState(1); const [status, setStatus] = useState(''); const [vaultStatus, setVaultStatus] = useState(() => new URLSearchParams(window.location.search).get('vault') || '');
-  const params: ListAdminUsersParams = useMemo(() => ({ ...(search.trim() ? { search: search.trim() } : {}), ...(status ? { accountStatus: status as ListAdminUsersParams['accountStatus'] } : {}), ...(vaultStatus ? { vaultSubscriptionStatus: vaultStatus as ListAdminUsersParams['vaultSubscriptionStatus'] } : {}), page, limit: 25 }), [search, page, status, vaultStatus]);
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  const [status, setStatus] = useState('');
+  const [vaultStatus, setVaultStatus] = useState(() => new URLSearchParams(window.location.search).get('vault') || '');
+  const [verificationStatus, setVerificationStatus] = useState<ListAdminUsersParams['verificationStatus'] | ''>('');
+  const params: ListAdminUsersParams = useMemo(() => ({
+    ...(search.trim() ? { search: search.trim() } : {}),
+    ...(status ? { accountStatus: status as ListAdminUsersParams['accountStatus'] } : {}),
+    ...(vaultStatus ? { vaultSubscriptionStatus: vaultStatus as ListAdminUsersParams['vaultSubscriptionStatus'] } : {}),
+    ...(verificationStatus ? { verificationStatus } : {}),
+    page,
+    limit: 25,
+  }), [search, page, status, vaultStatus, verificationStatus]);
   const users = useListAdminUsers(params, { query: { queryKey: getListAdminUsersQueryKey(params) } });
-  return <><Heading kicker="People & access" title="Member directory" subtitle="Search member records by name, email or Customer ID. Phone details are masked in this broad list." />
-    <Panel title="Members" eyebrow={`${users.data?.total ?? 0} records`} action={<span className="text-[10px] text-[#899799]">Sorted by most recent</span>}>
-      <div className="flex flex-wrap gap-2 border-b border-[#e9efec] bg-[#f8f9f4] p-4"><label className="relative min-w-[220px] flex-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a9a9b]" /><input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className={`${input} pl-9`} placeholder="Name, email or Customer ID" /></label><select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className={`${input} w-auto min-w-[150px]`}><option value="">All account states</option><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select><select value={vaultStatus} onChange={e => { setVaultStatus(e.target.value); setPage(1); }} className={`${input} w-auto min-w-[170px]`} aria-label="Filter Private Vault access"><option value="">All vault access</option><option value="pending">Legacy pending requests</option><option value="active">Active vault access</option><option value="expired">Expired vault access</option><option value="rejected">Declined legacy requests</option><option value="inactive">No vault subscription</option></select></div>
-      {users.isLoading ? <Skeleton /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <><div className="overflow-x-auto"><table className="w-full min-w-[1100px] text-left"><thead className="bg-[#f7f8f4] text-[9px] uppercase tracking-[.12em] text-[#7f9090]"><tr>{['Member', 'Customer ID', 'Phone', 'Identity', 'Account', 'Testing Mode', 'Transfer access', 'Profile setup', 'Wallets', 'Created', ''].map(x => <th key={x} className="px-4 py-3 font-bold">{x}</th>)}</tr></thead><tbody>{users.data.items.map(u => <tr key={u.id} className="border-t border-[#edf1ee] text-[10px] hover:bg-[#f8faf7]"><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className="font-bold text-[#315c66] hover:underline">{nameOf(u)}</Link><p className="mt-1 text-[9px] text-[#829292]">{u.email}</p></td><td className="px-4 py-3 font-mono text-[#526c73]">{u.customerId || '—'}</td><td className="px-4 py-3 text-[#687f84]">Hidden in list</td><td className="px-4 py-3"><StatusPill status={u.verificationStatus} /></td><td className="px-4 py-3"><StatusPill status={u.accountStatus} /></td><td className="px-4 py-3"><Pill tone={u.testingModeDisabled ? 'good' : 'warn'}>{u.testingModeDisabled ? 'Off' : 'On'}</Pill></td><td className="px-4 py-3"><Pill tone={u.transferAccessGranted ? 'good' : 'neutral'}>{u.transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></td><td data-testid={`member-profile-setup-${u.id}`} className="px-4 py-3 whitespace-nowrap"><Pill tone={u.profileSetupCompletedAt ? 'good' : 'warn'}>{u.profileSetupCompletedAt ? `Complete · ${date(u.profileSetupCompletedAt)}` : 'Missing'}</Pill></td><td className="px-4 py-3 font-mono">{u.walletCount}</td><td className="px-4 py-3 whitespace-nowrap text-[#7a8e90]">{date(u.createdAt)}</td><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className={quietButton}>Open <ArrowRight size={12} /></Link></td></tr>)}</tbody></table></div><Pager page={page} pages={Math.ceil(users.data.total / Math.max(1, users.data.pageSize))} onChange={setPage} /></> : <Empty title="No members match" text="Try a different name, email, Customer ID or account state." />}
-    </Panel>
-  </>;
+  const summary = useGetAdminSummary({ query: { queryKey: getGetAdminSummaryQueryKey(), retry: false } });
+  const recentParams: ListAdminTransactionsParams = { page: 1, pageSize: 4 };
+  const recentTransactions = useListAdminTransactions(recentParams, {
+    query: { queryKey: getListAdminTransactionsQueryKey(recentParams) },
+  });
+  const verificationTabs: Array<{ label: string; value: ListAdminUsersParams['verificationStatus'] | '' }> = [
+    { label: 'All members', value: '' },
+    { label: 'Pending', value: 'pending' },
+    { label: 'Needs details', value: 'additional_information_required' },
+    { label: 'Verified', value: 'approved' },
+  ];
+  const metrics = [
+    { label: 'Total members', value: summary.data?.registeredUsers ?? users.data?.total, note: 'Registered member records', icon: Users },
+    { label: 'Pending operations', value: summary.data?.pendingOperations, note: 'Waiting for review', icon: FileClock },
+    { label: 'Active accounts', value: summary.data?.activeAccounts, note: 'Not restricted or suspended', icon: WalletCards },
+    { label: 'Ledger transactions', value: summary.data?.ledgerTransactions, note: 'Recorded account activity', icon: Activity },
+  ];
+
+  return <div data-testid="admin-member-directory" className="space-y-4">
+    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+      <div>
+        <p className="text-[9px] font-bold uppercase tracking-[.17em] text-[#578b85]">Customer operations</p>
+        <h1 className="mt-1 font-[family-name:var(--app-font-sans)] text-[26px] font-extrabold tracking-[-.055em] text-[#1c3a47] sm:text-[29px]">Member directory</h1>
+        <p className="mt-1 text-[11px] text-[#788b89]">Review customer profiles, account standing, and access.</p>
+      </div>
+      <Link data-testid="link-open-admin-funding" href="/admin/funding" className={button}><Banknote size={14} />Funding operations</Link>
+    </div>
+
+    {summary.isError && <InlineError text="Workspace totals could not be loaded." retry={() => summary.refetch()} />}
+    <section aria-label="Member and account totals" className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
+      {metrics.map(({ label, value, note, icon: Icon }) => (
+        <article key={label} data-testid={`admin-metric-${label.toLowerCase().replaceAll(' ', '-')}`} className="rounded-[11px] border border-[#e0e8e2] bg-[#fffefa] px-3.5 py-3 shadow-[0_2px_8px_rgba(35,65,62,.025)] sm:px-4">
+          <div className="flex items-center justify-between"><span className="text-[9px] font-semibold text-[#82918d]">{label}</span><Icon size={14} className="text-[#82a19a]" /></div>
+          <div className="mt-1.5 flex items-baseline gap-2"><strong className="font-mono text-[21px] font-semibold tracking-[-.04em] text-[#24424b]">{typeof value === 'number' ? value.toLocaleString() : '—'}</strong><span className="hidden text-[9px] text-[#7d918d] sm:inline">{note}</span></div>
+        </article>
+      ))}
+    </section>
+
+    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_268px]">
+      <section data-testid="admin-members-panel" className="min-w-0 overflow-hidden rounded-[12px] border border-[#dfe8e2] bg-[#fffefa] shadow-[0_3px_12px_rgba(35,65,62,.035)]">
+        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e9eeea] px-4 py-3.5 sm:px-5">
+          <div><div className="flex items-center gap-2"><h2 className="text-[13px] font-bold text-[#29434a]">Customer records</h2><span data-testid="admin-member-total" className="rounded-full bg-[#eef3ef] px-2 py-0.5 text-[9px] font-semibold text-[#70827e]">{users.data?.total ?? '—'}</span></div><p className="mt-0.5 text-[9px] text-[#879592]">Member identity and account standing · phone details are masked in this list</p></div>
+          <span className="text-[9px] text-[#879592]">Sorted by most recent</span>
+        </div>
+        <div className="flex flex-wrap gap-2 border-b border-[#e9eeea] bg-[#f8faf6] p-3.5 sm:p-4">
+          <label className="relative min-w-[200px] flex-1">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a9a9b]" />
+            <input data-testid="input-admin-member-search" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className={`${input} h-9 pl-9 text-[11px]`} placeholder="Name, email or Customer ID" />
+          </label>
+          <select data-testid="select-admin-account-status" aria-label="Filter by account state" value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className={`${input} h-9 w-auto min-w-[145px] text-[10px]`}>
+            <option value="">All account states</option><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option>
+          </select>
+          <select data-testid="select-admin-vault-status" aria-label="Filter by Private Vault access" value={vaultStatus} onChange={e => { setVaultStatus(e.target.value); setPage(1); }} className={`${input} h-9 w-auto min-w-[165px] text-[10px]`}>
+            <option value="">All Vault access</option><option value="pending">Legacy pending requests</option><option value="active">Active Vault access</option><option value="expired">Expired Vault access</option><option value="rejected">Declined legacy requests</option><option value="inactive">No subscription</option>
+          </select>
+        </div>
+        <div role="tablist" aria-label="Filter members by identity status" className="flex gap-4 overflow-x-auto border-b border-[#edf1ed] px-4 sm:px-5">
+          {verificationTabs.map(tab => <button key={tab.label} type="button" role="tab" aria-selected={verificationStatus === tab.value} data-testid={`tab-admin-members-${tab.label.toLowerCase().replaceAll(' ', '-')}`} onClick={() => { setVerificationStatus(tab.value); setPage(1); }} className={`relative shrink-0 py-2.5 text-[10px] font-semibold transition ${verificationStatus === tab.value ? 'text-[#2f675f]' : 'text-[#899693] hover:text-[#526b69]'}`}>
+            {tab.label}{tab.value === 'pending' && <span className="ml-1.5 rounded-full bg-[#f7efdc] px-1.5 py-0.5 text-[8px] text-[#907b49]">Review</span>}
+            {verificationStatus === tab.value && <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#52928a]" />}
+          </button>)}
+        </div>
+        {users.isLoading ? <Skeleton /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <>
+          <div className="overflow-x-auto">
+            <table className="w-full min-w-[1120px] text-left">
+              <thead className="bg-[#f7f9f5] text-[8px] font-bold uppercase tracking-[.11em] text-[#899792]">
+                <tr>{['Member', 'Identity', 'Account', 'Vault', 'Testing mode', 'Transfer access', 'Profile setup', 'Wallets', 'Created', ''].map((label, index) => <th key={`${label}-${index}`} className="px-3 py-2.5 sm:px-4">{label}</th>)}</tr>
+              </thead>
+              <tbody>{users.data.items.map(member => {
+                const vaultStatus = member.vaultSubscriptionStatus === 'active' && member.vaultSubscriptionExpiresAt && Date.parse(member.vaultSubscriptionExpiresAt) <= Date.now()
+                  ? 'expired'
+                  : member.vaultSubscriptionStatus || 'inactive';
+                return <tr key={member.id} data-testid={`row-admin-member-${member.id}`} className="border-t border-[#edf1ed] text-[10px] transition hover:bg-[#fafbf8]">
+                  <td className="px-3 py-3 sm:px-4"><div className="flex items-center gap-2.5"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e6f0e9] text-[9px] font-bold text-[#47755e]">{[member.firstName?.[0], member.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'G'}</div><div className="min-w-0"><Link href={`/admin/users/${encodeURIComponent(member.id)}`} className="block truncate text-[10px] font-bold text-[#344c51] hover:text-[#2f675f] hover:underline">{nameOf(member)}</Link><p className="truncate text-[9px] text-[#899793]">{member.email}</p><p className="mt-0.5 font-mono text-[8px] text-[#96a29e]">{member.customerId || 'No Customer ID'}</p></div></div></td>
+                  <td className="px-3 py-3"><StatusPill status={member.verificationStatus} /></td>
+                  <td className="px-3 py-3"><StatusPill status={member.accountStatus} /></td>
+                  <td className="px-3 py-3"><StatusPill status={vaultStatus} /></td>
+                  <td className="px-3 py-3"><Pill tone={member.testingModeDisabled ? 'good' : 'warn'}>{member.testingModeDisabled ? 'Off' : 'On'}</Pill></td>
+                  <td className="px-3 py-3"><Pill tone={member.transferAccessGranted ? 'good' : 'neutral'}>{member.transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></td>
+                  <td data-testid={`member-profile-setup-${member.id}`} className="whitespace-nowrap px-3 py-3"><Pill tone={member.profileSetupCompletedAt ? 'good' : 'warn'}>{member.profileSetupCompletedAt ? `Complete · ${date(member.profileSetupCompletedAt)}` : 'Missing'}</Pill></td>
+                  <td className="px-3 py-3 font-mono text-[#526a67]">{member.walletCount}</td>
+                  <td className="whitespace-nowrap px-3 py-3 text-[#7a8e90]">{date(member.createdAt)}</td>
+                  <td className="whitespace-nowrap px-3 py-3"><Link href={`/admin/users/${encodeURIComponent(member.id)}`} className={quietButton}>Open record <ArrowRight size={12} /></Link></td>
+                </tr>;
+              })}</tbody>
+            </table>
+          </div>
+          <Pager page={page} pages={Math.ceil(users.data.total / Math.max(1, users.data.pageSize))} onChange={setPage} />
+        </> : <Empty title="No members match" text="Try another name, email, Customer ID, or access filter." />}
+      </section>
+
+      <aside className="space-y-3">
+        <section data-testid="admin-recent-ledger" className="overflow-hidden rounded-[12px] border border-[#dfe8e2] bg-[#fffefa] shadow-[0_3px_12px_rgba(35,65,62,.035)]">
+          <div className="flex items-start justify-between border-b border-[#e9eeea] px-4 py-3.5">
+            <div><h2 className="text-[12px] font-bold text-[#29434a]">Recent ledger activity</h2><p className="mt-0.5 text-[9px] text-[#879592]">Latest recorded transactions</p></div>
+            <Link data-testid="link-view-admin-transactions" href="/admin/transactions" className="text-[9px] font-bold text-[#52857c] hover:text-[#315f59]">View all</Link>
+          </div>
+          {recentTransactions.isLoading ? <Skeleton rows={3} /> : recentTransactions.isError ? <div className="p-4"><InlineError text="Recent transactions could not be loaded." retry={() => recentTransactions.refetch()} /></div> : recentTransactions.data?.items.length ? <div className="divide-y divide-[#edf1ed]">
+            {recentTransactions.data.items.map(transaction => <article key={transaction.id} data-testid={`recent-ledger-${transaction.id}`} className="flex items-center gap-2.5 px-4 py-3">
+              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#e8f2eb] text-[#57816a]"><Activity size={13} /></div>
+              <div className="min-w-0 flex-1"><p className="truncate text-[9px] font-bold text-[#425958]">{transaction.description || human(transaction.type)}</p><p className="truncate text-[8px] text-[#899793]">{transaction.counterparty || transaction.reference}</p><div className="mt-1 flex flex-wrap items-center gap-1.5"><StatusPill status={transaction.status} /><time className="text-[8px] text-[#a0aaa6]">{dateTime(transaction.createdAt)}</time></div></div>
+              <span className="whitespace-nowrap text-[9px] font-bold text-[#4b8067]">{money(transaction.amount, transaction.currency)}</span>
+            </article>)}
+          </div> : <Empty title="No ledger activity" text="New transaction records will appear here." />}
+          <Link href="/admin/transactions" className="block w-full border-t border-[#e9eeea] py-2.5 text-center text-[9px] font-semibold text-[#63827b] hover:bg-[#f7faf6]">Open transaction management</Link>
+        </section>
+        <section className="rounded-[12px] border border-[#e4e9df] bg-[#f7f8f0] px-4 py-3.5">
+          <div className="flex items-center gap-2"><div className="grid h-7 w-7 place-items-center rounded-[8px] bg-[#e9eddc] text-[#7d895a]"><ShieldCheck size={14} /></div><p className="text-[10px] font-bold text-[#4b6158]">Protected operations</p></div>
+          <p className="mt-2 text-[9px] leading-[1.6] text-[#75857c]">Review member context and active restrictions before changing access. Administrative changes are recorded in the audit log.</p>
+          <Link data-testid="link-review-admin-audit" href="/admin/audit" className="mt-2 inline-flex text-[9px] font-bold text-[#63806e] hover:underline">Review audit log</Link>
+        </section>
+      </aside>
+    </div>
+  </div>;
 }
 
 function MemberDetail({ userId }: { userId: string }) {

@@ -268,6 +268,41 @@ test.describe('signed-in member pages at phone widths', () => {
             pageSize: 25,
           },
         });
+      } else if (pathname.endsWith('/summary')) {
+        await route.fulfill({
+          json: {
+            registeredUsers: 1,
+            activeAccounts: 1,
+            restrictedAccounts: 0,
+            suspendedAccounts: 0,
+            pendingOperations: 2,
+            ledgerTransactions: 1,
+            creditsByCurrency: [],
+            debitsByCurrency: [],
+            recentActions: [],
+          },
+        });
+      } else if (pathname.endsWith('/transactions')) {
+        await route.fulfill({
+          json: {
+            items: [{
+              id: 'viewport-transaction',
+              reference: 'TX-VIEWPORT',
+              type: 'admin_funding',
+              status: 'completed',
+              currency: 'USD',
+              amount: '25.00',
+              fee: '0.00',
+              counterparty: 'Viewport Member',
+              description: 'Internal wallet credit',
+              mode: 'internal_ledger',
+              createdAt: '2026-11-19T10:00:00.000Z',
+            }],
+            total: 1,
+            page: 1,
+            pageSize: 4,
+          },
+        });
       } else {
         await route.fulfill({ json: [] });
       }
@@ -275,12 +310,16 @@ test.describe('signed-in member pages at phone widths', () => {
 
     await page.setViewportSize({ width: 390, height: 850 });
     await page.goto('/admin/users', { waitUntil: 'domcontentloaded' });
+    await expect(page.getByTestId('admin-metric-total-members')).toContainText('1');
+    await expect(page.getByTestId('admin-metric-pending-operations')).toContainText('2');
+    await expect(page.getByTestId('recent-ledger-viewport-transaction')).toContainText('TX-VIEWPORT');
+    await expect(page.getByTestId('link-open-admin-funding')).toHaveAttribute('href', '/admin/funding');
     const row = page.locator('tr').filter({ hasText: 'viewport-member@example.test' });
     await expect(row).toBeVisible();
     await expect(page.getByTestId('member-profile-setup-viewport-member')).toContainText('Complete');
     await expect(row).toContainText('On');
     await expect(row).toContainText('Not granted');
-    await row.getByRole('link', { name: 'Open' }).click();
+    await row.getByRole('link', { name: 'Open record' }).click();
     await expect(page).toHaveURL(/\/admin\/users\/viewport-member$/);
     await expect(page.getByText('Profile setup')).toBeVisible();
     await expect(page.getByTestId('admin-access-control-form')).toBeVisible();
