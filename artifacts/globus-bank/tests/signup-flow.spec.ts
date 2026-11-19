@@ -5,17 +5,21 @@ import {
   clearLocalSignupAttempt,
   finalizeSignupAndOpenDashboard,
   finalizeSignupWhenSessionReady,
+  getMissingRequiredSignupDetails,
   getSignupFinalizationBlocker,
+  hasRequiredSignupDetailsMissing,
   persistSignupProfileDraft,
   persistSignupProgress,
   readSignupProfileDraft,
   readSignupProgress,
   resolveSignupResumeStage,
+  requiredSignupDetailsMessage,
   sanitizeOptionalSignupProfile,
   signupCreationErrorMessage,
   saveSignupProfileWithoutBlocking,
   syncMissingSignupNames,
   sendEmailVerificationAfterOptionalDetails,
+  sendEmailVerificationAfterRequiredDetails,
   verifyEmailCode,
 } from '../src/lib/signup-flow';
 
@@ -55,6 +59,103 @@ test('step one advances to optional details before email verification', () => {
       persistedStage: 'verify',
     }),
   ).toBe('verify');
+});
+
+test('verified signup missing first and last name returns to step one and recovers in order', async () => {
+  const requiredDetails = {
+    firstName: 'Ada',
+    lastName: 'Mensah',
+    username: 'ada_2026',
+    emailAddress: 'ada@example.test',
+    password: 'correct-horse-2026',
+    acceptedTerms: true,
+    legalAcceptanceRequired: false,
+    clerkMissingFields: ['first_name', 'last_name'],
+  };
+  const missingNames = getMissingRequiredSignupDetails(requiredDetails);
+  expect(missingNames).toEqual(['first name', 'last name']);
+  expect(hasRequiredSignupDetailsMissing(requiredDetails.clerkMissingFields)).toBe(true);
+  expect(requiredSignupDetailsMessage(missingNames, true)).toContain(
+    'Your email is verified. Please review and resubmit your first name and last name',
+  );
+  expect(
+    resolveSignupResumeStage({
+      isSignedIn: false,
+      emailVerified: true,
+      clerkStatus: 'missing_requirements',
+      persistedStage: 'verify',
+      missingFields: requiredDetails.clerkMissingFields,
+    }),
+  ).toBe('details');
+
+  const actions: string[] = [];
+  const blockedDelivery = await sendEmailVerificationAfterRequiredDetails(
+    requiredDetails,
+    () => {
+      actions.push('save-optional-details');
+      return true;
+    },
+    async () => {
+      actions.push('send-email-code');
+      return { error: null };
+    },
+  );
+  expect(blockedDelivery.ok).toBe(false);
+  expect(actions).toEqual([]);
+
+  const correctedDetails = { ...requiredDetails, clerkMissingFields: [] };
+  expect(getMissingRequiredSignupDetails({
+    ...correctedDetails,
+    password: '',
+    hasPassword: true,
+    clerkMissingFields: ['phone_number'],
+  })).toEqual([]);
+  const optionalStep = resolveSignupResumeStage({
+    isSignedIn: false,
+    emailVerified: false,
+    clerkStatus: 'missing_requirements',
+    persistedStage: 'optional-profile',
+    missingFields: correctedDetails.clerkMissingFields,
+  });
+  expect(optionalStep).toBe('optional-profile');
+  const delivery = await sendEmailVerificationAfterRequiredDetails(
+    correctedDetails,
+    () => {
+      actions.push('save-optional-details');
+      return true;
+    },
+    async () => {
+      actions.push('send-email-code');
+      return { error: null };
+    },
+  );
+  expect(delivery).toEqual({
+    ok: true,
+    detailsRetained: true,
+    missingRequiredFields: [],
+  });
+  expect(actions).toEqual(['save-optional-details', 'send-email-code']);
+
+  const dashboardSteps: string[] = [];
+  const finalized = await finalizeSignupWhenSessionReady(
+    {
+      status: 'complete',
+      createdSessionId: 'session_after_verified_signup',
+      missingFields: [],
+    },
+    async () => {
+      dashboardSteps.push('finalize-session');
+      return { error: null };
+    },
+    () => dashboardSteps.push('clear-progress'),
+    () => dashboardSteps.push('dashboard'),
+  );
+  expect(finalized).toEqual({ ok: true });
+  expect(dashboardSteps).toEqual([
+    'finalize-session',
+    'clear-progress',
+    'dashboard',
+  ]);
 });
 
 test('optional fields can all be omitted and do not add empty values', () => {
@@ -295,7 +396,7 @@ test('does not finalize a verified sign-up until Clerk has a created session', a
 
   expect(result).toEqual({
     ok: false,
-    message: 'Your email is verified, but Clerk still needs username. Review the required details to finish setting up your account.',
+    message: 'Your email is verified. Please review and resubmit your username to finish setting up your account.',
   });
   expect(finalizeCalled).toBe(false);
   expect(navigations).toEqual([]);

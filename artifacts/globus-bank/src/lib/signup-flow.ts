@@ -16,6 +16,18 @@ export type SignupProfileDraft = OptionalSignupProfile & {
   acceptedTerms?: true;
 };
 
+export type RequiredSignupDetailsInput = {
+  firstName: string;
+  lastName: string;
+  username: string;
+  emailAddress: string;
+  password: string;
+  hasPassword?: boolean;
+  acceptedTerms: boolean;
+  legalAcceptanceRequired: boolean;
+  clerkMissingFields?: readonly string[];
+};
+
 type SignupStorage = Pick<Storage, 'getItem' | 'setItem' | 'removeItem'>;
 
 const SIGNUP_PROGRESS_STORAGE_KEY = 'globus-bank:signup-progress:v1';
@@ -205,17 +217,92 @@ export function resolveSignupResumeStage({
   emailVerified,
   clerkStatus,
   persistedStage,
+  missingFields = [],
 }: {
   isSignedIn: boolean;
   emailVerified: boolean;
   clerkStatus: 'missing_requirements' | 'complete' | 'abandoned';
   persistedStage: SignupProgressStage | null;
+  missingFields?: readonly string[];
 }): SignupResumeStage {
   if (isSignedIn) return 'dashboard';
+  if (hasRequiredSignupDetailsMissing(missingFields)) return 'details';
   if (persistedStage === 'optional-profile') return 'optional-profile';
   if (persistedStage === 'verify' || emailVerified) return 'verify';
   if (clerkStatus === 'complete') return 'optional-profile';
   return 'details';
+}
+
+const signupFieldLabels: Record<string, string> = {
+  first_name: 'first name',
+  last_name: 'last name',
+  username: 'username',
+  email_address: 'email address',
+  password: 'password',
+  legal_accepted: 'account terms',
+  phone_number: 'phone number',
+};
+
+const preVerificationRequiredFields = [
+  'first_name',
+  'last_name',
+  'username',
+  'email_address',
+  'password',
+  'legal_accepted',
+] as const;
+
+export function getMissingRequiredSignupDetails(
+  input: RequiredSignupDetailsInput,
+): string[] {
+  const missing: string[] = [];
+  const normalizedEmail = input.emailAddress.trim();
+
+  if (!input.firstName.trim()) missing.push('first_name');
+  if (!input.lastName.trim()) missing.push('last_name');
+  if (!/^(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}$/.test(input.username.trim())) {
+    missing.push('username');
+  }
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalizedEmail)) {
+    missing.push('email_address');
+  }
+  if (input.password.length < 8 && !input.hasPassword) missing.push('password');
+  if (input.legalAcceptanceRequired && !input.acceptedTerms) {
+    missing.push('legal_accepted');
+  }
+
+  for (const field of input.clerkMissingFields ?? []) {
+    // Phone remains an optional profile detail and is not an email-verification gate.
+    if (field === 'phone_number') continue;
+    if (preVerificationRequiredFields.includes(field as typeof preVerificationRequiredFields[number])) {
+      missing.push(field);
+    } else {
+      missing.push(signupFieldLabels[field] ?? 'additional required account details');
+    }
+  }
+
+  return [...new Set(missing)].map((field) => signupFieldLabels[field] ?? field);
+}
+
+export function hasRequiredSignupDetailsMissing(
+  missingFields: readonly string[],
+): boolean {
+  return missingFields.some((field) =>
+    preVerificationRequiredFields.includes(field as typeof preVerificationRequiredFields[number]),
+  );
+}
+
+export function requiredSignupDetailsMessage(
+  missingLabels: readonly string[],
+  emailVerified = false,
+): string {
+  const labels = [...new Set(missingLabels)];
+  const details = labels.length === 1
+    ? labels[0]
+    : `${labels.slice(0, -1).join(', ')} and ${labels[labels.length - 1]}`;
+  return emailVerified
+    ? `Your email is verified. Please review and resubmit your ${details} to finish setting up your account.`
+    : `Complete your ${details} before email verification.`;
 }
 
 export async function verifyEmailCode(
@@ -360,16 +447,6 @@ export async function finalizeSignupAndOpenDashboard(
   return { ok: true };
 }
 
-const signupFieldLabels: Record<string, string> = {
-  first_name: 'first name',
-  last_name: 'last name',
-  username: 'username',
-  email_address: 'email address',
-  password: 'password',
-  legal_accepted: 'account terms',
-  phone_number: 'phone number',
-};
-
 export function getSignupFinalizationBlocker({
   status,
   createdSessionId,
@@ -390,7 +467,7 @@ export function getSignupFinalizationBlocker({
         : '';
       return {
         ready: false,
-        message: `Your email is verified, but Clerk still needs ${labels.join(', ')}. Review the required details to finish setting up your account.${phoneRequirement}`,
+        message: `${requiredSignupDetailsMessage(labels, true)}${phoneRequirement}`,
       };
     }
     return {
@@ -470,4 +547,31 @@ export async function sendEmailVerificationAfterOptionalDetails(
       message: 'The email verification code could not be sent. Check your connection and try again.',
     };
   }
+}
+
+export async function sendEmailVerificationAfterRequiredDetails(
+  requiredDetails: RequiredSignupDetailsInput,
+  persistDetails: () => boolean,
+  sendCode: () => Promise<{ error: { message?: string } | null }>,
+): Promise<
+  | { ok: true; detailsRetained: boolean; missingRequiredFields: [] }
+  | { ok: false; detailsRetained: boolean; message: string; missingRequiredFields: string[] }
+> {
+  const missingRequiredFields = getMissingRequiredSignupDetails(requiredDetails);
+  if (missingRequiredFields.length) {
+    return {
+      ok: false,
+      detailsRetained: false,
+      message: requiredSignupDetailsMessage(missingRequiredFields),
+      missingRequiredFields,
+    };
+  }
+
+  const result = await sendEmailVerificationAfterOptionalDetails(
+    persistDetails,
+    sendCode,
+  );
+  return result.ok
+    ? { ...result, missingRequiredFields: [] }
+    : { ...result, missingRequiredFields: [] };
 }

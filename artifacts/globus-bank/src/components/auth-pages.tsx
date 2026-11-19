@@ -11,17 +11,19 @@ import {
   clearSignupProfileDraft,
   clearLocalSignupAttempt,
   finalizeSignupWhenSessionReady,
+  getMissingRequiredSignupDetails,
   getSignupFinalizationBlocker,
   persistSignupProfileDraft,
   persistSignupProgress,
   readSignupProfileDraft,
   readSignupProgress,
+  requiredSignupDetailsMessage,
   resolveSignupResumeStage,
   sanitizeOptionalSignupProfile,
   saveSignupProfileWithoutBlocking,
+  sendEmailVerificationAfterRequiredDetails,
   syncMissingSignupNames,
   signupCreationErrorMessage,
-  sendEmailVerificationAfterOptionalDetails,
   verifyEmailCode,
   type OptionalSignupProfile,
   type SignupProfileDraft,
@@ -969,15 +971,11 @@ export function ClerkSignUpForm() {
       emailVerified: signUp.verifications.emailAddress.status === 'verified',
       clerkStatus: signUp.status,
       persistedStage: readSignupProgress(signUp.id),
+      missingFields: signUp.missingFields,
     });
     return resumeStage === 'dashboard' ? 'details' : resumeStage;
   });
   const busy = fetchStatus === 'fetching' || submitting || stage === 'finishing';
-  const clerkFields = [...signUp.requiredFields, ...signUp.optionalFields];
-  const clerkSupportsFirstName =
-    clerkFields.includes('first_name') || signUp.missingFields.includes('first_name');
-  const clerkSupportsLastName =
-    clerkFields.includes('last_name') || signUp.missingFields.includes('last_name');
   const legalAcceptanceRequired =
     signUp.requiredFields.includes('legal_accepted') ||
     signUp.missingFields.includes('legal_accepted');
@@ -987,6 +985,11 @@ export function ClerkSignUpForm() {
     createdSessionId: signUp.createdSessionId,
     missingFields: signUp.missingFields,
   };
+  const readCurrentSignupState = () => ({
+    status: signUp.status,
+    createdSessionId: signUp.createdSessionId,
+    missingFields: [...signUp.missingFields],
+  });
   const signupFinalizationReadiness = getSignupFinalizationBlocker(finalizationState);
   const onlyTermsRemaining =
     emailVerified &&
@@ -1065,11 +1068,15 @@ export function ClerkSignUpForm() {
       emailVerified,
       clerkStatus: signUp.status,
       persistedStage: readSignupProgress(signUp.id),
+      missingFields: signUp.missingFields,
     });
     if (resumeStage !== 'dashboard') setStage(resumeStage);
-  }, [userLoaded, user, signUp.id, signUp.status, emailVerified, setLocation]);
+  }, [userLoaded, user, signUp.id, signUp.status, emailVerified, signupMissingFieldsKey, setLocation]);
 
-  const finalizeVerifiedAccount = async (allowRetry = false) => {
+  const finalizeVerifiedAccount = async (
+    allowRetry = false,
+    latestState = finalizationState,
+  ) => {
     if (finalizingRef.current) return;
     if (
       !allowRetry &&
@@ -1082,30 +1089,32 @@ export function ClerkSignUpForm() {
     setError('');
 
     try {
-      if (signUp.missingFields.includes('legal_accepted')) {
+      let currentState = latestState;
+      if (currentState.missingFields.includes('legal_accepted')) {
         if (!acceptedTerms) {
-          setStage('verify');
+          setStage(emailVerified ? 'details' : 'verify');
           setError('Accept the account terms to finish creating your account.');
           return;
         }
         const acceptance = await signUp.update({ legalAccepted: true });
         if (acceptance.error) {
-          setStage('verify');
+          setStage(emailVerified ? 'details' : 'verify');
           setError(acceptance.error.message || 'Your account terms could not be saved. Please try again.');
           return;
         }
+        currentState = readCurrentSignupState();
       }
 
       const stateAfterRequiredUpdates = {
-        status: signUp.status,
-        createdSessionId: signUp.createdSessionId,
-        missingFields: signUp.missingFields.filter(
+        status: currentState.status,
+        createdSessionId: currentState.createdSessionId,
+        missingFields: currentState.missingFields.filter(
           (field) => !(acceptedTerms && field === 'legal_accepted'),
         ),
       };
       const readiness = getSignupFinalizationBlocker(stateAfterRequiredUpdates);
       if (!readiness.ready) {
-        setStage('verify');
+        setStage(stateAfterRequiredUpdates.missingFields.length ? 'details' : 'verify');
         setError(readiness.message);
         return;
       }
@@ -1161,6 +1170,10 @@ export function ClerkSignUpForm() {
         setError('Complete each required field before continuing.');
         return;
       }
+      if (password.length < 8) {
+        setError('Use a password with at least 8 characters.');
+        return;
+      }
       if (legalAcceptanceRequired && !acceptedTerms) {
         setError('Accept the account terms to continue.');
         return;
@@ -1207,6 +1220,37 @@ export function ClerkSignUpForm() {
         return;
       }
 
+      if (emailVerified && signUp.id) {
+        const updated = await signUp.update({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+          username: username.trim(),
+          ...(legalAcceptanceRequired && acceptedTerms ? { legalAccepted: true } : {}),
+        });
+        if (updated.error) {
+          setError(updated.error.message || 'Clerk could not save the required account details. Review them and try again.');
+          return;
+        }
+        const missingRequired = getMissingRequiredSignupDetails({
+          firstName,
+          lastName,
+          username,
+          emailAddress: email,
+          password,
+          hasPassword: signUp.hasPassword,
+          acceptedTerms,
+          legalAcceptanceRequired,
+          clerkMissingFields: signUp.missingFields,
+        });
+        if (missingRequired.length) {
+          setStage('details');
+          setError(requiredSignupDetailsMessage(missingRequired, true));
+          return;
+        }
+        await finalizeVerifiedAccount(true, readCurrentSignupState());
+        return;
+      }
+
       const nameUpdate = signUp.id
         ? await syncMissingSignupNames(
           signUp.missingFields,
@@ -1224,20 +1268,54 @@ export function ClerkSignUpForm() {
         emailAddress: email.trim(),
         password,
         username: username.trim(),
-        ...(clerkSupportsFirstName ? { firstName: firstName.trim() } : {}),
-        ...(clerkSupportsLastName ? { lastName: lastName.trim() } : {}),
+        firstName: firstName.trim(),
+        lastName: lastName.trim(),
       });
       if (created.error) {
         setError(signupCreationErrorMessage(created.error));
         return;
       }
 
-      if (signUp.missingFields.includes('legal_accepted') && acceptedTerms) {
+      let signupSnapshot = readCurrentSignupState();
+      if (
+        signupSnapshot.missingFields.includes('first_name') ||
+        signupSnapshot.missingFields.includes('last_name')
+      ) {
+        const nameUpdateResult = await signUp.update({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        });
+        if (nameUpdateResult.error) {
+          setError(nameUpdateResult.error.message || 'Clerk could not save your first and last name. Review them and try again.');
+          return;
+        }
+        signupSnapshot = readCurrentSignupState();
+      }
+
+      if (signupSnapshot.missingFields.includes('legal_accepted') && acceptedTerms) {
         const acceptance = await signUp.update({ legalAccepted: true });
         if (acceptance.error) {
           setError(acceptance.error.message || 'Your account terms could not be saved. You can retry without creating another account.');
           return;
         }
+        signupSnapshot = readCurrentSignupState();
+      }
+
+      const missingRequired = getMissingRequiredSignupDetails({
+        firstName,
+        lastName,
+        username,
+        emailAddress: email,
+        password,
+        hasPassword: signUp.hasPassword,
+        acceptedTerms,
+        legalAcceptanceRequired,
+        clerkMissingFields: signupSnapshot.missingFields,
+      });
+      if (missingRequired.length) {
+        setStage('details');
+        setError(requiredSignupDetailsMessage(missingRequired));
+        return;
       }
 
       persistSignupProgress(signUp.id, 'optional-profile');
@@ -1304,6 +1382,42 @@ export function ClerkSignUpForm() {
         ...(acceptedTerms ? { acceptedTerms: true } : {}),
       };
       const persistDraft = () => persistSignupProfileDraft(draft);
+      let currentState = finalizationState;
+      if (
+        signUp.missingFields.includes('first_name') ||
+        signUp.missingFields.includes('last_name')
+      ) {
+        const nameUpdate = await signUp.update({
+          firstName: firstName.trim(),
+          lastName: lastName.trim(),
+        });
+        if (nameUpdate.error) {
+          persistDraft();
+          setStage('details');
+          setError(nameUpdate.error.message || 'Clerk still needs your first and last name. Review them before email verification.');
+          return;
+        }
+        currentState = readCurrentSignupState();
+      }
+      const missingRequired = getMissingRequiredSignupDetails({
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        username,
+        emailAddress: draft.emailAddress,
+        password,
+        hasPassword: signUp.hasPassword,
+        acceptedTerms,
+        legalAcceptanceRequired,
+        clerkMissingFields: currentState.missingFields,
+      });
+      if (missingRequired.length) {
+        persistDraft();
+        persistSignupProgress(signUp.id, 'verify');
+        setStage('details');
+        setError(requiredSignupDetailsMessage(missingRequired, emailVerified));
+        return;
+      }
+
       let retained = false;
       if (emailVerified || signUp.status === 'complete') {
         retained = persistDraft();
@@ -1318,16 +1432,32 @@ export function ClerkSignUpForm() {
       setStage('verify');
 
       if (emailVerified || signUp.status === 'complete') {
-        await finalizeVerifiedAccount(true);
+        await finalizeVerifiedAccount(true, currentState);
         return;
       }
 
-      const delivery = await sendEmailVerificationAfterOptionalDetails(
+      const delivery = await sendEmailVerificationAfterRequiredDetails({
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        username,
+        emailAddress: draft.emailAddress,
+        password,
+        hasPassword: signUp.hasPassword,
+        acceptedTerms,
+        legalAcceptanceRequired,
+        clerkMissingFields: currentState.missingFields,
+      },
         persistDraft,
         () => signUp.verifications.sendEmailCode(),
       );
       retained = delivery.detailsRetained;
       if (!delivery.ok) {
+        if (delivery.missingRequiredFields.length) {
+          persistSignupProgress(signUp.id, 'verify');
+          setStage('details');
+          setError(requiredSignupDetailsMessage(delivery.missingRequiredFields, emailVerified));
+          return;
+        }
         persistSignupProgress(signUp.id, 'optional-profile');
         setStage('optional-profile');
         setNotice(
@@ -1360,6 +1490,22 @@ export function ClerkSignUpForm() {
         await finalizeVerifiedAccount(true);
         return;
       }
+      const missingRequired = getMissingRequiredSignupDetails({
+        firstName,
+        lastName,
+        username,
+        emailAddress: email || signUp.emailAddress || '',
+        password,
+        hasPassword: signUp.hasPassword,
+        acceptedTerms,
+        legalAcceptanceRequired,
+        clerkMissingFields: signUp.missingFields,
+      });
+      if (missingRequired.length) {
+        setStage('details');
+        setError(requiredSignupDetailsMessage(missingRequired));
+        return;
+      }
       const result = await verifyEmailCode(() =>
         signUp.verifications.verifyEmailCode({ code: verificationCode.trim() }),
       );
@@ -1367,7 +1513,7 @@ export function ClerkSignUpForm() {
         setError(result.message);
         return;
       }
-      await finalizeVerifiedAccount(true);
+      await finalizeVerifiedAccount(true, readCurrentSignupState());
     } finally {
       operationRef.current = false;
       setSubmitting(false);
@@ -1381,6 +1527,22 @@ export function ClerkSignUpForm() {
     setError('');
     setNotice('');
     try {
+      const missingRequired = getMissingRequiredSignupDetails({
+        firstName,
+        lastName,
+        username,
+        emailAddress: email || signUp.emailAddress || '',
+        password,
+        hasPassword: signUp.hasPassword,
+        acceptedTerms,
+        legalAcceptanceRequired,
+        clerkMissingFields: signUp.missingFields,
+      });
+      if (missingRequired.length) {
+        setStage('details');
+        setError(requiredSignupDetailsMessage(missingRequired));
+        return;
+      }
       const sent = await signUp.verifications.sendEmailCode();
       if (sent.error) {
         setError(sent.error.message || 'A new code could not be sent. Please try again.');
