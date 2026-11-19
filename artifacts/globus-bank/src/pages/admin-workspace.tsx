@@ -250,7 +250,7 @@ function UsersPage() {
   return <><Heading kicker="People & access" title="Member directory" subtitle="Search member records by name, email or Customer ID. Phone details are masked in this broad list." />
     <Panel title="Members" eyebrow={`${users.data?.total ?? 0} records`} action={<span className="text-[10px] text-[#899799]">Sorted by most recent</span>}>
       <div className="flex flex-wrap gap-2 border-b border-[#e9efec] bg-[#f8f9f4] p-4"><label className="relative min-w-[220px] flex-1"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a9a9b]" /><input value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className={`${input} pl-9`} placeholder="Name, email or Customer ID" /></label><select value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className={`${input} w-auto min-w-[150px]`}><option value="">All account states</option><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select><select value={vaultStatus} onChange={e => { setVaultStatus(e.target.value); setPage(1); }} className={`${input} w-auto min-w-[170px]`} aria-label="Filter Private Vault access"><option value="">All vault access</option><option value="pending">Legacy pending requests</option><option value="active">Active vault access</option><option value="expired">Expired vault access</option><option value="rejected">Declined legacy requests</option><option value="inactive">No vault subscription</option></select></div>
-      {users.isLoading ? <Skeleton /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <><div className="overflow-x-auto"><table className="w-full min-w-[700px] text-left"><thead className="bg-[#f7f8f4] text-[9px] uppercase tracking-[.12em] text-[#7f9090]"><tr>{['Member', 'Customer ID', 'Phone', 'Account', 'Vault access', 'Wallets', 'Created', ''].map(x => <th key={x} className="px-4 py-3 font-bold">{x}</th>)}</tr></thead><tbody>{users.data.items.map(u => <tr key={u.id} className="border-t border-[#edf1ee] text-[10px] hover:bg-[#f8faf7]"><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className="font-bold text-[#315c66] hover:underline">{nameOf(u)}</Link><p className="mt-1 text-[9px] text-[#829292]">{u.email}</p></td><td className="px-4 py-3 font-mono text-[#526c73]">{u.customerId || '—'}</td><td className="px-4 py-3 text-[#687f84]">Hidden in list</td><td className="px-4 py-3"><StatusPill status={u.accountStatus} /></td><td className="px-4 py-3"><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></td><td className="px-4 py-3 font-mono">{u.walletCount}</td><td className="px-4 py-3 whitespace-nowrap text-[#7a8e90]">{date(u.createdAt)}</td><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className={quietButton}>Open <ArrowRight size={12} /></Link></td></tr>)}</tbody></table></div><Pager page={page} pages={Math.ceil(users.data.total / Math.max(1, users.data.pageSize))} onChange={setPage} /></> : <Empty title="No members match" text="Try a different name, email, Customer ID or account state." />}
+      {users.isLoading ? <Skeleton /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <><div className="overflow-x-auto"><table className="w-full min-w-[1050px] text-left"><thead className="bg-[#f7f8f4] text-[9px] uppercase tracking-[.12em] text-[#7f9090]"><tr>{['Member', 'Customer ID', 'Phone', 'Account', 'Vault access', 'Testing Mode', 'Transfer access', 'Profile setup', 'Wallets', 'Created', ''].map(x => <th key={x} className="px-4 py-3 font-bold">{x}</th>)}</tr></thead><tbody>{users.data.items.map(u => <tr key={u.id} className="border-t border-[#edf1ee] text-[10px] hover:bg-[#f8faf7]"><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className="font-bold text-[#315c66] hover:underline">{nameOf(u)}</Link><p className="mt-1 text-[9px] text-[#829292]">{u.email}</p></td><td className="px-4 py-3 font-mono text-[#526c73]">{u.customerId || '—'}</td><td className="px-4 py-3 text-[#687f84]">Hidden in list</td><td className="px-4 py-3"><StatusPill status={u.accountStatus} /></td><td className="px-4 py-3"><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></td><td className="px-4 py-3"><Pill tone={u.testingModeDisabled ? 'good' : 'warn'}>{u.testingModeDisabled ? 'Off' : 'On'}</Pill></td><td className="px-4 py-3"><Pill tone={u.transferAccessGranted ? 'good' : 'neutral'}>{u.transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></td><td data-testid={`member-profile-setup-${u.id}`} className="px-4 py-3 whitespace-nowrap"><Pill tone={u.profileSetupCompletedAt ? 'good' : 'warn'}>{u.profileSetupCompletedAt ? `Complete · ${date(u.profileSetupCompletedAt)}` : 'Missing'}</Pill></td><td className="px-4 py-3 font-mono">{u.walletCount}</td><td className="px-4 py-3 whitespace-nowrap text-[#7a8e90]">{date(u.createdAt)}</td><td className="px-4 py-3"><Link href={`/admin/users/${u.id}`} className={quietButton}>Open <ArrowRight size={12} /></Link></td></tr>)}</tbody></table></div><Pager page={page} pages={Math.ceil(users.data.total / Math.max(1, users.data.pageSize))} onChange={setPage} /></> : <Empty title="No members match" text="Try a different name, email, Customer ID or account state." />}
     </Panel>
   </>;
 }
@@ -271,6 +271,7 @@ function MemberDetail({ userId }: { userId: string }) {
   const [testingModeDisabled, setTestingModeDisabled] = useState(false);
   const [transferAccessGranted, setTransferAccessGranted] = useState(false);
   const [accessControlsPin, setAccessControlsPin] = useState('');
+  const [accessControlsReason, setAccessControlsReason] = useState('');
   const [accessControlsConfirmed, setAccessControlsConfirmed] = useState(false);
   const [accessControlsError, setAccessControlsError] = useState('');
   const [message, setMessage] = useState(''); const [error, setError] = useState('');
@@ -308,6 +309,10 @@ function MemberDetail({ userId }: { userId: string }) {
       setAccessControlsError('Enter your six-digit transaction PIN.');
       return;
     }
+    if (accessControlsReason.trim().length < 8 || accessControlsReason.trim().length > 500) {
+      setAccessControlsError('Enter a reason between 8 and 500 characters.');
+      return;
+    }
     if (!accessControlsConfirmed) {
       setAccessControlsError('Confirm these customer access-control changes.');
       return;
@@ -318,11 +323,13 @@ function MemberDetail({ userId }: { userId: string }) {
         data: {
           testingModeDisabled,
           transferAccessGranted,
+          reason: accessControlsReason.trim(),
           transactionPin: accessControlsPin,
           confirmed: true,
         },
       });
       setAccessControlsPin('');
+      setAccessControlsReason('');
       setAccessControlsConfirmed(false);
       await refresh();
       setMessage('Customer access controls saved and recorded.');
@@ -356,23 +363,24 @@ function MemberDetail({ userId }: { userId: string }) {
      </nav>
      <div role="tabpanel" className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
        {activeTab === 'overview' && <div className="space-y-3 pb-3">
-         <div className="grid items-start gap-3 xl:grid-cols-[1.25fr_.75fr]">
-            <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['Customer ID', u.customerId || '—'], ['Private Vault access', human(u.vaultSubscriptionStatus || 'inactive')], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Member since', date(u.createdAt)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
+          <div className="grid items-start gap-3 xl:grid-cols-[1.25fr_.75fr]">
+             <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['Customer ID', u.customerId || '—'], ['Private Vault access', human(u.vaultSubscriptionStatus || 'inactive')], ['Profile setup', detail.data.profileSetupCompletedAt ? `Complete · ${dateTime(detail.data.profileSetupCompletedAt)}` : 'Missing'], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Member since', date(u.createdAt)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
          </div>
-         <Panel title="Customer access controls" eyebrow="Independent from Private Vault">
-           <form onSubmit={saveAccessControls} className="grid gap-3 p-4 sm:p-5">
+          <Panel title="Customer access controls" eyebrow="Independent from Private Vault">
+            <form data-testid="admin-access-control-form" onSubmit={saveAccessControls} className="grid gap-3 p-4 sm:p-5">
              <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
-               <input type="checkbox" checked={testingModeDisabled} onChange={event => setTestingModeDisabled(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
-               <span><strong className="block text-[#3c5960]">Turn off Testing Mode</strong>Does not grant Private Vault access.</span>
+                <input data-testid="checkbox-testing-mode-disabled" type="checkbox" checked={testingModeDisabled} onChange={event => setTestingModeDisabled(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
+                <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2"><span><strong className="block text-[#3c5960]">Turn off Testing Mode</strong>Does not grant Private Vault access.</span><Pill tone={testingModeDisabled ? 'good' : 'warn'}>{testingModeDisabled ? 'Off' : 'On'}</Pill></span>
              </label>
              <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
-               <input type="checkbox" checked={transferAccessGranted} onChange={event => setTransferAccessGranted(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
-               <span><strong className="block text-[#3c5960]">Grant separate transfer access</strong>Allows eligible transfers without granting Vault access. Wallet controls and account restrictions still apply.</span>
+                <input data-testid="checkbox-transfer-access-granted" type="checkbox" checked={transferAccessGranted} onChange={event => setTransferAccessGranted(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
+                <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2"><span><strong className="block text-[#3c5960]">Grant separate transfer access</strong>Allows eligible transfers without granting Vault access. Wallet controls and account restrictions still apply.</span><Pill tone={transferAccessGranted ? 'good' : 'neutral'}>{transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></span>
              </label>
+              <Field label="Reason for this change"><textarea data-testid="input-access-control-reason" required minLength={8} maxLength={500} value={accessControlsReason} onChange={event => setAccessControlsReason(event.target.value)} className="min-h-[88px] w-full resize-y rounded-[9px] border border-[#d8e1e3] bg-[#fffefa] px-3 py-2 text-[12px] text-[#253c4c] outline-none transition focus:border-[#43898a] focus:ring-2 focus:ring-[#43898a]/10" placeholder="Explain why these customer access settings are changing." /></Field>
              <Field label="Your six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={accessControlsPin} onChange={event => setAccessControlsPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={input} autoComplete="current-password" /></Field>
-             <label className="flex items-start gap-2 text-[10px] text-[#657a7e]"><input type="checkbox" checked={accessControlsConfirmed} onChange={event => setAccessControlsConfirmed(event.target.checked)} className="mt-0.5 accent-[#43898a]" />I confirm these settings apply only to this customer.</label>
+              <label className="flex items-start gap-2 text-[10px] text-[#657a7e]"><input data-testid="checkbox-access-controls-confirmed" type="checkbox" checked={accessControlsConfirmed} onChange={event => setAccessControlsConfirmed(event.target.checked)} className="mt-0.5 accent-[#43898a]" />I confirm these settings apply only to this customer.</label>
              {accessControlsError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{accessControlsError}</p>}
-             <button type="submit" disabled={accessControlsMutation.isPending || accessControlsPin.length !== 6 || !accessControlsConfirmed} className={button}>{accessControlsMutation.isPending ? 'Saving controls…' : 'Save access controls'}</button>
+              <button type="submit" disabled={accessControlsMutation.isPending || accessControlsPin.length !== 6 || accessControlsReason.trim().length < 8 || accessControlsReason.trim().length > 500 || !accessControlsConfirmed} className={button}>{accessControlsMutation.isPending ? 'Saving controls…' : 'Save access controls'}</button>
            </form>
          </Panel>
          <div className="grid items-start gap-3 xl:grid-cols-2">

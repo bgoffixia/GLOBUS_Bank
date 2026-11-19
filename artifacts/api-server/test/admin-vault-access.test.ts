@@ -127,6 +127,40 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
   });
 
   try {
+    const directory = await request(
+      `/users?search=${encodeURIComponent(targetId)}`,
+      adminId,
+    );
+    assert.equal(directory.status, 200, await directory.clone().text());
+    const directoryPayload = await directory.json() as {
+      items: Array<{
+        id: string;
+        profileSetupCompletedAt: string | null;
+        testingModeDisabled: boolean;
+        transferAccessGranted: boolean;
+      }>;
+    };
+    const targetListItem = directoryPayload.items.find((item) => item.id === targetId);
+    assert.ok(targetListItem);
+    assert.equal(targetListItem.profileSetupCompletedAt, null);
+    assert.equal(targetListItem.testingModeDisabled, false);
+    assert.equal(targetListItem.transferAccessGranted, false);
+
+    const detail = await request(`/users/${targetId}`, adminId);
+    assert.equal(detail.status, 200, await detail.clone().text());
+    const detailPayload = await detail.json() as {
+      user: {
+        profileSetupCompletedAt: string | null;
+        testingModeDisabled: boolean;
+        transferAccessGranted: boolean;
+      };
+      profileSetupCompletedAt: string | null;
+    };
+    assert.equal(detailPayload.user.profileSetupCompletedAt, null);
+    assert.equal(detailPayload.profileSetupCompletedAt, null);
+    assert.equal(detailPayload.user.testingModeDisabled, false);
+    assert.equal(detailPayload.user.transferAccessGranted, false);
+
     const anonymous = await request("/vault-access?search=target", null);
     assert.equal(anonymous.status, 401);
     const nonAdmin = await request(
@@ -146,6 +180,121 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       },
     );
     assert.equal(unauthorizedGrant.status, 403);
+    const unauthorizedAccessControls = await request(
+      `/users/${targetId}/access-controls`,
+      nonAdminId,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          testingModeDisabled: true,
+          transferAccessGranted: true,
+          reason: "Unauthorized access change.",
+          transactionPin: adminPin,
+          confirmed: true,
+        }),
+      },
+    );
+    assert.equal(unauthorizedAccessControls.status, 403);
+    const invalidAccessControls = await request(
+      `/users/${targetId}/access-controls`,
+      adminId,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          testingModeDisabled: true,
+          transferAccessGranted: true,
+          reason: "        ",
+          transactionPin: adminPin,
+          confirmed: true,
+        }),
+      },
+    );
+    assert.equal(invalidAccessControls.status, 400);
+    const grantControls = await request(
+      `/users/${targetId}/access-controls`,
+      adminId,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          testingModeDisabled: true,
+          transferAccessGranted: true,
+          reason: "Approved transfer access for this customer.",
+          transactionPin: adminPin,
+          confirmed: true,
+        }),
+      },
+    );
+    assert.equal(grantControls.status, 200, await grantControls.clone().text());
+    assert.deepEqual(await grantControls.json(), {
+      userId: targetId,
+      testingModeDisabled: true,
+      transferAccessGranted: true,
+    });
+    const [updatedTarget] = await db
+      .select({
+        testingModeDisabled: bankUsersTable.testingModeDisabled,
+        transferAccessGranted: bankUsersTable.transferAccessGranted,
+      })
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, targetId));
+    assert.equal(updatedTarget.testingModeDisabled, true);
+    assert.equal(updatedTarget.transferAccessGranted, true);
+    const [accessAudit] = await db
+      .select()
+      .from(bankAuditLogsTable)
+      .where(
+        and(
+          eq(bankAuditLogsTable.action, "update_customer_access_controls"),
+          eq(bankAuditLogsTable.targetUserId, targetId),
+        ),
+      );
+    assert.equal(accessAudit?.actorUserId, adminId);
+    assert.equal(accessAudit?.targetUserId, targetId);
+    assert.match(
+      accessAudit?.reason ?? "",
+      /^Approved transfer access for this customer\./,
+    );
+    assert.match(accessAudit?.reason ?? "", /Testing Mode disabled: true/);
+    assert.match(
+      accessAudit?.reason ?? "",
+      /separate transfer access granted: true/,
+    );
+
+    const revokeControls = await request(
+      `/users/${targetId}/access-controls`,
+      adminId,
+      {
+        method: "PATCH",
+        body: JSON.stringify({
+          testingModeDisabled: false,
+          transferAccessGranted: false,
+          reason: "Revoke temporary customer overrides.",
+          transactionPin: adminPin,
+          confirmed: true,
+        }),
+      },
+    );
+    assert.equal(revokeControls.status, 200, await revokeControls.clone().text());
+    const [revokedTarget] = await db
+      .select({
+        testingModeDisabled: bankUsersTable.testingModeDisabled,
+        transferAccessGranted: bankUsersTable.transferAccessGranted,
+      })
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, targetId));
+    assert.equal(revokedTarget.testingModeDisabled, false);
+    assert.equal(revokedTarget.transferAccessGranted, false);
+    const controlsAuditRows = await db
+      .select({ id: bankAuditLogsTable.id })
+      .from(bankAuditLogsTable)
+      .where(
+        and(
+          eq(bankAuditLogsTable.action, "update_customer_access_controls"),
+          eq(bankAuditLogsTable.targetUserId, targetId),
+        ),
+      );
+    assert.equal(controlsAuditRows.length, 2);
+
     const selfGrant = await request(`/users/${adminId}/vault-access/grant`, adminId, {
       method: "POST",
       body: JSON.stringify({

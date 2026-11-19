@@ -154,6 +154,10 @@ import {
 import { getExchangeRate } from "../lib/exchange-rates";
 import { verifyTransactionPin } from "../lib/transaction-pin";
 import {
+  buildAdminAccessControlsAuditReason,
+  normalizeAdminAccessReason,
+} from "../lib/admin-access-controls";
+import {
   hasActiveVaultAccess,
   vaultSubscriptionStatus,
 } from "../lib/bank-vault";
@@ -2262,6 +2266,9 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       accountRestrictionReason: bankUsersTable.accountRestrictionReason,
       accountRestrictionNotes: bankUsersTable.accountRestrictionNotes,
       accountRestrictedAt: bankUsersTable.accountRestrictedAt,
+      profileSetupCompletedAt: bankUsersTable.profileSetupCompletedAt,
+      testingModeDisabled: bankUsersTable.testingModeDisabled,
+      transferAccessGranted: bankUsersTable.transferAccessGranted,
       createdAt: bankUsersTable.createdAt,
       walletCount: count(bankWalletsTable.id),
     })
@@ -2286,6 +2293,9 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       bankUsersTable.accountRestrictionReason,
       bankUsersTable.accountRestrictionNotes,
       bankUsersTable.accountRestrictedAt,
+      bankUsersTable.profileSetupCompletedAt,
+      bankUsersTable.testingModeDisabled,
+      bankUsersTable.transferAccessGranted,
       bankUsersTable.createdAt,
     )
     .orderBy(desc(bankUsersTable.createdAt))
@@ -2346,6 +2356,8 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
             row.accountRestrictedAt?.toISOString() ??
             restrictionsByUser.get(row.id)?.[0]?.effectiveAt.toISOString() ??
             null,
+          profileSetupCompletedAt:
+            row.profileSetupCompletedAt?.toISOString() ?? null,
           createdAt: row.createdAt.toISOString(),
           walletCount: Number(row.walletCount),
         })),
@@ -2889,6 +2901,10 @@ router.get(
             user.accountRestrictedAt?.toISOString() ??
             primaryRestriction?.effectiveAt.toISOString() ??
             null,
+          profileSetupCompletedAt:
+            user.profileSetupCompletedAt?.toISOString() ?? null,
+          testingModeDisabled: user.testingModeDisabled,
+          transferAccessGranted: user.transferAccessGranted,
           vaultSubscriptionStatus: vaultSubscriptionStatus(
             user.vaultSubscriptionStatus,
             user.vaultSubscriptionExpiresAt,
@@ -2908,6 +2924,8 @@ router.get(
         dateOfBirth: user.dateOfBirth,
         cityOfOrigin: user.cityOfOrigin,
         occupation: user.occupation,
+        profileSetupCompletedAt:
+          user.profileSetupCompletedAt?.toISOString() ?? null,
         testingModeDisabled: user.testingModeDisabled,
         transferAccessGranted: user.transferAccessGranted,
         transactionPinConfigured: !!user.transactionPinHash,
@@ -3351,6 +3369,13 @@ router.patch(
       });
       return;
     }
+    const reason = normalizeAdminAccessReason(parsed.data.reason);
+    if (!reason) {
+      res.status(400).json({
+        error: "Enter a reason between 8 and 500 non-space characters.",
+      });
+      return;
+    }
     const clerkUserId = getAuth(req).userId;
     if (!clerkUserId) {
       res.status(401).json({ error: "Sign in to access administrative controls." });
@@ -3366,7 +3391,6 @@ router.patch(
       return;
     }
 
-    const reason = generatedAdminAuditReason(req);
     const result = await db.transaction(async (tx) => {
       const [target] = await tx
         .select({ id: bankUsersTable.id })
@@ -3392,7 +3416,10 @@ router.patch(
         actorUserId,
         targetUserId: updated.id,
         action: "update_customer_access_controls",
-        reason: `${reason} Testing Mode disabled: ${updated.testingModeDisabled}; separate transfer access granted: ${updated.transferAccessGranted}. Neither setting grants Private Vault access.`,
+        reason: buildAdminAccessControlsAuditReason(reason, {
+          testingModeDisabled: updated.testingModeDisabled,
+          transferAccessGranted: updated.transferAccessGranted,
+        }),
       });
       return updated;
     });

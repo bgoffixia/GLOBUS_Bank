@@ -1879,6 +1879,9 @@ export const ListAdminUsersResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -2170,6 +2173,9 @@ export const GetAdminUserDetailResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -2184,6 +2190,7 @@ export const GetAdminUserDetailResponse = zod.object({
   "dateOfBirth": zod.string().regex(getAdminUserDetailResponseDateOfBirthRegExp).nullable(),
   "cityOfOrigin": zod.string().nullable(),
   "occupation": zod.string().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
   "testingModeDisabled": zod.boolean(),
   "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
@@ -2300,6 +2307,9 @@ export const UpdateAdminUserStatusResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -2368,6 +2378,9 @@ export const UpdateAdminUserProfileResponse = zod.object({
   "accountRestrictionReason": zod.string().nullable(),
   "accountRestrictionNotes": zod.string().nullable(),
   "accountRestrictedAt": zod.coerce.date().nullable(),
+  "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -2390,12 +2403,16 @@ export const UpdateAdminUserAccessControlsParams = zod.object({
   "userId": zod.coerce.string().min(1)
 })
 
+export const updateAdminUserAccessControlsBodyReasonMin = 8;
+export const updateAdminUserAccessControlsBodyReasonMax = 500;
+
 export const updateAdminUserAccessControlsBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const UpdateAdminUserAccessControlsBody = zod.object({
   "testingModeDisabled": zod.boolean(),
   "transferAccessGranted": zod.boolean(),
+  "reason": zod.string().min(updateAdminUserAccessControlsBodyReasonMin).max(updateAdminUserAccessControlsBodyReasonMax),
   "transactionPin": zod.string().regex(updateAdminUserAccessControlsBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })

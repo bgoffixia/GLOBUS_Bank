@@ -23,6 +23,8 @@ export interface AdminUserDetail {
   cityOfOrigin: string | null;
   /** @nullable */
   occupation: string | null;
+  /** @nullable */
+  profileSetupCompletedAt: Date | null;
   testingModeDisabled: boolean;
   transferAccessGranted: boolean;
   transactionPinConfigured: boolean;

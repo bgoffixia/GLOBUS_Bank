@@ -36,6 +36,10 @@ export interface AdminUser {
   accountRestrictionNotes: string | null;
   /** @nullable */
   accountRestrictedAt: Date | null;
+  /** @nullable */
+  profileSetupCompletedAt: Date | null;
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
   vaultSubscriptionStatus?: AdminUserVaultSubscriptionStatus;
   /** @nullable */
   vaultSubscriptionRequestedAt?: Date | null;

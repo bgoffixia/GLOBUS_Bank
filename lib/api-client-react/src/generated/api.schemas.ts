@@ -1235,6 +1235,10 @@ export interface AdminUser {
   accountRestrictionNotes: string | null;
   /** @nullable */
   accountRestrictedAt: string | null;
+  /** @nullable */
+  profileSetupCompletedAt: string | null;
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
   vaultSubscriptionStatus?: AdminUserVaultSubscriptionStatus;
   /** @nullable */
   vaultSubscriptionRequestedAt?: string | null;
@@ -1415,6 +1419,8 @@ export interface AdminUserDetail {
   cityOfOrigin: string | null;
   /** @nullable */
   occupation: string | null;
+  /** @nullable */
+  profileSetupCompletedAt: string | null;
   testingModeDisabled: boolean;
   transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
@@ -1480,6 +1486,11 @@ export interface AdminUserProfileInput {
 export interface AdminUserAccessControlsInput {
   testingModeDisabled: boolean;
   transferAccessGranted: boolean;
+  /**
+     * @minLength 8
+     * @maxLength 500
+     */
+  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
