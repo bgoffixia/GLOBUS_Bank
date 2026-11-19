@@ -6,10 +6,4 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AdminTransactionPinResetInput {
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-}
+export interface AdminTransactionPinResetInput { [key: string]: unknown }

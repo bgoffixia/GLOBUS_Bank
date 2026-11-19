@@ -13,11 +13,6 @@ export interface AdminWalletCurrencyMigrationInput {
      * @maxItems 500
      */
   conversions: AdminWalletCurrencyMigrationInputConversionsItem[];
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;

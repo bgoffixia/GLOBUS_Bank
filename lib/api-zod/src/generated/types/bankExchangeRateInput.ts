@@ -13,11 +13,6 @@ export interface BankExchangeRateInput {
   destinationCurrency: DestinationCurrencyCode;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,10})?$ */
   rate: string;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }

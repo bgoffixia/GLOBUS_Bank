@@ -635,7 +635,7 @@ router.get("/bank/me", async (req, res): Promise<void> => {
   }
 
   const user = await getOrCreateBankUser(userId);
-  const [accountStatus, operationEligibility] = await Promise.all([
+  const [accountStatus, operationEligibility, accountTier] = await Promise.all([
     getEffectiveBankAccountStatus(
       user.id,
       user.accountStatus as "active" | "restricted" | "suspended",
@@ -644,6 +644,7 @@ router.get("/bank/me", async (req, res): Promise<void> => {
       user.id,
       user.accountStatus as "active" | "restricted" | "suspended",
     ),
+    getEffectiveAccountTier(user),
   ]);
   res.json(
     GetBankProfileResponse.parse({
@@ -662,6 +663,7 @@ router.get("/bank/me", async (req, res): Promise<void> => {
       verificationNote: user.verificationNote,
       accountStatus,
       ...operationEligibility,
+      accountTier,
       createdAt: user.createdAt.toISOString(),
     }),
   );
@@ -703,7 +705,7 @@ router.put("/bank/signup-profile", async (req, res): Promise<void> => {
     .where(eq(bankUsersTable.id, currentUser.id))
     .returning();
 
-  const [accountStatus, operationEligibility] = await Promise.all([
+  const [accountStatus, operationEligibility, accountTier] = await Promise.all([
     getEffectiveBankAccountStatus(
       user.id,
       user.accountStatus as "active" | "restricted" | "suspended",
@@ -712,6 +714,7 @@ router.put("/bank/signup-profile", async (req, res): Promise<void> => {
       user.id,
       user.accountStatus as "active" | "restricted" | "suspended",
     ),
+    getEffectiveAccountTier(user),
   ]);
 
   res.json(
@@ -731,6 +734,7 @@ router.put("/bank/signup-profile", async (req, res): Promise<void> => {
       verificationNote: user.verificationNote,
       accountStatus,
       ...operationEligibility,
+      accountTier,
       createdAt: user.createdAt.toISOString(),
     }),
   );

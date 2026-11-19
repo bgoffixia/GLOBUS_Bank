@@ -8,6 +8,7 @@
 import type { BankProfileAccountStatus } from './bankProfileAccountStatus';
 import type { BankProfileVaultAccessSource } from './bankProfileVaultAccessSource';
 import type { BankProfileVerificationStatus } from './bankProfileVerificationStatus';
+import type { DashboardAccountTier } from './dashboardAccountTier';
 
 export interface BankProfile {
   id: string;
@@ -41,5 +42,6 @@ export interface BankProfile {
   vaultAccessSource: BankProfileVaultAccessSource;
   depositAllowed: boolean;
   withdrawalAllowed: boolean;
+  accountTier: DashboardAccountTier;
   createdAt: Date;
 }

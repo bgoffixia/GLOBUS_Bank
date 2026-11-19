@@ -44,7 +44,6 @@ export function AdminVaultAccessPage() {
   const [submittedSearch, setSubmittedSearch] = useState("");
   const [target, setTarget] = useState<AdminVaultAccessRecord | null>(null);
   const [action, setAction] = useState<"grant" | "revoke" | null>(null);
-  const [reason, setReason] = useState("");
   const [transactionPin, setTransactionPin] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
@@ -77,7 +76,6 @@ export function AdminVaultAccessPage() {
   ) => {
     setTarget(record);
     setAction(nextAction);
-    setReason("");
     setTransactionPin("");
     setConfirmed(false);
     setError("");
@@ -98,7 +96,7 @@ export function AdminVaultAccessPage() {
     try {
       const variables = {
         userId: target.userId,
-        data: { reason: reason.trim(), transactionPin, confirmed: true as const },
+        data: { transactionPin, confirmed: true as const },
       };
       if (action === "grant") await grantMutation.mutateAsync(variables);
       else await revokeMutation.mutateAsync(variables);
@@ -193,11 +191,11 @@ export function AdminVaultAccessPage() {
                         {record.adminGrantActive && <div><dt className="font-bold uppercase tracking-wide text-[#879596]">Granting administrator</dt><dd className="mt-0.5 break-all font-mono text-[#49646e]">{record.adminGrantByUserId || "—"}</dd></div>}
                         {record.adminGrantReason && <div className="sm:col-span-2"><dt className="font-bold uppercase tracking-wide text-[#879596]">Grant reason</dt><dd className="mt-0.5 break-words text-[#49646e]">{record.adminGrantReason}</dd></div>}
                       </dl>
-                      {isSelf && <p className="mt-2 text-[9px] font-semibold text-[#a45247]">Self-grants and self-revocations are blocked.</p>}
+                      {isSelf && record.adminGrantActive && <p className="mt-2 text-[9px] font-semibold text-[#a45247]">Self-revocation is blocked.</p>}
                     </div>
                     <div className="flex shrink-0 flex-wrap gap-2">
                       {!record.adminGrantActive ? (
-                        <button type="button" disabled={isSelf} onClick={() => openAction(record, "grant")} className={buttonClass}>
+                        <button type="button" onClick={() => openAction(record, "grant")} className={buttonClass}>
                           <ShieldCheck size={14} /> Grant access
                         </button>
                       ) : (
@@ -234,10 +232,6 @@ export function AdminVaultAccessPage() {
                   : "This removes only the admin entitlement. Any active paid subscription remains unchanged."}
               </div>
               <label className="block">
-                <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.11em] text-[#71848b]">Reason</span>
-                <textarea required minLength={5} maxLength={500} rows={3} value={reason} onChange={(event) => setReason(event.target.value)} className="w-full rounded-[9px] border border-[#d8e1e3] bg-[#fffefa] px-3 py-2 text-[11px] text-[#253c4c] outline-none focus:border-[#43898a]" />
-              </label>
-              <label className="block">
                 <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.11em] text-[#71848b]">Administrator transaction PIN</span>
                 <input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="off" value={transactionPin} onChange={(event) => setTransactionPin(event.target.value.replace(/\D/g, "").slice(0, 6))} className={inputClass} />
               </label>
@@ -248,7 +242,7 @@ export function AdminVaultAccessPage() {
               {error && <p role="alert" className="text-[10px] text-[#a45247]">{error}</p>}
               <div className="flex justify-end gap-2">
                 <button type="button" disabled={mutationPending} className={quietButtonClass} onClick={closeAction}>Cancel</button>
-                <button type="submit" disabled={mutationPending || transactionPin.length !== 6 || reason.trim().length < 5 || !confirmed} className={buttonClass}>
+                <button type="submit" disabled={mutationPending || transactionPin.length !== 6 || !confirmed} className={buttonClass}>
                   {mutationPending ? "Saving…" : action === "grant" ? "Confirm grant" : "Confirm revocation"}
                 </button>
               </div>

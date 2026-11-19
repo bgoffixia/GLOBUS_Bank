@@ -20,11 +20,6 @@ export interface AdminTransactionCorrectionInput {
      */
   amount?: string | null;
   /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-  /**
      * @minLength 16
      * @maxLength 100
      */

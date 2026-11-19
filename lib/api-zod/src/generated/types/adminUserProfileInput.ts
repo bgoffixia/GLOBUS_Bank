@@ -27,11 +27,6 @@ export interface AdminUserProfileInput {
      * @nullable
      */
   country?: string | null;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }

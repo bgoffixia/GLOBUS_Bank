@@ -72,11 +72,6 @@ export interface BankExchangeRateInput {
   destinationCurrency: DestinationCurrencyCode;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,10})?$ */
   rate: string;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }
@@ -271,6 +266,20 @@ export const BankProfileVaultAccessSource = {
   admin_grant: 'admin_grant',
 } as const;
 
+export type DashboardAccountTierSource = typeof DashboardAccountTierSource[keyof typeof DashboardAccountTierSource];
+
+
+export const DashboardAccountTierSource = {
+  paystack_subscription: 'paystack_subscription',
+  admin_assigned: 'admin_assigned',
+} as const;
+
+export interface DashboardAccountTier {
+  id: string;
+  name: string;
+  source: DashboardAccountTierSource;
+}
+
 export interface BankProfile {
   id: string;
   email: string;
@@ -303,6 +312,7 @@ export interface BankProfile {
   vaultAccessSource: BankProfileVaultAccessSource;
   depositAllowed: boolean;
   withdrawalAllowed: boolean;
+  accountTier: DashboardAccountTier;
   createdAt: string;
 }
 
@@ -714,13 +724,7 @@ export const TransactionPinUpdateResultValue = {
 } as const;
 export type TransactionPinUpdateResult = typeof TransactionPinUpdateResultValue;
 
-export interface AdminTransactionPinResetInput {
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-}
+export interface AdminTransactionPinResetInput { [key: string]: unknown }
 
 export const AdminTransactionPinResetResultValue = {
   configured: false,
@@ -739,14 +743,10 @@ export interface CompleteRequiredPasswordResetResult {
   completed: boolean;
 }
 
-export interface AdminUserPasswordResetInput {
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-  confirmed: true;
-}
+export const AdminUserPasswordResetInputValue = {
+  confirmed: true,
+} as const;
+export type AdminUserPasswordResetInput = typeof AdminUserPasswordResetInputValue;
 
 export interface AdminUserPasswordResetResult {
   resetRequired: true;
@@ -839,20 +839,6 @@ export interface BankTransaction {
   description: string;
   mode: BankTransactionMode;
   createdAt: string;
-}
-
-export type DashboardAccountTierSource = typeof DashboardAccountTierSource[keyof typeof DashboardAccountTierSource];
-
-
-export const DashboardAccountTierSource = {
-  paystack_subscription: 'paystack_subscription',
-  admin_assigned: 'admin_assigned',
-} as const;
-
-export interface DashboardAccountTier {
-  id: string;
-  name: string;
-  source: DashboardAccountTierSource;
 }
 
 export type BankDashboardProfile = BankProfile & {
@@ -1141,11 +1127,6 @@ export const AdminLedgerRequestReviewInputDecision = {
 
 export interface AdminLedgerRequestReviewInput {
   decision: AdminLedgerRequestReviewInputDecision;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }
@@ -1332,11 +1313,6 @@ export interface AdminAccountTierInput {
   /** @nullable */
   vaultPlanCode: AdminAccountTierInputVaultPlanCode;
   active: boolean;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
@@ -1352,11 +1328,6 @@ export interface AdminAccountTierAssignmentInput {
      * @maxLength 100
      */
   tierId: string;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
@@ -1424,11 +1395,6 @@ export interface AdminVaultAccessPage {
 }
 
 export interface AdminVaultAccessActionInput {
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
@@ -1461,13 +1427,6 @@ export const AdminUserStatusInputAccountStatus = {
 
 export interface AdminUserStatusInput {
   accountStatus: AdminUserStatusInputAccountStatus;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-  /** @maxLength 500 */
-  notes?: string;
 }
 
 export interface AdminUserProfileInput {
@@ -1491,11 +1450,6 @@ export interface AdminUserProfileInput {
      * @nullable
      */
   country?: string | null;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }
@@ -1509,11 +1463,6 @@ export const AdminVaultSubscriptionInputStatus = {
 
 export interface AdminVaultSubscriptionInput {
   status: AdminVaultSubscriptionInputStatus;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
 }
 
 export type AdminVaultSubscriptionResultStatus = typeof AdminVaultSubscriptionResultStatus[keyof typeof AdminVaultSubscriptionResultStatus];
@@ -1562,16 +1511,6 @@ export interface AdminFundingInput {
      * @nullable
      */
   internalReference?: string | null;
-  /**
-     * @maxLength 500
-     * @nullable
-     */
-  adminNotes?: string | null;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /**
      * @minLength 16
      * @maxLength 100
@@ -1633,30 +1572,15 @@ export interface AdminRestrictionInput {
   /** @nullable */
   walletId?: string | null;
   type: BankRestrictionType;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   effectiveAt: string;
   /** @nullable */
   expiresAt?: string | null;
-  /**
-     * @maxLength 1000
-     * @nullable
-     */
-  internalNotes?: string | null;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
 }
 
 export interface AdminRestrictionRemoveInput {
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
@@ -1664,22 +1588,12 @@ export interface AdminRestrictionRemoveInput {
 
 export interface AdminTransactionStatusUpdateInput {
   status: TransactionStatus;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
 }
 
 export interface AdminTransactionProcessInput {
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
@@ -1792,11 +1706,6 @@ export interface AdminWalletCurrencyMigrationInput {
      * @maxItems 500
      */
   conversions: AdminWalletCurrencyMigrationInputConversionsItem[];
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
@@ -1838,16 +1747,6 @@ export const AdminWalletStatusInputStatus = {
 
 export interface AdminWalletStatusInput {
   status: AdminWalletStatusInputStatus;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-  /**
-     * @maxLength 500
-     * @nullable
-     */
-  notes?: string | null;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
@@ -1907,11 +1806,6 @@ export interface AdminSettingsInput {
   vaultPlan3mPrice: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   vaultPlan1yPrice: string;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }
@@ -1993,11 +1887,6 @@ export interface AdminTransactionCorrectionInput {
      */
   amount?: string | null;
   /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-  /**
      * @minLength 16
      * @maxLength 100
      */
@@ -2016,11 +1905,6 @@ export const AdminFundingReviewInputDecision = {
 
 export interface AdminFundingReviewInput {
   decision: AdminFundingReviewInputDecision;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }

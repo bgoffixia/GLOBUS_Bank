@@ -1989,9 +1989,8 @@ components:
         sourceCurrency: { $ref: "#/components/schemas/ActiveCurrencyCode" }
         destinationCurrency: { $ref: "#/components/schemas/DestinationCurrencyCode" }
         rate: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,10})?$" }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [sourceCurrency, destinationCurrency, rate, reason, transactionPin]
+      required: [sourceCurrency, destinationCurrency, rate, transactionPin]
     InternationalTransferRequestInput:
       type: object
       properties:
@@ -2078,8 +2077,9 @@ components:
         vaultAccessSource: { type: string, enum: [none, paystack_subscription, admin_grant] }
         depositAllowed: { type: boolean }
         withdrawalAllowed: { type: boolean }
+        accountTier: { $ref: "#/components/schemas/DashboardAccountTier" }
         createdAt: { type: string, format: date-time }
-      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, createdAt]
+      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, accountTier, createdAt]
     BankVaultStatus:
       type: object
       properties:
@@ -2295,9 +2295,7 @@ components:
       required: [configured]
     AdminTransactionPinResetInput:
       type: object
-      properties:
-        reason: { type: string, minLength: 5, maxLength: 500 }
-      required: [reason]
+      properties: {}
     AdminTransactionPinResetResult:
       type: object
       properties:
@@ -2316,9 +2314,8 @@ components:
     AdminUserPasswordResetInput:
       type: object
       properties:
-        reason: { type: string, minLength: 5, maxLength: 500 }
         confirmed: { type: boolean, const: true }
-      required: [reason, confirmed]
+      required: [confirmed]
     AdminUserPasswordResetResult:
       type: object
       properties:
@@ -2506,9 +2503,8 @@ components:
       type: object
       properties:
         decision: { type: string, enum: [approve, reject] }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [decision, reason, transactionPin]
+      required: [decision, transactionPin]
     AdminAccess:
       type: object
       properties:
@@ -2594,10 +2590,9 @@ components:
         description: { type: ["string", "null"], maxLength: 240 }
         vaultPlanCode: { type: ["string", "null"], enum: [1m, 3m, 1y, null] }
         active: { type: boolean }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, enum: [true] }
-      required: [name, description, vaultPlanCode, active, reason, transactionPin, confirmed]
+      required: [name, description, vaultPlanCode, active, transactionPin, confirmed]
     AdminAccountTierResponse:
       type: object
       properties:
@@ -2607,10 +2602,9 @@ components:
       type: object
       properties:
         tierId: { type: string, minLength: 1, maxLength: 100 }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, enum: [true] }
-      required: [tierId, reason, transactionPin, confirmed]
+      required: [tierId, transactionPin, confirmed]
     AdminAccountTierAssignmentResponse:
       type: object
       properties:
@@ -2659,10 +2653,9 @@ components:
     AdminVaultAccessActionInput:
       type: object
       properties:
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, enum: [true] }
-      required: [reason, transactionPin, confirmed]
+      required: [transactionPin, confirmed]
     AdminUserDetail:
       type: object
       properties:
@@ -2685,9 +2678,7 @@ components:
       type: object
       properties:
         accountStatus: { type: string, enum: [active, restricted, suspended] }
-        reason: { type: string, minLength: 5, maxLength: 500 }
-        notes: { type: string, maxLength: 500 }
-      required: [accountStatus, reason]
+      required: [accountStatus]
     AdminUserProfileInput:
       type: object
       properties:
@@ -2695,15 +2686,13 @@ components:
         lastName: { type: ["string", "null"], maxLength: 80 }
         phone: { type: ["string", "null"], maxLength: 40 }
         country: { type: ["string", "null"], maxLength: 80 }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [reason, transactionPin]
+      required: [transactionPin]
     AdminVaultSubscriptionInput:
       type: object
       properties:
         status: { type: string, enum: [inactive] }
-        reason: { type: string, minLength: 5, maxLength: 500 }
-      required: [status, reason]
+      required: [status]
     AdminVaultSubscriptionResult:
       type: object
       properties:
@@ -2720,11 +2709,9 @@ components:
         senderName: { type: string, minLength: 1, maxLength: 120 }
         description: { type: string, minLength: 1, maxLength: 240 }
         internalReference: { type: ["string", "null"], maxLength: 120 }
-        adminNotes: { type: ["string", "null"], maxLength: 500 }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         idempotencyKey: { type: string, minLength: 16, maxLength: 100 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [direction, currency, amount, senderName, description, reason, idempotencyKey, transactionPin]
+      required: [direction, currency, amount, senderName, description, idempotencyKey, transactionPin]
     AdminRestriction:
       type: object
       properties:
@@ -2762,35 +2749,30 @@ components:
         userId: { type: string }
         walletId: { type: ["string", "null"], format: uuid }
         type: { $ref: "#/components/schemas/BankRestrictionType" }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         effectiveAt: { type: string, format: date-time }
         expiresAt: { type: ["string", "null"], format: date-time }
-        internalNotes: { type: ["string", "null"], maxLength: 1000 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, const: true }
-      required: [userId, type, reason, effectiveAt, transactionPin, confirmed]
+      required: [userId, type, effectiveAt, transactionPin, confirmed]
     AdminRestrictionRemoveInput:
       type: object
       properties:
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, const: true }
-      required: [reason, transactionPin, confirmed]
+      required: [transactionPin, confirmed]
     AdminTransactionStatusUpdateInput:
       type: object
       properties:
         status: { $ref: "#/components/schemas/TransactionStatus" }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, const: true }
-      required: [status, reason, transactionPin, confirmed]
+      required: [status, transactionPin, confirmed]
     AdminTransactionProcessInput:
       type: object
       properties:
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, const: true }
-      required: [reason, transactionPin, confirmed]
+      required: [transactionPin, confirmed]
     AdminTransactionStatusChange:
       type: object
       properties:
@@ -2875,10 +2857,9 @@ components:
               exchangeRate: { type: string, pattern: "^[0-9]+(\\.[0-9]{1,10})?$" }
               rateUpdatedAt: { type: string, format: date-time }
             required: [walletId, sourceAmount, exchangeRate, rateUpdatedAt]
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, const: true }
-      required: [conversions, reason, transactionPin, confirmed]
+      required: [conversions, transactionPin, confirmed]
     AdminWalletCurrencyMigrationResultItem:
       type: object
       properties:
@@ -2901,11 +2882,9 @@ components:
       type: object
       properties:
         status: { type: string, enum: [active, restricted] }
-        reason: { type: string, minLength: 5, maxLength: 500 }
-        notes: { type: ["string", "null"], maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, const: true }
-      required: [status, reason, transactionPin, confirmed]
+      required: [status, transactionPin, confirmed]
     AdminAuditLog:
       type: object
       properties:
@@ -2947,9 +2926,8 @@ components:
         vaultPlan1mPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan3mPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan1yPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [fundingLimit, secondApprovalThreshold, vaultPlan1mPrice, vaultPlan3mPrice, vaultPlan1yPrice, reason, transactionPin]
+      required: [fundingLimit, secondApprovalThreshold, vaultPlan1mPrice, vaultPlan3mPrice, vaultPlan1yPrice, transactionPin]
     AdminTransactionPage:
       type: object
       properties:
@@ -2992,15 +2970,13 @@ components:
         walletId: { type: ["string", "null"], format: uuid }
         direction: { type: ["string", "null"], enum: [credit, debit, null] }
         amount: { type: ["string", "null"], pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         idempotencyKey: { type: string, minLength: 16, maxLength: 100 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [kind, reason, idempotencyKey, transactionPin]
+      required: [kind, idempotencyKey, transactionPin]
     AdminFundingReviewInput:
       type: object
       properties:
         decision: { type: string, enum: [approve, reject] }
-        reason: { type: string, minLength: 5, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [decision, reason, transactionPin]
+      required: [decision, transactionPin]
 

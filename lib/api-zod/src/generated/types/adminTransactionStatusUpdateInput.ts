@@ -9,11 +9,6 @@ import type { TransactionStatus } from './transactionStatus';
 
 export interface AdminTransactionStatusUpdateInput {
   status: TransactionStatus;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;

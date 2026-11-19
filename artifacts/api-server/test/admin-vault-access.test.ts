@@ -140,7 +140,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       {
         method: "POST",
         body: JSON.stringify({
-          reason: "Unauthorized grant test",
           transactionPin: adminPin,
           confirmed: true,
         }),
@@ -150,19 +149,30 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     const selfGrant = await request(`/users/${adminId}/vault-access/grant`, adminId, {
       method: "POST",
       body: JSON.stringify({
-        reason: "Self grant is prohibited",
         transactionPin: adminPin,
         confirmed: true,
       }),
     });
-    assert.equal(selfGrant.status, 403);
+    assert.equal(selfGrant.status, 200, await selfGrant.clone().text());
+    const selfGranted = await selfGrant.json() as {
+      adminGrantActive: boolean;
+      accessActive: boolean;
+      accessSource: string;
+    };
+    assert.equal(selfGranted.adminGrantActive, true);
+    assert.equal(selfGranted.accessActive, true);
+    assert.equal(selfGranted.accessSource, "admin_grant");
+    assert.equal(await hasActiveVaultAccess({
+      id: adminId,
+      vaultSubscriptionStatus: "inactive",
+      vaultSubscriptionExpiresAt: null,
+    }), true);
 
     const tierInput = {
       name: "Test customer tier",
       description: "Tier assignment integration test.",
       vaultPlanCode: null,
       active: true,
-      reason: "Create account tier for test",
       transactionPin: adminPin,
       confirmed: true,
     };
@@ -188,7 +198,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       body: JSON.stringify({
         ...tierInput,
         name: "Test customer tier updated",
-        reason: "Update account tier for test",
       }),
     });
     assert.equal(tierUpdate.status, 200, await tierUpdate.clone().text());
@@ -200,7 +209,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
         method: "PATCH",
         body: JSON.stringify({
           tierId: createdTierId,
-          reason: "Unauthorized tier change",
           transactionPin: adminPin,
           confirmed: true,
         }),
@@ -220,7 +228,7 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
         }),
       },
     );
-    assert.equal(selfTierAssignment.status, 403);
+    assert.equal(selfTierAssignment.status, 200, await selfTierAssignment.clone().text());
     const tierAssignment = await request(
       `/users/${targetId}/account-tier`,
       adminId,
@@ -228,7 +236,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
         method: "PATCH",
         body: JSON.stringify({
           tierId: createdTierId,
-          reason: "Assign customer tier",
           transactionPin: adminPin,
           confirmed: true,
         }),
@@ -265,7 +272,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     const badPinResponse = await request(`/users/${targetId}/vault-access/grant`, adminId, {
       method: "POST",
       body: JSON.stringify({
-        reason: "Authorized access request",
         transactionPin: "000000",
         confirmed: true,
       }),
@@ -280,7 +286,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     const grantResponse = await request(`/users/${targetId}/vault-access/grant`, adminId, {
       method: "POST",
       body: JSON.stringify({
-        reason: "Approved access for support case",
         transactionPin: adminPin,
         confirmed: true,
       }),
@@ -312,8 +317,14 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
         eq(bankAuditLogsTable.targetUserId, targetId),
         eq(bankAuditLogsTable.action, "grant_admin_private_vault_access"),
       ));
-    assert.equal(audit?.reason, "Approved access for support case");
+    assert.match(audit?.reason ?? "", /^Automatically generated audit reason for Private Vault admin grant/);
     assert.ok(audit?.createdAt instanceof Date);
+
+    const selfRevoke = await request(`/users/${adminId}/vault-access/revoke`, adminId, {
+      method: "POST",
+      body: JSON.stringify({ transactionPin: adminPin, confirmed: true }),
+    });
+    assert.equal(selfRevoke.status, 403);
 
     await db.insert(bankVaultSessionsTable).values({
       userId: targetId,
@@ -323,7 +334,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     const revokeResponse = await request(`/users/${targetId}/vault-access/revoke`, adminId, {
       method: "POST",
       body: JSON.stringify({
-        reason: "Access period completed",
         transactionPin: adminPin,
         confirmed: true,
       }),
@@ -351,7 +361,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     const paidGrant = await request(`/users/${paidUserId}/vault-access/grant`, adminId, {
       method: "POST",
       body: JSON.stringify({
-        reason: "Temporary courtesy entitlement",
         transactionPin: adminPin,
         confirmed: true,
       }),
@@ -360,7 +369,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     const paidRevoke = await request(`/users/${paidUserId}/vault-access/revoke`, adminId, {
       method: "POST",
       body: JSON.stringify({
-        reason: "Courtesy period ended",
         transactionPin: adminPin,
         confirmed: true,
       }),

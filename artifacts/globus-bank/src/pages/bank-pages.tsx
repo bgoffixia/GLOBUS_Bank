@@ -281,6 +281,10 @@ export function DashboardPage() {
     <>
       <PageHeading eyebrow="Your dashboard" title={`Good to see you${dash?.profile.firstName ? `, ${dash.profile.firstName}` : ''}.`} subtitle="Wallets, quick actions, and recent activity." titleClassName="text-[14px] leading-5" />
 
+      {dash?.profile.testingMode && <div role="status" data-testid="dashboard-testing-mode-warning" className="mt-3 flex items-start gap-2 rounded-xl border border-[#ead9a8] bg-[#fff9e9] px-3.5 py-2.5 text-[10px] leading-4 text-[#765e2d]">
+        <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+        <p><strong className="font-bold">Testing Mode</strong> · Private Vault is not active for this account.</p>
+      </div>}
       <div className="mt-3 grid min-w-0 gap-2.5 xl:grid-cols-[1.15fr_.85fr]">
         <section className="balance-panel relative min-w-0 overflow-hidden rounded-[18px] p-3.5 text-white sm:p-4 xl:col-start-1 xl:row-start-1">
           <div className="absolute -right-10 -top-12 h-48 w-48 rounded-full border border-white/[.08]" />
@@ -290,6 +294,9 @@ export function DashboardPage() {
               <p className="text-[10px] font-medium text-[#cad9e4]">{selectedWallet ? `${currencyNames[selectedWallet.currency]} · available` : 'Available balance'}</p>
               <div data-testid="dashboard-active-wallet-balance" className="bank-display mt-1.5 break-words text-[clamp(1.8rem,7vw,2.8rem)] font-semibold tracking-[-.06em]">{selectedWallet ? formatMoney(Number(selectedWallet.available), selectedWallet.currency) : '—'}</div>
               {selectedWallet && <p className="mt-0.5 text-[10px] text-[#b5c7d4]">{selectedWallet.currency} wallet</p>}
+              <span data-testid="dashboard-account-tier-badge" className="mt-2 inline-flex max-w-full truncate rounded-full border border-white/20 bg-white/[.1] px-2.5 py-1 text-[9px] font-bold text-[#e4eff0]">
+                {dash?.profile.accountTier.name ?? 'Not assigned'}
+              </span>
             </div>
             {selectedWallet && <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 bg-white/[.08] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[.13em] text-[#d9e7eb]"><span className="h-1.5 w-1.5 rounded-full bg-[#8fd2cf]" /> {selectedWallet.currency}</span>}
           </div>
@@ -347,22 +354,6 @@ export function DashboardPage() {
           <div className="mt-3 space-y-2.5">
             <StatusLine label="Account" value={humanize(dash?.profile.accountStatus)} positive={dash?.profile.accountStatus === 'active'} />
             <StatusLine label="Private Vault" value={!dash?.profile.vaultAccessActive ? 'Inactive' : dash.profile.vaultAccessSource === 'admin_grant' ? 'Active · Admin grant' : 'Active · Paid'} positive={dash?.profile.vaultAccessActive === true} />
-            <div data-testid="dashboard-account-tier" className="flex min-w-0 items-center justify-between gap-3">
-              <div className="min-w-0">
-                <span className="text-[11px] text-[#8793a1]">Account tier</span>
-                <p className="mt-0.5 truncate text-[8px] text-[#8793a1]">
-                  {dash?.profile.accountTier.source === 'paystack_subscription' ? 'Mapped from active Vault plan' : 'Administrator-assigned base tier'}
-                </p>
-              </div>
-              <span
-                data-testid="dashboard-account-tier-badge"
-                title={dash?.profile.accountTier.name ?? 'Not assigned'}
-                className={`max-w-[58%] shrink-0 truncate rounded-full border px-2.5 py-1 text-[9px] font-bold ${dash?.profile.accountTier.source === 'paystack_subscription' ? 'border-[#d3e8df] bg-[#edf7f1] text-[#39745d]' : 'border-[#e8dfc5] bg-[#fbf8ef] text-[#786e55]'}`}
-              >
-                {dash?.profile.accountTier.name ?? 'Not assigned'}
-              </span>
-            </div>
-            <StatusLine label="Testing Mode" value={dash?.profile.testingMode ? 'On' : 'Off'} positive={!dash?.profile.testingMode} />
             <div data-testid="dashboard-profile-completion">
               <StatusLine
                 label="Profile details"
@@ -1181,6 +1172,7 @@ export function ProfilePage() {
           <div className="mt-4 grid gap-2 sm:grid-cols-3">
             <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account</p><span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[9px] font-bold ${profile?.accountStatus === 'active' ? 'bg-[#edf6f1] text-[#4c836e]' : 'bg-[#fbf7eb] text-[#927944]'}`}>{humanize(profile?.accountStatus)}</span></div>
             <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Member since</p><p className="mt-1 text-[10px] font-semibold text-[#324962]">{formatDate(profile?.createdAt)}</p></div>
+            <div data-testid="profile-account-tier" className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account tier</p><span data-testid="profile-account-tier-badge" className="mt-1 inline-flex max-w-full truncate rounded-full border border-[#d5e5e2] bg-[#edf5f2] px-2 py-1 text-[9px] font-bold text-[#3f716d]">{profile.accountTier.name || 'Not assigned'}</span></div>
           </div>
           <section className="mt-4 rounded-xl border border-[#e1e8ee] bg-white p-3" aria-label="Customer profile information" data-testid="customer-profile-completeness">
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1265,22 +1257,13 @@ function AdminLedgerRequestQueue() {
   const [reviewTarget, setReviewTarget] = useState<{
     request: AdminLedgerRequest;
     decision: 'approve' | 'reject';
-    reason: string;
   } | null>(null);
   const [transactionPin, setTransactionPin] = useState('');
 
   const decide = (request: AdminLedgerRequest, decision: 'approve' | 'reject') => {
-    const reason = window.prompt(
-      `${decision === 'approve' ? 'Approval' : 'Rejection'} reason for ${request.reference} (at least 5 characters):`,
-    );
-    if (reason === null) return;
-    if (reason.trim().length < 5) {
-      setError('Enter an audit reason of at least five characters.');
-      return;
-    }
     setError('');
     setTransactionPin('');
-    setReviewTarget({ request, decision, reason: reason.trim() });
+    setReviewTarget({ request, decision });
   };
 
   const submitDecision = async (event: FormEvent<HTMLFormElement>) => {
@@ -1295,7 +1278,6 @@ function AdminLedgerRequestQueue() {
         requestId: reviewTarget.request.id,
         data: {
           decision: reviewTarget.decision,
-          reason: reviewTarget.reason,
           transactionPin,
         },
       });
@@ -1321,7 +1303,7 @@ function AdminLedgerRequestQueue() {
       <section className="mt-6 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
         <div className="border-b border-[#edf0f3] px-5 py-4 sm:px-7">
           <h2 className="text-[14px] font-bold text-[#28405c]">Withdrawal approvals</h2>
-          <p className="mt-1 text-[10px] leading-4 text-[#8592a1]">Review and approve eligible withdrawal requests. Every decision requires an audit reason and administrator PIN.</p>
+          <p className="mt-1 text-[10px] leading-4 text-[#8592a1]">Review eligible withdrawal requests. Decisions are recorded automatically and require an administrator PIN.</p>
         </div>
         {error && !reviewTarget && <p role="alert" className="border-b border-[#edf0f3] bg-[#fff1ef] px-5 py-3 text-[11px] text-[#a24940]">{error}</p>}
         {requests.isLoading ? <ListSkeleton /> : requests.isError ? <InlineError text="Customer requests are unavailable." retry={() => requests.refetch()} /> : requests.data?.length ? (
@@ -1376,14 +1358,12 @@ export function AdminPage() {
   const [fundAmount, setFundAmount] = useState('');
   const [fundSenderName, setFundSenderName] = useState('');
   const [fundDescription, setFundDescription] = useState('');
-  const [fundReason, setFundReason] = useState('');
   const [fundTransactionPin, setFundTransactionPin] = useState('');
   const [fundingError, setFundingError] = useState('');
   const [fundingSuccess, setFundingSuccess] = useState<BankTransaction | null>(null);
   const [rateSource, setRateSource] = useState<Currency>('USD');
   const [rateDestination, setRateDestination] = useState<Currency>('EUR');
   const [rateValue, setRateValue] = useState('');
-  const [rateReason, setRateReason] = useState('');
   const [ratePin, setRatePin] = useState('');
   const [rateMessage, setRateMessage] = useState('');
   const [statusTarget, setStatusTarget] = useState<BankTransaction | null>(null);
@@ -1399,10 +1379,8 @@ export function AdminPage() {
   if (access.isLoading) return <PageSkeleton />;
   if (access.isError || !access.data?.allowed) return <Failure title="Operations access is restricted" text="This area is only available to authorized Globus operations staff." retry={() => access.refetch()} />;
   const setStatus = (userId: string, accountStatus: 'active' | 'suspended') => {
-    const reason = window.prompt(`Reason for setting this account to ${accountStatus}?`);
-    if (!reason || reason.trim().length < 5) return;
     setStatusError('');
-    update.mutate({ userId, data: { accountStatus, reason: reason.trim() } }, {
+    update.mutate({ userId, data: { accountStatus } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() });
@@ -1423,7 +1401,6 @@ export function AdminPage() {
         amount: fundAmount,
         senderName: fundSenderName.trim(),
         description: fundDescription.trim(),
-        reason: fundReason.trim(),
         transactionPin: fundTransactionPin,
         idempotencyKey: crypto.randomUUID(),
       },
@@ -1433,7 +1410,6 @@ export function AdminPage() {
         setFundAmount('');
         setFundSenderName('');
         setFundDescription('');
-        setFundReason('');
         setFundTransactionPin('');
         queryClient.invalidateQueries({ queryKey: getListAdminLedgerQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() });
@@ -1447,13 +1423,12 @@ export function AdminPage() {
   };
   const saveTransactionStatus = async (
     status: BankTransaction['status'],
-    reason: string,
     transactionPin: string,
   ) => {
     if (!statusTarget) return;
     await updateTransactionStatus.mutateAsync({
       transactionId: statusTarget.id,
-      data: { status, reason, transactionPin, confirmed: true },
+      data: { status, transactionPin, confirmed: true },
     });
     setStatusTarget(null);
     await Promise.all([
@@ -1476,14 +1451,12 @@ export function AdminPage() {
         sourceCurrency: rateSource,
         destinationCurrency: rateDestination,
         rate: rateValue.trim(),
-        reason: rateReason.trim(),
         transactionPin: ratePin,
       },
     }, {
       onSuccess: () => {
         setRateMessage(`Saved ${rateSource} → ${rateDestination} rate.`);
         setRateValue('');
-        setRateReason('');
         setRatePin('');
         void queryClient.invalidateQueries({ queryKey: getListBankExchangeRatesQueryKey() });
       },
@@ -1509,9 +1482,8 @@ export function AdminPage() {
           <Field label="From"><select data-testid="select-rate-source" value={rateSource} onChange={event => setRateSource(event.target.value as Currency)} className={inputClass}>{currencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}</select></Field>
           <Field label="To"><select data-testid="select-rate-destination" value={rateDestination} onChange={event => setRateDestination(event.target.value as Currency)} className={inputClass}>{currencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}</select></Field>
           <Field label="Rate (1 from = amount to)"><input data-testid="input-exchange-rate" required inputMode="decimal" pattern="[0-9]+(\\.[0-9]{1,10})?" min="0.0000000001" max="999999999999" step="0.0000000001" value={rateValue} onChange={event => setRateValue(event.target.value)} placeholder="e.g. 0.92" className={inputClass} /></Field>
-          <Field label="Audit reason"><input data-testid="input-exchange-rate-reason" required minLength={5} maxLength={500} value={rateReason} onChange={event => setRateReason(event.target.value)} placeholder="Why is this rate changing?" className={inputClass} /></Field>
           <Field label="Your 6-digit transaction PIN"><input data-testid="input-exchange-rate-pin" required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={ratePin} onChange={event => setRatePin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} /></Field>
-          <button data-testid="button-save-exchange-rate" disabled={upsertExchangeRate.isPending || rateSource === rateDestination || !rateValue || rateReason.trim().length < 5 || ratePin.length !== 6} className="h-11 self-end rounded-xl bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{upsertExchangeRate.isPending ? 'Saving…' : 'Save rate'}</button>
+          <button data-testid="button-save-exchange-rate" disabled={upsertExchangeRate.isPending || rateSource === rateDestination || !rateValue || ratePin.length !== 6} className="h-11 self-end rounded-xl bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{upsertExchangeRate.isPending ? 'Saving…' : 'Save rate'}</button>
         </form>
         {rateMessage && <p role="status" className="mt-3 rounded-lg border border-[#dfe8ec] bg-[#f7f9fa] px-3 py-2 text-[10px] text-[#516b80]">{rateMessage}</p>}
         {exchangeRates.isLoading ? <div className="mt-5"><ListSkeleton /></div> : exchangeRates.isError ? <InlineError text="Conversion rates are unavailable." retry={() => exchangeRates.refetch()} /> : exchangeRates.data?.length ? <div className="mt-5 overflow-x-auto rounded-xl border border-[#e7edf0]"><table className="w-full min-w-[440px] text-left"><thead className="bg-[#f7f9fa] text-[9px] uppercase tracking-[.13em] text-[#8291a0]"><tr><th className="px-4 py-3">Pair</th><th className="px-4 py-3">Rate</th><th className="px-4 py-3">Updated</th></tr></thead><tbody>{exchangeRates.data.map(rate => <tr key={`${rate.sourceCurrency}-${rate.destinationCurrency}`} data-testid={`row-rate-${rate.sourceCurrency}-${rate.destinationCurrency}`} className="border-t border-[#edf0f2] text-[10px] text-[#445a71]"><td className="px-4 py-3 font-semibold">{rate.sourceCurrency} → {rate.destinationCurrency}</td><td className="px-4 py-3 font-mono">{rate.rate}</td><td className="px-4 py-3">{formatDateTime(rate.updatedAt)}</td></tr>)}</tbody></table></div> : <div className="mt-5 rounded-xl bg-[#f7f9fa] px-4 py-3 text-[10px] text-[#75879a]">No rates are configured. Add a currency pair to enable the conversion calculator.</div>}
@@ -1520,7 +1492,7 @@ export function AdminPage() {
       {fundTarget && <section className="mt-6 rounded-[20px] border border-[#dfe7ec] bg-white p-5 sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Admin balance adjustment</p><h2 className="mt-1 text-[15px] font-bold text-[#29425c]">Adjust a user wallet</h2><p className="mt-1 text-[11px] text-[#7e8d9c]">{[fundTarget.firstName, fundTarget.lastName].filter(Boolean).join(' ') || 'Globus member'} · {fundTarget.email}</p></div>
-          <button type="button" aria-label="Close funding form" onClick={() => { setFundTarget(null); setFundingError(''); setFundingSuccess(null); setFundSenderName(''); setFundDescription(''); setFundReason(''); setFundTransactionPin(''); }} className="rounded-lg p-2 text-[#6d8092] hover:bg-[#f1f5f7]"><X size={16} /></button>
+          <button type="button" aria-label="Close funding form" onClick={() => { setFundTarget(null); setFundingError(''); setFundingSuccess(null); setFundSenderName(''); setFundDescription(''); setFundTransactionPin(''); }} className="rounded-lg p-2 text-[#6d8092] hover:bg-[#f1f5f7]"><X size={16} /></button>
         </div>
         <p className="mb-5 rounded-lg border border-[#d9e8e9] bg-[#f2f8f8] px-4 py-3 text-[10px] leading-4 text-[#4e777a]">This records a wallet credit or debit in Globus and writes an audit entry. It does not move outside funds. Maximum per entry: 1,000,000.00.</p>
         <form onSubmit={submitFunding} className="grid gap-4 sm:grid-cols-2">
@@ -1529,16 +1501,15 @@ export function AdminPage() {
           <Field label="Amount"><input required inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" min="0.01" max="1000000" value={fundAmount} onChange={event => setFundAmount(event.target.value)} placeholder="0.00" className={inputClass} /></Field>
           <Field label="Counterparty / adjustment label"><input required maxLength={120} value={fundSenderName} onChange={event => setFundSenderName(event.target.value)} placeholder="Globus operations" className={inputClass} /></Field>
           <Field label="Transaction description"><input required maxLength={240} value={fundDescription} onChange={event => setFundDescription(event.target.value)} placeholder="Reason shown in transaction activity" className={inputClass} /></Field>
-          <div className="sm:col-span-2"><Field label="Reason (recorded in the audit log)"><textarea required minLength={5} maxLength={500} rows={3} value={fundReason} onChange={event => setFundReason(event.target.value)} placeholder="Reason for this balance adjustment" className={`${inputClass} h-auto py-3`} /></Field></div>
           <div className="sm:col-span-2"><Field label="Your 6-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={fundTransactionPin} onChange={event => setFundTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} /></Field></div>
           {fundingError && <p role="alert" className="sm:col-span-2 rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{fundingError}</p>}
           {fundingSuccess && <p role="status" className="sm:col-span-2 rounded-lg border border-[#cfe5db] bg-[#f1f8f4] px-4 py-3 text-[11px] text-[#417461]">Balance adjustment recorded · {fundingSuccess.reference}</p>}
-          <div className="sm:col-span-2"><button disabled={funding.isPending || fundTransactionPin.length !== 6 || !fundAmount || !fundSenderName.trim() || !fundDescription.trim() || !fundReason.trim()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#142f51] px-5 text-[11px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{funding.isPending ? 'Recording adjustment…' : 'Save balance adjustment'} <ArrowRight size={14} /></button></div>
+          <div className="sm:col-span-2"><button disabled={funding.isPending || fundTransactionPin.length !== 6 || !fundAmount || !fundSenderName.trim() || !fundDescription.trim()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#142f51] px-5 text-[11px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{funding.isPending ? 'Recording adjustment…' : 'Save balance adjustment'} <ArrowRight size={14} /></button></div>
         </form>
       </section>}
       <AdminLedgerRequestQueue />
       <section className="mt-7 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
-        <div className="flex flex-col gap-3 border-b border-[#edf0f3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7"><div><h2 className="text-[14px] font-bold text-[#28405c]">Registered users</h2><p className="mt-1 text-[10px] text-[#8592a1]">Account status changes require a documented reason.</p></div><label className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8996a4]" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, email, or Customer ID" className="h-10 w-full rounded-lg border border-[#e0e7ec] bg-white pl-9 pr-3 text-[11px] outline-none sm:w-[240px]" /></label></div>
+          <div className="flex flex-col gap-3 border-b border-[#edf0f3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7"><div><h2 className="text-[14px] font-bold text-[#28405c]">Registered users</h2><p className="mt-1 text-[10px] text-[#8592a1]">Account status decisions are recorded automatically.</p></div><label className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8996a4]" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, email, or Customer ID" className="h-10 w-full rounded-lg border border-[#e0e7ec] bg-white pl-9 pr-3 text-[11px] outline-none sm:w-[240px]" /></label></div>
          {users.isLoading ? <ListSkeleton /> : users.isError ? <InlineError text="User records are unavailable." retry={() => users.refetch()} /> : users.data?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead className="bg-[#f7f9fa] text-[9px] uppercase tracking-[.13em] text-[#8291a0]"><tr><th className="px-6 py-3">Member</th><th className="px-4 py-3">Region</th><th className="px-4 py-3">Account</th><th className="px-4 py-3">Wallets</th><th className="px-6 py-3 text-right">Actions</th></tr></thead><tbody>{users.data.map(user => <tr key={user.id} className="border-t border-[#edf0f2] text-[11px] text-[#445a71]"><td className="px-6 py-4"><b className="block text-[#2d435c]">{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'Globus member'}</b><span className="mt-1 block text-[10px] text-[#8a97a5]">{user.email}</span><span className="mt-1 block font-mono text-[10px] font-semibold tracking-[.08em] text-[#52717e]">Customer ID: {user.customerId ?? '—'}</span></td><td className="px-4 py-4">{user.country || '—'}</td><td className="px-4 py-4">{humanize(user.accountStatus)}</td><td className="px-4 py-4">{user.walletCount}</td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/users/${encodeURIComponent(user.id)}`} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8]">Manage</Link><button disabled={user.accountStatus !== 'active'} onClick={() => { setFundTarget(user); setFundingError(''); setFundingSuccess(null); }} className="rounded-lg bg-[#eff7f7] px-3 py-2 text-[10px] font-bold text-[#36777c] hover:bg-[#e2f1f1] disabled:cursor-not-allowed disabled:opacity-40">Fund</button><button disabled={update.isPending} onClick={() => setStatus(user.id, user.accountStatus === 'active' ? 'suspended' : 'active')} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8] disabled:opacity-50">{user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}</button></div></td></tr>)}</tbody></table></div> : <EmptyState title="No users found" text="Try another email, name, or Customer ID." />}
       </section>
       <section className="mt-6 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
@@ -1579,7 +1550,6 @@ export function AdminUserManagementPage() {
   const [amount, setAmount] = useState('');
   const [senderName, setSenderName] = useState('Globus operations');
   const [fundingDescription, setFundingDescription] = useState('');
-  const [fundingReason, setFundingReason] = useState('');
   const [fundingPin, setFundingPin] = useState('');
   const [fundingError, setFundingError] = useState('');
   const [fundingReference, setFundingReference] = useState('');
@@ -1601,16 +1571,11 @@ export function AdminUserManagementPage() {
   const changeAccountStatus = async () => {
     if (!user) return;
     const nextStatus = user.accountStatus === 'active' ? 'suspended' : 'active';
-    const reason = window.prompt(`Reason for setting this account to ${nextStatus}?`);
-    if (!reason || reason.trim().length < 5) {
-      if (reason !== null) setPageError('Enter a reason of at least five characters.');
-      return;
-    }
     setPageError('');
     try {
       await updateStatus.mutateAsync({
         userId,
-        data: { accountStatus: nextStatus, reason: reason.trim() },
+        data: { accountStatus: nextStatus },
       });
       await refreshUserData();
       setPageMessage(`Account ${nextStatus === 'active' ? 'reactivated' : 'suspended'}.`);
@@ -1633,7 +1598,6 @@ export function AdminUserManagementPage() {
           amount,
           senderName: senderName.trim(),
           description: fundingDescription.trim(),
-          reason: fundingReason.trim(),
           transactionPin: fundingPin,
           idempotencyKey: crypto.randomUUID(),
         },
@@ -1641,7 +1605,6 @@ export function AdminUserManagementPage() {
       setFundingReference(transaction.reference);
       setAmount('');
       setFundingDescription('');
-      setFundingReason('');
       setFundingPin('');
       await refreshUserData();
     } catch (error) {
@@ -1651,18 +1614,12 @@ export function AdminUserManagementPage() {
 
   const resetMemberTransactionPin = async () => {
     if (!user) return;
-    const reason = window.prompt('Enter an audit reason for resetting this member’s transaction PIN (at least 5 characters).');
-    if (reason === null) return;
-    if (reason.trim().length < 5) {
-      setPageError('Enter a reset reason of at least five characters.');
-      return;
-    }
     if (!window.confirm('Reset this member’s PIN? They will need to create a new PIN before making another transaction.')) return;
     setPageError('');
     try {
       await resetTransactionPin.mutateAsync({
         userId,
-        data: { reason: reason.trim() },
+        data: {},
       });
       await refreshUserData();
       setPageMessage('Transaction PIN reset. The member must create a new PIN before their next transaction.');
@@ -1673,13 +1630,12 @@ export function AdminUserManagementPage() {
 
   const saveUserTransactionStatus = async (
     status: BankTransaction['status'],
-    reason: string,
     transactionPin: string,
   ) => {
     if (!statusTarget) return;
     await updateTransactionStatus.mutateAsync({
       transactionId: statusTarget.id,
-      data: { status, reason, transactionPin, confirmed: true },
+      data: { status, transactionPin, confirmed: true },
     });
     setStatusTarget(null);
     await refreshUserData();
@@ -1779,11 +1735,10 @@ export function AdminUserManagementPage() {
               <Field label="Amount"><input required inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" min="0.01" max="1000000" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00" className={inputClass} /></Field>
               <Field label="Counterparty / adjustment label"><input required maxLength={120} value={senderName} onChange={event => setSenderName(event.target.value)} className={inputClass} /></Field>
               <Field label="Description"><input required maxLength={240} value={fundingDescription} onChange={event => setFundingDescription(event.target.value)} placeholder="Shown in activity" className={inputClass} /></Field>
-              <Field label="Audit reason"><textarea required minLength={5} maxLength={500} rows={3} value={fundingReason} onChange={event => setFundingReason(event.target.value)} className={`${inputClass} h-auto py-3`} /></Field>
               <Field label="Your 6-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={fundingPin} onChange={event => setFundingPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} /></Field>
               {fundingError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{fundingError}</p>}
               {fundingReference && <p role="status" className="rounded-lg bg-[#f1f8f4] px-3 py-2 text-[10px] text-[#417461]">Balance adjustment recorded · {fundingReference}</p>}
-              <button disabled={profile.accountStatus !== 'active' || createFunding.isPending || fundingPin.length !== 6 || !amount || !senderName.trim() || !fundingDescription.trim() || !fundingReason.trim()} className="h-10 w-full rounded-xl bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{createFunding.isPending ? 'Recording…' : 'Save balance adjustment'}</button>
+              <button disabled={profile.accountStatus !== 'active' || createFunding.isPending || fundingPin.length !== 6 || !amount || !senderName.trim() || !fundingDescription.trim()} className="h-10 w-full rounded-xl bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{createFunding.isPending ? 'Recording…' : 'Save balance adjustment'}</button>
               {profile.accountStatus !== 'active' && <p className="text-[9px] text-[#9b8050]">Reactivate the account before adjusting its balance.</p>}
             </form>
           </section>

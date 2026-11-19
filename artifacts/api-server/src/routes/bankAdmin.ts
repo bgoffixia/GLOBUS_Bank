@@ -1,4 +1,4 @@
-import { Router, type IRouter, type RequestHandler } from "express";
+import { Router, type IRouter, type Request, type RequestHandler } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import { randomUUID } from "node:crypto";
 import {
@@ -165,6 +165,69 @@ import {
 
 const router: IRouter = Router();
 
+const adminAuditOperationLabels: Array<[string, string]> = [
+  ["/bank/admin/exchange-rates", "exchange rate update"],
+  ["/bank/admin/wallet-currency-migration", "legacy wallet currency conversion"],
+  ["/bank/admin/wallets/:walletId", "wallet status change"],
+  ["/bank/admin/restrictions/:restrictionId/remove", "restriction removal"],
+  ["/bank/admin/restrictions", "restriction creation"],
+  ["/bank/admin/settings", "operations settings update"],
+  ["/bank/admin/ledger-requests/:requestId", "customer request review"],
+  ["/bank/admin/account-tiers/:tierId", "account tier update"],
+  ["/bank/admin/account-tiers", "account tier creation"],
+  ["/bank/admin/users/:userId/account-tier", "customer account tier assignment"],
+  ["/bank/admin/users/:userId/vault-access/grant", "Private Vault admin grant"],
+  ["/bank/admin/users/:userId/vault-access/revoke", "Private Vault admin grant revocation"],
+  ["/bank/admin/users/:userId/transaction-pin/reset", "customer transaction PIN reset"],
+  ["/bank/admin/users/:userId/password-reset", "customer password reset"],
+  ["/bank/admin/users/:userId/status", "customer account status change"],
+  ["/bank/admin/users/:userId/profile", "customer profile update"],
+  ["/bank/admin/users/:userId/vault-subscription", "Private Vault subscription access removal"],
+  ["/bank/admin/users/:userId/funding", "customer wallet adjustment"],
+  ["/bank/admin/transactions/:transactionId/process", "internal transfer processing"],
+  ["/bank/admin/transactions/:transactionId/funding-review", "funding adjustment review"],
+  ["/bank/admin/transactions/:transactionId/status", "transaction status correction"],
+  ["/bank/admin/transactions/:transactionId", "transaction correction"],
+];
+
+const adminAuditDetailFields = [
+  "accountStatus",
+  "status",
+  "decision",
+  "type",
+  "tierId",
+  "vaultPlanCode",
+  "direction",
+  "currency",
+  "amount",
+  "sourceCurrency",
+  "destinationCurrency",
+  "rate",
+  "kind",
+  "effectiveAt",
+  "expiresAt",
+  "name",
+] as const;
+
+function generatedAdminAuditReason(req: Request): string {
+  const route = String(req.route?.path ?? `${req.baseUrl}${req.path}`);
+  const operation = adminAuditOperationLabels.find(([path]) => route === path)?.[1]
+    ?? `${req.method.toLowerCase()} ${route}`;
+  const body = typeof req.body === "object" && req.body !== null
+    ? req.body as Record<string, unknown>
+    : {};
+  const details = adminAuditDetailFields.flatMap((field) => {
+    const value = body[field];
+    if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+      return [];
+    }
+    const safeValue = String(value).replace(/[\r\n\t]/g, " ").slice(0, 80);
+    return safeValue ? [`${field}=${safeValue}`] : [];
+  });
+  return `Automatically generated audit reason for ${operation}${details.length ? ` (${details.join(", ")})` : ""}.`
+    .slice(0, 500);
+}
+
 const removedIdentityWorkflow: RequestHandler = (_req, res): void => {
   res.status(410).json({ error: "Identity review workflows are no longer available." });
 };
@@ -262,7 +325,9 @@ async function applyAdminVaultEntitlementAction(
   reason: string,
   action: "grant" | "revoke",
 ) {
-  if (actorUserId === targetUserId) return { selfGrant: true as const };
+  if (actorUserId === targetUserId && action === "revoke") {
+    return { selfRevoke: true as const };
+  }
   return db.transaction(async (tx) => {
     const [target] = await tx
       .select()
@@ -526,11 +591,7 @@ router.put("/bank/admin/exchange-rates", requireAdmin, async (req, res): Promise
     respondWithTransactionPinError(res, pinResult);
     return;
   }
-  const reason = parsed.data.reason.trim();
-  if (reason.length < 5) {
-    res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-    return;
-  }
+  const reason = generatedAdminAuditReason(req);
   const rate = await db.transaction(async (tx) => {
     const now = new Date();
     const [savedRate] = await tx
@@ -1290,7 +1351,7 @@ router.post(
       }> = [];
       for (const item of prepared) {
         const reference = createReference();
-        const description = `Legacy ${item.source.currency} balance converted to USD. Rate ${item.rate.rate} from ${item.rate.provider}, quoted ${item.rate.checkedAt.toISOString()}. Reason: ${parsed.data.reason.trim()}`;
+        const description = `Legacy ${item.source.currency} balance converted to USD. Rate ${item.rate.rate} from ${item.rate.provider}, quoted ${item.rate.checkedAt.toISOString()}. ${generatedAdminAuditReason(req)}`;
         const [transaction] = await tx
           .insert(bankTransactionsTable)
           .values({
@@ -1309,7 +1370,7 @@ router.post(
             counterparty: "Currency conversion",
             description,
             adminReference: "Legacy wallet conversion to USD",
-            adminNotes: parsed.data.reason.trim(),
+            adminNotes: null,
             mode: "internal_ledger",
           })
           .returning();
@@ -1405,11 +1466,7 @@ router.patch(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const result = await db.transaction(async (tx) => {
       const [observedWallet] = await tx
         .select({ userId: bankWalletsTable.userId })
@@ -1442,7 +1499,7 @@ router.patch(
             reason,
             effectiveAt: now,
             createdByUserId: actorUserId,
-            internalNotes: parsed.data.notes?.trim() || null,
+            internalNotes: null,
           })
           .returning();
       } else {
@@ -1503,9 +1560,7 @@ router.patch(
         .set({
           status: remainsFrozen ? "restricted" : "active",
           restrictionReason: remainsFrozen ? remainingFreeze?.reason ?? reason : null,
-          restrictionNotes: remainsFrozen
-            ? remainingFreeze?.internalNotes ?? parsed.data.notes?.trim() ?? null
-            : null,
+          restrictionNotes: remainsFrozen ? remainingFreeze?.internalNotes ?? null : null,
           restrictedByUserId: remainsFrozen
             ? remainingFreeze?.createdByUserId ?? actorUserId
             : null,
@@ -1518,7 +1573,7 @@ router.patch(
         actorUserId,
         targetUserId: user.id,
         action: restricted ? "freeze_wallet" : "unfreeze_wallet",
-        reason: `${wallet.currency} wallet ${wallet.id}: ${reason}${parsed.data.notes?.trim() ? ` Notes: ${parsed.data.notes.trim()}` : ""}${!restricted && remainsFrozen ? " Other active freeze restrictions remain in effect." : ""}`,
+        reason: `${wallet.currency} wallet ${wallet.id}: ${reason}${!restricted && remainsFrozen ? " Other active freeze restrictions remain in effect." : ""}`,
       });
       const balance = await balanceForWallet(tx, wallet.id);
       return { wallet: updated, user, balance };
@@ -1687,11 +1742,7 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     });
     return;
   }
-  const reason = parsed.data.reason.trim();
-  if (reason.length < 5) {
-    res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-    return;
-  }
+  const reason = generatedAdminAuditReason(req);
   const [settings] = await db
     .insert(bankAdminSettingsTable)
     .values({
@@ -1911,10 +1962,10 @@ router.post(
           userId: customer.id,
           walletId: wallet?.id ?? null,
           type: parsed.data.type,
-          reason: parsed.data.reason.trim(),
+          reason: generatedAdminAuditReason(req),
           effectiveAt,
           expiresAt,
-          internalNotes: parsed.data.internalNotes?.trim() || null,
+          internalNotes: null,
           createdByUserId: actorUserId,
         })
         .returning();
@@ -1922,7 +1973,7 @@ router.post(
         actorUserId,
         targetUserId: customer.id,
         action: "create_account_restriction",
-        reason: `${parsed.data.type} restriction ${restriction.id} effective ${effectiveAt.toISOString()}${expiresAt ? ` until ${expiresAt.toISOString()}` : ""}. ${parsed.data.reason.trim()}`,
+        reason: `${generatedAdminAuditReason(req)} Restriction ${restriction.id} is ${parsed.data.type}, effective ${effectiveAt.toISOString()}${expiresAt ? ` until ${expiresAt.toISOString()}` : ""}.`,
       });
       const [actor] = await tx
         .select()
@@ -2011,7 +2062,7 @@ router.post(
           status: "removed",
           removedAt: new Date(),
           removedByUserId: actorUserId,
-          removalReason: parsed.data.reason.trim(),
+          removalReason: generatedAdminAuditReason(req),
         })
         .where(eq(bankRestrictionsTable.id, restriction.id))
         .returning();
@@ -2074,7 +2125,7 @@ router.post(
         actorUserId,
         targetUserId: customer.id,
         action: "remove_account_restriction",
-        reason: `Restriction ${restriction.id} (${restriction.type}) removed. ${parsed.data.reason.trim()}`,
+        reason: `${generatedAdminAuditReason(req)} Restriction ${restriction.id} (${restriction.type}) removed.`,
       });
       return { restriction: updated, customer, wallet, creator, actor };
     });
@@ -2331,9 +2382,9 @@ router.post(
       return;
     }
     const name = parsed.data.name.trim();
-    const reason = parsed.data.reason.trim();
-    if (name.length < 2 || reason.length < 5) {
-      res.status(400).json({ error: "Enter a tier name and a clear audit reason." });
+    const reason = generatedAdminAuditReason(req);
+    if (name.length < 2) {
+      res.status(400).json({ error: "Enter a tier name with at least two characters." });
       return;
     }
     const actor = await ensureBankUser(authUserId);
@@ -2404,9 +2455,9 @@ router.patch(
       return;
     }
     const name = parsed.data.name.trim();
-    const reason = parsed.data.reason.trim();
-    if (name.length < 2 || reason.length < 5) {
-      res.status(400).json({ error: "Enter a tier name and a clear audit reason." });
+    const reason = generatedAdminAuditReason(req);
+    if (name.length < 2) {
+      res.status(400).json({ error: "Enter a tier name with at least two characters." });
       return;
     }
     if (params.data.tierId === "standard" && !parsed.data.active) {
@@ -2486,15 +2537,7 @@ router.patch(
       res.status(401).json({ error: "Sign in with an administrator account." });
       return;
     }
-    if (params.data.userId === authUserId) {
-      res.status(403).json({ error: "Administrators cannot change their own account tier." });
-      return;
-    }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a clear audit reason." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const actor = await ensureBankUser(authUserId);
     const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
     if (pinResult !== "valid") {
@@ -2620,15 +2663,7 @@ router.post(
       res.status(401).json({ error: "Sign in with an administrator account." });
       return;
     }
-    if (params.data.userId === authUserId) {
-      res.status(403).json({ error: "Administrators cannot grant Vault access to themselves." });
-      return;
-    }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a grant reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const actor = await ensureBankUser(authUserId);
     const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
     if (pinResult !== "valid") {
@@ -2648,10 +2683,6 @@ router.post(
       reason,
       "grant",
     );
-    if ("selfGrant" in result) {
-      res.status(403).json({ error: "Administrators cannot grant Vault access to themselves." });
-      return;
-    }
     if ("notFound" in result) {
       res.status(404).json({ error: "User record not found." });
       return;
@@ -2700,11 +2731,7 @@ router.post(
       res.status(403).json({ error: "Administrators cannot manage their own Vault access." });
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a revocation reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const actor = await ensureBankUser(authUserId);
     const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
     if (pinResult !== "valid") {
@@ -2724,7 +2751,7 @@ router.post(
       reason,
       "revoke",
     );
-    if ("selfGrant" in result) {
+    if ("selfRevoke" in result) {
       res.status(403).json({ error: "Administrators cannot manage their own Vault access." });
       return;
     }
@@ -2920,11 +2947,7 @@ router.post(
       return;
     }
     const actorUserId = (await ensureBankUser(authenticatedClerkId)).id;
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a reset reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const reset = await db.transaction(async (tx) => {
       const [target] = await tx
         .update(bankUsersTable)
@@ -2992,7 +3015,7 @@ router.post(
       return;
     }
 
-    const reason = parsed.data.reason.trim();
+    const reason = generatedAdminAuditReason(req);
     const requestedAt = new Date().toISOString();
     await db.insert(bankAuditLogsTable).values({
       actorUserId,
@@ -3133,6 +3156,7 @@ router.patch(
       return;
     }
 
+    const reason = generatedAdminAuditReason(req);
     const result = await db.transaction(async (tx) => {
       const now = new Date();
       const [user] = await tx
@@ -3140,13 +3164,8 @@ router.patch(
         .set({
           accountStatus: parsed.data.accountStatus,
           accountRestrictionReason:
-            parsed.data.accountStatus === "restricted"
-              ? parsed.data.reason.trim()
-              : null,
-          accountRestrictionNotes:
-            parsed.data.accountStatus === "restricted"
-              ? parsed.data.notes?.trim() || null
-              : null,
+            parsed.data.accountStatus === "restricted" ? reason : null,
+          accountRestrictionNotes: null,
           accountRestrictedByUserId:
             parsed.data.accountStatus === "restricted" ? actorUserId : null,
           accountRestrictedAt:
@@ -3168,7 +3187,7 @@ router.patch(
             : parsed.data.accountStatus === "restricted"
               ? "restrict_user"
               : "restore_user",
-        reason: `${parsed.data.reason.trim()}${parsed.data.notes?.trim() ? ` Notes: ${parsed.data.notes.trim()}` : ""}`,
+        reason,
       });
 
       return user;
@@ -3233,7 +3252,7 @@ router.patch(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
+    const reason = generatedAdminAuditReason(req);
     const profileFields = {
       ...(parsed.data.firstName !== undefined
         ? { firstName: parsed.data.firstName?.trim() || null }
@@ -3248,9 +3267,9 @@ router.patch(
         ? { country: parsed.data.country?.trim() || null }
         : {}),
     };
-    if (Object.keys(profileFields).length === 0 || reason.length < 5) {
+    if (Object.keys(profileFields).length === 0) {
       res.status(400).json({
-        error: "Change at least one permitted profile field and enter a reason.",
+        error: "Change at least one permitted profile field.",
       });
       return;
     }
@@ -3342,7 +3361,7 @@ router.patch(
           vaultSubscriptionStatus: "inactive",
           vaultSubscriptionReviewedAt: now,
           vaultSubscriptionReviewedByUserId: admin.id,
-          vaultSubscriptionReason: parsed.data.reason.trim(),
+          vaultSubscriptionReason: generatedAdminAuditReason(req),
           vaultSubscriptionExpiresAt: null,
           vaultSubscriptionPlan: null,
           vaultSubscriptionAmountMinor: null,
@@ -3357,7 +3376,7 @@ router.patch(
         actorUserId: admin.id,
         targetUserId: user.id,
         action: "revoke_private_vault_subscription",
-        reason: parsed.data.reason.trim(),
+        reason: generatedAdminAuditReason(req),
       });
       return { user: updated };
     });
@@ -3425,13 +3444,9 @@ router.post(
       return;
     }
 
-    const reason = parsed.data.reason.trim();
+    const reason = generatedAdminAuditReason(req);
     const senderName = parsed.data.senderName.trim();
     const description = parsed.data.description.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a funding reason of at least five characters." });
-      return;
-    }
     if (!senderName || !description) {
       res.status(400).json({ error: "Enter a sender name and transaction description." });
       return;
@@ -3484,7 +3499,7 @@ router.post(
           duplicate.counterparty === senderName &&
           duplicate.description === description &&
           duplicate.adminReference === (parsed.data.internalReference?.trim() || null) &&
-          duplicate.adminNotes === (parsed.data.adminNotes?.trim() || null);
+          duplicate.adminNotes === null;
         return sameRequest
           ? { transaction: duplicate }
           : { error: "That request reference is already in use." };
@@ -3552,7 +3567,7 @@ router.post(
           counterparty: senderName,
           description,
           adminReference: parsed.data.internalReference?.trim() || null,
-          adminNotes: parsed.data.adminNotes?.trim() || null,
+          adminNotes: null,
           mode: "internal_ledger",
         })
         .returning();
@@ -3634,11 +3649,7 @@ router.post(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const result = await db.transaction(async (tx) => {
       const [transaction] = await tx
         .select()
@@ -3854,11 +3865,7 @@ router.patch(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
 
     const result = await db.transaction(async (tx) => {
       const [request] = await tx
@@ -4250,11 +4257,7 @@ router.post(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a correction reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     let adjustmentMinor: bigint | null = null;
     if (parsed.data.kind === "adjustment") {
       if (!parsed.data.walletId || !parsed.data.direction || !parsed.data.amount) {
@@ -4789,7 +4792,7 @@ router.post(
           actorUserId,
           targetUserId,
           action: "process_internal_transfer",
-          reason: `Transaction ${transaction.reference}: pending → completed. ${parsed.data.reason.trim()}`,
+          reason: `${generatedAdminAuditReason(req)} Transaction ${transaction.reference}: pending → completed.`,
         })),
       );
       const notification = await storeNotification(tx, {
@@ -4872,11 +4875,7 @@ router.patch(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
 
     const result = await db.transaction(async (tx) => {
       const [transaction] = await tx
