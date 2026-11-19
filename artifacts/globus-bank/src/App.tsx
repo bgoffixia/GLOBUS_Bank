@@ -273,6 +273,8 @@ function ClerkRoutes() {
         <Route path="/profile"><ProtectedPage><ProfilePage /></ProtectedPage></Route>
         <Route path="/private-vault"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/settings"><Redirect to="/profile" /></Route>
+        <Route path="/admin/vault-acces"><Redirect to="/admin/vault-access" /></Route>
+        <Route path="/admin/vault-access"><ProtectedAdminPage /></Route>
         <Route path="/admin/users/:userId"><ProtectedAdminPage /></Route>
         <Route path="/admin/users"><ProtectedAdminPage /></Route>
         <Route path="/admin/accounts"><ProtectedAdminPage /></Route>

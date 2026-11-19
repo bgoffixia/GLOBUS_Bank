@@ -162,6 +162,15 @@ test('short Vault URL redirects to the canonical Private Vault page', async ({ p
   await expect(page.getByText('404 Page Not Found')).toHaveCount(0);
 });
 
+test('admin Vault access URLs resolve through the registered admin route', async ({ page }) => {
+  for (const path of ['/admin/vault-access', '/admin/vault-acces']) {
+    await page.goto(path, { waitUntil: 'domcontentloaded' });
+    await expect(page.locator('.gb-auth-shell')).toBeVisible();
+    await expect(page).toHaveURL(/\/sign-in$/);
+    await expect(page.getByText('404 Page Not Found')).toHaveCount(0);
+  }
+});
+
 test.describe('landing feature layout after removing wallet-funding copy', () => {
   for (const viewport of authViewports) {
     test(`keeps the remaining features gap-free at ${viewport.name}`, async ({ page }) => {
