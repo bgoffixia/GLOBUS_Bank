@@ -23,6 +23,11 @@ import type {
   AdminAccess,
   AdminAccount,
   AdminAccountPage,
+  AdminAccountTierAssignmentInput,
+  AdminAccountTierAssignmentResponse,
+  AdminAccountTierInput,
+  AdminAccountTierList,
+  AdminAccountTierResponse,
   AdminAuditLogPage,
   AdminFundingInput,
   AdminFundingReviewInput,
@@ -3943,7 +3948,7 @@ export const getCreateLedgerRequestUrl = () => {
 }
 
 /**
- * Deposit requests are credited immediately only for customers with an active Private Vault subscription and eligible account and wallet status. Withdrawal requests remain subject to administrator review.
+ * Deposit requests create internal Globus ledger credits for customers with valid Private Vault access and eligible account and wallet status. They never move outside funds; optional customer descriptions are stored with the transaction. Withdrawal requests remain subject to administrator review.
  * @summary Add funds with active Vault access or request a withdrawal
  */
 export const createLedgerRequest = async (ledgerRequestInput: LedgerRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<LedgerRequest> => {
@@ -5281,6 +5286,349 @@ export function useListAdminUsers<TData = Awaited<ReturnType<typeof listAdminUse
 
 
 
+
+export const getListAdminAccountTiersUrl = () => {
+
+
+
+
+  return `/api/bank/admin/account-tiers`
+}
+
+/**
+ * @summary List account tiers and Vault plan mappings
+ */
+export const listAdminAccountTiers = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminAccountTierList> => {
+
+  return customFetch<AdminAccountTierList>(getListAdminAccountTiersUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminAccountTiersQueryKey = () => {
+    return [
+    `/api/bank/admin/account-tiers`
+    ] as const;
+    }
+
+
+export const getListAdminAccountTiersQueryOptions = <TData = Awaited<ReturnType<typeof listAdminAccountTiers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminAccountTiers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminAccountTiersQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminAccountTiers>>> = ({ signal }) => listAdminAccountTiers({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminAccountTiers>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminAccountTiersQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminAccountTiers>>>
+export type ListAdminAccountTiersQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse>
+
+
+/**
+ * @summary List account tiers and Vault plan mappings
+ */
+
+export function useListAdminAccountTiers<TData = Awaited<ReturnType<typeof listAdminAccountTiers>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminAccountTiers>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminAccountTiersQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateAdminAccountTierUrl = () => {
+
+
+
+
+  return `/api/bank/admin/account-tiers`
+}
+
+/**
+ * @summary Create an account tier
+ */
+export const createAdminAccountTier = async (adminAccountTierInput: AdminAccountTierInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminAccountTierResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminAccountTierResponse>(getCreateAdminAccountTierUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminAccountTierInput)
+  }
+);}
+
+
+
+
+
+export const getCreateAdminAccountTierMutationKey = () => ['createAdminAccountTier'] as const;
+
+export const getCreateAdminAccountTierMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminAccountTier>>, TError,CreateAdminAccountTierMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createAdminAccountTier>>, TError,CreateAdminAccountTierMutationVariables, TContext> => {
+
+const mutationKey = getCreateAdminAccountTierMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createAdminAccountTier>>, CreateAdminAccountTierMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createAdminAccountTier(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateAdminAccountTierMutationResult = NonNullable<Awaited<ReturnType<typeof createAdminAccountTier>>>
+    export type CreateAdminAccountTierMutationBody = BodyType<AdminAccountTierInput>
+    export type CreateAdminAccountTierMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>
+    export type CreateAdminAccountTierMutationVariables = {data: BodyType<AdminAccountTierInput>}
+
+    /**
+ * @summary Create an account tier
+ */
+export const useCreateAdminAccountTier = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createAdminAccountTier>>, TError,CreateAdminAccountTierMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createAdminAccountTier>>,
+        TError,
+        CreateAdminAccountTierMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateAdminAccountTierMutationOptions(options));
+    }
+
+export const getUpdateAdminAccountTierUrl = (tierId: string,) => {
+
+
+
+
+  return `/api/bank/admin/account-tiers/${tierId}`
+}
+
+/**
+ * @summary Update an account tier and its Vault plan mapping
+ */
+export const updateAdminAccountTier = async (tierId: string,
+    adminAccountTierInput: AdminAccountTierInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminAccountTierResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminAccountTierResponse>(getUpdateAdminAccountTierUrl(tierId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminAccountTierInput)
+  }
+);}
+
+
+
+
+
+export const getUpdateAdminAccountTierMutationKey = () => ['updateAdminAccountTier'] as const;
+
+export const getUpdateAdminAccountTierMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminAccountTier>>, TError,UpdateAdminAccountTierMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateAdminAccountTier>>, TError,UpdateAdminAccountTierMutationVariables, TContext> => {
+
+const mutationKey = getUpdateAdminAccountTierMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateAdminAccountTier>>, UpdateAdminAccountTierMutationVariables> = (props) => {
+          const {tierId,data} = props ?? {};
+
+          return  updateAdminAccountTier(tierId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateAdminAccountTierMutationResult = NonNullable<Awaited<ReturnType<typeof updateAdminAccountTier>>>
+    export type UpdateAdminAccountTierMutationBody = BodyType<AdminAccountTierInput>
+    export type UpdateAdminAccountTierMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type UpdateAdminAccountTierMutationVariables = {tierId: string;data: BodyType<AdminAccountTierInput>}
+
+    /**
+ * @summary Update an account tier and its Vault plan mapping
+ */
+export const useUpdateAdminAccountTier = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminAccountTier>>, TError,UpdateAdminAccountTierMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateAdminAccountTier>>,
+        TError,
+        UpdateAdminAccountTierMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateAdminAccountTierMutationOptions(options));
+    }
+
+export const getSetAdminUserAccountTierUrl = (userId: string,) => {
+
+
+
+
+  return `/api/bank/admin/users/${userId}/account-tier`
+}
+
+/**
+ * @summary Assign a tier to an individual customer
+ */
+export const setAdminUserAccountTier = async (userId: string,
+    adminAccountTierAssignmentInput: AdminAccountTierAssignmentInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminAccountTierAssignmentResponse> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminAccountTierAssignmentResponse>(getSetAdminUserAccountTierUrl(userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminAccountTierAssignmentInput)
+  }
+);}
+
+
+
+
+
+export const getSetAdminUserAccountTierMutationKey = () => ['setAdminUserAccountTier'] as const;
+
+export const getSetAdminUserAccountTierMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminUserAccountTier>>, TError,SetAdminUserAccountTierMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof setAdminUserAccountTier>>, TError,SetAdminUserAccountTierMutationVariables, TContext> => {
+
+const mutationKey = getSetAdminUserAccountTierMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof setAdminUserAccountTier>>, SetAdminUserAccountTierMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  setAdminUserAccountTier(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SetAdminUserAccountTierMutationResult = NonNullable<Awaited<ReturnType<typeof setAdminUserAccountTier>>>
+    export type SetAdminUserAccountTierMutationBody = BodyType<AdminAccountTierAssignmentInput>
+    export type SetAdminUserAccountTierMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
+    export type SetAdminUserAccountTierMutationVariables = {userId: string;data: BodyType<AdminAccountTierAssignmentInput>}
+
+    /**
+ * @summary Assign a tier to an individual customer
+ */
+export const useSetAdminUserAccountTier = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof setAdminUserAccountTier>>, TError,SetAdminUserAccountTierMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof setAdminUserAccountTier>>,
+        TError,
+        SetAdminUserAccountTierMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSetAdminUserAccountTierMutationOptions(options));
+    }
 
 export const getListAdminVaultAccessUrl = (params: ListAdminVaultAccessParams,) => {
   const normalizedParams = new URLSearchParams();

@@ -271,8 +271,10 @@ export async function backfillCustomerIds(): Promise<void> {
   }
 }
 
-export function parseAmountToMinor(amount: string): bigint {
-  const match = /^(\d{1,12})(?:\.(\d{1,2}))?$/.exec(amount);
+export function parseAmountToMinor(amount: string, maxWholeDigits = 12): bigint {
+  const match = new RegExp(`^(\\d{1,${maxWholeDigits}})(?:\\.(\\d{1,2}))?$`).exec(
+    amount,
+  );
   if (!match) {
     throw new Error("Enter a valid amount with up to two decimal places.");
   }

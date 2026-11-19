@@ -4,7 +4,6 @@ import {
   ArrowLeftRight,
   Calculator,
   CircleHelp,
-  CreditCard,
   House,
   LayoutDashboard,
   LogOut,
@@ -39,7 +38,6 @@ const dashboardTools = [
 
 const moneyLinks = [
   { href: '/transfer', label: 'Transfer', icon: ArrowLeftRight },
-  { href: '/add-money', label: 'Deposit request', icon: CreditCard },
   { href: '/withdraw', label: 'Withdrawal request', icon: ArrowDownLeft },
 ];
 

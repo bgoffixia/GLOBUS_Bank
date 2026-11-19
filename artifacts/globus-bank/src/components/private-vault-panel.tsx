@@ -35,6 +35,7 @@ import {
 } from '@workspace/api-client-react';
 import type { BankTransaction, BankVaultEmailPreferences, BankVaultWalletControl } from '@workspace/api-client-react';
 import { fetchWebpushrSubscriberId, loadWebpushr } from '../lib/webpushr-client';
+import { VaultFundingForm } from './vault-funding-form';
 
 const fieldClass = 'h-9 w-full rounded-lg border border-[#dfe6eb] bg-white px-3 text-[11px] text-[#344b64] outline-none focus:border-[#77aeb0] focus:ring-2 focus:ring-[#77aeb0]/15';
 type VaultPlanCode = '1m' | '3m' | '1y';
@@ -410,7 +411,7 @@ export function PrivateVaultPanel() {
   const savePrivateTransactionNote = async () => {
     if (
       !sessionToken ||
-      !subscriptionActive ||
+      !vaultAccessActive ||
       !selectedTransactionId ||
       !privateNoteDraft.trim()
     ) return;
@@ -428,7 +429,7 @@ export function PrivateVaultPanel() {
     }
   };
   const removePrivateTransactionNote = async () => {
-    if (!sessionToken || !subscriptionActive || !selectedTransactionId || !selectedTransactionNote) return;
+    if (!sessionToken || !vaultAccessActive || !selectedTransactionId || !selectedTransactionNote) return;
     setError('');
     setMessage('');
     try {
@@ -498,8 +499,8 @@ export function PrivateVaultPanel() {
   ) => {
     setBrowserPushError('');
     setBrowserPushMessage('');
-    if (!subscriptionActive) {
-      setBrowserPushError('An active Vault subscription is required to change alert settings.');
+    if (!vaultAccessActive) {
+      setBrowserPushError('Active Private Vault access is required to change alert settings.');
       return;
     }
     try {
@@ -529,7 +530,8 @@ export function PrivateVaultPanel() {
   };
 
   const loading = initialize.isPending || unlock.isPending || updatePasscode.isPending;
-  const subscriptionActive = !!status.data?.accessActive;
+  const vaultAccessActive = !!status.data?.accessActive;
+  const paidSubscriptionActive = !!status.data?.subscriptionActive;
   const checkoutPending = status.data?.paymentStatus === 'pending';
   return (
     <section className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5" data-testid="private-vault-panel">
@@ -563,7 +565,7 @@ export function PrivateVaultPanel() {
                 <p className="text-[10px] font-semibold text-[#426e70]" data-testid="status-vault-unlocked">
                   {status.data?.accessSource === 'admin_grant'
                     ? 'Vault unlocked · Admin-granted access'
-                    : subscriptionActive
+                    : paidSubscriptionActive
                       ? 'Vault unlocked · paid subscription active'
                       : 'Vault unlocked · read-only'}
                   {expiresAt ? ` · session ends ${new Date(expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
@@ -571,6 +573,7 @@ export function PrivateVaultPanel() {
                 </p>
                 <button type="button" disabled={updatePasscode.isPending || updateControl.isPending || billingBusy} data-testid="button-vault-lock" onClick={lockVault} className="rounded-md border border-[#d4e1e4] bg-white px-3 py-1.5 text-[9px] font-bold text-[#466577] disabled:opacity-50">Lock vault</button>
               </div>
+              <VaultFundingForm vaultAccessActive={!!status.data?.accessActive} />
               {status.data?.autoRenew && <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d9e8e9] bg-white px-3 py-2" data-testid="vault-auto-renew-status">
                 <p className="text-[9px] leading-4 text-[#426e70]">Paystack automatic renewal is on. You can request a management link to update or cancel it.</p>
                 <button type="button" disabled={!status.data.renewalManagementReady || billingBusy} onClick={() => void requestRenewalManagementLink()} className="h-8 rounded-lg border border-[#b9d2d0] px-3 text-[9px] font-bold text-[#397b80] disabled:opacity-50">
@@ -578,12 +581,14 @@ export function PrivateVaultPanel() {
                 </button>
               </div>}
 
-              {!subscriptionActive && <section className="mt-3 rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4" data-testid="vault-subscription-access">
+              {!paidSubscriptionActive && <section className="mt-3 rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4" data-testid="vault-subscription-access">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#8a784c]">Vault subscription · {status.data?.subscriptionStatus || 'inactive'}</p>
                     <p className="mt-1 text-[10px] leading-5 text-[#786e55]">
-                      {checkoutPending
+                      {status.data?.accessSource === 'admin_grant'
+                        ? 'Your current Vault access is an administrator grant, not a paid subscription. You can choose a paid plan if you want subscription-based access.'
+                        : checkoutPending
                         ? 'Paystack checkout is in progress. Complete payment, then verify it here to activate your plan.'
                         : status.data?.subscriptionStatus === 'rejected'
                           ? 'Your previous request was declined. You can choose a plan and pay securely.'
@@ -646,26 +651,26 @@ export function PrivateVaultPanel() {
               </section>}
 
               <div className="mt-3 grid gap-3 lg:grid-cols-[.75fr_1.25fr]">
-                {subscriptionActive ? <form onSubmit={changeVaultPasscode} className="rounded-xl border border-[#e7ecef] p-3" data-testid="form-vault-change-passcode">
+                {vaultAccessActive ? <form onSubmit={changeVaultPasscode} className="rounded-xl border border-[#e7ecef] p-3" data-testid="form-vault-change-passcode">
                   <h3 className="text-[10px] font-bold text-[#344b64]">Change passcode</h3>
                   <label className="mt-2 block text-[9px] font-semibold text-[#667a8d]">New four-digit passcode
                     <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="new-password" maxLength={4} value={newPasscode} onChange={event => setNewPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-new-passcode" />
                   </label>
                   <button type="submit" disabled={loading || newPasscode.length !== 4} data-testid="button-vault-change-passcode" className="mt-2 h-8 rounded-lg border border-[#dfe6eb] px-3 text-[9px] font-bold text-[#405a73] disabled:opacity-50">{updatePasscode.isPending ? 'Updating…' : 'Update passcode'}</button>
-                </form> : <div className="rounded-xl border border-[#e7ecef] bg-[#f8fafb] p-3"><h3 className="text-[10px] font-bold text-[#344b64]">Vault settings are read-only</h3><p className="mt-1 text-[9px] leading-4 text-[#8190a0]">An active subscription is required to change the passcode or wallet and email settings.</p></div>}
+                </form> : <div className="rounded-xl border border-[#e7ecef] bg-[#f8fafb] p-3"><h3 className="text-[10px] font-bold text-[#344b64]">Vault settings are read-only</h3><p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Active Private Vault access is required to change the passcode or wallet and email settings.</p></div>}
                 <div className="rounded-xl border border-[#e7ecef] p-3">
                   <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold text-[#344b64]">Wallet policies</h3><button type="button" onClick={() => void controls.refetch()} data-testid="button-refresh-wallet-controls" className="text-[9px] font-bold text-[#397b80]">Refresh</button></div>
                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Policy choices apply to future requests only. Existing transactions keep their recorded status.</p>
-                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Add funds and withdrawal actions are available from their dedicated wallet pages. Subscription, wallet, and account restrictions still apply.</p>
+                    <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Add funds above; withdrawal requests remain on their dedicated page. Subscription, wallet, and account restrictions still apply.</p>
                   {controls.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> : controls.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Wallet controls could not be loaded. Refresh to try again.</p> : controls.data?.length ? (
                     <div className="mt-2 space-y-2">{controls.data.map(control => <article key={control.walletId} data-testid={`vault-wallet-control-${control.walletId}`} className="rounded-lg bg-[#f8fafb] p-2.5">
-                      <div className="flex items-center justify-between gap-2"><strong className="text-[10px] text-[#324962]">{control.currency} wallet</strong><label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.transfersEnabled} disabled={!subscriptionActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { transfersEnabled: event.target.checked })} data-testid={`toggle-vault-transfers-${control.walletId}`} />Transfers</label></div>
+                      <div className="flex items-center justify-between gap-2"><strong className="text-[10px] text-[#324962]">{control.currency} wallet</strong><label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.transfersEnabled} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { transfersEnabled: event.target.checked })} data-testid={`toggle-vault-transfers-${control.walletId}`} />Transfers</label></div>
                       <div className="mt-2 grid grid-cols-2 gap-2">
-                        <label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.depositsEnabled} disabled={!subscriptionActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { depositsEnabled: event.target.checked })} data-testid={`toggle-vault-deposits-${control.walletId}`} />Deposits</label>
-                        <label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.withdrawalsEnabled} disabled={!subscriptionActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { withdrawalsEnabled: event.target.checked })} data-testid={`toggle-vault-withdrawals-${control.walletId}`} />Withdrawals</label>
+                        <label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.depositsEnabled} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { depositsEnabled: event.target.checked })} data-testid={`toggle-vault-deposits-${control.walletId}`} />Deposits</label>
+                        <label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.withdrawalsEnabled} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { withdrawalsEnabled: event.target.checked })} data-testid={`toggle-vault-withdrawals-${control.walletId}`} />Withdrawals</label>
                       </div>
                       <label className="mt-2 flex items-center gap-2 text-[8px] font-semibold text-[#64798d]">Future transfer requests
-                        <select value={control.futureTransferMode} disabled={!subscriptionActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { futureTransferMode: event.target.value as BankVaultWalletControl['futureTransferMode'] })} className="h-7 flex-1 rounded-md border border-[#dfe6eb] bg-white px-2 text-[9px]" data-testid={`select-vault-future-transfer-mode-${control.walletId}`}>
+                        <select value={control.futureTransferMode} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { futureTransferMode: event.target.value as BankVaultWalletControl['futureTransferMode'] })} className="h-7 flex-1 rounded-md border border-[#dfe6eb] bg-white px-2 text-[9px]" data-testid={`select-vault-future-transfer-mode-${control.walletId}`}>
                           <option value="successful">Successful after ledger posting</option><option value="pending">Pending administrator review</option><option value="failed">Fail without posting</option>
                         </select>
                       </label>
@@ -680,7 +685,7 @@ export function PrivateVaultPanel() {
                 {browserPushConfig.isError && <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Browser alert setup is unavailable. Try again later.</p>}
                 {browserPushPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
                   browserPushPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Alert choices could not be loaded.</p> :
-                    <fieldset disabled={!subscriptionActive || updateBrowserPushPreferences.isPending} className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                    <fieldset disabled={!vaultAccessActive || updateBrowserPushPreferences.isPending} className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                       <legend className="sr-only">Push alert categories</legend>
                       {([
                         ['transferEnabled', 'Transfers'],
@@ -695,8 +700,8 @@ export function PrivateVaultPanel() {
                   <span data-testid="status-vault-browser-push" className="text-[8px] text-[#8794a2]">
                     {browserPushConfig.isLoading ? 'Checking availability…' : !browserPushSupported ? 'Not supported on this device' : browserPushConfig.data?.configured ? savedPushSubscriptionId ? 'This device is linked' : 'Available to enable on this device' : 'Not configured'}
                   </span>
-                  {savedPushSubscriptionId ? <button type="button" disabled={!subscriptionActive || deletePushSubscription.isPending} onClick={() => void disableBrowserAlerts()} data-testid="button-vault-disable-browser-push" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#52697e] disabled:opacity-50">{deletePushSubscription.isPending ? 'Disabling…' : 'Disable alerts on this device'}</button> :
-                    <button type="button" disabled={!subscriptionActive || !browserPushSupported || !browserPushConfig.data?.configured || savePushSubscription.isPending} onClick={() => void enableBrowserAlerts()} data-testid="button-vault-enable-browser-push" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">{savePushSubscription.isPending ? 'Linking…' : 'Enable alerts on this device'}</button>}
+                  {savedPushSubscriptionId ? <button type="button" disabled={!vaultAccessActive || deletePushSubscription.isPending} onClick={() => void disableBrowserAlerts()} data-testid="button-vault-disable-browser-push" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#52697e] disabled:opacity-50">{deletePushSubscription.isPending ? 'Disabling…' : 'Disable alerts on this device'}</button> :
+                    <button type="button" disabled={!vaultAccessActive || !browserPushSupported || !browserPushConfig.data?.configured || savePushSubscription.isPending} onClick={() => void enableBrowserAlerts()} data-testid="button-vault-enable-browser-push" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">{savePushSubscription.isPending ? 'Linking…' : 'Enable alerts on this device'}</button>}
                 </div>
                 {browserPushError && <p role="alert" data-testid="status-vault-browser-push-error" className="mt-2 rounded-md bg-[#fff1ef] px-2 py-1.5 text-[8px] text-[#a24940]">{browserPushError}</p>}
                 {browserPushMessage && <p role="status" data-testid="status-vault-browser-push-message" className="mt-2 rounded-md bg-[#eef7f1] px-2 py-1.5 text-[8px] text-[#41755f]">{browserPushMessage}</p>}
@@ -704,7 +709,7 @@ export function PrivateVaultPanel() {
               <details className="mt-3 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Personal transaction notes</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">These notes are private to your Vault. They never change balances, official transaction details, receipts, or notifications.</p>
-                {!subscriptionActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Notes are read-only until your subscription is active.</p>}
+                {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Notes are read-only until Vault access is active.</p>}
                 {transactions.isLoading || transactionNotes.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
                   transactions.isError || transactionNotes.isError ? <div className="mt-2 rounded-lg border border-[#eadfda] bg-[#fff8f6] p-3 text-[9px] text-[#a24940]"><p>Transaction notes could not be loaded.</p><button type="button" onClick={() => { void transactions.refetch(); void transactionNotes.refetch(); }} className="mt-1 font-bold underline">Try again</button></div> :
                     !transactions.data?.length ? <p className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] text-[#8492a1]">Your transactions will appear here when available.</p> :
@@ -718,12 +723,12 @@ export function PrivateVaultPanel() {
                         </label>
                         {selectedTransactionId && <>
                           <label className="text-[9px] font-semibold text-[#5c7085]">Your private note
-                            <textarea disabled={!subscriptionActive} maxLength={500} rows={3} value={privateNoteDraft} onChange={event => setPrivateNoteDraft(event.target.value)} placeholder="Add a reminder for yourself" className="mt-1 w-full resize-y rounded-lg border border-[#dfe6eb] bg-white px-3 py-2 text-[10px] leading-4 text-[#344b64] outline-none focus:border-[#77aeb0] disabled:bg-[#f3f5f5]" data-testid="input-private-transaction-note" />
+                            <textarea disabled={!vaultAccessActive} maxLength={500} rows={3} value={privateNoteDraft} onChange={event => setPrivateNoteDraft(event.target.value)} placeholder="Add a reminder for yourself" className="mt-1 w-full resize-y rounded-lg border border-[#dfe6eb] bg-white px-3 py-2 text-[10px] leading-4 text-[#344b64] outline-none focus:border-[#77aeb0] disabled:bg-[#f3f5f5]" data-testid="input-private-transaction-note" />
                             <span className="mt-1 block text-right text-[8px] font-normal text-[#8794a2]">{privateNoteDraft.length}/500</span>
                           </label>
                           <div className="flex flex-wrap gap-2">
-                            {subscriptionActive && <button type="button" disabled={saveTransactionNote.isPending || deleteTransactionNote.isPending || !privateNoteDraft.trim()} onClick={() => void savePrivateTransactionNote()} data-testid="button-save-private-transaction-note" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50">{saveTransactionNote.isPending ? 'Saving…' : 'Save private note'}</button>}
-                            {subscriptionActive && selectedTransactionNote && <button type="button" disabled={saveTransactionNote.isPending || deleteTransactionNote.isPending} onClick={() => void removePrivateTransactionNote()} data-testid="button-delete-private-transaction-note" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#6b7888] disabled:opacity-50">{deleteTransactionNote.isPending ? 'Deleting…' : 'Delete note'}</button>}
+                            {vaultAccessActive && <button type="button" disabled={saveTransactionNote.isPending || deleteTransactionNote.isPending || !privateNoteDraft.trim()} onClick={() => void savePrivateTransactionNote()} data-testid="button-save-private-transaction-note" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50">{saveTransactionNote.isPending ? 'Saving…' : 'Save private note'}</button>}
+                            {vaultAccessActive && selectedTransactionNote && <button type="button" disabled={saveTransactionNote.isPending || deleteTransactionNote.isPending} onClick={() => void removePrivateTransactionNote()} data-testid="button-delete-private-transaction-note" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#6b7888] disabled:opacity-50">{deleteTransactionNote.isPending ? 'Deleting…' : 'Delete note'}</button>}
                           </div>
                         </>}
                       </div>}
@@ -731,30 +736,30 @@ export function PrivateVaultPanel() {
               <details className="mt-3 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-email-banner-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Transaction email banner</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose whether to email recipients, then customize the banner and optional support footer link.</p>
-                {!subscriptionActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Read-only until your subscription is active.</p>}
+                {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Read-only until Vault access is active.</p>}
                 {emailPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> : emailPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Email alert settings could not be loaded.</p> : <form onSubmit={submitEmailPreferences} className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="flex items-start gap-2 rounded-lg border border-[#e4eaee] bg-white px-3 py-2 text-[9px] leading-4 text-[#64798d] sm:col-span-2">
-                    <input disabled={!subscriptionActive} type="checkbox" checked={transactionEmailAlertsEnabled} onChange={event => setTransactionEmailAlertsEnabled(event.currentTarget.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-transaction-email-alerts" />
+                    <input disabled={!vaultAccessActive} type="checkbox" checked={transactionEmailAlertsEnabled} onChange={event => setTransactionEmailAlertsEnabled(event.currentTarget.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-transaction-email-alerts" />
                     <span><strong className="text-[#344b64]">Send recipient transaction email alerts.</strong> When off, the recipient email field is hidden from the transfer form and no recipient email is stored or sent.</span>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Banner color
-                    <select disabled={!subscriptionActive} value={bannerTheme} onChange={event => setBannerTheme(event.target.value as BankVaultEmailPreferences['bannerTheme'])} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="select-vault-email-banner-theme">
+                    <select disabled={!vaultAccessActive} value={bannerTheme} onChange={event => setBannerTheme(event.target.value as BankVaultEmailPreferences['bannerTheme'])} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="select-vault-email-banner-theme">
                       <option value="navy">Globus navy</option><option value="teal">Globus teal</option><option value="gold">Globus gold</option>
                     </select>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Banner headline
-                    <input disabled={!subscriptionActive} required maxLength={60} value={bannerHeadline} onChange={event => setBannerHeadline(event.target.value)} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-banner-headline" />
+                    <input disabled={!vaultAccessActive} required maxLength={60} value={bannerHeadline} onChange={event => setBannerHeadline(event.target.value)} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-banner-headline" />
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085] sm:col-span-2">Customer sender address
                     <span className="mt-1 flex h-9 items-center overflow-hidden rounded-lg border border-[#dfe6eb] bg-white focus-within:border-[#77aeb0]">
-                      <input disabled={!subscriptionActive} maxLength={64} pattern="[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?" value={senderLocalPart} onChange={event => setSenderLocalPart(event.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="choose-a-prefix" className="h-full min-w-0 flex-1 bg-transparent px-3 text-[10px] text-[#344b64] outline-none disabled:bg-[#f3f5f5]" data-testid="input-vault-email-sender-prefix" />
+                      <input disabled={!vaultAccessActive} maxLength={64} pattern="[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?" value={senderLocalPart} onChange={event => setSenderLocalPart(event.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="choose-a-prefix" className="h-full min-w-0 flex-1 bg-transparent px-3 text-[10px] text-[#344b64] outline-none disabled:bg-[#f3f5f5]" data-testid="input-vault-email-sender-prefix" />
                       <span className="shrink-0 pr-3 text-[9px] font-medium text-[#8190a0]">@{emailPreferences.data?.senderDomain ?? 'globus.website'}</span>
                     </span>
                     <span className="mt-1 block text-[8px] font-normal leading-4 text-[#8794a2]">Recipients see “{emailPreferences.data?.senderDisplayName ?? 'GLOBUS BANK'}”. The domain and display name are fixed; this sender identity applies only to transfer alerts.</span>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Custom banner background
                     <span className="mt-1 flex h-9 items-center gap-2 rounded-lg border border-[#dfe6eb] bg-white px-2">
-                      <input disabled={!subscriptionActive} type="color" value={bannerBackgroundColor} onChange={event => setBannerBackgroundColor(event.target.value)} className="h-6 w-8 cursor-pointer border-0 bg-transparent p-0 disabled:cursor-not-allowed" aria-label="Choose email banner background color" data-testid="input-vault-email-banner-background-color" />
+                      <input disabled={!vaultAccessActive} type="color" value={bannerBackgroundColor} onChange={event => setBannerBackgroundColor(event.target.value)} className="h-6 w-8 cursor-pointer border-0 bg-transparent p-0 disabled:cursor-not-allowed" aria-label="Choose email banner background color" data-testid="input-vault-email-banner-background-color" />
                       <span className="font-mono text-[9px] font-normal uppercase text-[#687d90]">{bannerBackgroundColor}</span>
                     </span>
                   </label>
@@ -767,18 +772,18 @@ export function PrivateVaultPanel() {
                     {includeSupportLink && supportUrl.trim() && <div className="border-t border-[#e7ecee] bg-white px-4 py-2 text-center text-[9px] font-bold text-[#356e75]">{supportLabel.trim() || 'Contact support'}</div>}
                   </div>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Footer link label
-                    <input disabled={!subscriptionActive} required maxLength={40} value={supportLabel} onChange={event => setSupportLabel(event.target.value)} placeholder="Contact support" className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-support-label" />
+                    <input disabled={!vaultAccessActive} required maxLength={40} value={supportLabel} onChange={event => setSupportLabel(event.target.value)} placeholder="Contact support" className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-support-label" />
                     <span className="mt-1 block text-[8px] font-normal text-[#8794a2]">This text appears as the clickable footer link when enabled.</span>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085] sm:col-span-2">Support contact URL
-                    <input disabled={!subscriptionActive} type="url" maxLength={500} value={supportUrl} onChange={event => setSupportUrl(event.target.value)} placeholder="https://support.example.com" className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-support-url" />
+                    <input disabled={!vaultAccessActive} type="url" maxLength={500} value={supportUrl} onChange={event => setSupportUrl(event.target.value)} placeholder="https://support.example.com" className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-support-url" />
                     <span className="mt-1 block text-[8px] font-normal text-[#8794a2]">Use an HTTPS link. It appears with your footer label only when enabled below.</span>
                   </label>
                   <label className="flex items-start gap-2 text-[9px] leading-4 text-[#64798d] sm:col-span-2">
-                    <input disabled={!subscriptionActive} type="checkbox" checked={includeSupportLink} onChange={event => setIncludeSupportLink(event.target.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-email-support-link" />
+                    <input disabled={!vaultAccessActive} type="checkbox" checked={includeSupportLink} onChange={event => setIncludeSupportLink(event.target.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-email-support-link" />
                     <span>Include my support contact link in future recipient alert email footers.</span>
                   </label>
-                  {subscriptionActive && <button type="submit" disabled={saveEmailPreferences.isPending || !bannerHeadline.trim() || !supportLabel.trim() || (includeSupportLink && !supportUrl.trim())} data-testid="button-save-vault-email-banner" className="h-8 justify-self-start rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50 sm:col-span-2">{saveEmailPreferences.isPending ? 'Saving…' : 'Save email design'}</button>}
+                  {vaultAccessActive && <button type="submit" disabled={saveEmailPreferences.isPending || !bannerHeadline.trim() || !supportLabel.trim() || (includeSupportLink && !supportUrl.trim())} data-testid="button-save-vault-email-banner" className="h-8 justify-self-start rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50 sm:col-span-2">{saveEmailPreferences.isPending ? 'Saving…' : 'Save email design'}</button>}
                 </form>}
               </details>
             </div>

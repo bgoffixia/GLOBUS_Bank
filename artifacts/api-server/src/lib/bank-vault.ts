@@ -6,6 +6,7 @@ import {
 } from "node:crypto";
 import { and, eq, gt, inArray, lte } from "drizzle-orm";
 import {
+  bankAccountTiersTable,
   bankUsersTable,
   bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
@@ -31,6 +32,16 @@ export type VaultSubscriptionState =
   | "rejected"
   | "expired";
 
+export type EffectiveAccountTierSource =
+  | "paystack_subscription"
+  | "admin_assigned";
+
+export type EffectiveAccountTier = {
+  id: string;
+  name: string;
+  source: EffectiveAccountTierSource;
+};
+
 export function vaultSubscriptionStatus(
   status: string,
   expiresAt: Date | null,
@@ -54,7 +65,136 @@ export function hasActiveVaultSubscription(user: {
   ) === "active";
 }
 
+export function classifyVaultPaystackChargeFailure(
+  user: {
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+    vaultSubscriptionPaymentReference: string | null;
+    vaultSubscriptionPaymentStatus: string;
+    vaultSubscriptionAmountMinor: string | null;
+    vaultSubscriptionAutoRenew: boolean;
+    vaultPaystackPlanCode: string | null;
+    vaultPaystackSubscriptionCode: string | null;
+    vaultPaystackCustomerCode: string | null;
+  },
+  charge: {
+    reference: string;
+    amount: number;
+    currency: string;
+    customerCode: string | null;
+    subscriptionCode: string | null;
+    providerPlanCode: string | null;
+  },
+  now = new Date(),
+): "initial" | "renewal" | null {
+  if (
+    charge.currency !== "NGN" ||
+    !Number.isSafeInteger(charge.amount) ||
+    String(charge.amount) !== user.vaultSubscriptionAmountMinor
+  ) {
+    return null;
+  }
+
+  if (
+    charge.reference === user.vaultSubscriptionPaymentReference &&
+    user.vaultSubscriptionPaymentStatus === "pending"
+  ) {
+    return "initial";
+  }
+
+  const currentStatus = vaultSubscriptionStatus(
+    user.vaultSubscriptionStatus,
+    user.vaultSubscriptionExpiresAt,
+    now,
+  );
+  if (
+    user.vaultSubscriptionAutoRenew &&
+    Boolean(user.vaultPaystackPlanCode) &&
+    Boolean(user.vaultPaystackSubscriptionCode) &&
+    user.vaultPaystackSubscriptionCode === charge.subscriptionCode &&
+    user.vaultPaystackCustomerCode === charge.customerCode &&
+    user.vaultPaystackPlanCode === charge.providerPlanCode &&
+    ["active", "expired"].includes(currentStatus)
+  ) {
+    return "renewal";
+  }
+
+  return null;
+}
+
+export function resolveEffectiveAccountTier(
+  user: {
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+  },
+  mappedPlanTier: Pick<EffectiveAccountTier, "id" | "name"> | null,
+  assignedTier: Pick<EffectiveAccountTier, "id" | "name">,
+  now = new Date(),
+): EffectiveAccountTier {
+  if (hasActiveVaultSubscription(user, now) && mappedPlanTier) {
+    return { ...mappedPlanTier, source: "paystack_subscription" };
+  }
+  return { ...assignedTier, source: "admin_assigned" };
+}
+
+export function isVaultTestingMode(
+  accessSource: "none" | "paystack_subscription" | "admin_grant",
+): boolean {
+  return accessSource === "none";
+}
+
 type VaultAccessExecutor = Pick<typeof db, "select">;
+
+export async function getEffectiveAccountTier(
+  user: {
+    accountTierId: string;
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+    vaultSubscriptionPlan: string | null;
+  },
+  executor: VaultAccessExecutor = db,
+  now = new Date(),
+): Promise<EffectiveAccountTier> {
+  const [assignedTier] = await executor
+    .select({
+      id: bankAccountTiersTable.id,
+      name: bankAccountTiersTable.name,
+    })
+    .from(bankAccountTiersTable)
+    .where(eq(bankAccountTiersTable.id, user.accountTierId))
+    .limit(1);
+  if (!assignedTier) {
+    throw new Error("The customer’s assigned account tier is missing.");
+  }
+
+  let mappedPlanTier: Pick<EffectiveAccountTier, "id" | "name"> | null = null;
+  if (
+    user.vaultSubscriptionPlan &&
+    hasActiveVaultSubscription(user, now)
+  ) {
+    const [tier] = await executor
+      .select({
+        id: bankAccountTiersTable.id,
+        name: bankAccountTiersTable.name,
+      })
+      .from(bankAccountTiersTable)
+      .where(
+        and(
+          eq(bankAccountTiersTable.vaultPlanCode, user.vaultSubscriptionPlan),
+          eq(bankAccountTiersTable.active, true),
+        ),
+      )
+      .limit(1);
+    mappedPlanTier = tier ?? null;
+  }
+
+  return resolveEffectiveAccountTier(
+    user,
+    mappedPlanTier,
+    assignedTier,
+    now,
+  );
+}
 
 export async function hasAdminVaultEntitlement(
   userId: string,

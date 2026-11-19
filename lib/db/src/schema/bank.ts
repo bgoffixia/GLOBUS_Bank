@@ -65,9 +65,34 @@ export const bankRequestTypeEnum = pgEnum("bank_request_type", [
   "exchange",
 ]);
 
+export const bankAccountTiersTable = pgTable(
+  "bank_account_tiers",
+  {
+    id: text("id").primaryKey(),
+    name: text("name").notNull().unique(),
+    description: text("description"),
+    vaultPlanCode: text("vault_plan_code"),
+    active: boolean("active").notNull().default(true),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow()
+      .$onUpdate(() => new Date()),
+  },
+  (table) => [
+    uniqueIndex("bank_account_tiers_vault_plan_unique").on(table.vaultPlanCode),
+  ],
+);
+
 export const bankUsersTable = pgTable("bank_users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
+  accountTierId: text("account_tier_id")
+    .notNull()
+    .default("standard")
+    .references(() => bankAccountTiersTable.id),
   customerId: text("customer_id").unique(),
   firstName: text("first_name"),
   lastName: text("last_name"),

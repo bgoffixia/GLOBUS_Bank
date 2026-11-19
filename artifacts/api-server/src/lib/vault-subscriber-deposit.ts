@@ -1,4 +1,4 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import {
   bankAuditLogsTable,
   bankCurrencyEnum,
@@ -19,6 +19,16 @@ import { hasActiveVaultAccess } from "./bank-vault";
 import { storeNotification } from "./transfer-notifications";
 
 type BankTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+export function normalizeVaultTopUpDescription(description?: string): string {
+  return (
+    description
+      ?.replace(/[\u0000-\u001f\u007f]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim()
+      .slice(0, 140) || "Private Vault internal wallet credit"
+  );
+}
 
 export async function createVaultSubscriberTopUp(
   tx: BankTransaction,
@@ -44,8 +54,46 @@ export async function createVaultSubscriberTopUp(
       error: "Active Private Vault access is required to add wallet funds.",
     } as const;
   }
-  if (input.amountMinor <= 0n || input.amountMinor > 100_000_000n) {
-    return { error: "Enter an amount from 0.01 to 1,000,000.00." } as const;
+  if (
+    input.amountMinor <= 0n ||
+    input.amountMinor > 9_223_372_036_854_775_807n
+  ) {
+    return { error: "Enter a positive amount within the ledger’s supported range." } as const;
+  }
+
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(hashtext(${input.idempotencyKey})::bigint)`,
+  );
+  const [existingTransaction] = await tx
+    .select()
+    .from(bankTransactionsTable)
+    .where(eq(bankTransactionsTable.idempotencyKey, input.idempotencyKey))
+    .limit(1);
+  const [existingRequest] = await tx
+    .select()
+    .from(bankSandboxRequestsTable)
+    .where(eq(bankSandboxRequestsTable.idempotencyKey, input.idempotencyKey))
+    .limit(1);
+  if (existingTransaction || existingRequest) {
+    if (
+      existingTransaction &&
+      existingRequest &&
+      existingTransaction.initiatedByUserId === input.userId &&
+      existingTransaction.type === "deposit_request" &&
+      existingTransaction.currency === input.currency &&
+      existingTransaction.amountMinor === input.amountMinor &&
+      existingRequest.userId === input.userId &&
+      existingRequest.type === "deposit" &&
+      existingRequest.currency === input.currency &&
+      existingRequest.amountMinor === input.amountMinor
+    ) {
+      return {
+        sandboxRequest: existingRequest,
+        transaction: existingTransaction,
+        notification: null,
+      } as const;
+    }
+    return { error: "That request reference is already in use." } as const;
   }
 
   const wallet = await userWallet(tx, input.userId, input.currency);
@@ -95,7 +143,7 @@ export async function createVaultSubscriberTopUp(
       currency: input.currency,
       amountMinor: input.amountMinor,
       counterparty: null,
-      description: input.description?.trim() || "Private Vault wallet top-up",
+      description: normalizeVaultTopUpDescription(input.description),
       mode: "internal_ledger",
     })
     .returning();
@@ -136,15 +184,15 @@ export async function createVaultSubscriberTopUp(
   const notification = await storeNotification(tx, {
     userId: input.userId,
     category: "wallet",
-    title: "Wallet funds added",
-    body: `Your ${input.currency} wallet was credited ${formatMinorAmount(input.amountMinor)} ${input.currency}.`,
+    title: "Internal ledger credit posted",
+    body: `An internal Globus ledger credit of ${formatMinorAmount(input.amountMinor)} ${input.currency} was posted to your wallet. No outside funds moved.`,
     reference,
   });
   await tx.insert(bankAuditLogsTable).values({
     actorUserId: input.userId,
     targetUserId: input.userId,
     action: "customer_wallet_top_up",
-    reason: `Active Private Vault subscriber added ${formatMinorAmount(input.amountMinor)} ${input.currency} to wallet ${lockedWallet.id}. Reference ${reference}.`,
+    reason: `Internal Globus ledger credit of ${formatMinorAmount(input.amountMinor)} ${input.currency} posted to wallet ${lockedWallet.id} for a customer with active Private Vault access. Reference ${reference}.`,
   });
 
   return { sandboxRequest: request, transaction, notification } as const;

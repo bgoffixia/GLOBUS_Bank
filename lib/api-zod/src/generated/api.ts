@@ -705,20 +705,20 @@ export const CompleteRequiredPasswordResetResponse = zod.object({
 /**
  * @summary Get the user's simulated balances and recent activity
  */
-export const getBankDashboardResponseProfileCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
-export const getBankDashboardResponseProfileDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getBankDashboardResponseProfileOneCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
+export const getBankDashboardResponseProfileOneDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 
 
 export const GetBankDashboardResponse = zod.object({
   "profile": zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "customerId": zod.string().regex(getBankDashboardResponseProfileCustomerIdRegExp),
+  "customerId": zod.string().regex(getBankDashboardResponseProfileOneCustomerIdRegExp),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
-  "dateOfBirth": zod.string().regex(getBankDashboardResponseProfileDateOfBirthRegExp).nullable(),
+  "dateOfBirth": zod.string().regex(getBankDashboardResponseProfileOneDateOfBirthRegExp).nullable(),
   "cityOfOrigin": zod.string().nullable(),
   "occupation": zod.string().nullable(),
   "transactionPinConfigured": zod.boolean(),
@@ -731,7 +731,14 @@ export const GetBankDashboardResponse = zod.object({
   "depositAllowed": zod.boolean(),
   "withdrawalAllowed": zod.boolean(),
   "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "accountTier": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "source": zod.enum(['paystack_subscription', 'admin_assigned'])
 }),
+  "testingMode": zod.boolean()
+})),
   "wallets": zod.array(zod.object({
   "id": zod.string(),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
@@ -1299,10 +1306,10 @@ export const CreateIncomingExternalTransferResponse = zod.void()
 
 
 /**
- * Deposit requests are credited immediately only for customers with an active Private Vault subscription and eligible account and wallet status. Withdrawal requests remain subject to administrator review.
+ * Deposit requests create internal Globus ledger credits for customers with valid Private Vault access and eligible account and wallet status. They never move outside funds; optional customer descriptions are stored with the transaction. Withdrawal requests remain subject to administrator review.
  * @summary Add funds with active Vault access or request a withdrawal
  */
-export const createLedgerRequestBodyAmountRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
+export const createLedgerRequestBodyAmountRegExp = new RegExp('^[0-9]{1,16}(\\.[0-9]{1,2})?$');
 export const createLedgerRequestBodyDescriptionMax = 140;
 
 export const createLedgerRequestBodyIdempotencyKeyMin = 16;
@@ -1314,7 +1321,7 @@ export const createLedgerRequestBodyTransactionPinRegExp = new RegExp('^[0-9]{6}
 export const CreateLedgerRequestBody = zod.object({
   "type": zod.enum(['deposit', 'withdrawal']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'CAD']),
-  "amount": zod.string().regex(createLedgerRequestBodyAmountRegExp),
+  "amount": zod.string().regex(createLedgerRequestBodyAmountRegExp).describe('Deposits allow up to 16 whole digits within the PostgreSQL bigint ledger limit; withdrawal validation allows up to 12.'),
   "description": zod.string().max(createLedgerRequestBodyDescriptionMax).optional(),
   "idempotencyKey": zod.string().min(createLedgerRequestBodyIdempotencyKeyMin).max(createLedgerRequestBodyIdempotencyKeyMax),
   "transactionPin": zod.string().regex(createLedgerRequestBodyTransactionPinRegExp),
@@ -1866,6 +1873,8 @@ export const ListAdminUsersResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "email": zod.string(),
+  "accountTierId": zod.string(),
+  "accountTierName": zod.string(),
   "customerId": zod.string().regex(listAdminUsersResponseItemsItemCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -1889,6 +1898,158 @@ export const ListAdminUsersResponse = zod.object({
   "total": zod.number().int(),
   "page": zod.number().int(),
   "pageSize": zod.number().int()
+})
+
+
+/**
+ * @summary List account tiers and Vault plan mappings
+ */
+export const listAdminAccountTiersResponseItemsItemNameMin = 2;
+export const listAdminAccountTiersResponseItemsItemNameMax = 80;
+
+export const listAdminAccountTiersResponseItemsItemDescriptionMax = 240;
+
+
+
+export const ListAdminAccountTiersResponse = zod.object({
+  "items": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string().min(listAdminAccountTiersResponseItemsItemNameMin).max(listAdminAccountTiersResponseItemsItemNameMax),
+  "description": zod.string().max(listAdminAccountTiersResponseItemsItemDescriptionMax).nullable(),
+  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Create an account tier
+ */
+export const createAdminAccountTierBodyNameMin = 2;
+export const createAdminAccountTierBodyNameMax = 80;
+
+export const createAdminAccountTierBodyDescriptionMax = 240;
+
+export const createAdminAccountTierBodyReasonMin = 5;
+export const createAdminAccountTierBodyReasonMax = 500;
+
+export const createAdminAccountTierBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const CreateAdminAccountTierBody = zod.object({
+  "name": zod.string().min(createAdminAccountTierBodyNameMin).max(createAdminAccountTierBodyNameMax),
+  "description": zod.string().max(createAdminAccountTierBodyDescriptionMax).nullable(),
+  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
+  "active": zod.boolean(),
+  "reason": zod.string().min(createAdminAccountTierBodyReasonMin).max(createAdminAccountTierBodyReasonMax),
+  "transactionPin": zod.string().regex(createAdminAccountTierBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const createAdminAccountTierResponseItemNameMin = 2;
+export const createAdminAccountTierResponseItemNameMax = 80;
+
+export const createAdminAccountTierResponseItemDescriptionMax = 240;
+
+
+
+export const CreateAdminAccountTierResponse = zod.object({
+  "item": zod.object({
+  "id": zod.string(),
+  "name": zod.string().min(createAdminAccountTierResponseItemNameMin).max(createAdminAccountTierResponseItemNameMax),
+  "description": zod.string().max(createAdminAccountTierResponseItemDescriptionMax).nullable(),
+  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Update an account tier and its Vault plan mapping
+ */
+export const updateAdminAccountTierPathTierIdMax = 100;
+
+
+
+export const UpdateAdminAccountTierParams = zod.object({
+  "tierId": zod.coerce.string().min(1).max(updateAdminAccountTierPathTierIdMax)
+})
+
+export const updateAdminAccountTierBodyNameMin = 2;
+export const updateAdminAccountTierBodyNameMax = 80;
+
+export const updateAdminAccountTierBodyDescriptionMax = 240;
+
+export const updateAdminAccountTierBodyReasonMin = 5;
+export const updateAdminAccountTierBodyReasonMax = 500;
+
+export const updateAdminAccountTierBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const UpdateAdminAccountTierBody = zod.object({
+  "name": zod.string().min(updateAdminAccountTierBodyNameMin).max(updateAdminAccountTierBodyNameMax),
+  "description": zod.string().max(updateAdminAccountTierBodyDescriptionMax).nullable(),
+  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
+  "active": zod.boolean(),
+  "reason": zod.string().min(updateAdminAccountTierBodyReasonMin).max(updateAdminAccountTierBodyReasonMax),
+  "transactionPin": zod.string().regex(updateAdminAccountTierBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const updateAdminAccountTierResponseItemNameMin = 2;
+export const updateAdminAccountTierResponseItemNameMax = 80;
+
+export const updateAdminAccountTierResponseItemDescriptionMax = 240;
+
+
+
+export const UpdateAdminAccountTierResponse = zod.object({
+  "item": zod.object({
+  "id": zod.string(),
+  "name": zod.string().min(updateAdminAccountTierResponseItemNameMin).max(updateAdminAccountTierResponseItemNameMax),
+  "description": zod.string().max(updateAdminAccountTierResponseItemDescriptionMax).nullable(),
+  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
+  "active": zod.boolean(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Assign a tier to an individual customer
+ */
+export const setAdminUserAccountTierPathUserIdMax = 200;
+
+
+
+export const SetAdminUserAccountTierParams = zod.object({
+  "userId": zod.coerce.string().min(1).max(setAdminUserAccountTierPathUserIdMax)
+})
+
+export const setAdminUserAccountTierBodyTierIdMax = 100;
+
+export const setAdminUserAccountTierBodyReasonMin = 5;
+export const setAdminUserAccountTierBodyReasonMax = 500;
+
+export const setAdminUserAccountTierBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const SetAdminUserAccountTierBody = zod.object({
+  "tierId": zod.string().min(1).max(setAdminUserAccountTierBodyTierIdMax),
+  "reason": zod.string().min(setAdminUserAccountTierBodyReasonMin).max(setAdminUserAccountTierBodyReasonMax),
+  "transactionPin": zod.string().regex(setAdminUserAccountTierBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const SetAdminUserAccountTierResponse = zod.object({
+  "userId": zod.string(),
+  "accountTierId": zod.string(),
+  "accountTierName": zod.string()
 })
 
 
@@ -2023,6 +2184,8 @@ export const GetAdminUserDetailResponse = zod.object({
   "user": zod.object({
   "id": zod.string(),
   "email": zod.string(),
+  "accountTierId": zod.string(),
+  "accountTierName": zod.string(),
   "customerId": zod.string().regex(getAdminUserDetailResponseUserCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2167,6 +2330,8 @@ export const updateAdminUserStatusResponseVaultSubscriptionAmountMinorRegExp = n
 export const UpdateAdminUserStatusResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
+  "accountTierId": zod.string(),
+  "accountTierName": zod.string(),
   "customerId": zod.string().regex(updateAdminUserStatusResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2229,6 +2394,8 @@ export const updateAdminUserProfileResponseVaultSubscriptionAmountMinorRegExp = 
 export const UpdateAdminUserProfileResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
+  "accountTierId": zod.string(),
+  "accountTierName": zod.string(),
   "customerId": zod.string().regex(updateAdminUserProfileResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),

@@ -144,8 +144,10 @@ import {
   createPaystackVaultPlan,
   getPaystackSecretKey,
   isPaystackVaultRecurringEnabled,
+  isNewPaystackWebhookEvent,
   initializePaystackVaultCheckout,
   isValidPaystackWebhookSignature,
+  paystackVaultEventKey,
   sendPaystackSubscriptionManagementEmail,
   verifyPaystackVaultCheckout,
 } from "../lib/paystack-vault";
@@ -165,9 +167,12 @@ import {
   setPasswordResetCache,
 } from "../lib/password-reset";
 import {
+  classifyVaultPaystackChargeFailure,
   initializeVaultPasscode,
+  getEffectiveAccountTier,
   getVaultAccessSource,
   hasActiveVaultAccess,
+  isVaultTestingMode,
   isVaultPasscodeSessionValid,
   isVaultSessionActive,
   resolveFutureTransferStatus,
@@ -739,7 +744,13 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
   }
 
   const profile = await getOrCreateBankUser(authUserId);
-  const [wallets, recentTransactions, accountStatus, operationEligibility] = await Promise.all([
+  const [
+    wallets,
+    recentTransactions,
+    accountStatus,
+    operationEligibility,
+    effectiveAccountTier,
+  ] = await Promise.all([
     getWalletsForUser(profile.id),
     getRecentTransactions(profile.id),
     getEffectiveBankAccountStatus(
@@ -750,7 +761,9 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
       profile.id,
       profile.accountStatus as "active" | "restricted" | "suspended",
     ),
+    getEffectiveAccountTier(profile),
   ]);
+  const accessSource = operationEligibility.vaultAccessSource;
 
   res.json(
     GetBankDashboardResponse.parse({
@@ -770,6 +783,10 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
         verificationNote: profile.verificationNote,
         accountStatus,
         ...operationEligibility,
+        accountTier: effectiveAccountTier,
+        testingMode: isVaultTestingMode(accessSource),
+        vaultAccessActive: accessSource !== "none",
+        vaultAccessSource: accessSource,
         createdAt: profile.createdAt.toISOString(),
       },
       wallets,
@@ -1937,7 +1954,10 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
   }
   let amountMinor: bigint;
   try {
-    amountMinor = parseAmountToMinor(parsed.data.amount);
+    amountMinor = parseAmountToMinor(
+      parsed.data.amount,
+      parsed.data.type === "deposit" ? 16 : 12,
+    );
   } catch (error) {
     res.status(400).json({
       error:
@@ -1950,11 +1970,6 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
     res.status(400).json({ error: "The amount must be greater than zero." });
     return;
   }
-  if (amountMinor > 100_000_000n) {
-    res.status(400).json({ error: "Requests cannot exceed 1,000,000.00." });
-    return;
-  }
-
   const existing = await db
     .select()
     .from(bankSandboxRequestsTable)
@@ -1984,7 +1999,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
     ) {
       res.status(409).json({
         error:
-          "This earlier deposit was not credited. Submit a new top-up request with an active Private Vault subscription.",
+          "This earlier deposit was not credited. Submit a new top-up request with active Private Vault access.",
       });
       return;
     }
@@ -1998,7 +2013,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
         status: existingStatus,
         message:
           existing[0].type === "deposit" && existingStatus === "approved"
-            ? "Your Globus wallet was credited."
+            ? "Your internal Globus ledger credit was posted."
             : existingStatus === "pending_review"
               ? "Your withdrawal request is waiting for an administrator to review it."
               : `Your request was ${existingStatus}.`,
@@ -2013,7 +2028,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
     !(await hasActiveVaultAccess(user))
   ) {
     res.status(403).json({
-      error: "An active Private Vault subscription is required to add wallet funds.",
+      error: "Active Private Vault access is required to add wallet funds.",
     });
     return;
   }
@@ -2044,7 +2059,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
       ) {
         return {
           error:
-            "This earlier deposit was not credited. Submit a new top-up request with an active Private Vault subscription.",
+            "This earlier deposit was not credited. Submit a new top-up request with active Private Vault access.",
         };
       }
       return duplicate.userId === userId &&
@@ -2064,7 +2079,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
         currency: parsed.data.currency,
         amountMinor,
         idempotencyKey: parsed.data.idempotencyKey,
-        description: "Private Vault wallet top-up",
+        description: parsed.data.description,
       });
       if ("error" in topUp) return { error: topUp.error };
       return {
@@ -2208,7 +2223,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
       status: approved ? "approved" : "pending_review",
       message:
         approved
-          ? "Your Globus wallet was credited."
+          ? "Your internal Globus ledger credit was posted."
           : "Your available balance is reserved while an administrator reviews this withdrawal request.",
       createdAt: request.sandboxRequest.createdAt.toISOString(),
     }),
@@ -2813,13 +2828,13 @@ router.post(
         const [inserted] = await tx
           .insert(bankVaultPaystackEventsTable)
           .values({
-            eventKey: `subscription.create:${subscriptionCode}`,
+            eventKey: paystackVaultEventKey("subscription.create", subscriptionCode),
             eventType,
             userId: user.id,
           })
           .onConflictDoNothing()
           .returning({ id: bankVaultPaystackEventsTable.id });
-        if (!inserted) return;
+        if (!isNewPaystackWebhookEvent(inserted)) return;
         await tx
           .update(bankUsersTable)
           .set({
@@ -2857,13 +2872,13 @@ router.post(
         const [inserted] = await tx
           .insert(bankVaultPaystackEventsTable)
           .values({
-          eventKey: `${eventType}:${subscriptionCode}`,
+            eventKey: paystackVaultEventKey(eventType, subscriptionCode),
             eventType,
             userId: user.id,
           })
           .onConflictDoNothing()
           .returning({ id: bankVaultPaystackEventsTable.id });
-        if (!inserted) return;
+        if (!isNewPaystackWebhookEvent(inserted)) return;
         await tx
           .update(bankUsersTable)
           .set({
@@ -2876,7 +2891,7 @@ router.post(
       return;
     }
 
-    if (eventType !== "charge.success") {
+    if (eventType !== "charge.success" && eventType !== "charge.failed") {
       res.json({ received: true });
       return;
     }
@@ -2896,6 +2911,71 @@ router.post(
       .where(sql`lower(${bankUsersTable.email}) = ${customer.email}`)
       .limit(1);
     if (!user) {
+      res.json({ received: true });
+      return;
+    }
+    if (eventType === "charge.failed") {
+      await db.transaction(async (tx) => {
+        const [lockedUser] = await tx
+          .select()
+          .from(bankUsersTable)
+          .where(eq(bankUsersTable.id, user.id))
+          .for("update");
+        if (!lockedUser) return;
+        const failureKind = classifyVaultPaystackChargeFailure(
+          lockedUser,
+          {
+            reference,
+            amount,
+            currency,
+            customerCode: customer.code ?? null,
+            subscriptionCode,
+            providerPlanCode,
+          },
+        );
+        if (!failureKind) return;
+
+        const [inserted] = await tx
+          .insert(bankVaultPaystackEventsTable)
+          .values({
+            eventKey: paystackVaultEventKey("charge.failed", reference),
+            eventType,
+            paymentReference: reference,
+            userId: user.id,
+          })
+          .onConflictDoNothing()
+          .returning({ id: bankVaultPaystackEventsTable.id });
+        if (!isNewPaystackWebhookEvent(inserted)) return;
+
+        if (failureKind === "initial") {
+          await tx
+            .update(bankUsersTable)
+            .set({
+              vaultSubscriptionStatus: "inactive",
+              vaultSubscriptionPaymentStatus: "failed",
+              vaultSubscriptionAutoRenew: false,
+              vaultPaystackPlanCode: null,
+              vaultPaystackSubscriptionCode: null,
+              vaultPaystackCustomerCode: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(bankUsersTable.id, user.id));
+          await tx.insert(bankAuditLogsTable).values({
+            actorUserId: user.id,
+            targetUserId: user.id,
+            action: "fail_private_vault_paystack_webhook",
+            reason: `Paystack confirmed the initial Private Vault payment ${reference} failed; no paid access was activated.`,
+          });
+          return;
+        }
+
+        await tx.insert(bankAuditLogsTable).values({
+          actorUserId: user.id,
+          targetUserId: user.id,
+          action: "fail_private_vault_paystack_renewal",
+          reason: `Paystack reported renewal charge ${reference} failed. Existing access remains valid only until ${lockedUser.vaultSubscriptionExpiresAt?.toISOString() ?? "its current expiry"}.`,
+        });
+      });
       res.json({ received: true });
       return;
     }
@@ -2946,14 +3026,14 @@ router.post(
       const [inserted] = await tx
         .insert(bankVaultPaystackEventsTable)
         .values({
-          eventKey: `charge.success:${reference}`,
+          eventKey: paystackVaultEventKey("charge.success", reference),
           eventType,
           paymentReference: reference,
           userId: user.id,
         })
         .onConflictDoNothing()
         .returning({ id: bankVaultPaystackEventsTable.id });
-      if (!inserted) return;
+      if (!isNewPaystackWebhookEvent(inserted)) return;
 
       if (initialPayment) {
         if (lockedUser.vaultSubscriptionPaymentStatus === "pending") {

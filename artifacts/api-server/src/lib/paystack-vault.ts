@@ -217,6 +217,16 @@ export function isValidPaystackWebhookSignature(
   return provided.length === expected.length && timingSafeEqual(provided, expected);
 }
 
+export function paystackVaultEventKey(eventType: string, eventIdentity: string): string {
+  return `${eventType}:${eventIdentity}`;
+}
+
+export function isNewPaystackWebhookEvent(
+  inserted: { id: string } | undefined,
+): boolean {
+  return typeof inserted?.id === "string" && inserted.id.length > 0;
+}
+
 export async function sendPaystackSubscriptionManagementEmail(input: {
   secretKey: string;
   subscriptionCode: string;

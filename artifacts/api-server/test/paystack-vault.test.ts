@@ -8,9 +8,11 @@ import {
 import {
   createPaystackVaultPlan,
   getPaystackSecretKey,
+  isNewPaystackWebhookEvent,
   initializePaystackVaultCheckout,
   isValidPaystackWebhookSignature,
   isPaystackVaultRecurringEnabled,
+  paystackVaultEventKey,
   sendPaystackSubscriptionManagementEmail,
   verifyPaystackVaultCheckout,
 } from "../src/lib/paystack-vault";
@@ -194,6 +196,19 @@ test("Paystack webhook signatures authenticate the exact raw body", () => {
   assert.equal(isValidPaystackWebhookSignature(body, "bad-signature", "test-webhook-key"), false);
 });
 
+test("repeated Paystack deliveries share a stable event key and duplicate claims are ignored", () => {
+  assert.equal(
+    paystackVaultEventKey("charge.success", "GBV-reference-1"),
+    paystackVaultEventKey("charge.success", "GBV-reference-1"),
+  );
+  assert.notEqual(
+    paystackVaultEventKey("charge.success", "GBV-reference-1"),
+    paystackVaultEventKey("charge.success", "GBV-reference-2"),
+  );
+  assert.equal(isNewPaystackWebhookEvent({ id: "first-claim" }), true);
+  assert.equal(isNewPaystackWebhookEvent(undefined), false);
+});
+
 test("renewal management emails are requested for the stored subscription only", async () => {
   let capturedUrl = "";
   let capturedMethod = "";
@@ -301,6 +316,9 @@ test("Vault billing supports Paystack or unavailable, never manual approval", ()
     GetBankVaultBillingResponse.safeParse({
       configured: true,
       provider: "paystack",
+      adminGrantActive: false,
+      accessActive: true,
+      accessSource: "paystack_subscription",
       recurringEnabled: false,
       plans,
     }).success,
@@ -310,6 +328,9 @@ test("Vault billing supports Paystack or unavailable, never manual approval", ()
     GetBankVaultBillingResponse.safeParse({
       configured: true,
       provider: "manual",
+      adminGrantActive: false,
+      accessActive: false,
+      accessSource: "none",
       recurringEnabled: false,
       plans,
     }).success,

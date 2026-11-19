@@ -957,7 +957,7 @@ paths:
       operationId: createLedgerRequest
       tags: [bank]
       summary: Add funds with active Vault access or request a withdrawal
-      description: Deposit requests are credited immediately only for customers with an active Private Vault subscription and eligible account and wallet status. Withdrawal requests remain subject to administrator review.
+      description: Deposit requests create internal Globus ledger credits for customers with valid Private Vault access and eligible account and wallet status. They never move outside funds; optional customer descriptions are stored with the transaction. Withdrawal requests remain subject to administrator review.
       requestBody:
         required: true
         content:
@@ -1300,6 +1300,113 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
+  /bank/admin/account-tiers:
+    get:
+      operationId: listAdminAccountTiers
+      tags: [admin]
+      summary: List account tiers and Vault plan mappings
+      responses:
+        "200":
+          description: Account tier catalog
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAccountTierList"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+    post:
+      operationId: createAdminAccountTier
+      tags: [admin]
+      summary: Create an account tier
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAccountTierInput"
+      responses:
+        "201":
+          description: Account tier created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAccountTierResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /bank/admin/account-tiers/{tierId}:
+    patch:
+      operationId: updateAdminAccountTier
+      tags: [admin]
+      summary: Update an account tier and its Vault plan mapping
+      parameters:
+        - name: tierId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 100 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAccountTierInput"
+      responses:
+        "200":
+          description: Account tier updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAccountTierResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
+  /bank/admin/users/{userId}/account-tier:
+    patch:
+      operationId: setAdminUserAccountTier
+      tags: [admin]
+      summary: Assign a tier to an individual customer
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: string, minLength: 1, maxLength: 200 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdminAccountTierAssignmentInput"
+      responses:
+        "200":
+          description: Customer account tier updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AdminAccountTierAssignmentResponse"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+        "404":
+          $ref: "#/components/responses/NotFound"
+        "409":
+          $ref: "#/components/responses/Conflict"
   /bank/admin/vault-access:
     get:
       operationId: listAdminVaultAccess
@@ -2262,7 +2369,7 @@ components:
     BankDashboard:
       type: object
       properties:
-        profile: { $ref: "#/components/schemas/BankProfile" }
+        profile: { $ref: "#/components/schemas/BankDashboardProfile" }
         wallets:
           type: array
           items: { $ref: "#/components/schemas/Wallet" }
@@ -2272,6 +2379,21 @@ components:
         referenceCurrency: { $ref: "#/components/schemas/CurrencyCode" }
         internalLedger: { type: boolean, const: true }
       required: [profile, wallets, recentTransactions, referenceCurrency, internalLedger]
+    DashboardAccountTier:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string }
+        source: { type: string, enum: [paystack_subscription, admin_assigned] }
+      required: [id, name, source]
+    BankDashboardProfile:
+      allOf:
+        - $ref: "#/components/schemas/BankProfile"
+        - type: object
+          properties:
+            accountTier: { $ref: "#/components/schemas/DashboardAccountTier" }
+            testingMode: { type: boolean }
+          required: [accountTier, testingMode]
     TransferInput:
       type: object
       properties:
@@ -2311,7 +2433,10 @@ components:
       properties:
         type: { type: string, enum: [deposit, withdrawal] }
         currency: { $ref: "#/components/schemas/ActiveCurrencyCode" }
-        amount: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
+        amount:
+          type: string
+          pattern: "^[0-9]{1,16}(\\.[0-9]{1,2})?$"
+          description: Deposits allow up to 16 whole digits within the PostgreSQL bigint ledger limit; withdrawal validation allows up to 12.
         description: { type: string, maxLength: 140 }
         idempotencyKey: { type: string, minLength: 16, maxLength: 100 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
@@ -2422,6 +2547,8 @@ components:
       properties:
         id: { type: string }
         email: { type: string }
+        accountTierId: { type: string }
+        accountTierName: { type: string }
         customerId: { type: ["string", "null"], pattern: "^[A-Z0-9]{7}$" }
         firstName: { type: ["string", "null"] }
         lastName: { type: ["string", "null"] }
@@ -2441,7 +2568,56 @@ components:
         vaultSubscriptionAutoRenew: { type: boolean }
         walletCount: { type: integer }
         createdAt: { type: string, format: date-time }
-      required: [id, email, customerId, firstName, lastName, country, verificationStatus, verificationNote, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, walletCount, createdAt]
+      required: [id, email, accountTierId, accountTierName, customerId, firstName, lastName, country, verificationStatus, verificationNote, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, walletCount, createdAt]
+    AdminAccountTier:
+      type: object
+      properties:
+        id: { type: string }
+        name: { type: string, minLength: 2, maxLength: 80 }
+        description: { type: ["string", "null"], maxLength: 240 }
+        vaultPlanCode: { type: ["string", "null"], enum: [1m, 3m, 1y, null] }
+        active: { type: boolean }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, name, description, vaultPlanCode, active, createdAt, updatedAt]
+    AdminAccountTierList:
+      type: object
+      properties:
+        items:
+          type: array
+          items: { $ref: "#/components/schemas/AdminAccountTier" }
+      required: [items]
+    AdminAccountTierInput:
+      type: object
+      properties:
+        name: { type: string, minLength: 2, maxLength: 80 }
+        description: { type: ["string", "null"], maxLength: 240 }
+        vaultPlanCode: { type: ["string", "null"], enum: [1m, 3m, 1y, null] }
+        active: { type: boolean }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
+        confirmed: { type: boolean, enum: [true] }
+      required: [name, description, vaultPlanCode, active, reason, transactionPin, confirmed]
+    AdminAccountTierResponse:
+      type: object
+      properties:
+        item: { $ref: "#/components/schemas/AdminAccountTier" }
+      required: [item]
+    AdminAccountTierAssignmentInput:
+      type: object
+      properties:
+        tierId: { type: string, minLength: 1, maxLength: 100 }
+        reason: { type: string, minLength: 5, maxLength: 500 }
+        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
+        confirmed: { type: boolean, enum: [true] }
+      required: [tierId, reason, transactionPin, confirmed]
+    AdminAccountTierAssignmentResponse:
+      type: object
+      properties:
+        userId: { type: string }
+        accountTierId: { type: string }
+        accountTierName: { type: string }
+      required: [userId, accountTierId, accountTierName]
     AdminUserPage:
       type: object
       properties:

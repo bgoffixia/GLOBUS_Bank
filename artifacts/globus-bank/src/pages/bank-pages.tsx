@@ -228,11 +228,12 @@ export function HomePage() {
           <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#528f95]">Globus account records, clearly scoped</p>
           <h2 className="bank-display mt-4 max-w-[450px] text-[42px] font-semibold leading-[1.08] text-[#17304f] sm:text-[52px]">Know what Globus records.<br />Know what it doesn’t.</h2>
         </div>
-        <div className="grid gap-8 sm:grid-cols-2">
+        <div data-testid="landing-feature-grid" className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           <FeatureBlock number="01" title="See the whole picture" copy="Review individual currency wallets, pending amounts and recent transactions in one focused workspace." />
           <FeatureBlock number="02" title="Route transfers with clarity" copy="Choose local routing or an international wire, review the currency conversion, and follow the recorded status in your account." />
-          <FeatureBlock number="03" title="Add wallet funds" copy="Verified customers with an active Private Vault subscription can add funds to eligible wallets immediately." />
-          <FeatureBlock number="04" title="Keep a clear record" copy="Every transaction has a reference, status and timestamp for straightforward review." />
+          <div className="sm:col-span-2 lg:col-span-1">
+            <FeatureBlock number="03" title="Keep a clear record" copy="Every transaction has a reference, status and timestamp for straightforward review." />
+          </div>
         </div>
       </section>
       <section className="mx-4 mb-16 rounded-[28px] bg-[#132f51] px-5 py-10 text-white sm:mx-10 sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1240px] lg:px-16 lg:py-16">
@@ -331,7 +332,6 @@ export function DashboardPage() {
           </div>
           <nav role="toolbar" aria-label="Dashboard actions" className="grid min-w-0 grid-cols-3 gap-2">
             <ActionTile href="/profile" icon={<UserRound size={16} />} label="Profile" testId="dashboard-quick-profile" />
-            <ActionTile href={currencyActionHref('/add-money', actionCurrency)} icon={<WalletCards size={16} />} label="Deposit" testId="dashboard-quick-deposit" />
             <ActionTile href={currencyActionHref('/withdraw', actionCurrency)} icon={<ArrowUpRight size={16} />} label="Withdraw" testId="dashboard-quick-withdraw" />
             <ActionTile href={currencyActionHref('/transfer', actionCurrency)} icon={<ArrowLeftRight size={16} />} label="Transfer" testId="dashboard-quick-transfer" />
             <ActionTile href="/calculator" icon={<Calculator size={16} />} label="Convert" testId="dashboard-quick-converter" />
@@ -347,6 +347,22 @@ export function DashboardPage() {
           <div className="mt-3 space-y-2.5">
             <StatusLine label="Account" value={humanize(dash?.profile.accountStatus)} positive={dash?.profile.accountStatus === 'active'} />
             <StatusLine label="Private Vault" value={!dash?.profile.vaultAccessActive ? 'Inactive' : dash.profile.vaultAccessSource === 'admin_grant' ? 'Active · Admin grant' : 'Active · Paid'} positive={dash?.profile.vaultAccessActive === true} />
+            <div data-testid="dashboard-account-tier" className="flex min-w-0 items-center justify-between gap-3">
+              <div className="min-w-0">
+                <span className="text-[11px] text-[#8793a1]">Account tier</span>
+                <p className="mt-0.5 truncate text-[8px] text-[#8793a1]">
+                  {dash?.profile.accountTier.source === 'paystack_subscription' ? 'Mapped from active Vault plan' : 'Administrator-assigned base tier'}
+                </p>
+              </div>
+              <span
+                data-testid="dashboard-account-tier-badge"
+                title={dash?.profile.accountTier.name ?? 'Not assigned'}
+                className={`max-w-[58%] shrink-0 truncate rounded-full border px-2.5 py-1 text-[9px] font-bold ${dash?.profile.accountTier.source === 'paystack_subscription' ? 'border-[#d3e8df] bg-[#edf7f1] text-[#39745d]' : 'border-[#e8dfc5] bg-[#fbf8ef] text-[#786e55]'}`}
+              >
+                {dash?.profile.accountTier.name ?? 'Not assigned'}
+              </span>
+            </div>
+            <StatusLine label="Testing Mode" value={dash?.profile.testingMode ? 'On' : 'Off'} positive={!dash?.profile.testingMode} />
             <div data-testid="dashboard-profile-completion">
               <StatusLine
                 label="Profile details"
@@ -378,7 +394,6 @@ export function WalletsPage() {
   return (
     <>
       <PageHeading eyebrow="Currencies" title="Your wallets" subtitle="Available, pending and reserved amounts, shown separately." />
-      <div className="mt-7 flex items-center gap-3 rounded-2xl border border-[#dce9ea] bg-[#eef7f7] px-4 py-4 text-[12px] leading-5 text-[#467b80]"><Globe2 size={17} className="shrink-0" /> Balances show activity recorded in your Globus account. No outside bank or payment service holds or moves funds.</div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {(query.data ?? []).map((wallet) => (
           <Link key={wallet.id} href={`/wallets/${encodeURIComponent(wallet.id)}`} aria-label={`View ${wallet.currency} wallet details`} className="group block min-w-0 rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#65a4a7] focus-visible:ring-offset-2">

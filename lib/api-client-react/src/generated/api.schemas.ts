@@ -841,8 +841,27 @@ export interface BankTransaction {
   createdAt: string;
 }
 
+export type DashboardAccountTierSource = typeof DashboardAccountTierSource[keyof typeof DashboardAccountTierSource];
+
+
+export const DashboardAccountTierSource = {
+  paystack_subscription: 'paystack_subscription',
+  admin_assigned: 'admin_assigned',
+} as const;
+
+export interface DashboardAccountTier {
+  id: string;
+  name: string;
+  source: DashboardAccountTierSource;
+}
+
+export type BankDashboardProfile = BankProfile & {
+  accountTier: DashboardAccountTier;
+  testingMode: boolean;
+};
+
 export interface BankDashboard {
-  profile: BankProfile;
+  profile: BankDashboardProfile;
   wallets: Wallet[];
   recentTransactions: BankTransaction[];
   referenceCurrency: CurrencyCode;
@@ -941,7 +960,10 @@ export const LedgerRequestInputPaymentMethod = {
 export interface LedgerRequestInput {
   type: LedgerRequestInputType;
   currency: ActiveCurrencyCode;
-  /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
+  /**
+     * Deposits allow up to 16 whole digits within the PostgreSQL bigint ledger limit; withdrawal validation allows up to 12.
+     * @pattern ^[0-9]{1,16}(\.[0-9]{1,2})?$
+     */
   amount: string;
   /** @maxLength 140 */
   description?: string;
@@ -1207,6 +1229,8 @@ export const AdminUserVaultSubscriptionPlan = {
 export interface AdminUser {
   id: string;
   email: string;
+  accountTierId: string;
+  accountTierName: string;
   /**
      * @nullable
      * @pattern ^[A-Z0-9]{7}$
@@ -1245,6 +1269,103 @@ export interface AdminUser {
   vaultSubscriptionAutoRenew?: boolean;
   walletCount: number;
   createdAt: string;
+}
+
+/**
+ * @nullable
+ */
+export type AdminAccountTierVaultPlanCode = typeof AdminAccountTierVaultPlanCode[keyof typeof AdminAccountTierVaultPlanCode] | null;
+
+
+export const AdminAccountTierVaultPlanCode = {
+  '1m': '1m',
+  '3m': '3m',
+  '1y': '1y',
+} as const;
+
+export interface AdminAccountTier {
+  id: string;
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  description: string | null;
+  /** @nullable */
+  vaultPlanCode: AdminAccountTierVaultPlanCode;
+  active: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AdminAccountTierList {
+  items: AdminAccountTier[];
+}
+
+/**
+ * @nullable
+ */
+export type AdminAccountTierInputVaultPlanCode = typeof AdminAccountTierInputVaultPlanCode[keyof typeof AdminAccountTierInputVaultPlanCode] | null;
+
+
+export const AdminAccountTierInputVaultPlanCode = {
+  '1m': '1m',
+  '3m': '3m',
+  '1y': '1y',
+} as const;
+
+export interface AdminAccountTierInput {
+  /**
+     * @minLength 2
+     * @maxLength 80
+     */
+  name: string;
+  /**
+     * @maxLength 240
+     * @nullable
+     */
+  description: string | null;
+  /** @nullable */
+  vaultPlanCode: AdminAccountTierInputVaultPlanCode;
+  active: boolean;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /** @pattern ^[0-9]{6}$ */
+  transactionPin: string;
+  confirmed: true;
+}
+
+export interface AdminAccountTierResponse {
+  item: AdminAccountTier;
+}
+
+export interface AdminAccountTierAssignmentInput {
+  /**
+     * @minLength 1
+     * @maxLength 100
+     */
+  tierId: string;
+  /**
+     * @minLength 5
+     * @maxLength 500
+     */
+  reason: string;
+  /** @pattern ^[0-9]{6}$ */
+  transactionPin: string;
+  confirmed: true;
+}
+
+export interface AdminAccountTierAssignmentResponse {
+  userId: string;
+  accountTierId: string;
+  accountTierName: string;
 }
 
 export interface AdminUserPage {

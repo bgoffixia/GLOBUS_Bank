@@ -6,6 +6,7 @@ import { test, expect, type Page } from '@playwright/test';
 import { SignupOptionalProfileFields } from '../src/components/signup-profile-fields';
 
 const viewportWidths = [320, 360, 375, 402];
+const memberViewportWidths = [320, 360, 390, 768, 1440];
 const authViewports = [
   { name: '320px mobile', width: 320, height: 760 },
   { name: '360px mobile', width: 360, height: 800 },
@@ -150,6 +151,46 @@ test.describe('public and authentication pages at phone widths', () => {
       for (const path of ['/', '/sign-in', '/sign-up']) {
         await openAndCheck(page, path, width, 'Public/authentication page');
       }
+    });
+  }
+});
+
+test.describe('landing feature layout after removing wallet-funding copy', () => {
+  for (const viewport of authViewports) {
+    test(`keeps the remaining features gap-free at ${viewport.name}`, async ({ page }) => {
+      await page.setViewportSize({ width: viewport.width, height: viewport.height });
+      await page.addInitScript(() => {
+        localStorage.setItem('globus:pwa-prompt-shown-at', String(Date.now()));
+      });
+      await page.goto('/', { waitUntil: 'domcontentloaded' });
+
+      const grid = page.getByTestId('landing-feature-grid');
+      await expect(grid).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Add wallet funds' })).toHaveCount(0);
+      await expect(page.getByText('Verified customers with an active Private Vault subscription can add funds to eligible wallets immediately.')).toHaveCount(0);
+      await expect(page.getByRole('heading', { name: 'Keep a clear record' })).toBeVisible();
+
+      const layout = await grid.evaluate((element) => {
+        const container = element.getBoundingClientRect();
+        const items = Array.from(element.children).map((child) => {
+          const rect = child.getBoundingClientRect();
+          return { x: rect.x, y: rect.y, width: rect.width };
+        });
+        return { x: container.x, width: container.width, items };
+      });
+      expect(layout.items).toHaveLength(3);
+      if (viewport.width >= 1024) {
+        expect(Math.max(...layout.items.map((item) => item.y)) - Math.min(...layout.items.map((item) => item.y))).toBeLessThanOrEqual(1);
+      } else if (viewport.width >= 640) {
+        expect(layout.items[0].y).toBeCloseTo(layout.items[1].y, 0);
+        expect(layout.items[2].y).toBeGreaterThan(layout.items[0].y);
+        expect(layout.items[2].x).toBeCloseTo(layout.x, 0);
+        expect(layout.items[2].width).toBeCloseTo(layout.width, 0);
+      } else {
+        expect(layout.items[1].y).toBeGreaterThan(layout.items[0].y);
+        expect(layout.items[2].y).toBeGreaterThan(layout.items[1].y);
+      }
+      await expectNoHorizontalOverflow(page, `Landing feature layout at ${viewport.width}px`);
     });
   }
 });
@@ -474,16 +515,17 @@ test.describe('signed-in member pages at phone widths', () => {
     '/send',
     '/receive',
     '/add-money',
+    '/private-vault',
     '/calculator',
     '/withdraw',
     '/profile',
     '/settings',
   ];
 
-  for (const width of viewportWidths) {
+  for (const width of memberViewportWidths) {
     test(`all member pages fit at ${width}px`, async ({ page }) => {
       for (const path of memberPaths) {
-        if (path === '/add-money' || path === '/withdraw') {
+        if (path === '/withdraw') {
           await page.route('**/bank/saved-payment-methods', async (route) => {
             await route.fulfill({ status: 200, contentType: 'application/json', body: '[]' });
           });
@@ -505,23 +547,20 @@ test.describe('signed-in member pages at phone widths', () => {
           `Member page at ${width}px (${path}) should keep scrolling inside its content panel`,
         ).toBeLessThanOrEqual(documentHeight.viewport + 1);
         if (path === '/add-money') {
-          await expect(page.getByTestId('deposit-workflow')).toBeVisible();
-          await expect(page.getByText('Administrator review required')).toHaveCount(0);
-          await expect(page.getByText('Account activity is recorded in Globus. A deposit request does not transfer outside funds.')).toHaveCount(0);
-          const firstWallet = page.locator('[data-testid^="button-select-deposit-wallet-"]').first();
-          if (await firstWallet.count()) {
-            await firstWallet.click();
-            await expect(page.getByTestId('deposit-wallet-details')).toBeVisible();
-            await expect(page.getByRole('heading', { name: 'Account details' })).toBeVisible();
-            await expect(page.getByTestId('deposit-request-form')).toBeVisible();
-            await expect(page.getByTestId('input-deposit-reference')).toHaveCount(0);
-            await expect(page.getByTestId('input-deposit-note')).toHaveCount(0);
-            await expect(page.getByTestId('input-deposit-amount')).toBeVisible();
-            await expect(page.getByTestId('input-deposit-pin')).toBeVisible();
-            await page.getByTestId('button-deposit-bank-card').click();
-            await expect(page.getByTestId('deposit-card-options')).toBeVisible();
-            await expect(page.getByTestId('deposit-card-form')).toBeVisible();
-            await expect(page.getByTestId('input-card-last-four')).toBeVisible();
+          await expect(page).toHaveURL(/\/private-vault$/);
+          await expect(page.getByTestId('private-vault-panel')).toBeVisible();
+          await expect(page.getByTestId('deposit-workflow')).toHaveCount(0);
+        }
+        if (path === '/dashboard') {
+          await expect(page.getByTestId('dashboard-account-tier-badge')).toBeVisible();
+          await expect(page.getByTestId('dashboard-profile-completion')).toBeVisible();
+        }
+        if (path === '/private-vault') {
+          await expect(page.getByTestId('private-vault-panel')).toBeVisible();
+          const fundingForm = page.getByTestId('vault-wallet-funding');
+          if (await fundingForm.isVisible()) {
+            await expect(page.getByTestId('input-funding-description')).toBeVisible();
+            await expect(page.getByTestId('input-funding-amount')).not.toHaveAttribute('max');
           }
         }
         if (path === '/withdraw') {

@@ -2,7 +2,7 @@
 - [Clerk user identity reconciliation](clerk-bank-user-resolution.md) — Resolve cross-environment Clerk IDs to a canonical bank profile using a server-verified primary email.
 - [External Clerk application](clerk-external-application.md) — Use the user's own Clerk instance and verify environment-specific setup without exposing credential values.
 - [Authentication diagnostics](authentication-diagnostics.md) — Interpret provider errors before advancing sign-in; diagnose production without exposing credentials or resetting identities.
-- [Internal ledger boundaries](internal-ledger-boundaries.md) — Keep money movement internal; international requests use admin-maintained estimates and never send or reserve funds.
+- [Internal ledger boundaries](internal-ledger-boundaries.md) — Wallet credits stay internal and balanced, with optional customer labels; no external funds move.
 - [Admin transaction controls](admin-transaction-controls.md) — Status corrections never change postings; restrictions are additive and enforced server-side.
 - [Transaction PIN security](transaction-pin-security.md) — Store only PIN hashes; admins reset member PINs but never view or assign their values.
 - [Exchange-rate quote boundary](grey-quote-boundary.md) — Prefer Frankfurter reference rates with Grey as a read-only fallback; rate feeds never move money.

@@ -265,7 +265,7 @@ function ClerkRoutes() {
         <Route path="/send"><Redirect to="/transfer" /></Route>
         <Route path="/transfer"><ProtectedPage><InternationalTransferPage /></ProtectedPage></Route>
         <Route path="/international-transfer"><ProtectedPage><InternationalTransferPage /></ProtectedPage></Route>
-        <Route path="/add-money"><ProtectedPage><ProviderRequestPage type="deposit" /></ProtectedPage></Route>
+        <Route path="/add-money"><Redirect to="/private-vault" /></Route>
         <Route path="/withdraw"><ProtectedPage><ProviderRequestPage type="withdrawal" /></ProtectedPage></Route>
         <Route path="/customer-id"><Redirect to="/profile" /></Route>
         <Route path="/receive"><Redirect to="/profile" /></Route>
@@ -278,6 +278,7 @@ function ClerkRoutes() {
         <Route path="/admin/transactions"><ProtectedAdminPage /></Route>
         <Route path="/admin/funding"><ProtectedAdminPage /></Route>
         <Route path="/admin/wallets"><ProtectedAdminPage /></Route>
+        <Route path="/admin/account-tiers"><ProtectedAdminPage /></Route>
         <Route path="/admin/restrictions"><ProtectedAdminPage /></Route>
         <Route path="/admin/audit"><ProtectedAdminPage /></Route>
         <Route path="/admin/settings"><ProtectedAdminPage /></Route>

@@ -73,15 +73,30 @@ test("active Vault subscriber top-ups post a balanced wallet credit immediately"
     createVaultSubscriberTopUp(tx, {
       userId,
       currency: "USD",
-      amountMinor: 12_550n,
+      amountMinor: 200_000_000n,
       idempotencyKey: `${idempotencyPrefix}:credited`,
+      description: "Monthly savings contribution",
     }),
   );
   assert.ok(!("error" in result));
   assert.equal(result.transaction.status, "completed");
+  assert.equal(result.transaction.description, "Monthly savings contribution");
   assert.equal(result.sandboxRequest.status, "approved");
   assert.equal(result.sandboxRequest.paymentMethod, null);
-  assert.equal(result.notification.title, "Wallet funds added");
+  assert.equal(result.notification.title, "Internal ledger credit posted");
+
+  const repeatedResult = await db.transaction((tx) =>
+    createVaultSubscriberTopUp(tx, {
+      userId,
+      currency: "USD",
+      amountMinor: 200_000_000n,
+      idempotencyKey: `${idempotencyPrefix}:credited`,
+      description: "Monthly savings contribution",
+    }),
+  );
+  assert.ok(!("error" in repeatedResult));
+  assert.equal(repeatedResult.transaction.id, result.transaction.id);
+  assert.equal(repeatedResult.notification, null);
 
   const entries = await db
     .select()
@@ -91,8 +106,8 @@ test("active Vault subscriber top-ups post a balanced wallet credit immediately"
   assert.deepEqual(
     entries.map((entry) => [entry.side, entry.amountMinor.toString()]).sort(),
     [
-      ["credit", "12550"],
-      ["debit", "12550"],
+      ["credit", "200000000"],
+      ["debit", "200000000"],
     ],
   );
   assert.ok(entries.some((entry) => entry.walletId === wallet.id && entry.side === "credit"));
@@ -102,7 +117,7 @@ test("active Vault subscriber top-ups post a balanced wallet credit immediately"
     })
     .from(bankLedgerEntriesTable)
     .where(eq(bankLedgerEntriesTable.walletId, wallet.id));
-  assert.equal(balance.amount, "12550");
+  assert.equal(balance.amount, "200000000");
 });
 
 test("expired subscribers cannot create or post wallet top-ups", async () => {
