@@ -3,6 +3,10 @@ type ModuleMap = Record<string, () => Promise<Record<string, unknown>>>;
 export const modules: ModuleMap = {
   "./components/mockups/admin-workspace/Compact.tsx": () => import("../components/mockups/admin-workspace/Compact.tsx"),
   "./components/mockups/admin-workspace/Current.tsx": () => import("../components/mockups/admin-workspace/Current.tsx"),
+  "./components/mockups/globus-auth/BankGradeSignIn.tsx": () => import("../components/mockups/globus-auth/BankGradeSignIn.tsx"),
+  "./components/mockups/globus-auth/BankGradeSignUp.tsx": () => import("../components/mockups/globus-auth/BankGradeSignUp.tsx"),
+  "./components/mockups/globus-auth/CurrentSignIn.tsx": () => import("../components/mockups/globus-auth/CurrentSignIn.tsx"),
+  "./components/mockups/globus-auth/CurrentSignUp.tsx": () => import("../components/mockups/globus-auth/CurrentSignUp.tsx"),
   "./components/mockups/globus-receipt/ArchivalStatement.tsx": () => import("../components/mockups/globus-receipt/ArchivalStatement.tsx"),
   "./components/mockups/globus-receipt/BankPaymentReceipt.tsx": () => import("../components/mockups/globus-receipt/BankPaymentReceipt.tsx"),
   "./components/mockups/globus-receipt/Current.tsx": () => import("../components/mockups/globus-receipt/Current.tsx"),
@@ -10,9 +14,5 @@ export const modules: ModuleMap = {
   "./components/mockups/globus-receipt/SettlementLedger.tsx": () => import("../components/mockups/globus-receipt/SettlementLedger.tsx"),
   "./components/mockups/globus-receipt/SettlementTimeline.tsx": () => import("../components/mockups/globus-receipt/SettlementTimeline.tsx"),
   "./components/mockups/globus-receipt/TransferLedgerColumnar.tsx": () => import("../components/mockups/globus-receipt/TransferLedgerColumnar.tsx"),
-  "./components/mockups/globus-receipt/TransferReconciliationStatement.tsx": () => import("../components/mockups/globus-receipt/TransferReconciliationStatement.tsx"),
-  "./components/mockups/globus-auth/BankGradeSignIn.tsx": () => import("../components/mockups/globus-auth/BankGradeSignIn.tsx"),
-  "./components/mockups/globus-auth/BankGradeSignUp.tsx": () => import("../components/mockups/globus-auth/BankGradeSignUp.tsx"),
-  "./components/mockups/globus-auth/CurrentSignIn.tsx": () => import("../components/mockups/globus-auth/CurrentSignIn.tsx"),
-  "./components/mockups/globus-auth/CurrentSignUp.tsx": () => import("../components/mockups/globus-auth/CurrentSignUp.tsx")
+  "./components/mockups/globus-receipt/TransferReconciliationStatement.tsx": () => import("../components/mockups/globus-receipt/TransferReconciliationStatement.tsx")
 };
