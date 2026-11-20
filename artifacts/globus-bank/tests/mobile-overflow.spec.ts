@@ -856,8 +856,26 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       await expect(page.getByTestId('vault-overview-actions')).toBeVisible();
       await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(1);
       await expect(page.getByTestId('button-vault-lock')).toHaveCount(1);
+      await expect(page.getByTestId('vault-receipt-preferences')).toBeHidden();
+      await expect(page.getByTestId('vault-wallet-funding')).toBeHidden();
+
+      await page.getByTestId('link-vault-page-subscription').click();
+      await expect(page.getByTestId('vault-subscription-card')).toBeVisible();
+      await expect(page.getByTestId('vault-overview-actions')).toBeHidden();
+      await page.getByTestId('button-vault-subscription-primary').click();
+      await expect(page.getByTestId('vault-subscription-plans')).toBeVisible();
+
+      await page.getByTestId('link-vault-page-funding').click();
+      await expect(page.getByTestId('vault-wallet-funding')).toBeVisible();
+      await expect(page.getByTestId('vault-subscription-access')).toBeHidden();
+
+      await page.getByTestId('link-vault-page-activity').click();
+      await expect(page.getByTestId('vault-transaction-history')).toBeVisible();
+      await expect(page.getByTestId('vault-wallet-funding')).toBeHidden();
+
+      await page.getByTestId('link-vault-page-receipts').click();
       await expect(page.getByTestId('vault-receipt-preferences')).toBeVisible();
-      await expect(page.locator('[data-testid^="button-receipt-layout-"]')).toHaveCount(5);
+      await expect(page.locator('[data-testid^="button-receipt-layout-"]')).toHaveCount(11);
       await expect(page.getByTestId('button-preview-selected-receipt')).toBeEnabled();
       await expect(page.getByTestId('button-save-receipt-preference')).toBeDisabled();
       await page.getByTestId('button-preview-selected-receipt').click();
@@ -892,12 +910,31 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       if (width < 1024) {
         await page.getByTestId('button-vault-navigation').click();
         await expect(page.getByRole('dialog', { name: 'Vault workspace' })).toBeVisible();
-        await page.getByRole('dialog').getByRole('button', { name: 'Receipt style' }).click();
+        await page.getByRole('dialog').getByRole('button', { name: 'Wallet controls' }).click();
         await expect(page.getByRole('dialog')).toHaveCount(0);
       } else {
         await expect(page.getByRole('navigation', { name: 'Vault workspace navigation' }).first()).toBeVisible();
       }
 
+      await expect(page.locator('#vault-workspace-wallets')).toBeVisible();
+      await expect(page.getByTestId('vault-receipt-preferences')).toBeHidden();
+      await page.getByTestId('link-vault-page-security').click();
+      await expect(page.getByText('Vault settings are read-only')).toBeVisible();
+      await expect(page.locator('#vault-workspace-wallets')).toBeHidden();
+      await page.getByTestId('link-vault-page-alerts').click();
+      await expect(page.getByTestId('vault-browser-alert-settings')).toBeVisible();
+      await expect(page.getByText('Choose which account alerts can reach linked devices.')).toBeVisible();
+      await page.getByTestId('link-vault-page-notes').click();
+      await expect(page.getByTestId('vault-personal-transaction-notes')).toBeVisible();
+      await expect(page.getByText('Personal transaction notes')).toBeVisible();
+      await page.getByTestId('link-vault-page-email-preferences').click();
+      await expect(page.getByTestId('vault-email-banner-settings')).toBeVisible();
+      await expect(page.getByText('Choose whether to email recipients, then customize the banner and optional support footer link.')).toBeVisible();
+      await page.getByTestId('link-vault-page-overview').click();
+      await expect(page.getByTestId('vault-overview-actions')).toBeVisible();
+      await expect(page.getByTestId('vault-wallet-funding')).toBeHidden();
+
+      await page.getByTestId('link-vault-page-receipts').click();
       await page.getByTestId('button-preview-selected-receipt').click();
       await expect(page.getByRole('dialog')).toBeVisible();
       await page.getByTestId('button-vault-lock').click();

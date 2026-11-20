@@ -11,9 +11,15 @@ const supportedTemplates = [
   "transfer_journey",
   "transfer_ledger",
   "settlement_statement",
+  "editorial_ledger",
+  "transfer_ledger_columnar",
+  "settlement_ledger",
+  "reconciliation_statement",
+  "settlement_timeline",
+  "archival_statement",
 ] as const;
 
-test("receipt preference API accepts each of the five supported templates", () => {
+test("receipt preference API accepts each supported template", () => {
   for (const preferredTemplate of supportedTemplates) {
     const input = UpdateBankReceiptPreferencesBody.parse({ preferredTemplate });
     assert.equal(input.preferredTemplate, preferredTemplate);

@@ -7,13 +7,19 @@ import { bankTransactionsTable } from "@workspace/db";
 import { toBankTransaction } from "../src/lib/bank";
 import bankRouter from "../src/routes/bank";
 
-test("receipt preference accepts only the five supported layouts", () => {
+test("receipt preference accepts each supported layout and rejects unknown layouts", () => {
   for (const preferredReceiptTemplate of [
     "standard",
     "bank_payment",
     "transfer_journey",
     "transfer_ledger",
     "settlement_statement",
+    "editorial_ledger",
+    "transfer_ledger_columnar",
+    "settlement_ledger",
+    "reconciliation_statement",
+    "settlement_timeline",
+    "archival_statement",
   ]) {
     assert.equal(
       UpdateBankVaultReceiptPreferenceBody.safeParse({

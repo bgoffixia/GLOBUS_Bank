@@ -364,6 +364,12 @@ img, svg, video, canvas {
   -webkit-overflow-scrolling: touch;
   touch-action: pan-x;
   overscroll-behavior-x: contain;
+  scroll-behavior: smooth;
+  scroll-snap-type: x proximity;
+}
+
+.vault-page-navigation > * {
+  scroll-snap-align: start;
 }
 
 .vault-page-navigation::-webkit-scrollbar,
@@ -390,36 +396,41 @@ img, svg, video, canvas {
   display: block;
 }
 
-.vault-page-content[data-vault-page="funding"] #vault-workspace-overview > :not(:has(#vault-workspace-funding)),
-.vault-page-content[data-vault-page="wallet-controls"] #vault-workspace-overview,
-.vault-page-content[data-vault-page="security"] #vault-workspace-overview,
-.vault-page-content[data-vault-page="alerts"] #vault-workspace-overview,
-.vault-page-content[data-vault-page="notes"] #vault-workspace-overview,
-.vault-page-content[data-vault-page="email-preferences"] #vault-workspace-overview {
+.vault-page-content #vault-workspace-layout > [data-vault-view],
+.vault-page-content #vault-workspace-overview > [data-vault-view],
+.vault-page-content #vault-account-controls > [data-vault-view] {
   display: none;
 }
 
-.vault-page-content[data-vault-page="wallet-controls"] #vault-account-controls,
-.vault-page-content[data-vault-page="security"] #vault-account-controls,
+.vault-page-content[data-vault-page="private-vault"] #vault-workspace-layout > #vault-workspace-overview,
+.vault-page-content[data-vault-page="subscription"] #vault-workspace-layout > #vault-workspace-overview,
+.vault-page-content[data-vault-page="funding"] #vault-workspace-layout > #vault-workspace-overview {
+  display: block;
+}
+
+.vault-page-content[data-vault-page="wallet-controls"] #vault-workspace-layout > #vault-account-controls,
+.vault-page-content[data-vault-page="security"] #vault-workspace-layout > #vault-account-controls {
+  display: grid;
+}
+
+.vault-page-content[data-vault-page="alerts"] #vault-workspace-layout > #vault-browser-alerts,
+.vault-page-content[data-vault-page="notes"] #vault-workspace-layout > #vault-personal-notes,
+.vault-page-content[data-vault-page="email-preferences"] #vault-workspace-layout > #vault-email-preferences {
+  display: block;
+}
+
+.vault-page-content[data-vault-page="private-vault"] #vault-workspace-overview > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="subscription"] #vault-workspace-overview > [data-vault-view="subscription"],
+.vault-page-content[data-vault-page="funding"] #vault-workspace-overview > [data-vault-view="funding"],
+.vault-page-content[data-vault-page="wallet-controls"] #vault-account-controls > [data-vault-view="wallet-policies"],
+.vault-page-content[data-vault-page="security"] #vault-account-controls > [data-vault-view="security"] {
+  display: block;
+}
+
 .vault-page-content[data-vault-page="alerts"] #vault-browser-alerts,
 .vault-page-content[data-vault-page="notes"] #vault-personal-notes,
 .vault-page-content[data-vault-page="email-preferences"] #vault-email-preferences {
   display: block;
-}
-
-.vault-page-content[data-vault-page="security"] #vault-account-controls > :not([data-vault-view="security"]) {
-  display: none;
-}
-
-.vault-page-content[data-vault-page="subscription"] #vault-workspace-layout > :not(#vault-workspace-overview),
-.vault-page-content[data-vault-page="subscription"] #vault-workspace-overview > :not(:has([data-testid="vault-subscription-access"])),
-.vault-page-content[data-vault-page="funding"] #vault-workspace-layout > :not(#vault-workspace-overview),
-.vault-page-content[data-vault-page="wallet-controls"] #vault-workspace-layout > :not(#vault-account-controls),
-.vault-page-content[data-vault-page="security"] #vault-workspace-layout > :not(#vault-account-controls),
-.vault-page-content[data-vault-page="alerts"] #vault-workspace-layout > :not(#vault-browser-alerts),
-.vault-page-content[data-vault-page="notes"] #vault-workspace-layout > :not(#vault-personal-notes),
-.vault-page-content[data-vault-page="email-preferences"] #vault-workspace-layout > :not(#vault-email-preferences) {
-  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -431,6 +442,10 @@ img, svg, video, canvas {
   .vault-page-content button {
     scroll-behavior: auto !important;
     transition-duration: 0.01ms !important;
+  }
+
+  .vault-page-navigation {
+    scroll-behavior: auto !important;
   }
 }
 
