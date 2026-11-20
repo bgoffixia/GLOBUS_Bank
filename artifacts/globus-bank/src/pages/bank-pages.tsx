@@ -333,11 +333,12 @@ export function DashboardPage() {
             </div>
             {selectedWallet && <span className="shrink-0 rounded-full bg-[#eff5f6] px-2 py-1 text-[8px] font-bold text-[#456c73]">{selectedWallet.currency} wallet</span>}
           </div>
-          <nav role="toolbar" aria-label="Dashboard actions" className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
+          <nav role="toolbar" aria-label="Dashboard actions" className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
             <ActionTile href={currencyActionHref('/withdraw', actionCurrency)} icon={<ArrowUpRight size={16} />} label="Withdraw" testId="dashboard-quick-withdraw" />
             <ActionTile href={currencyActionHref('/transfer', actionCurrency)} icon={<ArrowLeftRight size={16} />} label="Transfer" testId="dashboard-quick-transfer" />
             <ActionTile href="/calculator" icon={<Calculator size={16} />} label="Convert" testId="dashboard-quick-converter" />
             <ActionTile href="/transactions" icon={<History size={16} />} label="Activity" testId="dashboard-quick-activity" />
+            <ActionTile href="/profile" icon={<UserRound size={16} />} label="Profile" testId="dashboard-quick-profile" />
           </nav>
         </section>
 

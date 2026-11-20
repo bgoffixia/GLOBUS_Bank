@@ -627,12 +627,12 @@ test.describe('signed-in member pages at phone widths', () => {
           const quickActions = page.getByTestId('dashboard-action-toolbar');
           await expect(toolbar).toBeVisible();
           await expect(page.getByText('Your details, in order')).toHaveCount(0);
-          await expect(quickActions.locator('[data-testid^="dashboard-quick-"]')).toHaveCount(4);
-          await expect(quickActions.getByTestId('dashboard-quick-profile')).toHaveCount(0);
+          await expect(quickActions.locator('[data-testid^="dashboard-quick-"]')).toHaveCount(5);
+          await expect(quickActions.getByTestId('dashboard-quick-profile')).toHaveAttribute('href', '/profile');
           const columnCount = await quickActions.locator('[role="toolbar"]').evaluate(element =>
             getComputedStyle(element).gridTemplateColumns.split(' ').length,
           );
-          const expectedColumns = width < 640 ? 2 : 4;
+          const expectedColumns = width < 640 ? 2 : width < 1280 ? 3 : 5;
           expect(columnCount, 'Dashboard quick actions should fit the viewport').toBe(expectedColumns);
           await expect(page.getByTestId('dashboard-header-greeting')).toBeVisible();
           await page.getByTestId('link-header-profile').click();
