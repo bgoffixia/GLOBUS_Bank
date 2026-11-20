@@ -24,7 +24,8 @@ import { CountrySelect } from '@/components/country-select';
 import { countries } from '@/lib/countries';
 import { currencyLabel, destinationCurrencies, destinationCurrencyForCountry } from '@/lib/destination-currency';
 import { previewConversion } from '@/lib/currency-conversion';
-import { digitsFor, formatAmount, formatRate, humanizeStatus, receiptFromRequest, TransferReceiptModal, type ReceiptTransaction } from './transfer-receipt';
+import { digitsFor, formatAmount, formatRate, humanizeStatus, TransferReceiptModal } from './transfer-receipt';
+import { receiptFromRequest, type ReceiptTransaction } from '@/lib/transfer-receipt-data';
 
 type TransferType = 'local_routing' | 'international_wire';
 type SourceCurrency = InternationalTransferRequestInput['sourceCurrency'];

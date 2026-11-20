@@ -1,31 +1,9 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeftRight, BadgeCheck, CalendarDays, Clock3, Download, Hash, ImageDown, Printer, ShieldCheck, X } from 'lucide-react';
-import type { BankTransaction, InternationalTransferRequest } from '@workspace/api-client-react';
 import { destinationCurrencyDigits } from '@/lib/destination-currency';
 import { downloadTransactionReceiptPdf, saveTransactionReceiptPng } from '@/lib/transaction-receipt-pdf';
-
-export type ReceiptConversion = {
-  sourceAmount: string;
-  sourceCurrency: string;
-  exchangeRate: string;
-  destinationAmount: string;
-  destinationCurrency: string;
-};
-export type ReceiptTransaction = BankTransaction & {
-  conversion?: ReceiptConversion;
-  sender?: { name: string; walletLast4: string };
-  recipient?: {
-    name: string;
-    bank: string;
-    country: string;
-    route: string;
-    account: string;
-    transferType: string;
-    routingCode: string | null;
-    swiftBic: string | null;
-    remark: string;
-  };
-};
+import type { ReceiptConversion, ReceiptTransaction } from '@/lib/transfer-receipt-data';
+import { calculateReceiptFit } from '@/lib/receipt-fit';
 
 export function digitsFor(currency: string): number {
   try { return destinationCurrencyDigits(currency); } catch { return 2; }
@@ -69,40 +47,6 @@ export function parseReceiptConversion(t: ReceiptTransaction): ReceiptConversion
   return { sourceAmount: m[1], sourceCurrency: m[2], destinationAmount: m[3], destinationCurrency: m[4], exchangeRate: m[5] };
 }
 
-export function receiptFromRequest(r: InternationalTransferRequest): ReceiptTransaction {
-  const typeLabel = r.transferType === 'local_routing' ? 'Local routing' : 'International wire';
-  return {
-    id: r.id,
-    reference: r.reference,
-    type: 'external_transfer',
-    status: r.status,
-    receiptTemplate: r.receiptTemplate,
-    currency: r.sourceCurrency,
-    amount: r.sourceAmount,
-    fee: '0.00',
-    counterparty: `${r.recipientBank} · ****${r.recipientAccountLast4} · ${r.destinationCountry}`,
-    description: `${typeLabel} transfer · ${r.sourceAmount} ${r.sourceCurrency} converted to ${r.destinationAmount} ${r.destinationCurrency} at ${r.exchangeRate}`,
-    mode: 'internal_ledger',
-    createdAt: r.createdAt,
-    conversion: { sourceAmount: r.sourceAmount, sourceCurrency: r.sourceCurrency, exchangeRate: r.exchangeRate, destinationAmount: r.destinationAmount, destinationCurrency: r.destinationCurrency },
-    sender: {
-      name: r.senderName || 'Globus member',
-      walletLast4: r.sourceWalletLast4,
-    },
-    recipient: {
-      name: r.recipientAccountName,
-      bank: r.recipientBank,
-      country: r.destinationCountry,
-      route: typeLabel,
-      account: `••••••${r.recipientAccountLast4}`,
-      transferType: r.transferType,
-      routingCode: r.routingCode,
-      swiftBic: r.swiftBic,
-      remark: r.remark,
-    },
-  } as ReceiptTransaction;
-}
-
 export function TransferReceiptModal({ transaction, onClose, title, notice }: { transaction: ReceiptTransaction; onClose: () => void; title?: string; notice?: string }) {
   const [exporting, setExporting] = useState<'pdf' | 'png' | null>(null);
   const [downloadError, setDownloadError] = useState('');
@@ -122,8 +66,8 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
     standard: 'Payment receipt',
     bank_grade: 'Bank transaction record',
     journey: 'Transfer journey',
-    ledger: 'Transfer ledger',
-    statement: 'Transaction statement',
+    ledger: 'Posting ledger',
+    statement: 'Archival statement',
   }[template];
   const darkMasthead = template === 'journey' || template === 'ledger' || template === 'statement';
 
@@ -141,11 +85,11 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
       const actionHeight = actionsRef.current?.offsetHeight ?? 0;
       if (!documentHeight) return;
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      const availableHeight = Math.max(0, Math.min(viewportHeight * 0.8, viewportHeight - 24) - actionHeight);
-      const scale = Math.min(0.86, availableHeight / documentHeight);
+      const fit = calculateReceiptFit(documentHeight, actionHeight, viewportHeight);
       setReceiptFit(current => {
-        const height = Math.ceil(documentHeight * scale);
-        return current.scale === scale && current.height === height ? current : { scale, height };
+        return current.scale === fit.scale && current.height === fit.height
+          ? current
+          : { scale: fit.scale, height: fit.height };
       });
     };
     measure();
@@ -220,7 +164,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
 
   return (
     <div className="receipt-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#dce5eb]/85 p-2 backdrop-blur-sm sm:p-3" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" data-testid="dialog-transfer-receipt" className="receipt-dialog relative flex w-full max-w-[460px] flex-col overflow-hidden rounded-[20px] border border-[#d9e2e7] bg-[#fffefa] shadow-[0_22px_65px_rgba(14,40,61,.22)]">
+      <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" data-testid="dialog-transfer-receipt" className="receipt-dialog relative flex w-full max-w-[460px] flex-col overflow-x-hidden overflow-y-auto rounded-[20px] border border-[#d9e2e7] bg-[#fffefa] shadow-[0_22px_65px_rgba(14,40,61,.22)]">
         <div data-testid="receipt-document-frame" className="receipt-document-frame w-full shrink-0" style={{ height: `${receiptFit.height}px` }}>
           <article
             ref={printRef}
@@ -237,7 +181,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div className="min-w-0">
                   <p className={`text-[9px] font-bold uppercase tracking-[.18em] ${darkMasthead ? 'text-[#a9c7bd]' : 'text-[#478783]'}`}>
-                    {template === 'statement' ? 'Payments & settlements · official Globus record' : template === 'journey' ? 'Transfer record · Globus ledger' : template === 'ledger' ? 'Globus ledger · transfer record' : 'Globus Bank · transaction record'}
+                    {template === 'statement' ? 'Globus transaction archive · internal record' : template === 'journey' ? 'Transfer record · Globus ledger' : template === 'ledger' ? 'Globus ledger · transfer record' : 'Globus Bank · transaction record'}
                   </p>
                   <h2 id="receipt-title" className={`bank-display mt-1 text-[19px] font-bold tracking-[-.045em] ${darkMasthead ? 'text-white' : 'text-[#183450]'}`}>{templateTitle}</h2>
                   <p className={`mt-0.5 text-[10px] ${darkMasthead ? 'text-white/70' : 'text-[#7d8d9b]'}`}>{heading}</p>
@@ -247,7 +191,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
                   {completed ? 'RECORDED IN GLOBUS' : pending ? 'PENDING REVIEW' : humanizeStatus(transaction.status).toUpperCase()}
                 </span>
               </div>
-              {template === 'statement' && <p className="mt-2 text-right font-mono text-[8px] uppercase tracking-[.08em] text-white/65">Statement date · {formatDateTime(transaction.createdAt)}</p>}
+              {template === 'statement' && <p className="mt-2 text-right font-mono text-[8px] uppercase tracking-[.08em] text-white/65">Record date · {formatDateTime(transaction.createdAt)}</p>}
             </header>
             <div className="space-y-3 px-5 pb-3 pt-3 sm:px-6">
               <section className={`rounded-[15px] border p-4 ${template === 'statement' ? 'border-[#dce5dc] bg-[#f1f5ef]' : template === 'journey' ? 'border-[#dce8e4] bg-[#f5f8f4]' : template === 'bank_grade' ? 'border-[#dce5e8] bg-[#173858] text-white' : template === 'ledger' ? 'border-[#d9e5dd] bg-[#eff4ed]' : 'border-[#dce5e8] bg-[#173858] text-white'}`} aria-label="Transfer amount summary">
@@ -294,14 +238,28 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
                 </div>
               </section>}
 
-              {template === 'statement' && <div className="flex items-center justify-between border-y border-[#dce5dc] py-2 text-[8px]"><span className="font-bold uppercase tracking-[.12em] text-[#718b81]">01 · Transaction status</span><span className="font-semibold text-[#38545a]">{completed ? 'Recorded in Globus' : pending ? 'Pending review' : 'Not posted'}</span></div>}
+              {template === 'statement' && <section className="grid grid-cols-[1fr_auto] items-center gap-3 border-y border-[#dce5dc] py-2.5" aria-label="Archival record status">
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className={`grid h-7 w-7 shrink-0 place-items-center rounded-full ${completed ? 'bg-[#e8f1eb] text-[#4b826d]' : 'bg-[#f5f1e4] text-[#927944]'}`}>
+                    {completed ? <BadgeCheck size={14} /> : <Clock3 size={14} />}
+                  </span>
+                  <span className="min-w-0">
+                    <span className="block text-[7px] font-bold uppercase tracking-[.12em] text-[#718b81]">Globus record status</span>
+                    <span className="mt-0.5 block text-[9px] font-semibold text-[#38545a]">{completed ? 'Recorded in Globus' : pending ? 'Pending review' : 'Not posted'}</span>
+                  </span>
+                </div>
+                <span className="min-w-0 text-right">
+                  <span className="block text-[7px] font-bold uppercase tracking-[.12em] text-[#718b81]">Document number</span>
+                  <span className="mt-0.5 block break-all font-mono text-[8px] font-semibold text-[#34716f]">{transaction.reference}</span>
+                </span>
+              </section>}
 
               <section className={`rounded-xl border px-3 ${template === 'statement' ? 'border-[#dce5dc] bg-white' : 'border-[#e4e9eb] bg-white'}`}>
                 <div className={`flex items-center gap-1.5 border-b border-[#e9edf0] py-2 text-[8px] font-bold uppercase tracking-[.14em] text-[#718599] ${template === 'statement' ? 'justify-between' : ''}`}>
                   {template === 'statement' && <span className="font-mono text-[#779387]">02</span>}<span className="inline-flex items-center gap-1.5"><Hash size={11} className="text-[#528c89]" />{template === 'statement' ? 'Record details' : 'Transaction details'}</span>
                 </div>
                 <dl>
-                  <Row label="Reference" value={transaction.reference} testId="text-receipt-reference" strong mono />
+                  <Row label={template === 'statement' ? 'Document number' : 'Reference'} value={transaction.reference} testId="text-receipt-reference" strong mono />
                   {transaction.sender && <>
                     <Row label="Sender" value={transaction.sender.name} />
                     <Row label="Source wallet" value={`••••••${transaction.sender.walletLast4}`} mono />
@@ -330,12 +288,12 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
         <div ref={actionsRef} className="receipt-actions shrink-0 border-t border-[#e7ecee] bg-[#fafbf9] px-3 py-2.5 sm:px-5">
           {notice && <p role="status" data-testid="status-recipient-email-notice" className="mb-2 rounded-lg border border-[#eadfbf] bg-[#fbf7eb] px-3 py-2 text-left text-[10px] leading-4 text-[#806b3d]">{notice}</p>}
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <button type="button" data-testid="button-save-receipt-png" aria-label="Save receipt PNG to device or gallery" disabled={exporting !== null || !completed} onClick={downloadPng} className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe4e8] bg-white px-2.5 py-2 text-[9px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><ImageDown size={13} />{exporting === 'png' ? 'Preparing image…' : 'Save PNG'}</button>
+          <button type="button" data-testid="button-save-receipt-png" aria-label="Save receipt PNG to device or gallery" disabled={exporting !== null || !completed} onClick={downloadPng} className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe4e8] bg-white px-2.5 py-2 text-[9px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><ImageDown size={13} />{exporting === 'png' ? 'Preparing image…' : 'Save PNG'}</button>
             <button type="button" data-testid="button-download-receipt-pdf" disabled={exporting !== null || !completed} onClick={downloadPdf} className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe4e8] bg-white px-2.5 py-2 text-[9px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><Download size={13} />{exporting === 'pdf' ? 'Preparing PDF…' : 'Download PDF'}</button>
             <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg bg-[#173858] px-3 py-2 text-[9px] font-bold text-white hover:bg-[#21496c]"><Printer size={13} /> Print</button>
           </div>
           {downloadError && <p role="alert" data-testid="status-receipt-download-error" className="mt-1 text-right text-[9px] text-[#a24940]">{downloadError}</p>}
-          <p className="mt-1 text-right text-[8px] text-[#8794a2]">On supported phones, choose “Save Image” to add the PNG to your gallery.</p>
+          <p className="mt-1 text-right text-[8px] text-[#8794a2]">On supported phones, choose “Save Image” in the device share sheet to add the PNG to Photos or Gallery. Other browsers download the file.</p>
         </div>
       </section>
     </div>

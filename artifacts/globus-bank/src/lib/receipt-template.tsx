@@ -14,17 +14,17 @@ export const receiptTemplateOptions = [
   {
     value: 'journey',
     label: 'Transfer journey',
-    description: 'A visual path from source wallet to recorded destination',
+    description: 'A visual path through the transfer record and its current status',
   },
   {
     value: 'ledger',
-    label: 'Transfer ledger',
-    description: 'A compact, step-by-step ledger view',
+    label: 'Posting ledger',
+    description: 'A compact summary of Globus ledger activity',
   },
   {
     value: 'statement',
-    label: 'Settlement statement',
-    description: 'A print-friendly statement with a structured audit summary',
+    label: 'Archival statement',
+    description: 'A print-friendly record with document number and status',
   },
 ] as const satisfies readonly {
   value: ReceiptTemplate;
@@ -98,13 +98,14 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
       {template === 'statement' && <>
         <div className="flex items-center justify-between border-b-[2px] border-[#9dbbab] bg-[#173b4b] px-2 py-2">
           <i className="h-1.5 w-10 rounded bg-white/85" />
-          <i className="h-1 w-8 rounded bg-white/45" />
+          <span className="rounded-full border border-[#b8d6c2]/40 px-1.5 py-1 text-[5px] font-bold text-[#d6eadc]">GLOBUS STATUS</span>
         </div>
         <div className="px-2 py-2">
           <i className="block h-1 w-12 rounded bg-[#83a094]" />
           <i className="mt-1.5 block h-2.5 w-20 rounded bg-[#284c56]" />
-          <div className="mt-2 grid grid-cols-3 gap-1 border-t border-[#e1e8e1] pt-1.5">
-            {[0, 1, 2].map(item => <span key={item}><i className="block h-1 w-full rounded bg-[#d0dad2]" /><i className="mt-1 block h-1.5 w-4/5 rounded bg-[#718b81]" /></span>)}
+          <div className="mt-2 flex items-center justify-between gap-1 border border-[#e1e8e1] bg-[#f6f8f4] p-1.5">
+            <span><i className="block h-1 w-10 rounded bg-[#d0dad2]" /><i className="mt-1 block h-1 w-16 rounded bg-[#718b81]" /></span>
+            <span className="grid h-4 w-4 place-items-center rounded-full border border-[#a5c4b2] text-[7px] text-[#56826a]">✓</span>
           </div>
         </div>
       </>}

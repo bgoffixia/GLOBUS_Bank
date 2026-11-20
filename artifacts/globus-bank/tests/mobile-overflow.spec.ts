@@ -579,6 +579,10 @@ test.describe('signed-in member pages at phone widths', () => {
           await expect(page.getByTestId('dashboard-account-tier-badge')).toBeVisible();
           await expect(page.getByText('Your details, in order')).toHaveCount(0);
         }
+        if (path === '/profile') {
+          await expect(page.getByText('Member since', { exact: true })).toHaveCount(0);
+          await expect(page.getByTestId('profile-account-tier-badge')).toBeVisible();
+        }
         if (path === '/private-vault') {
           await expect(page.getByTestId('private-vault-panel')).toBeVisible();
           const fundingForm = page.getByTestId('vault-wallet-funding');

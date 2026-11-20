@@ -1146,9 +1146,8 @@ export function ProfilePage() {
           <p className="mt-2 text-[8px] text-[#8794a2]">JPG, PNG or WebP · up to 5 MB. Your photo appears across Globus.</p>
           {photoMessage && <p role="status" className="mt-2 rounded-lg bg-[#f0f8f4] px-3 py-2 text-[9px] text-[#41755f]">{photoMessage}</p>}
           {photoError && <p role="alert" className="mt-2 rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940]">{photoError}</p>}
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account</p><span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[9px] font-bold ${profile?.accountStatus === 'active' ? 'bg-[#edf6f1] text-[#4c836e]' : 'bg-[#fbf7eb] text-[#927944]'}`}>{humanize(profile?.accountStatus)}</span></div>
-            <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Member since</p><p className="mt-1 text-[10px] font-semibold text-[#324962]">{formatDate(profile?.createdAt)}</p></div>
             <div data-testid="profile-account-tier" className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account tier</p><span data-testid="profile-account-tier-badge" className="mt-1 inline-flex max-w-full truncate rounded-full border border-[#d5e5e2] bg-[#edf5f2] px-2 py-1 text-[9px] font-bold text-[#3f716d]">{profile.accountTier.name || 'Not assigned'}</span></div>
           </div>
           <section className="mt-4 rounded-xl border border-[#e1e8ee] bg-white p-3" aria-label="Customer profile information" data-testid="customer-profile-completeness">

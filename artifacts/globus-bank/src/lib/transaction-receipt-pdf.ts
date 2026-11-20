@@ -1,4 +1,5 @@
 import type { ReceiptTemplate } from '@workspace/api-client-react';
+import { saveReceiptFileToDevice } from './receipt-file-delivery';
 
 export interface TransactionReceiptPdfData {
   reference: string;
@@ -187,7 +188,7 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   context.font = '700 19px Arial, sans-serif';
   context.fillText(
     template === 'statement'
-      ? 'PAYMENTS & SETTLEMENTS · INTERNAL RECORD'
+      ? 'GLOBUS TRANSACTION ARCHIVE · INTERNAL RECORD'
       : template === 'journey'
         ? 'TRANSFER JOURNEY · GLOBUS LEDGER'
         : template === 'ledger'
@@ -203,7 +204,7 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
     bank_grade: 'Bank transaction record',
     journey: 'Transfer journey',
     ledger: 'Transfer ledger',
-    statement: 'Transaction statement',
+    statement: 'Archival statement',
   }[template];
   context.fillText(title, left, 292);
   context.fillStyle = '#7d8d9b';
@@ -326,10 +327,26 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
     context.fillText([receipt.recipientBank, receipt.recipientCountry].filter(Boolean).join(' · '), left + 20, y + 58);
     y += 110;
   } else if (template === 'statement') {
+    drawRoundedRect(context, left, y, contentWidth, 94, 12);
+    context.fillStyle = '#f6f8f4';
+    context.fill();
+    context.strokeStyle = '#dce5dc';
+    context.stroke();
     context.fillStyle = '#718b81';
-    context.font = '700 16px Arial, sans-serif';
-    context.fillText(`01  RECORD STATUS · ${completed ? 'RECORDED IN GLOBUS' : receipt.status.toUpperCase()}`, left, y);
-    y += 35;
+    context.font = '700 14px Arial, sans-serif';
+    context.fillText('GLOBUS RECORD STATUS', left + 20, y + 28);
+    context.fillStyle = completed ? '#47755f' : '#8b7440';
+    context.font = '700 20px Arial, sans-serif';
+    context.fillText(completed ? 'Recorded in Globus' : receipt.status, left + 20, y + 58);
+    context.fillStyle = '#718b81';
+    context.font = '700 14px Arial, sans-serif';
+    context.textAlign = 'right';
+    context.fillText('DOCUMENT NUMBER', right - 20, y + 28);
+    context.fillStyle = '#34716f';
+    context.font = '600 16px monospace';
+    context.fillText(receipt.reference, right - 20, y + 58);
+    context.textAlign = 'left';
+    y += 118;
   }
 
   context.fillStyle = '#718599';
@@ -428,16 +445,14 @@ export async function saveTransactionReceiptPng(
   });
   const safeReference = receipt.reference.replace(/[^a-z0-9_-]+/gi, '-');
   const file = new File([png], `globus-receipt-${safeReference}.png`, { type: 'image/png' });
-  if (navigator.share && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: 'Globus transaction receipt' });
-      return;
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      // Fall back to a standard image download when the device share sheet is unavailable.
-    }
-  }
-  downloadBlob(png, receipt.reference, 'png');
+  await saveReceiptFileToDevice(
+    file,
+    typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined,
+    typeof navigator.canShare === 'function'
+      ? navigator.canShare.bind(navigator)
+      : undefined,
+    (sharedFile) => downloadBlob(sharedFile, receipt.reference, 'png'),
+  );
 }
 
 async function renderReceiptCanvas(receipt: TransactionReceiptPdfData, logoUrl: string) {
