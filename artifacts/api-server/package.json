@@ -19,6 +19,7 @@
     "test:private-vault": "tsx --test test/private-vault.test.ts",
     "test:paystack-vault": "tsx --test test/paystack-vault.test.ts",
     "test:receipt-preferences": "tsx --test test/receipt-preferences.test.ts",
+    "test:dashboard-schema": "tsx --test test/dashboard-schema-compatibility.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {
