@@ -671,6 +671,7 @@ export function toBankTransaction(
         : transaction.counterparty,
     description,
     mode: "internal_ledger" as const,
+    transactionDate: transaction.transactionDate,
     createdAt: transaction.createdAt.toISOString(),
   };
 }

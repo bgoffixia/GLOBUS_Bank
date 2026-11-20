@@ -1839,6 +1839,29 @@ paths:
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /bank/admin/transactions/{transactionId}/date:
+    patch:
+      operationId: updateAdminTransactionDate
+      tags: [admin]
+      summary: Update the customer-visible date for a transaction without changing its record timestamp or postings
+      parameters:
+        - { name: transactionId, in: path, required: true, schema: { type: string, format: uuid } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminTransactionDateInput" }
+      responses:
+        "200":
+          description: Updated transaction date
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankTransaction" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
   /bank/admin/transactions/{transactionId}/process:
     post:
       operationId: processAdminInternalTransfer
@@ -2379,8 +2402,9 @@ components:
         counterparty: { type: ["string", "null"] }
         description: { type: string }
         mode: { type: string, enum: [internal_ledger] }
+        transactionDate: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
         createdAt: { type: string, format: date-time }
-      required: [id, reference, type, status, receiptTemplate, currency, amount, fee, counterparty, description, mode, createdAt]
+      required: [id, reference, type, status, receiptTemplate, currency, amount, fee, counterparty, description, mode, transactionDate, createdAt]
     BankDashboard:
       type: object
       properties:
@@ -2706,6 +2730,7 @@ components:
         senderName: { type: string, minLength: 1, maxLength: 120 }
         description: { type: string, minLength: 1, maxLength: 240 }
         internalReference: { type: ["string", "null"], maxLength: 120 }
+        transactionDate: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
         idempotencyKey: { type: string, minLength: 16, maxLength: 100 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
       required: [direction, currency, amount, senderName, description, idempotencyKey, transactionPin]
@@ -2967,9 +2992,17 @@ components:
         walletId: { type: ["string", "null"], format: uuid }
         direction: { type: ["string", "null"], enum: [credit, debit, null] }
         amount: { type: ["string", "null"], pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
+        transactionDate: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
         idempotencyKey: { type: string, minLength: 16, maxLength: 100 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
       required: [kind, idempotencyKey, transactionPin]
+    AdminTransactionDateInput:
+      type: object
+      properties:
+        transactionDate: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
+        confirmed: { type: boolean, const: true }
+      required: [transactionDate, transactionPin, confirmed]
     AdminFundingReviewInput:
       type: object
       properties:

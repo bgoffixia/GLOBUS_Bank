@@ -891,6 +891,11 @@ export interface BankTransaction {
   counterparty: string | null;
   description: string;
   mode: BankTransactionMode;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  transactionDate: string | null;
   createdAt: string;
 }
 
@@ -1522,6 +1527,8 @@ export interface AdminFundingInput {
      * @nullable
      */
   internalReference?: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  transactionDate?: string;
   /**
      * @minLength 16
      * @maxLength 100
@@ -1897,6 +1904,8 @@ export interface AdminTransactionCorrectionInput {
      * @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$
      */
   amount?: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  transactionDate?: string;
   /**
      * @minLength 16
      * @maxLength 100
@@ -1904,6 +1913,17 @@ export interface AdminTransactionCorrectionInput {
   idempotencyKey: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
+}
+
+export interface AdminTransactionDateInput {
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  transactionDate: string | null;
+  /** @pattern ^[0-9]{6}$ */
+  transactionPin: string;
+  confirmed: true;
 }
 
 export type AdminFundingReviewInputDecision = typeof AdminFundingReviewInputDecision[keyof typeof AdminFundingReviewInputDecision];

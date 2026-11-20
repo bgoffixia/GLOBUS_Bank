@@ -28,6 +28,8 @@ export interface AdminFundingInput {
      * @nullable
      */
   internalReference?: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  transactionDate?: string;
   /**
      * @minLength 16
      * @maxLength 100

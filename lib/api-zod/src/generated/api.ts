@@ -772,6 +772,7 @@ export const CompleteRequiredPasswordResetResponse = zod.object({
  */
 export const getBankDashboardResponseProfileOneCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
 export const getBankDashboardResponseProfileOneDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getBankDashboardResponseRecentTransactionsItemTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 
 
 export const GetBankDashboardResponse = zod.object({
@@ -831,6 +832,7 @@ export const GetBankDashboardResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(getBankDashboardResponseRecentTransactionsItemTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })),
   "referenceCurrency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
@@ -942,6 +944,9 @@ export const ListBankTransactionsQueryParams = zod.object({
   "limit": zod.coerce.number().int().min(1).max(listBankTransactionsQueryLimitMax).default(listBankTransactionsQueryLimitDefault)
 })
 
+export const listBankTransactionsResponseTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
 export const ListBankTransactionsResponseItem = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
@@ -954,6 +959,7 @@ export const ListBankTransactionsResponseItem = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(listBankTransactionsResponseTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })
 export const ListBankTransactionsResponse = zod.array(ListBankTransactionsResponseItem)
@@ -2076,6 +2082,7 @@ export const GetAdminUserDetailParams = zod.object({
 export const getAdminUserDetailResponseUserCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
 export const getAdminUserDetailResponseUserVaultSubscriptionAmountMinorRegExp = new RegExp('^[0-9]+$');
 export const getAdminUserDetailResponseDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getAdminUserDetailResponseTransactionsItemTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 
 
 export const GetAdminUserDetailResponse = zod.object({
@@ -2135,6 +2142,7 @@ export const GetAdminUserDetailResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(getAdminUserDetailResponseTransactionsItemTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })),
   "administrativeHistory": zod.array(zod.object({
@@ -2381,6 +2389,7 @@ export const createAdminFundingBodyDescriptionMax = 240;
 
 export const createAdminFundingBodyInternalReferenceMax = 120;
 
+export const createAdminFundingBodyTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const createAdminFundingBodyIdempotencyKeyMin = 16;
 export const createAdminFundingBodyIdempotencyKeyMax = 100;
 
@@ -2394,9 +2403,13 @@ export const CreateAdminFundingBody = zod.object({
   "senderName": zod.string().min(1).max(createAdminFundingBodySenderNameMax),
   "description": zod.string().min(1).max(createAdminFundingBodyDescriptionMax),
   "internalReference": zod.string().max(createAdminFundingBodyInternalReferenceMax).nullish(),
+  "transactionDate": zod.string().regex(createAdminFundingBodyTransactionDateRegExp).optional(),
   "idempotencyKey": zod.string().min(createAdminFundingBodyIdempotencyKeyMin).max(createAdminFundingBodyIdempotencyKeyMax),
   "transactionPin": zod.string().regex(createAdminFundingBodyTransactionPinRegExp)
 })
+
+export const createAdminFundingResponseTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
 
 export const CreateAdminFundingResponse = zod.object({
   "id": zod.string(),
@@ -2410,6 +2423,7 @@ export const CreateAdminFundingResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(createAdminFundingResponseTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })
 
@@ -2427,6 +2441,9 @@ export const ListAdminLedgerQueryParams = zod.object({
   "limit": zod.coerce.number().int().min(1).max(listAdminLedgerQueryLimitMax).default(listAdminLedgerQueryLimitDefault)
 })
 
+export const listAdminLedgerResponseTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
 export const ListAdminLedgerResponseItem = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
@@ -2439,6 +2456,7 @@ export const ListAdminLedgerResponseItem = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(listAdminLedgerResponseTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })
 export const ListAdminLedgerResponse = zod.array(ListAdminLedgerResponseItem)
@@ -2499,6 +2517,9 @@ export const ListAdminTransactionsQueryParams = zod.object({
   "pageSize": zod.coerce.number().int().min(1).max(listAdminTransactionsQueryPageSizeMax).default(listAdminTransactionsQueryPageSizeDefault)
 })
 
+export const listAdminTransactionsResponseItemsItemTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
 export const ListAdminTransactionsResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
@@ -2512,6 +2533,7 @@ export const ListAdminTransactionsResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(listAdminTransactionsResponseItemsItemTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })),
   "total": zod.number().int(),
@@ -2527,6 +2549,9 @@ export const GetAdminTransactionDetailParams = zod.object({
   "transactionId": zod.coerce.string().uuid()
 })
 
+export const getAdminTransactionDetailResponseTransactionTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
 export const GetAdminTransactionDetailResponse = zod.object({
   "transaction": zod.object({
   "id": zod.string(),
@@ -2540,6 +2565,7 @@ export const GetAdminTransactionDetailResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(getAdminTransactionDetailResponseTransactionTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 }),
   "initiatorName": zod.string(),
@@ -2583,6 +2609,7 @@ export const CreateAdminTransactionCorrectionParams = zod.object({
 })
 
 export const createAdminTransactionCorrectionBodyAmountRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
+export const createAdminTransactionCorrectionBodyTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 export const createAdminTransactionCorrectionBodyIdempotencyKeyMin = 16;
 export const createAdminTransactionCorrectionBodyIdempotencyKeyMax = 100;
 
@@ -2594,9 +2621,13 @@ export const CreateAdminTransactionCorrectionBody = zod.object({
   "walletId": zod.string().uuid().nullish(),
   "direction": zod.union([zod.literal('credit'),zod.literal('debit'),zod.literal(null)]).nullish(),
   "amount": zod.string().regex(createAdminTransactionCorrectionBodyAmountRegExp).nullish(),
+  "transactionDate": zod.string().regex(createAdminTransactionCorrectionBodyTransactionDateRegExp).optional(),
   "idempotencyKey": zod.string().min(createAdminTransactionCorrectionBodyIdempotencyKeyMin).max(createAdminTransactionCorrectionBodyIdempotencyKeyMax),
   "transactionPin": zod.string().regex(createAdminTransactionCorrectionBodyTransactionPinRegExp)
 })
+
+export const createAdminTransactionCorrectionResponseTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
 
 export const CreateAdminTransactionCorrectionResponse = zod.object({
   "id": zod.string(),
@@ -2610,6 +2641,7 @@ export const CreateAdminTransactionCorrectionResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(createAdminTransactionCorrectionResponseTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })
 
@@ -2630,6 +2662,9 @@ export const UpdateAdminTransactionStatusBody = zod.object({
   "confirmed": zod.literal(true)
 })
 
+export const updateAdminTransactionStatusResponseTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
 export const UpdateAdminTransactionStatusResponse = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
@@ -2642,6 +2677,44 @@ export const UpdateAdminTransactionStatusResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(updateAdminTransactionStatusResponseTransactionDateRegExp).nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update the customer-visible date for a transaction without changing its record timestamp or postings
+ */
+export const UpdateAdminTransactionDateParams = zod.object({
+  "transactionId": zod.coerce.string().uuid()
+})
+
+export const updateAdminTransactionDateBodyTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateAdminTransactionDateBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const UpdateAdminTransactionDateBody = zod.object({
+  "transactionDate": zod.string().regex(updateAdminTransactionDateBodyTransactionDateRegExp).nullable(),
+  "transactionPin": zod.string().regex(updateAdminTransactionDateBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const updateAdminTransactionDateResponseTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateAdminTransactionDateResponse = zod.object({
+  "id": zod.string(),
+  "reference": zod.string(),
+  "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
+  "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "amount": zod.string(),
+  "fee": zod.string(),
+  "counterparty": zod.string().nullable(),
+  "description": zod.string(),
+  "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(updateAdminTransactionDateResponseTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })
 
@@ -2661,6 +2734,9 @@ export const ProcessAdminInternalTransferBody = zod.object({
   "confirmed": zod.literal(true)
 })
 
+export const processAdminInternalTransferResponseTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
 export const ProcessAdminInternalTransferResponse = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
@@ -2673,6 +2749,7 @@ export const ProcessAdminInternalTransferResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(processAdminInternalTransferResponseTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })
 
@@ -2692,6 +2769,9 @@ export const ReviewAdminFundingBody = zod.object({
   "transactionPin": zod.string().regex(reviewAdminFundingBodyTransactionPinRegExp)
 })
 
+export const reviewAdminFundingResponseTransactionDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
 export const ReviewAdminFundingResponse = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
@@ -2704,6 +2784,7 @@ export const ReviewAdminFundingResponse = zod.object({
   "counterparty": zod.string().nullable(),
   "description": zod.string(),
   "mode": zod.enum(['internal_ledger']),
+  "transactionDate": zod.string().regex(reviewAdminFundingResponseTransactionDateRegExp).nullable(),
   "createdAt": zod.coerce.date()
 })
 

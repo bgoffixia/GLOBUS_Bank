@@ -38,76 +38,92 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
     <div
       aria-hidden="true"
       data-testid={`receipt-template-preview-${template}`}
-      className="pointer-events-none overflow-hidden rounded-md border border-[#dfe7e8] bg-[#fffefa]"
+      className="pointer-events-none overflow-hidden rounded-lg border border-[#d8e2e4] bg-[#fffefa] shadow-[0_5px_16px_rgba(25,55,72,.08)]"
     >
       {template === 'standard' && <>
-        <div className="bg-[#173858] px-2 py-1.5">
-          <div className="h-1 w-10 rounded bg-white/80" />
-          <div className="mt-2 h-1.5 w-14 rounded bg-white/55" />
-          <div className="mt-1 h-2.5 w-20 rounded bg-white/90" />
+        <div className="bg-[#173858] px-2.5 py-2 text-white">
+          <div className="flex items-center justify-between border-b border-white/15 pb-1.5">
+            <span className="text-[6px] font-black tracking-[.16em]">GLOBUS BANK</span>
+            <span className="rounded-full border border-[#d5e7dc]/30 px-1 py-0.5 text-[4px] font-bold tracking-[.1em] text-[#d9eadf]">PENDING</span>
+          </div>
+          <p className="mt-2 text-[5px] font-bold uppercase tracking-[.15em] text-[#a9d6d3]">Transfer record</p>
+          <p className="mt-0.5 font-serif text-[13px] font-semibold leading-none">₦184,500.00</p>
+          <p className="mt-1 text-[5px] text-white/65">Internal Globus account activity</p>
         </div>
-        <div className="space-y-1.5 px-2 py-2">
-          <div className="h-3 w-16 rounded bg-[#eaf2f2]" />
-          <div className="h-px bg-[#e6ebed]" />
-          <div className="flex justify-between"><i className="h-1 w-8 rounded bg-[#cbd5dc]" /><i className="h-1 w-10 rounded bg-[#8295a5]" /></div>
-          <div className="flex justify-between"><i className="h-1 w-7 rounded bg-[#cbd5dc]" /><i className="h-1 w-8 rounded bg-[#8295a5]" /></div>
+        <div className="space-y-1.5 px-2.5 py-2 text-[5px]">
+          <div className="flex justify-between gap-2"><span className="text-[#87959b]">Reference</span><span className="font-mono font-semibold text-[#3b5969]">GBX-20261120-8Q4K2P</span></div>
+          <div className="flex justify-between gap-2"><span className="text-[#87959b]">Recipient</span><span className="font-semibold text-[#3b5969]">Amina Bello</span></div>
+          <div className="flex justify-between gap-2"><span className="text-[#87959b]">Created</span><span className="text-[#607886]">20 Nov 2026 · 10:42</span></div>
+          <div className="mt-1 border-t border-dashed border-[#dfe7e7] pt-1 text-center text-[4px] font-bold uppercase tracking-[.13em] text-[#648784]">Illustrative preview · not a live transaction</div>
         </div>
       </>}
       {template === 'bank_payment' && <>
-        <div className="flex items-center justify-between border-b border-[#e6ebed] px-2 py-2">
-          <div className="h-1.5 w-12 rounded bg-[#173858]" />
-          <div className="h-2 w-7 rounded-full bg-[#e5f1e9]" />
+        <div className="flex items-center justify-between border-b border-[#e6ebed] bg-white px-2.5 py-2">
+          <div><p className="text-[6px] font-black tracking-[.14em] text-[#173858]">GLOBUS BANK</p><p className="mt-0.5 text-[4px] uppercase tracking-[.13em] text-[#8a989f]">Transaction advice</p></div>
+          <span className="rounded-sm border border-[#eadfbf] bg-[#fbf7eb] px-1.5 py-1 text-[4px] font-bold uppercase tracking-[.08em] text-[#8b7440]">Pending</span>
         </div>
-        <div className="px-2 py-2">
-          <div className="rounded-md bg-[#173858] p-2">
-            <div className="h-1 w-10 rounded bg-white/55" />
-            <div className="mt-1.5 h-3 w-20 rounded bg-white/90" />
+        <div className="space-y-1.5 px-2.5 py-2">
+          <div className="rounded-md bg-[#173858] p-2 text-white">
+            <p className="text-[4px] uppercase tracking-[.14em] text-[#b4d1d3]">Amount recorded</p>
+            <p className="mt-0.5 font-serif text-[12px] font-semibold">₦184,500.00</p>
           </div>
-          <div className="mt-2 flex items-center gap-2 rounded border border-[#e3e9e9] p-1.5">
-            <span className="h-4 w-4 rounded-full bg-[#e3efea]" />
-            <span className="h-1 w-14 rounded bg-[#8295a5]" />
+          <div className="flex items-center gap-1.5 rounded border border-[#e3e9e9] bg-white p-1.5">
+            <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#e3efea] text-[6px] font-bold text-[#397b7b]">AB</span>
+            <span className="min-w-0"><b className="block truncate text-[5px] text-[#36536a]">Amina Bello</b><small className="block truncate text-[4px] text-[#85949d]">Globus recipient · •••• 7314</small></span>
+            <span className="ml-auto shrink-0 font-mono text-[4px] text-[#81939d]">20 NOV 2026</span>
           </div>
+          <p className="text-center font-mono text-[4px] text-[#84949b]">REF GBX-20261120-8Q4K2P</p>
         </div>
       </>}
       {template === 'transfer_journey' && <>
-        <div className="bg-[#173951] px-2 py-2">
-          <div className="h-1 w-12 rounded bg-[#b6d0c5]" />
-          <div className="mt-2 h-2.5 w-20 rounded bg-white/90" />
-          <div className="mt-1 h-1 w-24 rounded bg-white/45" />
+        <div className="bg-[#173951] px-2.5 py-2 text-white">
+          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">GLOBUS BANK</span><span className="text-[4px] font-bold tracking-[.12em] text-[#b6d0c5]">TRANSFER JOURNEY</span></div>
+          <p className="mt-2 font-serif text-[12px] font-semibold">₦184,500.00</p>
+          <p className="mt-0.5 text-[4px] text-white/60">Transfer request · pending review</p>
         </div>
-        <div className="space-y-2 px-2 py-2">
-          {[0, 1].map(item => <div key={item} className="flex items-start gap-1.5">
-            <span className={`mt-0.5 h-2.5 w-2.5 rounded-full ${item ? 'bg-[#43847a]' : 'bg-[#dcebe2]'}`} />
-            <span className="flex-1"><i className="block h-1 w-16 rounded bg-[#7d9194]" /><i className="mt-1 block h-1 w-10 rounded bg-[#c4d0d0]" /></span>
-            <i className="h-1 w-8 rounded bg-[#81929a]" />
+        <div className="space-y-1.5 px-2.5 py-2">
+          {[
+            ['01', 'Request recorded', '20 Nov · 10:42', 'complete'],
+            ['02', 'Review in progress', 'Awaiting update', 'current'],
+          ].map(([step, label, note, state]) => <div key={step} className="flex items-start gap-1.5">
+            <span className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full text-[4px] font-bold ${state === 'complete' ? 'bg-[#43847a] text-white' : 'border border-[#d8c88f] bg-[#fbf7eb] text-[#8b7440]'}`}>{step}</span>
+            <span className="min-w-0 flex-1"><b className="block text-[5px] text-[#465e6d]">{label}</b><small className="block text-[4px] text-[#8b999f]">{note}</small></span>
+            <span className="text-[4px] font-bold uppercase tracking-[.08em] text-[#62817e]">{state === 'complete' ? 'Done' : 'Current'}</span>
           </div>)}
+          <p className="border-t border-dashed border-[#dfe7e7] pt-1 text-center font-mono text-[4px] text-[#819198]">GBX-20261120-8Q4K2P</p>
         </div>
       </>}
       {template === 'transfer_ledger' && <>
-        <div className="bg-[#173c4b] px-2 py-2">
-          <div className="flex justify-between"><i className="h-1 w-12 rounded bg-white/70" /><i className="h-1 w-8 rounded bg-[#a8cbb7]" /></div>
-          <div className="mt-2 h-2.5 w-20 rounded bg-white/90" />
+        <div className="bg-[#173c4b] px-2.5 py-2 text-white">
+          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">GLOBUS BANK</span><span className="text-[4px] font-bold tracking-[.1em] text-[#a8cbb7]">LEDGER COPY</span></div>
+          <div className="mt-2 flex items-end justify-between gap-1"><div><p className="text-[4px] uppercase tracking-[.12em] text-white/55">Net activity</p><p className="mt-0.5 font-serif text-[12px] font-semibold">₦184,500.00</p></div><span className="mb-0.5 rounded-sm bg-white/10 px-1 py-0.5 text-[4px] font-bold uppercase tracking-[.08em]">Pending</span></div>
         </div>
-        <div className="space-y-1.5 px-2 py-2">
-          {[0, 1, 2].map(item => <div key={item} className="flex items-center gap-1.5 border-b border-[#e6ece8] pb-1">
-            <span className="grid h-3 w-3 place-items-center rounded-full bg-[#e4efe7] text-[6px] text-[#39776c]">{item + 1}</span>
-            <i className="h-1 flex-1 rounded bg-[#7c8e8f]" />
-            <i className="h-1 w-9 rounded bg-[#aab8b7]" />
+        <div className="px-2.5 py-2">
+          <div className="grid grid-cols-[1fr_auto_auto] border-b border-[#dce6df] pb-1 text-[4px] font-bold uppercase tracking-[.08em] text-[#869490]"><span>Ledger detail</span><span>Side</span><span className="text-right">Amount</span></div>
+          {[
+            ['Customer activity', 'DR', '184,500.00'],
+            ['Wallet balance', 'CR', '184,500.00'],
+          ].map(([label, side, amount]) => <div key={label} className="grid grid-cols-[1fr_auto_auto] items-center gap-2 border-b border-[#edf0ed] py-1 text-[4px]">
+            <span className="truncate text-[#667c81]">{label}</span><span className={`rounded px-1 py-0.5 font-bold ${side === 'CR' ? 'bg-[#eaf3ed] text-[#4e7b63]' : 'bg-[#f1f4f4] text-[#71838a]'}`}>{side}</span><span className="text-right font-mono text-[#45616a]">{amount}</span>
           </div>)}
+          <p className="mt-1 text-right font-mono text-[4px] text-[#85948f]">Ref · GBX-20261120-8Q4K2P</p>
         </div>
       </>}
       {template === 'settlement_statement' && <>
-        <div className="flex items-center justify-between border-b-[2px] border-[#9dbbab] bg-[#173b4b] px-2 py-2">
-          <i className="h-1.5 w-10 rounded bg-white/85" />
-          <span className="rounded-full border border-[#b8d6c2]/40 px-1.5 py-1 text-[5px] font-bold text-[#d6eadc]">GLOBUS STATUS</span>
+        <div className="flex items-center justify-between border-b-[2px] border-[#9dbbab] bg-[#173b4b] px-2.5 py-2 text-white">
+          <span className="text-[5px] font-black tracking-[.14em]">GLOBUS BANK</span>
+          <span className="border border-[#b8d6c2]/40 px-1.5 py-1 text-[4px] font-bold uppercase tracking-[.1em] text-[#d6eadc]">Internal copy</span>
         </div>
-        <div className="px-2 py-2">
-          <i className="block h-1 w-12 rounded bg-[#83a094]" />
-          <i className="mt-1.5 block h-2.5 w-20 rounded bg-[#284c56]" />
-          <div className="mt-2 flex items-center justify-between gap-1 border border-[#e1e8e1] bg-[#f6f8f4] p-1.5">
-            <span><i className="block h-1 w-10 rounded bg-[#d0dad2]" /><i className="mt-1 block h-1 w-16 rounded bg-[#718b81]" /></span>
-            <span className="grid h-4 w-4 place-items-center rounded-full border border-[#a5c4b2] text-[7px] text-[#56826a]">✓</span>
+        <div className="px-2.5 py-2">
+          <p className="text-[4px] font-bold uppercase tracking-[.16em] text-[#6c8a7d]">Account activity statement</p>
+          <h4 className="mt-0.5 font-serif text-[11px] leading-none text-[#284c56]">Transaction record</h4>
+          <div className="mt-2 grid grid-cols-2 gap-1.5 border-y border-[#e1e8e1] py-1.5 text-[4px]">
+            <span><small className="block text-[#879691]">Customer</small><b className="mt-0.5 block text-[#47645d]">Amina Bello</b></span>
+            <span className="text-right"><small className="block text-[#879691]">Record date</small><b className="mt-0.5 block text-[#47645d]">20 Nov 2026</b></span>
+            <span><small className="block text-[#879691]">Reference</small><b className="mt-0.5 block font-mono text-[#47645d]">GBX-20261120-8Q4K2P</b></span>
+            <span className="text-right"><small className="block text-[#879691]">Amount</small><b className="mt-0.5 block text-[#47645d]">₦184,500.00</b></span>
           </div>
+          <p className="mt-1.5 text-center text-[4px] font-bold uppercase tracking-[.12em] text-[#8a9992]">Illustrative · not an external payment confirmation</p>
         </div>
       </>}
     </div>

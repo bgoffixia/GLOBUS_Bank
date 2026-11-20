@@ -83,6 +83,9 @@ import {
   UpdateAdminTransactionStatusBody,
   UpdateAdminTransactionStatusParams,
   UpdateAdminTransactionStatusResponse,
+  UpdateAdminTransactionDateBody,
+  UpdateAdminTransactionDateParams,
+  UpdateAdminTransactionDateResponse,
   ProcessAdminInternalTransferBody,
   ProcessAdminInternalTransferParams,
   ProcessAdminInternalTransferResponse,
@@ -142,6 +145,7 @@ import {
 } from "../lib/bank";
 import { getExchangeRate } from "../lib/exchange-rates";
 import { verifyTransactionPin } from "../lib/transaction-pin";
+import { isIsoCalendarDate } from "../lib/transaction-date";
 import {
   buildAdminAccessControlsAuditEntry,
   normalizeAdminAccessReason,
@@ -3256,6 +3260,13 @@ router.post(
       res.status(400).json({ error: parsed.error.message });
       return;
     }
+    if (
+      parsed.data.transactionDate &&
+      !isIsoCalendarDate(parsed.data.transactionDate)
+    ) {
+      res.status(400).json({ error: "Enter a valid customer transaction date." });
+      return;
+    }
 
     const authenticatedClerkId = getAuth(req).userId;
     if (!authenticatedClerkId) {
@@ -3324,6 +3335,7 @@ router.post(
           duplicate.type === "admin_funding" &&
           duplicate.currency === parsed.data.currency &&
           duplicate.amountMinor === amountMinor &&
+          duplicate.transactionDate === (parsed.data.transactionDate ?? null) &&
           duplicate.counterparty === senderName &&
           duplicate.description === description &&
           duplicate.adminReference === (parsed.data.internalReference?.trim() || null) &&
@@ -3397,6 +3409,7 @@ router.post(
           adminReference: parsed.data.internalReference?.trim() || null,
           adminNotes: null,
           mode: "internal_ledger",
+          transactionDate: parsed.data.transactionDate ?? null,
         }, target.preferredReceiptTemplate))
         .returning();
 
@@ -3426,7 +3439,7 @@ router.post(
         action: requiresSecondApproval
           ? "request_admin_funding"
           : "adjust_user_balance",
-        reason: `${requiresSecondApproval ? "Awaiting second-admin approval. " : ""}${parsed.data.direction} ${formatMinorAmount(amountMinor)} ${parsed.data.currency}: ${reason}`,
+        reason: `${requiresSecondApproval ? "Awaiting second-admin approval. " : ""}${parsed.data.direction} ${formatMinorAmount(amountMinor)} ${parsed.data.currency}${parsed.data.transactionDate ? `, customer transaction date ${parsed.data.transactionDate}` : ""}: ${reason}`,
       });
 
       return { transaction };
@@ -3927,18 +3940,12 @@ router.get(
     }
     if (parsed.data.fromDate) {
       filters.push(
-        gte(
-          bankTransactionsTable.createdAt,
-          new Date(`${parsed.data.fromDate}T00:00:00.000Z`),
-        ),
+        sql`coalesce(${bankTransactionsTable.transactionDate}, (${bankTransactionsTable.createdAt} at time zone 'UTC')::date) >= ${parsed.data.fromDate}::date`,
       );
     }
     if (parsed.data.toDate) {
       filters.push(
-        lte(
-          bankTransactionsTable.createdAt,
-          new Date(`${parsed.data.toDate}T23:59:59.999Z`),
-        ),
+        sql`coalesce(${bankTransactionsTable.transactionDate}, (${bankTransactionsTable.createdAt} at time zone 'UTC')::date) <= ${parsed.data.toDate}::date`,
       );
     }
     if (parsed.data.minimumAmount) {
@@ -4071,6 +4078,13 @@ router.post(
       });
       return;
     }
+    if (
+      parsed.data.transactionDate &&
+      !isIsoCalendarDate(parsed.data.transactionDate)
+    ) {
+      res.status(400).json({ error: "Enter a real transaction calendar date." });
+      return;
+    }
     const clerkUserId = getAuth(req).userId;
     if (!clerkUserId) {
       res.status(401).json({ error: "Sign in to access your Globus account." });
@@ -4201,6 +4215,7 @@ router.post(
             reversalOfTransactionId: original.id,
             correctionReason: reason,
             mode: "internal_ledger",
+            transactionDate: parsed.data.transactionDate ?? null,
           }, original.receiptTemplate))
           .returning();
         await tx.insert(bankLedgerEntriesTable).values(
@@ -4307,6 +4322,7 @@ router.post(
           correctionOfTransactionId: original.id,
           correctionReason: reason,
           mode: "internal_ledger",
+          transactionDate: parsed.data.transactionDate ?? null,
         }, target.preferredReceiptTemplate))
         .returning();
       if (!requiresSecondApproval) {
@@ -4334,7 +4350,7 @@ router.post(
         action: requiresSecondApproval
           ? "request_admin_adjustment"
           : "adjust_transaction",
-        reason: `${requiresSecondApproval ? "Awaiting second-admin approval. " : ""}Adjustment ${adjustment.reference} references transaction ${original.reference}: ${parsed.data.direction} ${formatMinorAmount(adjustmentMinor)} ${wallet.currency}. ${reason}`,
+        reason: `${requiresSecondApproval ? "Awaiting second-admin approval. " : ""}Adjustment ${adjustment.reference} references transaction ${original.reference}: ${parsed.data.direction} ${formatMinorAmount(adjustmentMinor)} ${wallet.currency}${parsed.data.transactionDate ? `, customer transaction date ${parsed.data.transactionDate}` : ""}. ${reason}`,
       });
       return { transaction: adjustment };
     });
@@ -4862,6 +4878,94 @@ router.patch(
     }
     res.json(
       UpdateAdminTransactionStatusResponse.parse(
+        toBankTransaction(
+          result.transaction,
+          result.transaction.fromUserId ??
+            result.transaction.toUserId ??
+            actorUserId,
+        ),
+      ),
+    );
+  },
+);
+
+router.patch(
+  "/bank/admin/transactions/:transactionId/date",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = UpdateAdminTransactionDateParams.safeParse(req.params);
+    const parsed = UpdateAdminTransactionDateBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success
+          ? params.error.message
+          : parsed.error?.message ?? "Enter a valid transaction date.",
+      });
+      return;
+    }
+    if (
+      parsed.data.transactionDate &&
+      !isIsoCalendarDate(parsed.data.transactionDate)
+    ) {
+      res.status(400).json({ error: "Enter a real calendar date." });
+      return;
+    }
+    const clerkUserId = getAuth(req).userId;
+    if (!clerkUserId) {
+      res.status(401).json({ error: "Sign in to access administrative controls." });
+      return;
+    }
+    const actorUserId = (await ensureBankUser(clerkUserId)).id;
+    const pinResult = await verifyTransactionPin(
+      actorUserId,
+      parsed.data.transactionPin,
+    );
+    if (pinResult !== "valid") {
+      respondWithTransactionPinError(res, pinResult);
+      return;
+    }
+
+    const result = await db.transaction(async (tx) => {
+      const [transaction] = await tx
+        .select()
+        .from(bankTransactionsTable)
+        .where(eq(bankTransactionsTable.id, params.data.transactionId))
+        .for("update");
+      if (!transaction) return { notFound: true as const };
+      if (transaction.transactionDate === parsed.data.transactionDate) {
+        return { transaction };
+      }
+      const [updated] = await tx
+        .update(bankTransactionsTable)
+        .set({ transactionDate: parsed.data.transactionDate })
+        .where(eq(bankTransactionsTable.id, transaction.id))
+        .returning();
+      const targetUserIds = [
+        ...new Set(
+          [
+            transaction.fromUserId,
+            transaction.toUserId,
+            transaction.initiatedByUserId,
+          ].filter((userId): userId is string => Boolean(userId)),
+        ),
+      ];
+      await tx.insert(bankAuditLogsTable).values(
+        targetUserIds.map((targetUserId) => ({
+          actorUserId,
+          targetUserId,
+          action: "update_transaction_date",
+          reason: `Transaction ${transaction.reference}: customer-facing date changed from ${transaction.transactionDate ?? "recorded date"} to ${parsed.data.transactionDate ?? "recorded date"}. Original record timestamp and ledger postings were not changed. ${generatedAdminAuditReason(req)}`,
+        })),
+      );
+      return { transaction: updated };
+    });
+
+    if ("notFound" in result) {
+      res.status(404).json({ error: "Transaction not found." });
+      return;
+    }
+    res.json(
+      UpdateAdminTransactionDateResponse.parse(
         toBankTransaction(
           result.transaction,
           result.transaction.fromUserId ??

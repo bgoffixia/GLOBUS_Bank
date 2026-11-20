@@ -41,6 +41,7 @@ export * from './adminTransactionAffectedMember';
 export * from './adminTransactionCorrectionInput';
 export * from './adminTransactionCorrectionInputDirection';
 export * from './adminTransactionCorrectionInputKind';
+export * from './adminTransactionDateInput';
 export * from './adminTransactionDetail';
 export * from './adminTransactionPage';
 export * from './adminTransactionPinResetInput';

@@ -40,6 +40,7 @@ import {
 import type { BankTransaction, BankVaultEmailPreferences, BankVaultWalletControl } from '@workspace/api-client-react';
 import { fetchWebpushrSubscriberId, loadWebpushr } from '../lib/webpushr-client';
 import { RECEIPT_LAYOUTS, type ReceiptTemplateId } from '../lib/receipt-layouts';
+import { customerTransactionDate } from '../lib/transaction-date';
 import { TransferReceiptModal, type ReceiptTransaction } from './transfer/transfer-receipt';
 import { canLoadVaultPrivateData, isVaultSessionActive, isVaultSessionRejected } from '../lib/vault-error-state';
 import { VaultFundingForm } from './vault-funding-form';
@@ -1020,7 +1021,7 @@ export function PrivateVaultPanel() {
                         <label className="text-[9px] font-semibold text-[#5c7085]">Choose a transaction
                           <select value={selectedTransactionId} onChange={event => setSelectedTransactionId(event.target.value)} className={`${fieldClass} mt-1`} data-testid="select-private-note-transaction">
                             {transactions.data.map((transaction: BankTransaction) => <option key={transaction.id} value={transaction.id}>
-                              {`${new Date(transaction.createdAt).toLocaleDateString()} · ${transaction.currency} ${transaction.amount} · ${transaction.reference}`}
+                              {`${customerTransactionDate(transaction.transactionDate, transaction.createdAt)} · ${transaction.currency} ${transaction.amount} · ${transaction.reference}`}
                             </option>)}
                           </select>
                         </label>
@@ -1103,7 +1104,7 @@ export function PrivateVaultPanel() {
               !transactions.data?.length ? <p className="mt-3 rounded-lg border border-dashed border-[#dfe6eb] p-4 text-center text-[9px] text-[#8492a1]">Your transactions will appear here when available.</p> :
                 <div className="mt-3 divide-y divide-[#edf0f2]">
                   {transactions.data.slice(0, 12).map(transaction => <div key={transaction.id} className="flex min-w-0 flex-wrap items-center justify-between gap-2 py-2.5" data-testid={`vault-transaction-${transaction.id}`}>
-                    <div className="min-w-0"><p className="truncate text-[9px] font-semibold text-[#364e66]">{transaction.description || transaction.type.replaceAll('_', ' ')}</p><p className="mt-0.5 truncate font-mono text-[8px] text-[#8794a2]">{transaction.reference} · {new Date(transaction.createdAt).toLocaleString()}</p></div>
+                    <div className="min-w-0"><p className="truncate text-[9px] font-semibold text-[#364e66]">{transaction.description || transaction.type.replaceAll('_', ' ')}</p><p className="mt-0.5 truncate font-mono text-[8px] text-[#8794a2]">{transaction.reference} · {customerTransactionDate(transaction.transactionDate, transaction.createdAt)}</p></div>
                     <div className="flex shrink-0 items-center gap-2"><span className="text-[9px] font-bold text-[#3d596c]">{transaction.currency} {transaction.amount}</span><button type="button" onClick={() => setReceiptPreview(transaction)} className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dfe7eb] px-2 text-[8px] font-bold text-[#42687a] hover:bg-[#f5f8f9]" aria-label={`Open receipt ${transaction.reference}`} data-testid={`button-vault-receipt-${transaction.id}`}><ReceiptText size={11} />Receipt</button></div>
                   </div>)}
                 </div>}

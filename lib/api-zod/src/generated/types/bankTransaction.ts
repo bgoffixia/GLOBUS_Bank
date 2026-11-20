@@ -24,5 +24,10 @@ export interface BankTransaction {
   counterparty: string | null;
   description: string;
   mode: BankTransactionMode;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  transactionDate: string | null;
   createdAt: Date;
 }

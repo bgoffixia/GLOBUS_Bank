@@ -311,6 +311,7 @@ export const bankTransactionsTable = pgTable(
     correctionReason: text("correction_reason"),
     mode: text("mode").notNull().default("simulation"),
     receiptTemplate: text("receipt_template").notNull().default("standard"),
+    transactionDate: date("transaction_date", { mode: "string" }),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

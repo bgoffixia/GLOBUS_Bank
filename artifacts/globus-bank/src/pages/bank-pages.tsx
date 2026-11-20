@@ -87,6 +87,7 @@ import { InstallAppButton } from '@/components/pwa-install-prompt';
 import { countries } from '@/lib/countries';
 import { customerProfileFieldLabels, getMissingCustomerProfileFields } from '@/lib/customer-profile';
 import { destinationCurrencyForCountry } from '@/lib/destination-currency';
+import { customerTransactionDate } from '@/lib/transaction-date';
 import { TransferReceiptModal } from '@/components/transfer/transfer-receipt';
 import { PrivateVaultPanel } from '@/components/private-vault-panel';
 const currencies = ['USD', 'EUR', 'GBP', 'CAD'] as const;
@@ -1837,7 +1838,7 @@ function TransactionList({
       const canPrintReceipt = transaction.status === 'completed';
       return <div key={transaction.id} className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-[#edf0f2] px-4 py-4 last:border-0 sm:flex-nowrap sm:gap-4 sm:px-7">
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${isIncoming ? 'bg-[#edf7f3] text-[#4d8c72]' : isInternationalRequest ? 'bg-[#fbf7eb] text-[#a0793b]' : 'bg-[#f0f4f7] text-[#658097]'}`}>{isInternationalRequest ? <Globe2 size={16} /> : isIncoming ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</span>
-        <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-[#334a63]">{transaction.description || transactionDisplayType(transaction)}</p><p className="mt-1 truncate text-[9px] text-[#8996a4]">{transaction.counterparty || 'Globus account'} · {formatDate(transaction.createdAt)} · Globus record</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-[#334a63]">{transaction.description || transactionDisplayType(transaction)}</p><p className="mt-1 truncate text-[9px] text-[#8996a4]">{transaction.counterparty || 'Globus account'} · {customerTransactionDate(transaction.transactionDate, transaction.createdAt)} · Globus record</p></div>
         <div className="shrink-0 text-right"><p className={`text-[11px] font-bold ${isIncoming ? 'text-[#417f69]' : isInternationalRequest ? 'text-[#a0793b]' : 'text-[#3c5269]'}`}>{isInternationalRequest ? 'Request · ' : isIncoming ? '+' : '−'}{formatMoney(Number(transaction.amount), transaction.currency)}</p><p className={`mt-1 text-[9px] capitalize ${transaction.status === 'completed' ? 'text-[#4f8c75]' : 'text-[#9b8050]'}`}>{humanize(transaction.status)}</p></div>
         {(canPrintReceipt || onStatusOverride) && <div className="flex w-full flex-wrap justify-end gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
           {canPrintReceipt && <button type="button" onClick={() => setReceipt(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={`View receipt ${transaction.reference}`}><FileText size={13} /><span className="hidden sm:inline">Receipt</span></button>}

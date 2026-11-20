@@ -44,6 +44,7 @@ export function receiptFromRequest(
     currency: request.sourceCurrency,
     amount: request.sourceAmount,
     fee: '0.00',
+    transactionDate: null,
     counterparty: `${request.recipientBank} · ****${request.recipientAccountLast4} · ${request.destinationCountry}`,
     description: `${typeLabel} transfer · ${request.sourceAmount} ${request.sourceCurrency} converted to ${request.destinationAmount} ${request.destinationCurrency} at ${request.exchangeRate}`,
     mode: 'internal_ledger',

@@ -19,6 +19,8 @@ export interface AdminTransactionCorrectionInput {
      * @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$
      */
   amount?: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  transactionDate?: string;
   /**
      * @minLength 16
      * @maxLength 100

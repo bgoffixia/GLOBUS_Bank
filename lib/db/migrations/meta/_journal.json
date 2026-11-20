@@ -29,6 +29,13 @@
       "when": 1795176924860,
       "tag": "20261120_bank_transaction_receipt_template",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1795192026471,
+      "tag": "20261120_bank_transaction_effective_date",
+      "breakpoints": true
     }
   ]
 }
