@@ -12,6 +12,7 @@ export const modules: ModuleMap = {
   "./components/mockups/globus-auth/BankGradeSignUp.tsx": () => import("../components/mockups/globus-auth/BankGradeSignUp.tsx"),
   "./components/mockups/globus-auth/CurrentSignIn.tsx": () => import("../components/mockups/globus-auth/CurrentSignIn.tsx"),
   "./components/mockups/globus-auth/CurrentSignUp.tsx": () => import("../components/mockups/globus-auth/CurrentSignUp.tsx"),
+  "./components/mockups/globus-home/WorldLedger.tsx": () => import("../components/mockups/globus-home/WorldLedger.tsx"),
   "./components/mockups/globus-receipt/ArchivalStatement.tsx": () => import("../components/mockups/globus-receipt/ArchivalStatement.tsx"),
   "./components/mockups/globus-receipt/BankPaymentReceipt.tsx": () => import("../components/mockups/globus-receipt/BankPaymentReceipt.tsx"),
   "./components/mockups/globus-receipt/Current.tsx": () => import("../components/mockups/globus-receipt/Current.tsx"),
@@ -22,6 +23,5 @@ export const modules: ModuleMap = {
   "./components/mockups/globus-receipt/TransferJourney.tsx": () => import("../components/mockups/globus-receipt/TransferJourney.tsx"),
   "./components/mockups/globus-receipt/TransferLedger.tsx": () => import("../components/mockups/globus-receipt/TransferLedger.tsx"),
   "./components/mockups/globus-receipt/TransferLedgerColumnar.tsx": () => import("../components/mockups/globus-receipt/TransferLedgerColumnar.tsx"),
-  "./components/mockups/globus-receipt/TransferReconciliationStatement.tsx": () => import("../components/mockups/globus-receipt/TransferReconciliationStatement.tsx"),
-  "./components/mockups/globus-home/WorldLedger.tsx": () => import("../components/mockups/globus-home/WorldLedger.tsx")
+  "./components/mockups/globus-receipt/TransferReconciliationStatement.tsx": () => import("../components/mockups/globus-receipt/TransferReconciliationStatement.tsx")
 };
