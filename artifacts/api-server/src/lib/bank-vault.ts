@@ -7,9 +7,11 @@ import {
 import { and, eq, gt, inArray, lte } from "drizzle-orm";
 import {
   bankUsersTable,
+  bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
   db,
 } from "@workspace/db";
+import { getVaultSubscriptionPlan } from "./vault-subscription";
 
 const KEY_LENGTH = 64;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -29,6 +31,16 @@ export type VaultSubscriptionState =
   | "active"
   | "rejected"
   | "expired";
+
+export type EffectiveAccountTierSource =
+  | "paystack_subscription"
+  | "default";
+
+export type EffectiveAccountTier = {
+  id: string;
+  name: string;
+  source: EffectiveAccountTierSource;
+};
 
 export function vaultSubscriptionStatus(
   status: string,
@@ -51,6 +63,150 @@ export function hasActiveVaultSubscription(user: {
     user.vaultSubscriptionExpiresAt,
     now,
   ) === "active";
+}
+
+export function classifyVaultPaystackChargeFailure(
+  user: {
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+    vaultSubscriptionPaymentReference: string | null;
+    vaultSubscriptionPaymentStatus: string;
+    vaultSubscriptionAmountMinor: string | null;
+    vaultSubscriptionAutoRenew: boolean;
+    vaultPaystackPlanCode: string | null;
+    vaultPaystackSubscriptionCode: string | null;
+    vaultPaystackCustomerCode: string | null;
+  },
+  charge: {
+    reference: string;
+    amount: number;
+    currency: string;
+    customerCode: string | null;
+    subscriptionCode: string | null;
+    providerPlanCode: string | null;
+  },
+  now = new Date(),
+): "initial" | "renewal" | null {
+  if (
+    charge.currency !== "NGN" ||
+    !Number.isSafeInteger(charge.amount) ||
+    String(charge.amount) !== user.vaultSubscriptionAmountMinor
+  ) {
+    return null;
+  }
+
+  if (
+    charge.reference === user.vaultSubscriptionPaymentReference &&
+    user.vaultSubscriptionPaymentStatus === "pending"
+  ) {
+    return "initial";
+  }
+
+  const currentStatus = vaultSubscriptionStatus(
+    user.vaultSubscriptionStatus,
+    user.vaultSubscriptionExpiresAt,
+    now,
+  );
+  if (
+    user.vaultSubscriptionAutoRenew &&
+    Boolean(user.vaultPaystackPlanCode) &&
+    Boolean(user.vaultPaystackSubscriptionCode) &&
+    user.vaultPaystackSubscriptionCode === charge.subscriptionCode &&
+    user.vaultPaystackCustomerCode === charge.customerCode &&
+    user.vaultPaystackPlanCode === charge.providerPlanCode &&
+    ["active", "expired"].includes(currentStatus)
+  ) {
+    return "renewal";
+  }
+
+  return null;
+}
+
+export function resolveEffectiveAccountTier(
+  user: {
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+    vaultSubscriptionPlan: string | null;
+  },
+  now = new Date(),
+): EffectiveAccountTier {
+  if (hasActiveVaultSubscription(user, now) && user.vaultSubscriptionPlan) {
+    const plan = getVaultSubscriptionPlan(user.vaultSubscriptionPlan);
+    if (plan) {
+      return {
+        id: plan.tierId,
+        name: plan.tierName,
+        source: "paystack_subscription",
+      };
+    }
+  }
+  return { id: "standard", name: "Standard 🏦", source: "default" };
+}
+
+export function isVaultTestingMode(
+  accessSource: "none" | "paystack_subscription" | "admin_grant",
+  testingModeDisabled = false,
+): boolean {
+  return accessSource === "none" && !testingModeDisabled;
+}
+
+export function hasImmediateTransferAccess(
+  vaultAccessActive: boolean,
+  transferAccessGranted: boolean,
+): boolean {
+  return vaultAccessActive || transferAccessGranted;
+}
+
+export function getEffectiveAccountTier(
+  user: {
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+    vaultSubscriptionPlan: string | null;
+  },
+  now = new Date(),
+): EffectiveAccountTier {
+  return resolveEffectiveAccountTier(user, now);
+}
+
+type VaultAccessExecutor = Pick<typeof db, "select">;
+
+export async function hasAdminVaultEntitlement(
+  userId: string,
+  executor: VaultAccessExecutor = db,
+): Promise<boolean> {
+  const [entitlement] = await executor
+    .select({ userId: bankVaultAdminEntitlementsTable.userId })
+    .from(bankVaultAdminEntitlementsTable)
+    .where(eq(bankVaultAdminEntitlementsTable.userId, userId))
+    .limit(1);
+  return Boolean(entitlement);
+}
+
+export async function getVaultAccessSource(
+  user: {
+    id: string;
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+  },
+  executor: VaultAccessExecutor = db,
+  now = new Date(),
+): Promise<"none" | "paystack_subscription" | "admin_grant"> {
+  if (await hasAdminVaultEntitlement(user.id, executor)) return "admin_grant";
+  return hasActiveVaultSubscription(user, now)
+    ? "paystack_subscription"
+    : "none";
+}
+
+export async function hasActiveVaultAccess(
+  user: {
+    id: string;
+    vaultSubscriptionStatus: string;
+    vaultSubscriptionExpiresAt: Date | null;
+  },
+  executor: VaultAccessExecutor = db,
+  now = new Date(),
+): Promise<boolean> {
+  return (await getVaultAccessSource(user, executor, now)) !== "none";
 }
 
 export async function expireVaultSubscriptions(now = new Date()): Promise<number> {
@@ -82,17 +238,19 @@ export async function expireVaultSubscriptions(now = new Date()): Promise<number
   });
 }
 
-export function vaultTransferEmailAlertsEnabled(
+export async function vaultTransferEmailAlertsEnabled(
   user: {
+    id: string;
     vaultEmailAlertsEnabled: boolean;
     vaultSubscriptionStatus: string;
     vaultSubscriptionExpiresAt: Date | null;
   },
+  executor: VaultAccessExecutor = db,
   now = new Date(),
-): boolean {
+): Promise<boolean> {
   return (
     user.vaultEmailAlertsEnabled &&
-    hasActiveVaultSubscription(user, now)
+    await hasActiveVaultAccess(user, executor, now)
   );
 }
 
@@ -269,13 +427,14 @@ export async function isVaultSessionActive(
 ): Promise<boolean> {
   const [user] = await db
     .select({
+      id: bankUsersTable.id,
       vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
       vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
     })
     .from(bankUsersTable)
     .where(eq(bankUsersTable.id, userId))
     .limit(1);
-  if (!user || !hasActiveVaultSubscription(user)) return false;
+  if (!user || !(await hasActiveVaultAccess(user))) return false;
   return hasValidVaultPasscodeSession(userId, sessionToken);
 }
 
@@ -289,13 +448,14 @@ export async function updateVaultPasscode(
   return db.transaction(async (tx) => {
     const [user] = await tx
       .select({
+        id: bankUsersTable.id,
         vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
         vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
       })
       .from(bankUsersTable)
       .where(eq(bankUsersTable.id, userId))
       .for("update");
-    if (!user || !hasActiveVaultSubscription(user)) return false;
+    if (!user || !(await hasActiveVaultAccess(user, tx))) return false;
     const [session] = await tx
       .select({ id: bankVaultSessionsTable.id })
       .from(bankVaultSessionsTable)

@@ -8,9 +8,11 @@ import {
 import {
   createPaystackVaultPlan,
   getPaystackSecretKey,
+  isNewPaystackWebhookEvent,
   initializePaystackVaultCheckout,
   isValidPaystackWebhookSignature,
   isPaystackVaultRecurringEnabled,
+  paystackVaultEventKey,
   sendPaystackSubscriptionManagementEmail,
   verifyPaystackVaultCheckout,
 } from "../src/lib/paystack-vault";
@@ -194,6 +196,19 @@ test("Paystack webhook signatures authenticate the exact raw body", () => {
   assert.equal(isValidPaystackWebhookSignature(body, "bad-signature", "test-webhook-key"), false);
 });
 
+test("repeated Paystack deliveries share a stable event key and duplicate claims are ignored", () => {
+  assert.equal(
+    paystackVaultEventKey("charge.success", "GBV-reference-1"),
+    paystackVaultEventKey("charge.success", "GBV-reference-1"),
+  );
+  assert.notEqual(
+    paystackVaultEventKey("charge.success", "GBV-reference-1"),
+    paystackVaultEventKey("charge.success", "GBV-reference-2"),
+  );
+  assert.equal(isNewPaystackWebhookEvent({ id: "first-claim" }), true);
+  assert.equal(isNewPaystackWebhookEvent(undefined), false);
+});
+
 test("renewal management emails are requested for the stored subscription only", async () => {
   let capturedUrl = "";
   let capturedMethod = "";
@@ -241,18 +256,24 @@ test("Paystack verification rejects malformed or mismatched references", async (
   );
 });
 
-test("Paystack secret lookup supports the existing secret name without exposing it", () => {
+test("Paystack secret lookup supports the canonical and deployment aliases", () => {
   const previousCorrect = process.env.PAYSTACK_SECRET_KEY;
+  const previousApiSecret = process.env.PAYSTACK_API_SECRET;
   const previousLegacy = process.env.PAYSTACK_SCRET_KEY;
   try {
     delete process.env.PAYSTACK_SECRET_KEY;
+    delete process.env.PAYSTACK_API_SECRET;
     process.env.PAYSTACK_SCRET_KEY = "existing-secret";
     assert.equal(getPaystackSecretKey(), "existing-secret");
+    process.env.PAYSTACK_API_SECRET = "api-secret-alias";
+    assert.equal(getPaystackSecretKey(), "api-secret-alias");
     process.env.PAYSTACK_SECRET_KEY = "preferred-secret";
     assert.equal(getPaystackSecretKey(), "preferred-secret");
   } finally {
     if (previousCorrect === undefined) delete process.env.PAYSTACK_SECRET_KEY;
     else process.env.PAYSTACK_SECRET_KEY = previousCorrect;
+    if (previousApiSecret === undefined) delete process.env.PAYSTACK_API_SECRET;
+    else process.env.PAYSTACK_API_SECRET = previousApiSecret;
     if (previousLegacy === undefined) delete process.env.PAYSTACK_SCRET_KEY;
     else process.env.PAYSTACK_SCRET_KEY = previousLegacy;
   }
@@ -301,6 +322,9 @@ test("Vault billing supports Paystack or unavailable, never manual approval", ()
     GetBankVaultBillingResponse.safeParse({
       configured: true,
       provider: "paystack",
+      adminGrantActive: false,
+      accessActive: true,
+      accessSource: "paystack_subscription",
       recurringEnabled: false,
       plans,
     }).success,
@@ -310,6 +334,9 @@ test("Vault billing supports Paystack or unavailable, never manual approval", ()
     GetBankVaultBillingResponse.safeParse({
       configured: true,
       provider: "manual",
+      adminGrantActive: false,
+      accessActive: false,
+      accessSource: "none",
       recurringEnabled: false,
       plans,
     }).success,

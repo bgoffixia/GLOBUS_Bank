@@ -5,6 +5,7 @@ import { useUser } from '@clerk/react';
 import {
   getGetBankVaultBillingQueryKey,
   getGetBankVaultEmailPreferencesQueryKey,
+  getGetBankVaultReceiptPreferenceQueryKey,
   getGetBankVaultStatusQueryKey,
   getGetBankPushConfigQueryKey,
   getGetBankPushPreferencesQueryKey,
@@ -17,7 +18,7 @@ import {
   useGetBankPushPreferences,
   useGetBankVaultBilling,
   useGetBankVaultEmailPreferences,
-  useGetBankReceiptPreferences,
+  useGetBankVaultReceiptPreference,
   useGetBankVaultStatus,
   useEmailBankVaultPaystackRenewalManagementLink,
   useInitializeBankVaultPaystackPayment,
@@ -29,7 +30,7 @@ import {
   useUnlockBankVault,
   useUpdateBankPushPreferences,
   useUpdateBankVaultEmailPreferences,
-  useUpdateBankReceiptPreferences,
+  useUpdateBankVaultReceiptPreference,
   useUpdateBankVaultPasscode,
   useUpdateBankVaultTransactionNote,
   useUpdateBankVaultWalletControl,
@@ -37,8 +38,11 @@ import {
 } from '@workspace/api-client-react';
 import type { BankTransaction, BankVaultEmailPreferences, BankVaultWalletControl } from '@workspace/api-client-react';
 import { fetchWebpushrSubscriberId, loadWebpushr } from '../lib/webpushr-client';
-import { RECEIPT_LAYOUTS, receiptPreferencesQueryKey, type ReceiptTemplateId } from '../lib/receipt-layouts';
+import { RECEIPT_LAYOUTS, type ReceiptTemplateId } from '../lib/receipt-layouts';
 import { TransferReceiptModal, type ReceiptTransaction } from './transfer/transfer-receipt';
+import { canLoadVaultPrivateData, isVaultSessionRejected } from '../lib/vault-error-state';
+import { VaultFundingForm } from './vault-funding-form';
+import { ReceiptTemplateMiniPreview } from '../lib/receipt-template';
 
 const fieldClass = 'h-9 w-full rounded-lg border border-[#dfe6eb] bg-white px-3 text-[11px] text-[#344b64] outline-none focus:border-[#77aeb0] focus:ring-2 focus:ring-[#77aeb0]/15';
 type VaultPlanCode = '1m' | '3m' | '1y';
@@ -75,6 +79,7 @@ export function PrivateVaultPanel() {
   const [supportLabel, setSupportLabel] = useState('Contact support');
   const [senderLocalPart, setSenderLocalPart] = useState('');
   const [transactionEmailAlertsEnabled, setTransactionEmailAlertsEnabled] = useState(false);
+  const [preferredReceiptTemplate, setPreferredReceiptTemplate] = useState<ReceiptTemplateId>('standard');
   const [browserPushMessage, setBrowserPushMessage] = useState('');
   const [browserPushError, setBrowserPushError] = useState('');
   const subscriptionStorageKey = user?.id ? `globus-push-subscription-id:${user.id}` : '';
@@ -86,7 +91,6 @@ export function PrivateVaultPanel() {
   const [autoRenew, setAutoRenew] = useState(false);
   const [subscriptionStep, setSubscriptionStep] = useState<SubscriptionStep>('closed');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
-  const [preferredReceiptTemplate, setPreferredReceiptTemplate] = useState<ReceiptTemplateId>('standard');
   const [receiptPreview, setReceiptPreview] = useState<ReceiptTransaction | null>(null);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [activeNavigation, setActiveNavigation] = useState('vault-overview');
@@ -98,8 +102,13 @@ export function PrivateVaultPanel() {
     { id: 'vault-receipts', label: 'Receipt style', icon: ReceiptText, requiresUnlock: false },
     { id: 'vault-account-controls', label: 'Wallet controls', icon: WalletCards, requiresUnlock: true },
     { id: 'vault-browser-alerts', label: 'Browser alerts', icon: Bell, requiresUnlock: true },
+    { id: 'vault-personal-notes', label: 'Personal notes', icon: FileText, requiresUnlock: true },
     { id: 'vault-email-preferences', label: 'Email preferences', icon: ReceiptText, requiresUnlock: true },
   ] as const;
+  const privateVaultDataEnabled = canLoadVaultPrivateData(
+    sessionToken,
+    status.data?.accessActive,
+  );
   const billing = useGetBankVaultBilling({
     query: {
       queryKey: getGetBankVaultBillingQueryKey(),
@@ -132,21 +141,15 @@ export function PrivateVaultPanel() {
   const updateBrowserPushPreferences = useUpdateBankPushPreferences({
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
   });
-  const receiptPreferences = useGetBankReceiptPreferences({
-    query: {
-      queryKey: receiptPreferencesQueryKey(user?.id),
-      retry: false,
-      staleTime: 60_000,
-    },
-  });
-  const saveReceiptPreferences = useUpdateBankReceiptPreferences();
   useEffect(() => () => {
     void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+  void queryClient.cancelQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
     void queryClient.cancelQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
     queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
     queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+  queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
     queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
     queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
   }, [queryClient]);
@@ -154,7 +157,7 @@ export function PrivateVaultPanel() {
   const controls = useListBankVaultWalletControls({
     query: {
       queryKey: getListBankVaultWalletControlsQueryKey(),
-      enabled: !!sessionToken,
+      enabled: privateVaultDataEnabled,
       retry: false,
     },
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
@@ -162,9 +165,20 @@ export function PrivateVaultPanel() {
   const emailPreferences = useGetBankVaultEmailPreferences({
     query: {
       queryKey: getGetBankVaultEmailPreferencesQueryKey(),
-      enabled: !!sessionToken,
+      enabled: privateVaultDataEnabled,
       retry: false,
     },
+    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+  });
+  const receiptPreference = useGetBankVaultReceiptPreference({
+    query: {
+      queryKey: getGetBankVaultReceiptPreferenceQueryKey(),
+      enabled: privateVaultDataEnabled,
+      retry: false,
+    },
+    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+  });
+  const saveReceiptPreference = useUpdateBankVaultReceiptPreference({
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
   });
   const saveEmailPreferences = useUpdateBankVaultEmailPreferences({
@@ -181,7 +195,7 @@ export function PrivateVaultPanel() {
     {
       query: {
         queryKey: getListBankTransactionsQueryKey({ limit: 100 }),
-        enabled: !!sessionToken,
+        enabled: privateVaultDataEnabled,
         staleTime: 30_000,
       },
     },
@@ -189,7 +203,7 @@ export function PrivateVaultPanel() {
   const transactionNotes = useListBankVaultTransactionNotes({
     query: {
       queryKey: getListBankVaultTransactionNotesQueryKey(),
-      enabled: !!sessionToken,
+      enabled: privateVaultDataEnabled,
       retry: false,
     },
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
@@ -219,11 +233,6 @@ export function PrivateVaultPanel() {
     setSenderLocalPart(emailPreferences.data.senderLocalPart ?? '');
   }, [emailPreferences.data]);
   useEffect(() => {
-    if (receiptPreferences.data) {
-      setPreferredReceiptTemplate(receiptPreferences.data.preferredTemplate);
-    }
-  }, [receiptPreferences.data]);
-  useEffect(() => {
     if (!mobileNavigationOpen) return;
     const closeOnEscape = (event: KeyboardEvent) => {
       if (event.key === 'Escape') setMobileNavigationOpen(false);
@@ -231,6 +240,10 @@ export function PrivateVaultPanel() {
     window.addEventListener('keydown', closeOnEscape);
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [mobileNavigationOpen]);
+  useEffect(() => {
+    if (!receiptPreference.data) return;
+    setPreferredReceiptTemplate(receiptPreference.data.preferredReceiptTemplate);
+  }, [receiptPreference.data]);
   useEffect(() => {
     if (!selectedTransactionId && transactions.data?.length) {
       setSelectedTransactionId(transactions.data[0].id);
@@ -255,6 +268,7 @@ export function PrivateVaultPanel() {
     if (remaining <= 0) {
       queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+      queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
       setSessionToken('');
       setExpiresAt('');
@@ -264,9 +278,11 @@ export function PrivateVaultPanel() {
     const timeout = window.setTimeout(() => {
       void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
       void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+      void queryClient.cancelQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
       queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+      queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
       setSessionToken('');
       setExpiresAt('');
@@ -275,23 +291,20 @@ export function PrivateVaultPanel() {
     return () => window.clearTimeout(timeout);
   }, [expiresAt, queryClient, sessionToken]);
   useEffect(() => {
-    const currentStatus = status.data?.subscriptionStatus;
-    if (!currentStatus) return;
-    const previousStatus = lastSubscriptionStatus.current;
-    lastSubscriptionStatus.current = currentStatus;
-    if (previousStatus && previousStatus !== currentStatus && currentStatus !== 'pending' && sessionToken) {
-      void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
-      void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
-      void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
-      queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
-      queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
-      queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
-      setSessionToken('');
-      setExpiresAt('');
-      setSubscriptionStep('closed');
-      setMessage('Vault access changed. Enter your passcode again to continue.');
+    if (status.data?.accessActive !== false) return;
+    const privateQueryKeys = [
+      getListBankVaultWalletControlsQueryKey(),
+      getGetBankVaultEmailPreferencesQueryKey(),
+      getGetBankVaultReceiptPreferenceQueryKey(),
+      getListBankVaultTransactionNotesQueryKey(),
+    ];
+    for (const queryKey of privateQueryKeys) {
+      void queryClient.cancelQueries({ queryKey });
+      queryClient.removeQueries({ queryKey });
     }
-  }, [queryClient, sessionToken, status.data?.subscriptionStatus]);
+    setSelectedTransactionId('');
+    setPrivateNoteDraft('');
+  }, [queryClient, status.data?.accessActive]);
 
   const submitPasscode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -311,6 +324,7 @@ export function PrivateVaultPanel() {
         await queryClient.invalidateQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
         await queryClient.invalidateQueries({ queryKey: getGetBankVaultBillingQueryKey() });
         await queryClient.invalidateQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+        await queryClient.invalidateQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The vault request could not be completed.');
@@ -322,19 +336,6 @@ export function PrivateVaultPanel() {
     setActiveNavigation(sectionId);
     setMobileNavigationOpen(false);
     section.scrollIntoView({ behavior: 'smooth', block: 'start' });
-  };
-  const savePreferredReceiptTemplate = async () => {
-    setError('');
-    setMessage('');
-    try {
-      const updated = await saveReceiptPreferences.mutateAsync({
-        data: { preferredTemplate: preferredReceiptTemplate },
-      });
-      queryClient.setQueryData(receiptPreferencesQueryKey(user?.id), updated);
-      setMessage('Preferred receipt layout saved for all customer receipts.');
-    } catch (err) {
-      setError(err instanceof Error ? err.message : 'The preferred receipt layout could not be saved.');
-    }
   };
   const changeVaultPasscode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -348,9 +349,11 @@ export function PrivateVaultPanel() {
       setSubscriptionStep('closed');
       void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
       void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+      void queryClient.cancelQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
       queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+      queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
       setMessage('Vault passcode updated.');
     } catch (err) {
@@ -360,16 +363,56 @@ export function PrivateVaultPanel() {
   const lockVault = () => {
     void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
     queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
     queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+    queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
     queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+    queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
     setSessionToken('');
     setExpiresAt('');
     setPasscode('');
     setNewPasscode('');
     setSubscriptionStep('closed');
   };
+  useEffect(() => {
+    if (!sessionToken) return;
+    const rejected = [
+      controls.error,
+      emailPreferences.error,
+      receiptPreference.error,
+      transactionNotes.error,
+    ].some(isVaultSessionRejected);
+    if (!rejected) return;
+
+    void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
+    void queryClient.cancelQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
+    queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
+    queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
+    queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
+    queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+    queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
+    queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
+    setSessionToken('');
+    setExpiresAt('');
+    setSubscriptionStep('closed');
+    setMessage('');
+    setError('Your Vault session expired or access changed. Unlock it again to continue.');
+    void queryClient.invalidateQueries({ queryKey: getGetBankVaultStatusQueryKey() });
+  }, [
+    controls.error,
+    emailPreferences.error,
+    receiptPreference.error,
+    queryClient,
+    sessionToken,
+    transactionNotes.error,
+  ]);
   const startPaystackCheckout = async () => {
     setError('');
     setMessage('');
@@ -441,8 +484,8 @@ export function PrivateVaultPanel() {
     event.preventDefault();
     setError('');
     setMessage('');
-    if (!status.data?.subscriptionActive) {
-      setError('An active Vault subscription is required to change settings.');
+    if (!status.data?.accessActive) {
+      setError('Active Private Vault access is required to change settings.');
       return;
     }
     try {
@@ -464,10 +507,27 @@ export function PrivateVaultPanel() {
       setError(err instanceof Error ? err.message : 'The email preferences could not be saved.');
     }
   };
+  const submitReceiptPreference = async () => {
+    setError('');
+    setMessage('');
+    if (!sessionToken || !status.data?.accessActive) {
+      setError('Active Private Vault access is required to save a receipt layout.');
+      return;
+    }
+    try {
+      const saved = await saveReceiptPreference.mutateAsync({
+        data: { preferredReceiptTemplate },
+      });
+      queryClient.setQueryData(getGetBankVaultReceiptPreferenceQueryKey(), saved);
+      setMessage('Receipt layout saved for future transfers. Existing receipts keep their saved design.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The receipt layout could not be saved.');
+    }
+  };
   const savePrivateTransactionNote = async () => {
     if (
       !sessionToken ||
-      !subscriptionActive ||
+      !vaultAccessActive ||
       !selectedTransactionId ||
       !privateNoteDraft.trim()
     ) return;
@@ -485,7 +545,7 @@ export function PrivateVaultPanel() {
     }
   };
   const removePrivateTransactionNote = async () => {
-    if (!sessionToken || !subscriptionActive || !selectedTransactionId || !selectedTransactionNote) return;
+    if (!sessionToken || !vaultAccessActive || !selectedTransactionId || !selectedTransactionNote) return;
     setError('');
     setMessage('');
     try {
@@ -555,8 +615,8 @@ export function PrivateVaultPanel() {
   ) => {
     setBrowserPushError('');
     setBrowserPushMessage('');
-    if (!subscriptionActive) {
-      setBrowserPushError('An active Vault subscription is required to change alert settings.');
+    if (!vaultAccessActive) {
+      setBrowserPushError('Active Private Vault access is required to change alert settings.');
       return;
     }
     try {
@@ -570,7 +630,7 @@ export function PrivateVaultPanel() {
     }
   };
   const changeControl = async (control: BankVaultWalletControl, input: Partial<BankVaultWalletControl>) => {
-    if (!sessionToken || !status.data?.subscriptionActive || busyWallet) return;
+    if (!sessionToken || !status.data?.accessActive || busyWallet) return;
     setBusyWallet(control.walletId);
     setError('');
     setMessage('');
@@ -586,7 +646,8 @@ export function PrivateVaultPanel() {
   };
 
   const loading = initialize.isPending || unlock.isPending || updatePasscode.isPending;
-  const subscriptionActive = !!status.data?.subscriptionActive;
+  const vaultAccessActive = !!status.data?.accessActive;
+  const paidSubscriptionActive = !!status.data?.subscriptionActive;
   const checkoutPending = status.data?.paymentStatus === 'pending';
   return (
     <>
@@ -637,14 +698,22 @@ export function PrivateVaultPanel() {
               <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-unlock" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50"><LockKeyhole size={13} />{unlock.isPending ? 'Unlocking…' : 'Unlock vault'}</button>
             </form>
           ) : (
-            <div className="mt-4">
+            <div className="mt-4 min-w-0 space-y-3" data-testid="vault-workspace-layout">
+              <section id="vault-workspace-overview" className="scroll-mt-4 space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d9e8e9] bg-[#f3f8f8] px-3 py-2">
                 <p className="text-[10px] font-semibold text-[#426e70]" data-testid="status-vault-unlocked">
-                  {subscriptionActive ? 'Vault unlocked · subscription active' : 'Vault unlocked · read-only'}
+                  {status.data?.accessSource === 'admin_grant'
+                    ? 'Vault unlocked · Admin-granted access'
+                    : paidSubscriptionActive
+                      ? 'Vault unlocked · paid subscription active'
+                      : 'Vault unlocked · read-only'}
                   {expiresAt ? ` · session ends ${new Date(expiresAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' })}` : ''}
-                  {status.data?.expiresAt ? ` · plan ends ${new Date(status.data.expiresAt).toLocaleDateString()}` : ''}
+                  {status.data?.subscriptionActive && status.data?.expiresAt ? ` · plan ends ${new Date(status.data.expiresAt).toLocaleDateString()}` : ''}
                 </p>
                 <button type="button" disabled={updatePasscode.isPending || updateControl.isPending || billingBusy} data-testid="button-vault-lock" onClick={lockVault} className="rounded-md border border-[#d4e1e4] bg-white px-3 py-1.5 text-[9px] font-bold text-[#466577] disabled:opacity-50">Lock vault</button>
+              </div>
+              <div id="vault-workspace-funding" className="scroll-mt-4">
+                <VaultFundingForm vaultAccessActive={!!status.data?.accessActive} />
               </div>
               {status.data?.autoRenew && <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d9e8e9] bg-white px-3 py-2" data-testid="vault-auto-renew-status">
                 <p className="text-[9px] leading-4 text-[#426e70]">Paystack automatic renewal is on. You can request a management link to update or cancel it.</p>
@@ -653,18 +722,20 @@ export function PrivateVaultPanel() {
                 </button>
               </div>}
 
-              {!subscriptionActive && <section className="mt-3 rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4" data-testid="vault-subscription-access">
+              {!paidSubscriptionActive && <section className="mt-3 rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4" data-testid="vault-subscription-access">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#8a784c]">Vault subscription · {status.data?.subscriptionStatus || 'inactive'}</p>
                     <p className="mt-1 text-[10px] leading-5 text-[#786e55]">
-                      {checkoutPending
+                      {status.data?.accessSource === 'admin_grant'
+                        ? 'Your current Vault access is an administrator grant, not a paid subscription. You can choose a paid plan if you want subscription-based access.'
+                        : checkoutPending
                         ? 'Paystack checkout is in progress. Complete payment, then verify it here to activate your plan.'
                         : status.data?.subscriptionStatus === 'rejected'
                           ? 'Your previous request was declined. You can choose a plan and pay securely.'
                           : status.data?.subscriptionStatus === 'expired'
                             ? 'Your subscription has expired. Choose a plan to renew Vault access.'
-                            : 'Choose a plan and complete checkout. Vault changes unlock after payment is verified.'}
+                            : 'Choose a plan and complete checkout. Vault access unlocks after payment is verified.'}
                     </p>
                   </div>
                   {!checkoutPending && subscriptionStep === 'closed' && <button type="button" onClick={() => { setError(''); setMessage(''); setSubscriptionStep('plans'); }} data-testid="button-vault-subscribe" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white hover:bg-[#214b70]">
@@ -719,28 +790,30 @@ export function PrivateVaultPanel() {
                       })()}
                     </>}
               </section>}
+              </section>
 
               <div id="vault-account-controls" className="mt-3 scroll-mt-24 grid gap-3 lg:grid-cols-[.75fr_1.25fr]">
-                {subscriptionActive ? <form onSubmit={changeVaultPasscode} className="rounded-xl border border-[#e7ecef] p-3" data-testid="form-vault-change-passcode">
+                {vaultAccessActive ? <form onSubmit={changeVaultPasscode} className="rounded-xl border border-[#e7ecef] p-3" data-testid="form-vault-change-passcode">
                   <h3 className="text-[10px] font-bold text-[#344b64]">Change passcode</h3>
                   <label className="mt-2 block text-[9px] font-semibold text-[#667a8d]">New four-digit passcode
                     <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="new-password" maxLength={4} value={newPasscode} onChange={event => setNewPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-new-passcode" />
                   </label>
                   <button type="submit" disabled={loading || newPasscode.length !== 4} data-testid="button-vault-change-passcode" className="mt-2 h-8 rounded-lg border border-[#dfe6eb] px-3 text-[9px] font-bold text-[#405a73] disabled:opacity-50">{updatePasscode.isPending ? 'Updating…' : 'Update passcode'}</button>
-                </form> : <div className="rounded-xl border border-[#e7ecef] bg-[#f8fafb] p-3"><h3 className="text-[10px] font-bold text-[#344b64]">Vault settings are read-only</h3><p className="mt-1 text-[9px] leading-4 text-[#8190a0]">An active subscription is required to change the passcode or wallet and email settings.</p></div>}
-                <div className="rounded-xl border border-[#e7ecef] p-3">
-                  <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold text-[#344b64]">Wallet policies</h3><button type="button" onClick={() => void controls.refetch()} data-testid="button-refresh-wallet-controls" className="text-[9px] font-bold text-[#397b80]">Refresh</button></div>
+                </form> : <div className="rounded-xl border border-[#e7ecef] bg-[#f8fafb] p-3"><h3 className="text-[10px] font-bold text-[#344b64]">Vault settings are read-only</h3><p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Active Private Vault access is required to change the passcode or wallet and email settings.</p></div>}
+                <div id="vault-workspace-wallets" className="scroll-mt-4 rounded-xl border border-[#e7ecef] p-3">
+                  <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold text-[#344b64]">Wallet policies</h3><button type="button" disabled={!vaultAccessActive} onClick={() => void controls.refetch()} data-testid="button-refresh-wallet-controls" className="text-[9px] font-bold text-[#397b80] disabled:cursor-not-allowed disabled:opacity-50">Refresh</button></div>
                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Policy choices apply to future requests only. Existing transactions keep their recorded status.</p>
-                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Add funds and withdrawal actions are available from their dedicated wallet pages. Subscription, identity, wallet, and account restrictions still apply.</p>
-                  {controls.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> : controls.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Wallet controls could not be loaded. Refresh to try again.</p> : controls.data?.length ? (
+                  <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Add funds above; withdrawal requests remain on their dedicated page. Subscription, wallet, and account restrictions still apply.</p>
+                  {!vaultAccessActive ? <p role="status" className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] text-[#8492a1]">Activate Private Vault access to view wallet policies.</p> :
+                    controls.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> : controls.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Wallet policies could not be loaded. Refresh to try again.</p> : controls.data?.length ? (
                     <div className="mt-2 space-y-2">{controls.data.map(control => <article key={control.walletId} data-testid={`vault-wallet-control-${control.walletId}`} className="rounded-lg bg-[#f8fafb] p-2.5">
-                      <div className="flex items-center justify-between gap-2"><strong className="text-[10px] text-[#324962]">{control.currency} wallet</strong><label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.transfersEnabled} disabled={!subscriptionActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { transfersEnabled: event.target.checked })} data-testid={`toggle-vault-transfers-${control.walletId}`} />Transfers</label></div>
+                      <div className="flex items-center justify-between gap-2"><strong className="text-[10px] text-[#324962]">{control.currency} wallet</strong><label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.transfersEnabled} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { transfersEnabled: event.target.checked })} data-testid={`toggle-vault-transfers-${control.walletId}`} />Transfers</label></div>
                       <div className="mt-2 grid grid-cols-2 gap-2">
-                        <label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.depositsEnabled} disabled={!subscriptionActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { depositsEnabled: event.target.checked })} data-testid={`toggle-vault-deposits-${control.walletId}`} />Deposits</label>
-                        <label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.withdrawalsEnabled} disabled={!subscriptionActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { withdrawalsEnabled: event.target.checked })} data-testid={`toggle-vault-withdrawals-${control.walletId}`} />Withdrawals</label>
+                        <label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.depositsEnabled} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { depositsEnabled: event.target.checked })} data-testid={`toggle-vault-deposits-${control.walletId}`} />Deposits</label>
+                        <label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.withdrawalsEnabled} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { withdrawalsEnabled: event.target.checked })} data-testid={`toggle-vault-withdrawals-${control.walletId}`} />Withdrawals</label>
                       </div>
                       <label className="mt-2 flex items-center gap-2 text-[8px] font-semibold text-[#64798d]">Future transfer requests
-                        <select value={control.futureTransferMode} disabled={!subscriptionActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { futureTransferMode: event.target.value as BankVaultWalletControl['futureTransferMode'] })} className="h-7 flex-1 rounded-md border border-[#dfe6eb] bg-white px-2 text-[9px]" data-testid={`select-vault-future-transfer-mode-${control.walletId}`}>
+                        <select value={control.futureTransferMode} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { futureTransferMode: event.target.value as BankVaultWalletControl['futureTransferMode'] })} className="h-7 flex-1 rounded-md border border-[#dfe6eb] bg-white px-2 text-[9px]" data-testid={`select-vault-future-transfer-mode-${control.walletId}`}>
                           <option value="successful">Successful after ledger posting</option><option value="pending">Pending administrator review</option><option value="failed">Fail without posting</option>
                         </select>
                       </label>
@@ -755,7 +828,7 @@ export function PrivateVaultPanel() {
                 {browserPushConfig.isError && <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Browser alert setup is unavailable. Try again later.</p>}
                 {browserPushPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
                   browserPushPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Alert choices could not be loaded.</p> :
-                    <fieldset disabled={!subscriptionActive || updateBrowserPushPreferences.isPending} className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
+                    <fieldset disabled={!vaultAccessActive || updateBrowserPushPreferences.isPending} className="mt-2 grid grid-cols-1 gap-1.5 sm:grid-cols-3">
                       <legend className="sr-only">Push alert categories</legend>
                       {([
                         ['transferEnabled', 'Transfers'],
@@ -770,8 +843,8 @@ export function PrivateVaultPanel() {
                   <span data-testid="status-vault-browser-push" className="text-[8px] text-[#8794a2]">
                     {browserPushConfig.isLoading ? 'Checking availability…' : !browserPushSupported ? 'Not supported on this device' : browserPushConfig.data?.configured ? savedPushSubscriptionId ? 'This device is linked' : 'Available to enable on this device' : 'Not configured'}
                   </span>
-                  {savedPushSubscriptionId ? <button type="button" disabled={!subscriptionActive || deletePushSubscription.isPending} onClick={() => void disableBrowserAlerts()} data-testid="button-vault-disable-browser-push" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#52697e] disabled:opacity-50">{deletePushSubscription.isPending ? 'Disabling…' : 'Disable alerts on this device'}</button> :
-                    <button type="button" disabled={!subscriptionActive || !browserPushSupported || !browserPushConfig.data?.configured || savePushSubscription.isPending} onClick={() => void enableBrowserAlerts()} data-testid="button-vault-enable-browser-push" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">{savePushSubscription.isPending ? 'Linking…' : 'Enable alerts on this device'}</button>}
+                  {savedPushSubscriptionId ? <button type="button" disabled={!vaultAccessActive || deletePushSubscription.isPending} onClick={() => void disableBrowserAlerts()} data-testid="button-vault-disable-browser-push" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#52697e] disabled:opacity-50">{deletePushSubscription.isPending ? 'Disabling…' : 'Disable alerts on this device'}</button> :
+                    <button type="button" disabled={!vaultAccessActive || !browserPushSupported || !browserPushConfig.data?.configured || savePushSubscription.isPending} onClick={() => void enableBrowserAlerts()} data-testid="button-vault-enable-browser-push" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">{savePushSubscription.isPending ? 'Linking…' : 'Enable alerts on this device'}</button>}
                 </div>
                 {browserPushError && <p role="alert" data-testid="status-vault-browser-push-error" className="mt-2 rounded-md bg-[#fff1ef] px-2 py-1.5 text-[8px] text-[#a24940]">{browserPushError}</p>}
                 {browserPushMessage && <p role="status" data-testid="status-vault-browser-push-message" className="mt-2 rounded-md bg-[#eef7f1] px-2 py-1.5 text-[8px] text-[#41755f]">{browserPushMessage}</p>}
@@ -779,8 +852,8 @@ export function PrivateVaultPanel() {
               <details id="vault-personal-notes" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Personal transaction notes</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">These notes are private to your Vault. They never change balances, official transaction details, receipts, or notifications.</p>
-                {!subscriptionActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Notes are read-only until your subscription is active.</p>}
-                {transactions.isLoading || transactionNotes.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
+                {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Activate Private Vault access to load personal notes.</p>}
+                {!vaultAccessActive ? null : transactions.isLoading || transactionNotes.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
                   transactions.isError || transactionNotes.isError ? <div className="mt-2 rounded-lg border border-[#eadfda] bg-[#fff8f6] p-3 text-[9px] text-[#a24940]"><p>Transaction notes could not be loaded.</p><button type="button" onClick={() => { void transactions.refetch(); void transactionNotes.refetch(); }} className="mt-1 font-bold underline">Try again</button></div> :
                     !transactions.data?.length ? <p className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] text-[#8492a1]">Your transactions will appear here when available.</p> :
                       <div className="mt-3 grid gap-2">
@@ -793,12 +866,12 @@ export function PrivateVaultPanel() {
                         </label>
                         {selectedTransactionId && <>
                           <label className="text-[9px] font-semibold text-[#5c7085]">Your private note
-                            <textarea disabled={!subscriptionActive} maxLength={500} rows={3} value={privateNoteDraft} onChange={event => setPrivateNoteDraft(event.target.value)} placeholder="Add a reminder for yourself" className="mt-1 w-full resize-y rounded-lg border border-[#dfe6eb] bg-white px-3 py-2 text-[10px] leading-4 text-[#344b64] outline-none focus:border-[#77aeb0] disabled:bg-[#f3f5f5]" data-testid="input-private-transaction-note" />
+                            <textarea disabled={!vaultAccessActive} maxLength={500} rows={3} value={privateNoteDraft} onChange={event => setPrivateNoteDraft(event.target.value)} placeholder="Add a reminder for yourself" className="mt-1 w-full resize-y rounded-lg border border-[#dfe6eb] bg-white px-3 py-2 text-[10px] leading-4 text-[#344b64] outline-none focus:border-[#77aeb0] disabled:bg-[#f3f5f5]" data-testid="input-private-transaction-note" />
                             <span className="mt-1 block text-right text-[8px] font-normal text-[#8794a2]">{privateNoteDraft.length}/500</span>
                           </label>
                           <div className="flex flex-wrap gap-2">
-                            {subscriptionActive && <button type="button" disabled={saveTransactionNote.isPending || deleteTransactionNote.isPending || !privateNoteDraft.trim()} onClick={() => void savePrivateTransactionNote()} data-testid="button-save-private-transaction-note" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50">{saveTransactionNote.isPending ? 'Saving…' : 'Save private note'}</button>}
-                            {subscriptionActive && selectedTransactionNote && <button type="button" disabled={saveTransactionNote.isPending || deleteTransactionNote.isPending} onClick={() => void removePrivateTransactionNote()} data-testid="button-delete-private-transaction-note" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#6b7888] disabled:opacity-50">{deleteTransactionNote.isPending ? 'Deleting…' : 'Delete note'}</button>}
+                            {vaultAccessActive && <button type="button" disabled={saveTransactionNote.isPending || deleteTransactionNote.isPending || !privateNoteDraft.trim()} onClick={() => void savePrivateTransactionNote()} data-testid="button-save-private-transaction-note" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50">{saveTransactionNote.isPending ? 'Saving…' : 'Save private note'}</button>}
+                            {vaultAccessActive && selectedTransactionNote && <button type="button" disabled={saveTransactionNote.isPending || deleteTransactionNote.isPending} onClick={() => void removePrivateTransactionNote()} data-testid="button-delete-private-transaction-note" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#6b7888] disabled:opacity-50">{deleteTransactionNote.isPending ? 'Deleting…' : 'Delete note'}</button>}
                           </div>
                         </>}
                       </div>}
@@ -806,30 +879,30 @@ export function PrivateVaultPanel() {
               <details id="vault-email-preferences" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-email-banner-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Transaction email banner</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose whether to email recipients, then customize the banner and optional support footer link.</p>
-                {!subscriptionActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Read-only until your subscription is active.</p>}
-                {emailPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> : emailPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Email alert settings could not be loaded.</p> : <form onSubmit={submitEmailPreferences} className="mt-3 grid gap-3 sm:grid-cols-2">
+                {!vaultAccessActive ? <p role="status" className="mt-2 text-[9px] font-semibold text-[#8a784c]">Activate Private Vault access to load these settings.</p> :
+                  emailPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> : emailPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Email alert settings could not be loaded.</p> : <form onSubmit={submitEmailPreferences} className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="flex items-start gap-2 rounded-lg border border-[#e4eaee] bg-white px-3 py-2 text-[9px] leading-4 text-[#64798d] sm:col-span-2">
-                    <input disabled={!subscriptionActive} type="checkbox" checked={transactionEmailAlertsEnabled} onChange={event => setTransactionEmailAlertsEnabled(event.currentTarget.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-transaction-email-alerts" />
+                    <input disabled={!vaultAccessActive} type="checkbox" checked={transactionEmailAlertsEnabled} onChange={event => setTransactionEmailAlertsEnabled(event.currentTarget.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-transaction-email-alerts" />
                     <span><strong className="text-[#344b64]">Send recipient transaction email alerts.</strong> When off, the recipient email field is hidden from the transfer form and no recipient email is stored or sent.</span>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Banner color
-                    <select disabled={!subscriptionActive} value={bannerTheme} onChange={event => setBannerTheme(event.target.value as BankVaultEmailPreferences['bannerTheme'])} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="select-vault-email-banner-theme">
+                    <select disabled={!vaultAccessActive} value={bannerTheme} onChange={event => setBannerTheme(event.target.value as BankVaultEmailPreferences['bannerTheme'])} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="select-vault-email-banner-theme">
                       <option value="navy">Globus navy</option><option value="teal">Globus teal</option><option value="gold">Globus gold</option>
                     </select>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Banner headline
-                    <input disabled={!subscriptionActive} required maxLength={60} value={bannerHeadline} onChange={event => setBannerHeadline(event.target.value)} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-banner-headline" />
+                    <input disabled={!vaultAccessActive} required maxLength={60} value={bannerHeadline} onChange={event => setBannerHeadline(event.target.value)} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-banner-headline" />
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085] sm:col-span-2">Customer sender address
                     <span className="mt-1 flex h-9 items-center overflow-hidden rounded-lg border border-[#dfe6eb] bg-white focus-within:border-[#77aeb0]">
-                      <input disabled={!subscriptionActive} maxLength={64} pattern="[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?" value={senderLocalPart} onChange={event => setSenderLocalPart(event.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="choose-a-prefix" className="h-full min-w-0 flex-1 bg-transparent px-3 text-[10px] text-[#344b64] outline-none disabled:bg-[#f3f5f5]" data-testid="input-vault-email-sender-prefix" />
+                      <input disabled={!vaultAccessActive} maxLength={64} pattern="[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?" value={senderLocalPart} onChange={event => setSenderLocalPart(event.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="choose-a-prefix" className="h-full min-w-0 flex-1 bg-transparent px-3 text-[10px] text-[#344b64] outline-none disabled:bg-[#f3f5f5]" data-testid="input-vault-email-sender-prefix" />
                       <span className="shrink-0 pr-3 text-[9px] font-medium text-[#8190a0]">@{emailPreferences.data?.senderDomain ?? 'globus.website'}</span>
                     </span>
                     <span className="mt-1 block text-[8px] font-normal leading-4 text-[#8794a2]">Recipients see “{emailPreferences.data?.senderDisplayName ?? 'GLOBUS BANK'}”. The domain and display name are fixed; this sender identity applies only to transfer alerts.</span>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Custom banner background
                     <span className="mt-1 flex h-9 items-center gap-2 rounded-lg border border-[#dfe6eb] bg-white px-2">
-                      <input disabled={!subscriptionActive} type="color" value={bannerBackgroundColor} onChange={event => setBannerBackgroundColor(event.target.value)} className="h-6 w-8 cursor-pointer border-0 bg-transparent p-0 disabled:cursor-not-allowed" aria-label="Choose email banner background color" data-testid="input-vault-email-banner-background-color" />
+                      <input disabled={!vaultAccessActive} type="color" value={bannerBackgroundColor} onChange={event => setBannerBackgroundColor(event.target.value)} className="h-6 w-8 cursor-pointer border-0 bg-transparent p-0 disabled:cursor-not-allowed" aria-label="Choose email banner background color" data-testid="input-vault-email-banner-background-color" />
                       <span className="font-mono text-[9px] font-normal uppercase text-[#687d90]">{bannerBackgroundColor}</span>
                     </span>
                   </label>
@@ -842,18 +915,18 @@ export function PrivateVaultPanel() {
                     {includeSupportLink && supportUrl.trim() && <div className="border-t border-[#e7ecee] bg-white px-4 py-2 text-center text-[9px] font-bold text-[#356e75]">{supportLabel.trim() || 'Contact support'}</div>}
                   </div>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Footer link label
-                    <input disabled={!subscriptionActive} required maxLength={40} value={supportLabel} onChange={event => setSupportLabel(event.target.value)} placeholder="Contact support" className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-support-label" />
+                    <input disabled={!vaultAccessActive} required maxLength={40} value={supportLabel} onChange={event => setSupportLabel(event.target.value)} placeholder="Contact support" className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-support-label" />
                     <span className="mt-1 block text-[8px] font-normal text-[#8794a2]">This text appears as the clickable footer link when enabled.</span>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085] sm:col-span-2">Support contact URL
-                    <input disabled={!subscriptionActive} type="url" maxLength={500} value={supportUrl} onChange={event => setSupportUrl(event.target.value)} placeholder="https://support.example.com" className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-support-url" />
+                    <input disabled={!vaultAccessActive} type="url" maxLength={500} value={supportUrl} onChange={event => setSupportUrl(event.target.value)} placeholder="https://support.example.com" className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-vault-email-support-url" />
                     <span className="mt-1 block text-[8px] font-normal text-[#8794a2]">Use an HTTPS link. It appears with your footer label only when enabled below.</span>
                   </label>
                   <label className="flex items-start gap-2 text-[9px] leading-4 text-[#64798d] sm:col-span-2">
-                    <input disabled={!subscriptionActive} type="checkbox" checked={includeSupportLink} onChange={event => setIncludeSupportLink(event.target.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-email-support-link" />
+                    <input disabled={!vaultAccessActive} type="checkbox" checked={includeSupportLink} onChange={event => setIncludeSupportLink(event.target.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-email-support-link" />
                     <span>Include my support contact link in future recipient alert email footers.</span>
                   </label>
-                  {subscriptionActive && <button type="submit" disabled={saveEmailPreferences.isPending || !bannerHeadline.trim() || !supportLabel.trim() || (includeSupportLink && !supportUrl.trim())} data-testid="button-save-vault-email-banner" className="h-8 justify-self-start rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50 sm:col-span-2">{saveEmailPreferences.isPending ? 'Saving…' : 'Save email design'}</button>}
+                  {vaultAccessActive && <button type="submit" disabled={saveEmailPreferences.isPending || !bannerHeadline.trim() || !supportLabel.trim() || (includeSupportLink && !supportUrl.trim())} data-testid="button-save-vault-email-banner" className="h-8 justify-self-start rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50 sm:col-span-2">{saveEmailPreferences.isPending ? 'Saving…' : 'Save email design'}</button>}
                 </form>}
               </details>
             </div>
@@ -877,27 +950,24 @@ export function PrivateVaultPanel() {
       </section>
       <section id="vault-receipts" className="scroll-mt-24 rounded-xl border border-[#dce6e8] bg-white p-3 sm:p-4" data-testid="vault-receipt-preferences">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Receipt preferences</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Choose your transaction receipt</h3><p className="mt-1 max-w-xl text-[9px] leading-4 text-[#77889a]">Select one of five layouts. Your choice applies to receipts across Globus Bank; transaction amounts, dates, status, references, and counterparties always come from your account records.</p></div>
+          <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Receipt preferences</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Choose your transaction receipt</h3><p className="mt-1 max-w-xl text-[9px] leading-4 text-[#77889a]">Select one of five layouts for future transfers. Existing receipts keep their recorded design; transaction facts always come from your account records.</p></div>
           <span className="rounded-full bg-[#eef6f6] px-2.5 py-1 text-[8px] font-bold text-[#4a7c7e]">All customer receipts</span>
         </div>
-        {receiptPreferences.isLoading ? <div className="mt-3 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
-          receiptPreferences.isError && <div role="alert" className="mt-3 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[9px] text-[#a24940]"><span>Receipt preferences could not be loaded.</span><button type="button" onClick={() => void receiptPreferences.refetch()} className="font-bold underline">Try again</button></div>}
+        {!vaultAccessActive && <p role="status" className="mt-3 rounded-lg border border-[#e8e1cc] bg-[#fbf8ef] px-3 py-2 text-[9px] text-[#806f43]">Active Private Vault access is required to update your preferred receipt design.</p>}
+        {receiptPreference.isLoading && <div className="mt-3 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" />}
+        {receiptPreference.isError && <div role="alert" className="mt-3 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[9px] text-[#a24940]"><span>Receipt preferences could not be loaded.</span><button type="button" onClick={() => void receiptPreference.refetch()} className="font-bold underline">Try again</button></div>}
         <div role="radiogroup" aria-label="Preferred transaction receipt layout" className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {RECEIPT_LAYOUTS.map(layout => <button key={layout.id} type="button" role="radio" aria-checked={preferredReceiptTemplate === layout.id} aria-pressed={preferredReceiptTemplate === layout.id} onClick={() => setPreferredReceiptTemplate(layout.id)} className={`min-w-0 rounded-lg border p-2.5 text-left transition ${preferredReceiptTemplate === layout.id ? 'border-[#4d8b8d] bg-[#f2f8f7] ring-1 ring-[#4d8b8d]/15' : 'border-[#e2e9ec] bg-[#fbfcfd] hover:border-[#b7d1d2]'}`} data-testid={`button-receipt-layout-${layout.id}`}>
-            <div aria-hidden="true" className={`flex h-12 items-center gap-1.5 overflow-hidden rounded-md border px-2 ${layout.id === 'settlement_statement' ? 'border-[#d7e0da] bg-[#f3f6f0]' : layout.id === 'transfer_ledger' ? 'border-[#173c4b] bg-[#173c4b]' : layout.id === 'transfer_journey' ? 'border-[#173951] bg-[#173951]' : 'border-[#dce5e8] bg-white'}`}>
-              <span className={`h-7 w-1/3 rounded-sm ${layout.id === 'settlement_statement' ? 'bg-[#173b4b]' : layout.id === 'transfer_ledger' || layout.id === 'transfer_journey' ? 'bg-[#84ada6]' : 'bg-[#173858]'}`} />
-              <span className="flex min-w-0 flex-1 flex-col gap-1.5"><i className={`h-1 w-3/4 rounded ${layout.id === 'settlement_statement' ? 'bg-[#90a59d]' : layout.id === 'transfer_ledger' || layout.id === 'transfer_journey' ? 'bg-white/50' : 'bg-[#aab9c3]'}`} /><i className={`h-1 w-full rounded ${layout.id === 'transfer_ledger' || layout.id === 'transfer_journey' ? 'bg-white/30' : 'bg-[#d6dfe4]'}`} /><i className={`h-1 w-2/3 rounded ${layout.id === 'transfer_ledger' || layout.id === 'transfer_journey' ? 'bg-white/30' : 'bg-[#d6dfe4]'}`} /></span>
-              <span className={`h-6 w-6 rounded-full ${layout.id === 'transfer_journey' ? 'border-2 border-[#70a899]' : layout.id === 'settlement_statement' ? 'bg-[#dcebe1]' : 'bg-[#e9f0ed]'}`} />
-            </div>
+          {RECEIPT_LAYOUTS.map(layout => <button key={layout.id} type="button" role="radio" disabled={!vaultAccessActive} aria-checked={preferredReceiptTemplate === layout.id} aria-pressed={preferredReceiptTemplate === layout.id} onClick={() => setPreferredReceiptTemplate(layout.id)} className={`min-w-0 rounded-lg border p-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-55 ${preferredReceiptTemplate === layout.id ? 'border-[#4d8b8d] bg-[#f2f8f7] ring-1 ring-[#4d8b8d]/15' : 'border-[#e2e9ec] bg-[#fbfcfd] hover:border-[#b7d1d2]'}`} data-testid={`button-receipt-layout-${layout.id}`}>
+            <ReceiptTemplateMiniPreview template={layout.id} />
             <span className="mt-2 block text-[9px] font-bold text-[#354c63]">{layout.label}</span>
             <span className="mt-0.5 block text-[8px] leading-4 text-[#8090a0]">{layout.summary}</span>
           </button>)}
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf0f2] pt-3">
-          <p className="text-[8px] text-[#8391a0]">{receiptPreferences.data ? `Saved layout: ${RECEIPT_LAYOUTS.find(layout => layout.id === receiptPreferences.data?.preferredTemplate)?.label ?? 'Classic receipt'}` : 'Choose a layout to set your preferred receipt.'}</p>
+          <p className="text-[8px] text-[#8391a0]">{receiptPreference.data ? `Saved layout: ${RECEIPT_LAYOUTS.find(layout => layout.id === receiptPreference.data?.preferredReceiptTemplate)?.label ?? 'Classic receipt'}` : 'Unlock your Vault to load and save a layout.'}</p>
           <div className="flex flex-wrap gap-2">
-            {sessionToken && transactions.data?.[0] && <button type="button" onClick={() => setReceiptPreview(transactions.data![0])} className="h-8 rounded-lg border border-[#dfe7eb] bg-white px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]">Preview with latest transaction</button>}
-            <button type="button" disabled={saveReceiptPreferences.isPending || receiptPreferences.isLoading || preferredReceiptTemplate === receiptPreferences.data?.preferredTemplate} onClick={() => void savePreferredReceiptTemplate()} className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-save-receipt-preference">{saveReceiptPreferences.isPending ? 'Saving…' : 'Save preferred layout'}</button>
+            {sessionToken && transactions.data?.[0] && <button type="button" onClick={() => setReceiptPreview(transactions.data![0])} className="h-8 rounded-lg border border-[#dfe7eb] bg-white px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]">Open latest receipt</button>}
+            <button type="button" disabled={!vaultAccessActive || saveReceiptPreference.isPending || receiptPreference.isLoading || preferredReceiptTemplate === receiptPreference.data?.preferredReceiptTemplate} onClick={() => void submitReceiptPreference()} className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-save-receipt-preference">{saveReceiptPreference.isPending ? 'Saving…' : 'Save preferred layout'}</button>
           </div>
         </div>
       </section>
@@ -920,7 +990,7 @@ export function PrivateVaultPanel() {
         </aside>
       </div>}
     </section>
-    {receiptPreview && <TransferReceiptModal transaction={receiptPreview} onClose={() => setReceiptPreview(null)} title={receiptPreview.type.replaceAll('_', ' ')} templateOverride={preferredReceiptTemplate} />}
+    {receiptPreview && <TransferReceiptModal transaction={receiptPreview} onClose={() => setReceiptPreview(null)} title={receiptPreview.type.replaceAll('_', ' ')} />}
     </>
   );
 }

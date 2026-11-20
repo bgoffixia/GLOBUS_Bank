@@ -5,7 +5,8 @@
  * Globus internal ledger API; no external financial provider is connected
  * OpenAPI spec version: 0.1.0
  */
+import type { ReceiptTemplate } from './receiptTemplate';
 
-export interface BankVaultProofUploadResult {
-  uploadUrl: string;
+export interface BankVaultReceiptPreference {
+  preferredReceiptTemplate: ReceiptTemplate;
 }

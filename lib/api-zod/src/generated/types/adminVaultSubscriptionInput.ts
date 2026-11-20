@@ -9,9 +9,4 @@ import type { AdminVaultSubscriptionInputStatus } from './adminVaultSubscription
 
 export interface AdminVaultSubscriptionInput {
   status: AdminVaultSubscriptionInputStatus;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
 }

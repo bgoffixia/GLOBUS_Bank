@@ -18,16 +18,29 @@ export interface BankProfileInput {
      */
   lastName: string;
   /**
-     * @minLength 3
-     * @maxLength 32
+     * @maxLength 1024
+     * @nullable
      */
-  phone: string;
+  phone?: string | null;
   /**
-     * @minLength 2
-     * @maxLength 80
+     * @maxLength 1024
+     * @nullable
      */
-  country: string;
-  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
-  dateOfBirth?: string;
-  acceptedTerms: true;
+  country?: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  dateOfBirth?: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  cityOfOrigin?: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  occupation?: string | null;
+  acceptedTerms?: true;
 }

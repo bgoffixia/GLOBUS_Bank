@@ -11,22 +11,12 @@ export interface AdminSettingsInput {
   fundingLimit: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   secondApprovalThreshold: string;
-  /**
-     * @minLength 1
-     * @maxLength 500
-     */
-  unverifiedDashboardMessage: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   vaultPlan1mPrice: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   vaultPlan3mPrice: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   vaultPlan1yPrice: string;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }

@@ -6,7 +6,10 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface IdentityDocumentUploadUrl {
-  documentId: string;
-  uploadUrl: string;
-}
+export type ListAdminVaultAccessParams = {
+/**
+ * @minLength 2
+ * @maxLength 100
+ */
+search: string;
+};

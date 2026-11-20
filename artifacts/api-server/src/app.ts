@@ -1,4 +1,5 @@
 import express, { type Express } from "express";
+import path from "node:path";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import { rateLimit } from "express-rate-limit";
@@ -92,5 +93,27 @@ app.use("/api/bank/external-transfers", financialActionLimiter);
 app.use("/api/bank/international-transfer-requests", financialActionLimiter);
 app.use("/api/bank/ledger-requests", financialActionLimiter);
 app.use("/api", router);
+
+if (process.env.SERVE_WEB_APP === "true") {
+  const webRoot = path.resolve(
+    process.cwd(),
+    "../globus-bank/dist/public",
+  );
+  app.use(express.static(webRoot, { index: false }));
+  app.get("/{*splat}", (req, res, next) => {
+    if (
+      req.path === "/api" ||
+      req.path.startsWith("/api/") ||
+      req.path === CLERK_PROXY_PATH ||
+      req.path.startsWith(`${CLERK_PROXY_PATH}/`)
+    ) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(webRoot, "index.html"), (error) => {
+      if (error) next(error);
+    });
+  });
+}
 
 export default app;

@@ -11,7 +11,11 @@ import {
   bankWalletsTable,
   db,
 } from "@workspace/db";
-import { hasActiveVaultSubscription } from "./bank-vault";
+import {
+  getVaultAccessSource,
+  hasActiveVaultAccess,
+  hasActiveVaultSubscription,
+} from "./bank-vault";
 
 type RestrictionExecutor = Pick<typeof db, "select">;
 
@@ -37,8 +41,10 @@ export async function bankOperationRestrictionError(
 ): Promise<string | null> {
   const [user] = await executor
     .select({
+        id: bankUsersTable.id,
       accountStatus: bankUsersTable.accountStatus,
-      verificationStatus: bankUsersTable.verificationStatus,
+      vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
+      vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
     })
     .from(bankUsersTable)
     .where(eq(bankUsersTable.id, input.userId))
@@ -49,9 +55,9 @@ export async function bankOperationRestrictionError(
   }
   if (
     (input.operation === "deposit" || input.operation === "withdrawal") &&
-    user.verificationStatus !== "approved"
+    !(await hasActiveVaultAccess(user, executor))
   ) {
-    return "Complete identity verification before requesting deposits or withdrawals.";
+    return "Active Private Vault access is required for deposits or withdrawals.";
   }
 
   const now = new Date();
@@ -118,16 +124,18 @@ export async function bankOperationRestrictionError(
 export async function getBankOperationEligibility(
   userId: string,
   accountStatus: "active" | "restricted" | "suspended",
-  verificationStatus: string,
-): Promise<{ depositAllowed: boolean; withdrawalAllowed: boolean }> {
-  if (accountStatus !== "active" || verificationStatus !== "approved") {
-    return { depositAllowed: false, withdrawalAllowed: false };
-  }
-
+): Promise<{
+  depositAllowed: boolean;
+  withdrawalAllowed: boolean;
+  vaultSubscriptionActive: boolean;
+  vaultAccessActive: boolean;
+  vaultAccessSource: "none" | "paystack_subscription" | "admin_grant";
+}> {
   const now = new Date();
   const [subscription, restrictions] = await Promise.all([
     db
       .select({
+        id: bankUsersTable.id,
         status: bankUsersTable.vaultSubscriptionStatus,
         expiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
       })
@@ -151,21 +159,32 @@ export async function getBankOperationEligibility(
       ),
   ]);
   const types = new Set(restrictions.map((restriction) => restriction.type));
-  const subscriptionActive = hasActiveVaultSubscription({
+  const user = {
+    id: userId,
     vaultSubscriptionStatus: subscription[0]?.status ?? "inactive",
     vaultSubscriptionExpiresAt: subscription[0]?.expiresAt ?? null,
-  });
+  };
+  const subscriptionActive = hasActiveVaultSubscription(user, now);
+  const vaultAccessSource = await getVaultAccessSource(user, db, now);
+  const vaultAccessActive = vaultAccessSource !== "none";
   const commonRestriction =
+    accountStatus !== "active" ||
     types.has("suspend_user") ||
     types.has("under_review") ||
     types.has("read_only");
 
   return {
+    vaultSubscriptionActive: subscriptionActive,
+    vaultAccessActive,
+    vaultAccessSource,
     depositAllowed:
-      subscriptionActive &&
+      accountStatus === "active" &&
+      vaultAccessActive &&
       !commonRestriction &&
       !types.has("restrict_deposits"),
     withdrawalAllowed:
+      accountStatus === "active" &&
+      vaultAccessActive &&
       !commonRestriction &&
       !types.has("restrict_withdrawals") &&
       !types.has("freeze_wallet"),
@@ -182,6 +201,38 @@ export function generateCustomerId(): string {
     { length: 7 },
     () => customerIdAlphabet.charAt(randomInt(customerIdAlphabet.length)),
   ).join("");
+}
+
+async function ensureCustomerIdForUser(userId: string) {
+  for (let attempt = 0; attempt < 10; attempt += 1) {
+    try {
+      const [updated] = await db
+        .update(bankUsersTable)
+        .set({ customerId: generateCustomerId(), updatedAt: new Date() })
+        .where(and(eq(bankUsersTable.id, userId), isNull(bankUsersTable.customerId)))
+        .returning();
+      if (updated) return updated;
+    } catch (error) {
+      const uniqueConflict =
+        typeof error === "object" &&
+        error !== null &&
+        "code" in error &&
+        error.code === "23505";
+      if (!uniqueConflict) throw error;
+    }
+
+    const [current] = await db
+      .select()
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, userId))
+      .limit(1);
+    if (!current) {
+      throw new Error("Could not resolve the Globus account for this user.");
+    }
+    if (current.customerId) return current;
+  }
+
+  throw new Error("Could not allocate a unique Globus Customer ID.");
 }
 
 export async function backfillCustomerIds(): Promise<void> {
@@ -220,8 +271,10 @@ export async function backfillCustomerIds(): Promise<void> {
   }
 }
 
-export function parseAmountToMinor(amount: string): bigint {
-  const match = /^(\d{1,12})(?:\.(\d{1,2}))?$/.exec(amount);
+export function parseAmountToMinor(amount: string, maxWholeDigits = 12): bigint {
+  const match = new RegExp(`^(\\d{1,${maxWholeDigits}})(?:\\.(\\d{1,2}))?$`).exec(
+    amount,
+  );
   if (!match) {
     throw new Error("Enter a valid amount with up to two decimal places.");
   }
@@ -298,7 +351,9 @@ export async function ensureBankUser(
     .limit(1);
 
   if (existing) {
-    return existing;
+    return existing.customerId
+      ? existing
+      : ensureCustomerIdForUser(existing.id);
   }
 
   const identity = await loadClerkIdentity(clerkUserId);
@@ -311,7 +366,7 @@ export async function ensureBankUser(
     throw new Error("A verified email address is required for a Globus account.");
   }
 
-  return db.transaction(async (tx) => {
+  const resolvedUser = await db.transaction(async (tx) => {
     const [existingByEmail] = await tx
       .select()
       .from(bankUsersTable)
@@ -379,6 +434,10 @@ export async function ensureBankUser(
 
     return resolvedUser;
   });
+
+  return resolvedUser.customerId
+    ? resolvedUser
+    : ensureCustomerIdForUser(resolvedUser.id);
 }
 
 export async function getWalletsForUser(userId: string) {
@@ -597,6 +656,7 @@ export function toBankTransaction(
     reference: transaction.reference,
     type,
     status: transaction.status,
+    receiptTemplate: transaction.receiptTemplate,
     currency: transaction.currency as BankCurrency,
     amount: formatMinorAmount(transaction.amountMinor),
     fee: formatMinorAmount(transaction.feeMinor),

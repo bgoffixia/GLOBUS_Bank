@@ -5,7 +5,7 @@ description: Product rules for Globus wallet, deposit, withdrawal, transfer, and
 
 Globus must not connect to external banking providers, payment gateways, or real-money transfer APIs, and must not require third-party financial services. Deposits, member transfers, withdrawals, and administrative balance adjustments are internal ledger entries synchronized with the database.
 
-Only identity-verified members who pass the applicable account and operation restrictions may use deposit or withdrawal features. Active Private Vault subscribers' wallet top-ups are credited immediately after PIN, subscription, account, wallet, and restriction checks; deposit requests are not sent to administrators for review. Withdrawals remain administrator-approved. Pending withdrawals reserve the requested amount; approval debits the wallet, while rejection releases the reserve. Internal member transfers post to both member wallets together. Downloadable receipts must clearly identify themselves as internal ledger records, not proof of outside payment.
+Customers with valid Private Vault access who pass the applicable account and operation restrictions may use deposit or withdrawal features. Vault wallet credits are internal balanced ledger entries, credited immediately after server-side Vault-access, account, wallet, restriction, amount, and transaction-PIN checks; they are not connected to an external funding provider and are not sent to administrators for review. Customers may provide a label/description stored with the ledger transaction. Withdrawals remain administrator-approved. Pending withdrawals reserve the requested amount; approval debits the wallet, while rejection releases the reserve. Internal member transfers post to both member wallets together. Downloadable receipts must clearly identify themselves as internal ledger records, not proof of outside payment.
 
 Customer-facing language must not use the words “Demo” or “Simulation.” It must still disclose that balances are internal Globus records and no outside funds are received, held, or sent.
 
@@ -20,6 +20,8 @@ Admin funding and correction adjustments share a maximum of 100,000,000 per curr
 Customer private-vault controls are per wallet and prospective: they may enable/disable future transfers, deposits, and withdrawals, and choose future transfer handling. New wallets default to rejecting new transfer requests; vault controls never rewrite existing transaction status or ledger history.
 
 **Why:** The user explicitly set these product and disclosure boundaries.
+
+**Why:** The user confirmed that Vault wallet funding should use internal Globus ledger credits with customer-provided label notes/descriptions.
 
 **Why:** The user requested an international transfer page with automatic currency conversion while prohibiting external banking and payment services; admin-maintained rates are the internal-only approach.
 
@@ -39,4 +41,4 @@ Customer private-vault controls are per wallet and prospective: they may enable/
 
 **How to apply:** Never collect full card numbers or CVV. Bank account numbers require the dedicated encryption secret, stable key retention, and masked-only responses; never send plaintext into logs or audit records. Keep deposit credits and withdrawal debits administrator-reviewed, with verification and restrictions checked on the server at submission and commit.
 
-**How to apply:** Enforce each wallet toggle on the backend at submission and before commit. Require active Vault subscription for deposits, credit them in the same balanced ledger transaction, and keep them out of admin review queues. Keep customer controls separate from administrator restrictions, and treat all customer policy changes as forward-only.
+**How to apply:** Enforce each wallet toggle on the backend at submission and before commit. Require valid Vault access for wallet credits, validate amounts and descriptions on the server, credit in the same balanced ledger transaction, and keep credits out of admin review queues. Keep customer controls separate from administrator restrictions, and treat all customer policy changes as forward-only.

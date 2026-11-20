@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1795046400000,
+      "tag": "20261119_admin_user_access_fields",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1795132800000,
+      "tag": "20261120_customer_receipt_preference",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1795154400000,
+      "tag": "20261120_private_vault_admin_entitlements",
+      "breakpoints": true
+    }
+  ]
+}

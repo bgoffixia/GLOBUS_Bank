@@ -274,8 +274,11 @@
 .gb-signin-form-wrap { width: 100%; }
 .gb-signin-spaced-label { margin-top: 20px; }
 .gb-customer-id-input { font-family: "IBM Plex Mono", monospace; font-size: 15px; font-weight: 650; letter-spacing: .15em; }
-.gb-login-recovery-actions { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-top: 13px; }
+.gb-login-recovery-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 4px 10px; margin-top: 10px; }
 .gb-login-recovery-action {
+  display: inline-flex;
+  min-height: 40px;
+  align-items: center;
   padding: 3px 0;
   border: 0;
   background: transparent;
@@ -285,6 +288,19 @@
   font-weight: 700;
   text-decoration: none;
   cursor: pointer;
+}
+.gb-signin-form-wrap .gb-signin-field-error {
+  margin: 2px 0 0;
+  padding: 8px 10px;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+.gb-signin-form-wrap .gb-auth-form > .gb-auth-error:not(.gb-signin-field-error) {
+  margin-top: 8px;
+  padding: 9px 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 .gb-login-recovery-action:hover { color: #173b62; text-decoration: underline; text-underline-offset: 2px; }
 .gb-login-recovery-action:focus-visible { outline: 3px solid rgba(55, 125, 131, .32); outline-offset: 3px; border-radius: 2px; }
@@ -453,4 +469,695 @@
   .gb-field-grid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* Sign-up is a focused, single-column entry point. Keep every override inside
+   its dedicated shell so the established sign-in experience is untouched. */
+.gb-auth-signup-shell {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto;
+  overflow: visible;
+  align-items: center;
+  justify-content: center;
+  padding: clamp(20px, 4vh, 48px) 24px;
+  background: #fff;
+  color: #1d2540;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.gb-auth-signup-shell .gb-brand-panel {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-form-side {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  overflow: visible;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.gb-auth-signup-shell .gb-auth-content,
+.gb-auth-signup-shell .gb-signup-content {
+  width: 100%;
+  max-width: 454px;
+  margin: 0 auto;
+  animation: gb-arrive .42s cubic-bezier(.2,.7,.2,1) both;
+}
+
+.gb-auth-signup-shell .gb-signup-brand {
+  display: flex;
+  width: min(218px, 62vw);
+  margin: 0 auto clamp(16px, 3.5vh, 28px);
+  align-items: center;
+  justify-content: center;
+}
+
+.gb-auth-signup-shell .gb-signup-brand img,
+.gb-auth-signup-shell img.gb-signup-brand {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.gb-auth-signup-shell .gb-mobile-brand.gb-signup-brand {
+  gap: 0;
+}
+
+.gb-auth-signup-shell .gb-mobile-brand.gb-signup-brand img:first-child {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-mobile-brand.gb-signup-brand img:last-child {
+  width: 100%;
+}
+
+.gb-auth-signup-shell .gb-signup-heading {
+  margin: 0 0 20px;
+  text-align: center;
+}
+
+.gb-auth-signup-shell .gb-signup-heading h1,
+.gb-auth-signup-shell h1.gb-signup-heading {
+  margin: 0 0 11px;
+  color: #20233c;
+  font-family: Manrope, 'DM Sans', sans-serif;
+  font-size: clamp(30px, 4vw, 36px);
+  font-weight: 750;
+  line-height: 1.16;
+  letter-spacing: -.045em;
+  overflow-wrap: normal;
+}
+
+.gb-auth-signup-shell .gb-signup-heading p {
+  max-width: 390px;
+  margin: 0 auto;
+  color: #777b8e;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-form-heading {
+  margin-bottom: 20px;
+  text-align: center;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-form-heading .gb-step-label {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-form-heading h1 {
+  margin: 0 0 11px;
+  color: #20233c;
+  font-family: Manrope, 'DM Sans', sans-serif;
+  font-size: clamp(30px, 4vw, 36px);
+  font-weight: 750;
+  line-height: 1.16;
+  letter-spacing: -.045em;
+  overflow-wrap: normal;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-form-heading p {
+  color: #777b8e;
+  font-size: 14px;
+  line-height: 1.65;
+}
+
+.gb-auth-signup-shell .gb-signup-fields,
+.gb-auth-signup-shell .gb-signup-content .gb-auth-form,
+.gb-auth-signup-shell .gb-signup-content .gb-field-grid {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-field-grid {
+  display: flex;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-field,
+.gb-auth-signup-shell .gb-signup-fields .gb-field {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-field-label,
+.gb-auth-signup-shell .gb-signup-fields .gb-field-label {
+  margin: 0 0 4px;
+  color: #36394f;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-input,
+.gb-auth-signup-shell .gb-signup-fields .gb-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #dedfe6;
+  border-radius: 10px;
+  background: #f8f8fa;
+  color: #292c43;
+  box-shadow: none;
+  font: inherit;
+  font-size: 14px;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-input::placeholder,
+.gb-auth-signup-shell .gb-signup-fields input::placeholder {
+  color: #a1a2af;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-input:focus-visible,
+.gb-auth-signup-shell .gb-signup-fields input:focus-visible {
+  border-color: #9873e8;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(133, 91, 220, .13);
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-spaced-label {
+  margin-top: 0;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-terms-check {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-password-hint {
+  display: block;
+  margin: 2px 0 0;
+  color: #777b8e;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-terms {
+  display: flex;
+  margin-top: 2px;
+  color: #696d7f;
+  font-size: 12px;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-continue,
+.gb-auth-signup-shell .gb-signup-content .gb-primary-button {
+  width: 100%;
+  min-height: 48px;
+  margin-top: 0;
+  padding: 0 18px;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(105deg, #7048d6 0%, #925fe7 100%);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(112, 72, 214, .16);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: .005em;
+  transition: transform .18s ease, box-shadow .18s ease, opacity .18s ease;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-continue:hover:not(:disabled),
+.gb-auth-signup-shell .gb-signup-content .gb-primary-button:hover:not(:disabled) {
+  background: linear-gradient(105deg, #6840ce 0%, #8754dc 100%);
+  box-shadow: 0 10px 22px rgba(112, 72, 214, .23);
+  transform: translateY(-1px);
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-continue span[aria-hidden="true"],
+.gb-auth-signup-shell .gb-signup-content .gb-primary-button span[aria-hidden="true"] {
+  display: none;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-primary-button span:not([aria-hidden="true"]) {
+  color: #fff;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-switch-copy {
+  margin: 14px 0 0;
+  color: #777b8e;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-switch-copy a {
+  display: inline-flex;
+  min-height: 44px;
+  align-items: center;
+  padding: 0 3px;
+  color: #744bd3;
+  font-weight: 700;
+  vertical-align: middle;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-switch-copy a:hover {
+  color: #5736ad;
+}
+
+.gb-auth-signup-shell .gb-signup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 16px 0 0;
+  padding: 0;
+  color: #9698a5;
+  font-size: 11px;
+  line-height: 1.4;
+  letter-spacing: .01em;
+  text-align: center;
+}
+
+.gb-auth-signup-shell .gb-signup-footer svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-auth-error,
+.gb-auth-signup-shell .gb-signup-content .gb-auth-notice {
+  margin: 0;
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* Let the document, rather than a clipped app frame, scroll through long sign-up steps. */
+html:has(.gb-auth-signup-shell) {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-y: auto;
+}
+
+body:has(.gb-auth-signup-shell),
+body:has(.gb-auth-signup-shell) #root {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+@media (max-width: 760px) {
+  .gb-auth-signup-shell {
+    display: flex;
+    min-height: 100vh;
+    min-height: 100dvh;
+    height: auto;
+    padding: max(16px, env(safe-area-inset-top)) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  }
+
+  .gb-auth-signup-shell .gb-form-side {
+    display: flex;
+    width: 100%;
+    height: auto;
+    min-height: 0;
+    padding: 0;
+  }
+
+  .gb-auth-signup-shell .gb-auth-content,
+  .gb-auth-signup-shell .gb-signup-content {
+    max-width: 454px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-brand {
+    width: min(198px, 62vw);
+    margin-bottom: 14px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-heading,
+  .gb-auth-signup-shell .gb-signup-content .gb-form-heading {
+    margin-bottom: 14px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-content .gb-auth-form,
+  .gb-auth-signup-shell .gb-signup-fields,
+  .gb-auth-signup-shell .gb-signup-content .gb-field-grid {
+    gap: 8px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-content .gb-input,
+  .gb-auth-signup-shell .gb-signup-fields .gb-input {
+    height: 48px;
+    font-size: 16px;
+    padding-right: 12px;
+    padding-left: 12px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-footer {
+    display: flex;
+    margin-top: 14px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-content .gb-switch-copy {
+    margin-top: 12px;
+  }
+}
+
+@media (max-width: 390px) {
+  .gb-auth-signup-shell {
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+
+  .gb-auth-signup-shell .gb-signup-heading h1,
+  .gb-auth-signup-shell h1.gb-signup-heading,
+  .gb-auth-signup-shell .gb-signup-content .gb-form-heading h1 {
+    font-size: 29px;
+  }
+}
+
+/* Keep sign-in and sign-up visually consistent while limiting login to
+   the credentials Clerk is configured to accept. */
+.gb-auth-signin-shell {
+  display: flex;
+  width: 100%;
+  min-height: 100vh;
+  min-height: 100dvh;
+  height: auto;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: clamp(20px, 4vh, 48px) 24px;
+  background: #fff;
+  color: #1d2540;
+  font-family: 'DM Sans', sans-serif;
+}
+
+.gb-auth-signin-shell .gb-brand-panel {
+  display: none;
+}
+
+.gb-auth-signin-shell .gb-form-side {
+  display: flex;
+  width: 100%;
+  min-height: 0;
+  height: auto;
+  align-items: center;
+  justify-content: center;
+  overflow: visible;
+  padding: 0;
+}
+
+.gb-auth-signin-shell .gb-auth-content {
+  width: 100%;
+  max-width: 454px;
+  margin: 0 auto;
+  animation: gb-arrive .42s cubic-bezier(.2,.7,.2,1) both;
+}
+
+.gb-auth-signin-shell .gb-signin-brand {
+  display: flex;
+  width: min(218px, 62vw);
+  margin: 0 auto clamp(16px, 3.5vh, 28px);
+  align-items: center;
+  justify-content: center;
+}
+
+.gb-auth-signin-shell .gb-signin-brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading {
+  margin: 0 0 16px;
+  text-align: center;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading .gb-step-label {
+  display: none;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading h1 {
+  margin: 0 0 8px;
+  color: #20233c;
+  font-family: Manrope, 'DM Sans', sans-serif;
+  font-size: clamp(30px, 4vw, 36px);
+  font-weight: 750;
+  line-height: 1.16;
+  letter-spacing: -.045em;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading p {
+  margin: 0;
+  color: #777b8e;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-auth-form {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-field {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-field-label {
+  margin: 0 0 4px;
+  color: #36394f;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-input {
+  width: 100%;
+  height: 48px;
+  padding: 0 14px;
+  border: 1px solid #dedfe6;
+  border-radius: 10px;
+  background: #f8f8fa;
+  color: #292c43;
+  box-shadow: none;
+  font: inherit;
+  font-size: 14px;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-input:focus-visible {
+  border-color: #9873e8;
+  outline: none;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(133, 91, 220, .13);
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-primary-button {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  margin: 2px 0 0;
+  padding: 0 18px;
+  justify-content: center;
+  border: 0;
+  border-radius: 10px;
+  background: linear-gradient(105deg, #7048d6 0%, #925fe7 100%);
+  color: #fff;
+  box-shadow: 0 6px 14px rgba(112, 72, 214, .16);
+  font-size: 14px;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-primary-button span[aria-hidden="true"] {
+  display: none;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-auth-error,
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-auth-notice {
+  margin: 0;
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.gb-auth-signin-shell .gb-signin-form-wrap .gb-signin-field-error {
+  margin-top: 2px;
+  font-size: 11px;
+}
+
+.gb-auth-signin-shell .gb-recovery-type {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.gb-auth-signin-shell .gb-recovery-type button {
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 10px;
+  border: 1px solid #dedfe6;
+  border-radius: 9px;
+  background: #fff;
+  color: #5e6175;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.gb-auth-signin-shell .gb-recovery-type button.is-active {
+  border-color: #8059db;
+  background: #f2edff;
+  color: #6844c4;
+}
+
+.gb-auth-signin-shell .gb-recovery-type button:disabled {
+  cursor: not-allowed;
+  opacity: .5;
+}
+
+.gb-auth-signin-shell .gb-recovery-secondary {
+  min-height: 40px;
+  border: 0;
+  background: transparent;
+  color: #744bd3;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.gb-auth-signin-shell .gb-recovery-link {
+  margin: 10px 0 0;
+  text-align: center;
+}
+
+.gb-auth-signin-shell .gb-recovery-link a,
+.gb-auth-signin-shell .gb-login-recovery-action,
+.gb-auth-signin-shell .gb-switch-copy a {
+  color: #744bd3;
+}
+
+.gb-auth-signin-shell .gb-switch-copy {
+  margin: 9px 0 0;
+  color: #777b8e;
+  font-size: 12px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.gb-auth-signin-shell .gb-signup-footer {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin: 16px 0 0;
+  color: #9698a5;
+  font-size: 11px;
+  line-height: 1.4;
+  text-align: center;
+}
+
+.gb-auth-signin-shell .gb-signup-footer svg {
+  width: 14px;
+  height: 14px;
+  flex: 0 0 auto;
+}
+
+html:has(.gb-auth-signin-shell) {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow-y: auto;
+}
+
+body:has(.gb-auth-signin-shell),
+body:has(.gb-auth-signin-shell) #root {
+  height: auto;
+  min-height: 100vh;
+  min-height: 100dvh;
+  overflow: visible;
+}
+
+@media (max-width: 760px) {
+  .gb-auth-signin-shell {
+    min-height: 100vh;
+    min-height: 100dvh;
+    align-items: flex-start;
+    padding: clamp(28px, 6vh, 48px) max(18px, env(safe-area-inset-right)) max(16px, env(safe-area-inset-bottom)) max(18px, env(safe-area-inset-left));
+  }
+
+  .gb-auth-signin-shell .gb-form-side {
+    align-items: flex-start;
+  }
+
+  .gb-auth-signin-shell .gb-signin-brand {
+    width: min(198px, 62vw);
+    margin-bottom: 14px;
+  }
+
+  .gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading {
+    margin-bottom: 12px;
+  }
+
+  .gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading h1 {
+    font-size: 29px;
+  }
+}
+
+@media (max-width: 390px) {
+  .gb-auth-signin-shell {
+    padding-right: max(16px, env(safe-area-inset-right));
+    padding-left: max(16px, env(safe-area-inset-left));
+  }
+
+  .gb-auth-signin-shell .gb-signin-form-wrap .gb-form-heading h1 {
+    font-size: 27px;
+  }
+}
+
+.gb-auth-signup-shell .gb-signup-optional-fields .gb-field-label span {
+  color: #858798;
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.gb-auth-signup-shell .gb-optional-skip {
+  display: flex;
+  width: 100%;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border: 1px solid #dedfe6;
+  border-radius: 10px;
+  background: #fff;
+  color: #6343b4;
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.gb-auth-signup-shell .gb-optional-skip:hover:not(:disabled) {
+  background: #f8f6fd;
+}
+
+.gb-auth-signup-shell .gb-optional-skip:focus-visible {
+  outline: 3px solid rgba(133, 91, 220, .28);
+  outline-offset: 2px;
+}
+
+.gb-auth-signup-shell .gb-optional-skip:disabled {
+  cursor: not-allowed;
+  opacity: .55;
 }

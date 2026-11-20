@@ -1,9 +1,13 @@
-- [Identity review and retention](identity-document-retention.md) — Requests may have no files; keep optional uploads private, delete after decisions, and show the admin-set warning until approval.
+- [Identity workflow retirement](identity-document-retention.md) — Keep historical records/files; active Vault subscription replaces identity gating after workflow removal.
 - [Clerk user identity reconciliation](clerk-bank-user-resolution.md) — Resolve cross-environment Clerk IDs to a canonical bank profile using a server-verified primary email.
+- [External Clerk application](clerk-external-application.md) — Use the user's own Clerk instance and verify environment-specific setup without exposing credential values.
 - [Authentication diagnostics](authentication-diagnostics.md) — Interpret provider errors before advancing sign-in; diagnose production without exposing credentials or resetting identities.
-- [Internal ledger boundaries](internal-ledger-boundaries.md) — Keep money movement internal; international requests use admin-maintained estimates and never send or reserve funds.
+- [Internal ledger boundaries](internal-ledger-boundaries.md) — Wallet credits stay internal and balanced, with optional customer labels; no external funds move.
 - [Admin transaction controls](admin-transaction-controls.md) — Status corrections never change postings; restrictions are additive and enforced server-side.
 - [Transaction PIN security](transaction-pin-security.md) — Store only PIN hashes; admins reset member PINs but never view or assign their values.
 - [Exchange-rate quote boundary](grey-quote-boundary.md) — Prefer Frankfurter reference rates with Grey as a read-only fallback; rate feeds never move money.
 - [Resend sender configuration](resend-sender.md) — Transactional mail uses an explicitly configured verified sender because the connected Resend access cannot list domains.
 - [Private Vault subscription renewal](private-vault-subscription-renewal.md) — Renewal is customer opt-in; expose it only after Paystack webhook processing is configured and tested.
+- [Verified signup and dashboard continuity](verified-signup-dashboard.md) — A verified Clerk session must reach the dashboard with a Customer ID despite missing or invalid optional profile details.
+- [Receipt preference snapshots](receipt-preference-snapshots.md) — Apply a saved receipt design to future transfers only; historical receipts keep their stored layout.
+- [Production-compatible account tiers](production-account-tier-compatibility.md) — Derive displayed tiers from active Vault plan fields; production does not persist account-tier assignments.

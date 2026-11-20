@@ -1,0 +1,497 @@
+import { test, expect } from '@playwright/test';
+import {
+  clearSignupProfileDraft,
+  clearSignupProgress,
+  clearLocalSignupAttempt,
+  finalizeSignupAndOpenDashboard,
+  finalizeSignupWhenSessionReady,
+  getMissingRequiredSignupDetails,
+  getSignupFinalizationBlocker,
+  hasRequiredSignupDetailsMissing,
+  persistSignupProfileDraft,
+  persistSignupProgress,
+  readSignupProfileDraft,
+  readSignupProgress,
+  resolveSignupResumeStage,
+  requiredSignupDetailsMessage,
+  sanitizeOptionalSignupProfile,
+  signupCreationErrorMessage,
+  saveSignupProfileWithoutBlocking,
+  syncMissingSignupNames,
+  sendEmailVerificationAfterOptionalDetails,
+  sendEmailVerificationAfterRequiredDetails,
+  verifyEmailCode,
+} from '../src/lib/signup-flow';
+
+function createStorage() {
+  const values = new Map<string, string>();
+  return {
+    getItem: (key: string) => values.get(key) ?? null,
+    setItem: (key: string, value: string) => values.set(key, value),
+    removeItem: (key: string) => values.delete(key),
+  };
+}
+
+test('step one advances to optional details before email verification', () => {
+  expect(
+    resolveSignupResumeStage({
+      isSignedIn: false,
+      emailVerified: false,
+      clerkStatus: 'missing_requirements',
+      persistedStage: null,
+    }),
+  ).toBe('details');
+
+  expect(
+    resolveSignupResumeStage({
+      isSignedIn: false,
+      emailVerified: false,
+      clerkStatus: 'missing_requirements',
+      persistedStage: 'optional-profile',
+    }),
+  ).toBe('optional-profile');
+
+  expect(
+    resolveSignupResumeStage({
+      isSignedIn: false,
+      emailVerified: false,
+      clerkStatus: 'missing_requirements',
+      persistedStage: 'verify',
+    }),
+  ).toBe('verify');
+});
+
+test('verified signup missing first and last name returns to step one and recovers in order', async () => {
+  const requiredDetails = {
+    firstName: 'Ada',
+    lastName: 'Mensah',
+    username: 'ada_2026',
+    emailAddress: 'ada@example.test',
+    password: 'correct-horse-2026',
+    acceptedTerms: true,
+    legalAcceptanceRequired: false,
+    clerkMissingFields: ['first_name', 'last_name'],
+  };
+  const missingNames = getMissingRequiredSignupDetails(requiredDetails);
+  expect(missingNames).toEqual(['first name', 'last name']);
+  expect(hasRequiredSignupDetailsMissing(requiredDetails.clerkMissingFields)).toBe(true);
+  expect(requiredSignupDetailsMessage(missingNames, true)).toContain(
+    'Your email is verified. Please review and resubmit your first name and last name',
+  );
+  expect(
+    resolveSignupResumeStage({
+      isSignedIn: false,
+      emailVerified: true,
+      clerkStatus: 'missing_requirements',
+      persistedStage: 'verify',
+      missingFields: requiredDetails.clerkMissingFields,
+    }),
+  ).toBe('details');
+
+  const actions: string[] = [];
+  const blockedDelivery = await sendEmailVerificationAfterRequiredDetails(
+    requiredDetails,
+    () => {
+      actions.push('save-optional-details');
+      return true;
+    },
+    async () => {
+      actions.push('send-email-code');
+      return { error: null };
+    },
+  );
+  expect(blockedDelivery.ok).toBe(false);
+  expect(actions).toEqual([]);
+
+  const correctedDetails = { ...requiredDetails, clerkMissingFields: [] };
+  expect(getMissingRequiredSignupDetails({
+    ...correctedDetails,
+    password: '',
+    hasPassword: true,
+    clerkMissingFields: ['phone_number'],
+  })).toEqual([]);
+  const optionalStep = resolveSignupResumeStage({
+    isSignedIn: false,
+    emailVerified: false,
+    clerkStatus: 'missing_requirements',
+    persistedStage: 'optional-profile',
+    missingFields: correctedDetails.clerkMissingFields,
+  });
+  expect(optionalStep).toBe('optional-profile');
+  const delivery = await sendEmailVerificationAfterRequiredDetails(
+    correctedDetails,
+    () => {
+      actions.push('save-optional-details');
+      return true;
+    },
+    async () => {
+      actions.push('send-email-code');
+      return { error: null };
+    },
+  );
+  expect(delivery).toEqual({
+    ok: true,
+    detailsRetained: true,
+    missingRequiredFields: [],
+  });
+  expect(actions).toEqual(['save-optional-details', 'send-email-code']);
+
+  const dashboardSteps: string[] = [];
+  const finalized = await finalizeSignupWhenSessionReady(
+    {
+      status: 'complete',
+      createdSessionId: 'session_after_verified_signup',
+      missingFields: [],
+    },
+    async () => {
+      dashboardSteps.push('finalize-session');
+      return { error: null };
+    },
+    () => dashboardSteps.push('clear-progress'),
+    () => dashboardSteps.push('dashboard'),
+  );
+  expect(finalized).toEqual({ ok: true });
+  expect(dashboardSteps).toEqual([
+    'finalize-session',
+    'clear-progress',
+    'dashboard',
+  ]);
+});
+
+test('optional fields can all be omitted and do not add empty values', () => {
+  expect(sanitizeOptionalSignupProfile({})).toEqual({});
+  expect(
+    sanitizeOptionalSignupProfile({
+      phone: '   ',
+      country: '',
+      cityOfOrigin: ' ',
+      dateOfBirth: '',
+      occupation: '',
+    }),
+  ).toEqual({});
+});
+
+test('valid optional profile values are trimmed and retained', () => {
+  expect(
+    sanitizeOptionalSignupProfile({
+      country: ' Ghana ',
+      cityOfOrigin: ' Accra ',
+      dateOfBirth: '1992-03-14',
+      occupation: ' Product designer ',
+      phone: '+233 24 123 4567',
+    }),
+  ).toEqual({
+    country: 'Ghana',
+    cityOfOrigin: 'Accra',
+    dateOfBirth: '1992-03-14',
+    occupation: 'Product designer',
+    phone: '+233 24 123 4567',
+  });
+});
+
+test('invalid optional profile values are ignored while valid values remain', () => {
+  expect(
+    sanitizeOptionalSignupProfile({
+      country: 'Nigeri@',
+      cityOfOrigin: 'A'.repeat(1025),
+      dateOfBirth: '2023-02-30',
+      occupation: 'Engineer / Analyst',
+      phone: 'call me',
+    }),
+  ).toEqual({ occupation: 'Engineer / Analyst' });
+
+  expect(
+    sanitizeOptionalSignupProfile({
+      dateOfBirth: '2999-01-01',
+      phone: '+1 55',
+    }),
+  ).toEqual({});
+});
+
+test('step and optional profile draft survive refresh and clear after saving', () => {
+  const storage = createStorage();
+  persistSignupProgress('signup-123', 'optional-profile', storage);
+  expect(readSignupProgress('signup-123', storage)).toBe('optional-profile');
+  expect(readSignupProgress('signup-other', storage)).toBeNull();
+
+  const draft = {
+    emailAddress: 'member@example.test',
+    firstName: 'Ada',
+    lastName: 'Mensah',
+    country: 'Ghana',
+    cityOfOrigin: 'Accra',
+    dateOfBirth: '1992-03-14',
+    occupation: 'Product designer',
+    phone: '+233 24 123 4567',
+  };
+  expect(persistSignupProfileDraft(draft, storage)).toBe(true);
+  clearSignupProfileDraft();
+  expect(readSignupProfileDraft(storage)).toEqual(draft);
+
+  persistSignupProgress('signup-123', 'verify', storage);
+  expect(readSignupProgress('signup-123', storage)).toBe('verify');
+  clearSignupProgress('signup-123', storage);
+  expect(readSignupProgress('signup-123', storage)).toBeNull();
+  clearSignupProfileDraft(storage);
+  expect(readSignupProfileDraft(storage)).toBeNull();
+});
+
+test('verification email is sent only after optional details are staged', async () => {
+  const calls: string[] = [];
+  const result = await sendEmailVerificationAfterOptionalDetails(
+    () => {
+      calls.push('persist-optional-details');
+      return true;
+    },
+    async () => {
+      calls.push('send-email-code');
+      return { error: null };
+    },
+  );
+
+  expect(result).toEqual({ ok: true, detailsRetained: true });
+  expect(calls).toEqual(['persist-optional-details', 'send-email-code']);
+});
+
+test('verification code errors keep the user on a retryable step', async () => {
+  const result = await verifyEmailCode(async () => ({
+    error: { message: 'The code has expired.' },
+  }));
+
+  expect(result).toEqual({ ok: false, message: 'The code has expired.' });
+});
+
+test('clears the current local Clerk attempt and progress before retrying', async () => {
+  const actions: string[] = [];
+  const result = await clearLocalSignupAttempt(
+    async () => {
+      actions.push('reset-current-attempt');
+      return { error: null };
+    },
+    () => actions.push('clear-progress'),
+  );
+  expect(result).toEqual({ ok: true });
+  expect(actions).toEqual(['reset-current-attempt', 'clear-progress']);
+});
+
+test('keeps a failed reset retryable and reports a useful recovery path', async () => {
+  const actions: string[] = [];
+  const result = await clearLocalSignupAttempt(
+    async () => ({ error: { message: 'Temporary Clerk error.' } }),
+    () => actions.push('clear-progress'),
+  );
+  expect(result).toEqual({ ok: false, message: 'Temporary Clerk error.' });
+  expect(actions).toEqual([]);
+});
+
+test('signup errors offer sign-in and recovery without revealing account existence', () => {
+  const message = signupCreationErrorMessage({
+    errors: [{ code: 'form_identifier_exists' }],
+  });
+  expect(message).toContain('signing in or use account recovery');
+  expect(message).toContain('start over');
+  expect(message).not.toContain('already registered');
+});
+
+test('updates entered name fields when Clerk still marks them missing', async () => {
+  const calls: unknown[] = [];
+  const result = await syncMissingSignupNames(
+    ['first_name', 'last_name'],
+    ' Ada ',
+    ' Mensah ',
+    async (values) => {
+      calls.push(values);
+      return { error: null };
+    },
+  );
+  expect(result).toEqual({ ok: true });
+  expect(calls).toEqual([{ firstName: 'Ada', lastName: 'Mensah' }]);
+});
+
+test('reports Clerk name update errors without proceeding', async () => {
+  let updateCalled = false;
+  const result = await syncMissingSignupNames(
+    ['first_name'],
+    'Ada',
+    'Mensah',
+    async () => {
+      updateCalled = true;
+      return { error: { message: 'First name is invalid.' } };
+    },
+  );
+  expect(updateCalled).toBe(true);
+  expect(result).toEqual({ ok: false, message: 'First name is invalid.' });
+});
+
+test('skips name updates when Clerk has no missing name fields', async () => {
+  let updateCalled = false;
+  const result = await syncMissingSignupNames(
+    [],
+    'Ada',
+    'Mensah',
+    async () => {
+      updateCalled = true;
+      return { error: null };
+    },
+  );
+  expect(result).toEqual({ ok: true });
+  expect(updateCalled).toBe(false);
+});
+
+test('successful finalization clears progress and navigates directly to the dashboard', async () => {
+  const steps: string[] = [];
+  const result = await finalizeSignupAndOpenDashboard(
+    async () => {
+      steps.push('finalize-clerk-session');
+      return { error: null };
+    },
+    () => steps.push('clear-signup-step'),
+    () => steps.push('open-dashboard'),
+  );
+
+  expect(result).toEqual({ ok: true });
+  expect(steps).toEqual([
+    'finalize-clerk-session',
+    'clear-signup-step',
+    'open-dashboard',
+  ]);
+});
+
+test('successful email verification opens dashboard despite incomplete optional profile details', async () => {
+  const optionalDetails = sanitizeOptionalSignupProfile({
+    phone: 'phone me',
+    country: 'Nigeri@',
+    cityOfOrigin: '',
+    dateOfBirth: 'not-a-date',
+    occupation: 'Designer / Analyst',
+  });
+  expect(optionalDetails).toEqual({ occupation: 'Designer / Analyst' });
+
+  const verification = await verifyEmailCode(async () => ({ error: null }));
+  expect(verification).toEqual({ ok: true });
+
+  const steps: string[] = [];
+  const finalization = await finalizeSignupWhenSessionReady(
+    {
+      status: 'complete',
+      createdSessionId: 'session_after_email_otp',
+      missingFields: ['phone_number'],
+    },
+    async () => {
+      steps.push('finalize-session');
+      return { error: null };
+    },
+    () => steps.push('clear-progress'),
+    () => steps.push('dashboard'),
+  );
+
+  expect(finalization).toEqual({ ok: true });
+  expect(steps).toEqual(['finalize-session', 'clear-progress', 'dashboard']);
+});
+
+test('failed Clerk finalization does not redirect to the dashboard', async () => {
+  const navigations: string[] = [];
+  const result = await finalizeSignupAndOpenDashboard(
+    async () => ({ error: { message: 'Verification is incomplete.' } }),
+    () => navigations.push('clear'),
+    () => navigations.push('dashboard'),
+  );
+
+  expect(result).toEqual({
+    ok: false,
+    message: 'Verification is incomplete.',
+  });
+  expect(navigations).toEqual([]);
+});
+
+test('does not finalize a verified sign-up until Clerk has a created session', async () => {
+  let finalizeCalled = false;
+  const navigations: string[] = [];
+  const result = await finalizeSignupWhenSessionReady(
+    {
+      status: 'missing_requirements',
+      createdSessionId: null,
+      missingFields: ['username'],
+    },
+    async () => {
+      finalizeCalled = true;
+      return { error: null };
+    },
+    () => navigations.push('clear'),
+    () => navigations.push('dashboard'),
+  );
+
+  expect(result).toEqual({
+    ok: false,
+    message: 'Your email is verified. Please review and resubmit your username to finish setting up your account.',
+  });
+  expect(finalizeCalled).toBe(false);
+  expect(navigations).toEqual([]);
+});
+
+test('completed sign-up without a session gets an account recovery message', () => {
+  const result = getSignupFinalizationBlocker({
+    status: 'complete',
+    createdSessionId: null,
+    missingFields: [],
+  });
+  expect(result.ready).toBe(false);
+  if (!result.ready) {
+    expect(result.message).toContain('no sign-in session was created');
+    expect(result.message).toContain('account recovery');
+  }
+});
+
+test('identifies a Clerk phone requirement without silently making phone auth part of signup', () => {
+  const result = getSignupFinalizationBlocker({
+    status: 'missing_requirements',
+    createdSessionId: null,
+    missingFields: ['phone_number'],
+  });
+  expect(result.ready).toBe(false);
+  if (!result.ready) {
+    expect(result.message).toContain('phone number');
+    expect(result.message).toContain('Phone verification is not part of this sign-up flow');
+    expect(result.message).toContain('account recovery');
+  }
+});
+
+test('only a completed sign-up with a session can be finalized', () => {
+  expect(
+    getSignupFinalizationBlocker({
+      status: 'complete',
+      createdSessionId: 'sess_created_123',
+      missingFields: [],
+    }),
+  ).toEqual({ ready: true });
+});
+
+test('profile persistence errors never block a verified session and retain the draft', async () => {
+  const storage = createStorage();
+  const draft = {
+    emailAddress: 'member@example.test',
+    firstName: 'Ada',
+    lastName: 'Mensah',
+    cityOfOrigin: 'Accra',
+  };
+  persistSignupProfileDraft(draft, storage);
+  clearSignupProfileDraft();
+
+  const saved = await saveSignupProfileWithoutBlocking(async () => {
+    throw new Error('database unavailable');
+  });
+
+  expect(saved).toBe(false);
+  expect(readSignupProfileDraft(storage)).toEqual(draft);
+});
+
+test('signed-in customers resume directly at their dashboard', () => {
+  expect(
+    resolveSignupResumeStage({
+      isSignedIn: true,
+      emailVerified: true,
+      clerkStatus: 'complete',
+      persistedStage: 'verify',
+    }),
+  ).toBe('dashboard');
+});

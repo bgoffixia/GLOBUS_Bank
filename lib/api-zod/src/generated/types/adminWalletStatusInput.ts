@@ -9,16 +9,6 @@ import type { AdminWalletStatusInputStatus } from './adminWalletStatusInputStatu
 
 export interface AdminWalletStatusInput {
   status: AdminWalletStatusInputStatus;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-  /**
-     * @maxLength 500
-     * @nullable
-     */
-  notes?: string | null;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;

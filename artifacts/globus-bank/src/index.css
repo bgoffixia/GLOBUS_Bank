@@ -343,6 +343,12 @@ img, svg, video, canvas {
   max-height: min(80dvh, calc(100dvh - 1.5rem));
 }
 
+.receipt-actions {
+  position: sticky;
+  bottom: 0;
+  z-index: 1;
+}
+
 .receipt-document-frame {
   display: flex;
   justify-content: center;

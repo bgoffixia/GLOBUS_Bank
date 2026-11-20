@@ -4,18 +4,24 @@ export const VAULT_SUBSCRIPTION_PLANS = [
     label: "1 month",
     durationMonths: 1,
     priceSetting: "vaultPlan1mPriceMinor",
+    tierId: "silver",
+    tierName: "Silver🥈",
   },
   {
     code: "3m",
     label: "3 months",
     durationMonths: 3,
     priceSetting: "vaultPlan3mPriceMinor",
+    tierId: "gold",
+    tierName: "Gold 🪙",
   },
   {
     code: "1y",
     label: "1 year",
     durationMonths: 12,
     priceSetting: "vaultPlan1yPriceMinor",
+    tierId: "bronze",
+    tierName: "Bronze 🥉",
   },
 ] as const;
 

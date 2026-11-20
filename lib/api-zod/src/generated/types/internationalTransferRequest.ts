@@ -8,12 +8,14 @@
 import type { CurrencyCode } from './currencyCode';
 import type { DestinationCurrencyCode } from './destinationCurrencyCode';
 import type { InternationalTransferRequestTransferType } from './internationalTransferRequestTransferType';
+import type { ReceiptTemplate } from './receiptTemplate';
 import type { TransactionStatus } from './transactionStatus';
 
 export interface InternationalTransferRequest {
   id: string;
   reference: string;
   status: TransactionStatus;
+  receiptTemplate: ReceiptTemplate;
   destinationCountry: string;
   recipientBank: string;
   transferType: InternationalTransferRequestTransferType;

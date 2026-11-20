@@ -1,34 +1,11 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { useUser } from '@clerk/react';
 import { ArrowLeftRight, BadgeCheck, CalendarDays, Clock3, Download, Hash, ImageDown, Printer, ShieldCheck, X } from 'lucide-react';
-import { useGetBankReceiptPreferences } from '@workspace/api-client-react';
-import type { BankTransaction, InternationalTransferRequest } from '@workspace/api-client-react';
 import { destinationCurrencyDigits } from '@/lib/destination-currency';
 import { downloadTransactionReceiptPdf, saveTransactionReceiptPng } from '@/lib/transaction-receipt-pdf';
-import { receiptPreferencesQueryKey, type ReceiptTemplateId } from '@/lib/receipt-layouts';
-
-export type ReceiptConversion = {
-  sourceAmount: string;
-  sourceCurrency: string;
-  exchangeRate: string;
-  destinationAmount: string;
-  destinationCurrency: string;
-};
-export type ReceiptTransaction = BankTransaction & {
-  conversion?: ReceiptConversion;
-  sender?: { name: string; walletLast4: string };
-  recipient?: {
-    name: string;
-    bank: string;
-    country: string;
-    route: string;
-    account: string;
-    transferType: string;
-    routingCode: string | null;
-    swiftBic: string | null;
-    remark: string;
-  };
-};
+import type { ReceiptConversion, ReceiptTransaction } from '@/lib/transfer-receipt-data';
+import { calculateReceiptFit } from '@/lib/receipt-fit';
+import type { ReceiptTemplateId } from '@/lib/receipt-layouts';
+export type { ReceiptConversion, ReceiptTransaction } from '@/lib/transfer-receipt-data';
 
 export function digitsFor(currency: string): number {
   try { return destinationCurrencyDigits(currency); } catch { return 2; }
@@ -72,41 +49,7 @@ export function parseReceiptConversion(t: ReceiptTransaction): ReceiptConversion
   return { sourceAmount: m[1], sourceCurrency: m[2], destinationAmount: m[3], destinationCurrency: m[4], exchangeRate: m[5] };
 }
 
-export function receiptFromRequest(r: InternationalTransferRequest): ReceiptTransaction {
-  const typeLabel = r.transferType === 'local_routing' ? 'Local routing' : 'International wire';
-  return {
-    id: r.id,
-    reference: r.reference,
-    type: 'external_transfer',
-    status: r.status,
-    currency: r.sourceCurrency,
-    amount: r.sourceAmount,
-    fee: '0.00',
-    counterparty: `${r.recipientBank} · ****${r.recipientAccountLast4} · ${r.destinationCountry}`,
-    description: `${typeLabel} transfer · ${r.sourceAmount} ${r.sourceCurrency} converted to ${r.destinationAmount} ${r.destinationCurrency} at ${r.exchangeRate}`,
-    mode: 'internal_ledger',
-    createdAt: r.createdAt,
-    conversion: { sourceAmount: r.sourceAmount, sourceCurrency: r.sourceCurrency, exchangeRate: r.exchangeRate, destinationAmount: r.destinationAmount, destinationCurrency: r.destinationCurrency },
-    sender: {
-      name: r.senderName || 'Globus member',
-      walletLast4: r.sourceWalletLast4,
-    },
-    recipient: {
-      name: r.recipientAccountName,
-      bank: r.recipientBank,
-      country: r.destinationCountry,
-      route: typeLabel,
-      account: `••••••${r.recipientAccountLast4}`,
-      transferType: r.transferType,
-      routingCode: r.routingCode,
-      swiftBic: r.swiftBic,
-      remark: r.remark,
-    },
-  } as ReceiptTransaction;
-}
-
-export function TransferReceiptModal({ transaction, onClose, title, notice, templateOverride }: { transaction: ReceiptTransaction; onClose: () => void; title?: string; notice?: string; templateOverride?: ReceiptTemplateId }) {
-  const { user } = useUser();
+export function TransferReceiptModal({ transaction, onClose, title, notice }: { transaction: ReceiptTransaction; onClose: () => void; title?: string; notice?: string }) {
   const [exporting, setExporting] = useState<'pdf' | 'png' | null>(null);
   const [downloadError, setDownloadError] = useState('');
   const closeRef = useRef<HTMLButtonElement>(null);
@@ -114,16 +57,21 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, temp
   const actionsRef = useRef<HTMLDivElement>(null);
   const onCloseRef = useRef(onClose);
   const [receiptFit, setReceiptFit] = useState({ scale: 1, height: 0 });
-  const receiptPreferences = useGetBankReceiptPreferences({
-    query: { queryKey: receiptPreferencesQueryKey(user?.id), retry: false, staleTime: 60_000 },
-  });
   onCloseRef.current = onClose;
   const conversion = parseReceiptConversion(transaction);
   const completed = transaction.status === 'completed';
   const pending = transaction.status === 'pending';
   const isTransfer = transaction.type === 'external_transfer';
   const heading = title ?? (isTransfer ? 'Routed transfer' : humanizeStatus(transaction.type));
-  const template: ReceiptTemplateId = templateOverride ?? receiptPreferences.data?.preferredTemplate ?? 'standard';
+  const template: ReceiptTemplateId = transaction.receiptTemplate ?? 'standard';
+  const templateTitle = {
+    standard: 'Payment receipt',
+    bank_payment: 'Bank transaction record',
+    transfer_journey: 'Transfer journey',
+    transfer_ledger: 'Posting ledger',
+    settlement_statement: 'Archival statement',
+  }[template];
+  const darkMasthead = template === 'transfer_journey' || template === 'transfer_ledger' || template === 'settlement_statement';
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -139,11 +87,11 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, temp
       const actionHeight = actionsRef.current?.offsetHeight ?? 0;
       if (!documentHeight) return;
       const viewportHeight = window.visualViewport?.height ?? window.innerHeight;
-      const availableHeight = Math.max(0, Math.min(viewportHeight * 0.8, viewportHeight - 24) - actionHeight);
-      const scale = Math.min(0.86, availableHeight / documentHeight);
+      const fit = calculateReceiptFit(documentHeight, actionHeight, viewportHeight);
       setReceiptFit(current => {
-        const height = Math.ceil(documentHeight * scale);
-        return current.scale === scale && current.height === height ? current : { scale, height };
+        return current.scale === fit.scale && current.height === fit.height
+          ? current
+          : { scale: fit.scale, height: fit.height };
       });
     };
     measure();
@@ -220,18 +168,20 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, temp
     <div className="receipt-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#dce5eb]/85 p-2 backdrop-blur-sm sm:p-3" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" data-testid="dialog-transfer-receipt" data-receipt-template={template} className={`receipt-dialog relative flex w-full ${template === 'settlement_statement' ? 'max-w-[720px]' : 'max-w-[460px]'} flex-col overflow-hidden rounded-[20px] border border-[#d9e2e7] bg-[#fffefa] shadow-[0_22px_65px_rgba(14,40,61,.22)]`}>
         <div data-testid="receipt-document-frame" className="receipt-document-frame w-full shrink-0" style={{ height: `${receiptFit.height}px` }}>
-          <article ref={printRef} className="receipt-print w-full bg-[#fffefa] text-[#203a54]" style={{ transform: `scale(${receiptFit.scale})`, transformOrigin: 'top center' }}>
+          <article ref={printRef} data-testid="receipt-document" data-receipt-template={template} className="receipt-print w-full bg-[#fffefa] text-[#203a54]" style={{ transform: `scale(${receiptFit.scale})`, transformOrigin: 'top center' }}>
             {template !== 'bank_payment' && <ReceiptDocument template={template} transaction={transaction} conversion={conversion} heading={heading} completed={completed} pending={pending} closeRef={closeRef} onClose={onClose} />}
             {template === 'bank_payment' && <>
-            <header className="px-5 pb-4 pt-4 sm:px-6">
-              <div className="flex items-center justify-between border-b border-[#e8ecee] pb-3">
-                <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className="h-auto w-[104px]" />
-                <button ref={closeRef} type="button" aria-label="Close receipt" data-testid="button-close-receipt" onClick={onClose} className="receipt-screen-only grid h-8 w-8 place-items-center rounded-full border border-[#e1e8eb] text-[#607589] transition hover:bg-[#f1f6f7]"><X size={15} /></button>
+            <header className={`px-5 pb-4 pt-4 sm:px-6 ${darkMasthead ? `text-white ${template === 'transfer_ledger' ? 'bg-[#173c4b]' : 'bg-[#173951]'}` : 'text-[#203a54]'}`}>
+              <div className={`flex items-center justify-between border-b pb-3 ${darkMasthead ? 'border-white/15' : 'border-[#e8ecee]'}`}>
+                <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className={`h-auto w-[104px] ${darkMasthead ? 'brightness-0 invert' : ''}`} />
+                <button ref={closeRef} type="button" aria-label="Close receipt" data-testid="button-close-receipt" onClick={onClose} className={`receipt-screen-only grid h-8 w-8 place-items-center rounded-full border transition ${darkMasthead ? 'border-white/20 text-white/80 hover:bg-white/10' : 'border-[#e1e8eb] text-[#607589] hover:bg-[#f1f6f7]'}`}><X size={15} /></button>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#478783]">Globus Bank · transaction record</p>
-                  <h2 id="receipt-title" className="bank-display mt-1 text-[19px] font-bold tracking-[-.045em] text-[#183450]">Payment receipt</h2>
+                <div className="min-w-0">
+                  <p className={`text-[9px] font-bold uppercase tracking-[.18em] ${darkMasthead ? 'text-[#a9c7bd]' : 'text-[#478783]'}`}>
+                    Globus Bank · transaction record
+                  </p>
+                  <h2 id="receipt-title" className="bank-display mt-1 text-[19px] font-bold tracking-[-.045em] text-[#183450]">{templateTitle}</h2>
                   <p className="mt-0.5 text-[10px] text-[#7d8d9b]">{heading}</p>
                 </div>
                 <span data-testid="text-receipt-status" className={`mb-0.5 inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold ${completed ? 'border-[#d5e7dc] bg-[#eff7f2] text-[#47755f]' : pending ? 'border-[#eadfbf] bg-[#fbf7eb] text-[#8b7440]' : 'border-[#f1d8d5] bg-[#fbefed] text-[#9c4d46]'}`}>
@@ -239,44 +189,54 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, temp
                   {completed ? 'RECORDED IN GLOBUS' : pending ? 'PENDING IN GLOBUS' : `${humanizeStatus(transaction.status).toUpperCase()} IN GLOBUS`}
                 </span>
               </div>
-              <div className="relative mt-3 overflow-hidden rounded-[15px] bg-[#173858] p-4 text-white">
-                <div className="absolute -right-8 -top-12 h-32 w-32 rounded-full border border-white/[.09]" />
-                <div className="absolute -right-3 -top-7 h-20 w-20 rounded-full border border-[#d6bb70]/30" />
-                <p className="relative text-[9px] font-bold uppercase tracking-[.16em] text-[#a9d6d3]">Transaction amount</p>
-                <p data-testid="text-receipt-amount" className="bank-display relative mt-1 text-[25px] font-bold tracking-[-.04em]">{formatAmount(transaction.amount, transaction.currency)}</p>
-                {conversion && <div className="relative mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-white/15 pt-3">
-                  <div className="min-w-0"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#a9c0d1]">Source amount</p><p data-testid="text-receipt-source-amount" className="mt-0.5 truncate text-[11px] font-semibold">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)}</p></div>
-                  <ArrowLeftRight size={13} className="text-[#d4bc76]" />
-                  <div className="min-w-0 text-right"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#a9c0d1]">{completed ? 'Converted total' : 'Expected converted'}</p><p data-testid="text-receipt-converted-total" className="mt-0.5 truncate text-[11px] font-semibold">{formatAmount(conversion.destinationAmount, conversion.destinationCurrency)}</p></div>
-                </div>}
-                {conversion && <p data-testid="text-receipt-exchange-rate" className="relative mt-2 text-[9px] text-[#c2d2dd]">Rate: 1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p>}
-              </div>
             </header>
-            <div className="px-5 pb-3 sm:px-6">
-              <section className="rounded-xl border border-[#e4e9eb] bg-white px-3">
-              <div className="flex items-center gap-1.5 border-b border-[#e9edf0] py-2 text-[8px] font-bold uppercase tracking-[.14em] text-[#718599]"><Hash size={11} className="text-[#528c89]" />Transaction details</div>
-              <dl>
-                <Row label="Reference" value={transaction.reference} testId="text-receipt-reference" strong />
-                {transaction.sender && <>
-                  <Row label="Sender" value={transaction.sender.name} />
-                  <Row label="Source wallet" value={`••••••${transaction.sender.walletLast4}`} mono />
-                </>}
-                {transaction.recipient ? <>
-                  <Row label="Destination bank" value={transaction.recipient.bank} />
-                  <Row label="Country" value={transaction.recipient.country} />
-                  <Row label="Recipient account / IBAN" value={transaction.recipient.account} mono />
-                  <Row label="Recipient name" value={transaction.recipient.name} />
-                  {transaction.recipient.transferType === 'local_routing' && transaction.recipient.routingCode && <Row label="Routing number" value={transaction.recipient.routingCode} mono />}
-                  {transaction.recipient.transferType === 'international_wire' && transaction.recipient.swiftBic && <Row label="SWIFT / BIC" value={transaction.recipient.swiftBic} mono />}
-                  <Row label="Remark / description" value={transaction.recipient.remark || transaction.description || heading} />
-                </> : <Row label="Counterparty" value={transaction.counterparty || 'Globus account'} />}
-                <Row label="Date / time" value={formatDateTime(transaction.createdAt)} />
-                {!transaction.recipient && <Row label="Fee" value={formatAmount(transaction.fee, transaction.currency)} />}
-              </dl>
+            <div className="space-y-3 px-5 pb-3 pt-3 sm:px-6">
+              <section className="rounded-[15px] border border-[#dce5e8] bg-[#173858] p-4 text-white" aria-label="Transfer amount summary">
+                <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#a9d6d3]">Transaction amount · internal record</p>
+                <p data-testid="text-receipt-amount" className="bank-display mt-1 break-words text-[25px] font-bold tracking-[-.04em]">{formatAmount(transaction.amount, transaction.currency)}</p>
+                {conversion && <div className="mt-3 grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-white/15 pt-3">
+                  <div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.1em] text-[#a9c0d1]">Source amount</p><p data-testid="text-receipt-source-amount" className="mt-0.5 break-words text-[10px] font-semibold">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)}</p></div>
+                  <ArrowLeftRight size={13} className="text-[#d4bc76]" />
+                  <div className="min-w-0 text-right"><p className="text-[7px] font-bold uppercase tracking-[.1em] text-[#a9c0d1]">Calculated destination</p><p data-testid="text-receipt-converted-total" className="mt-0.5 break-words text-[10px] font-semibold">{formatAmount(conversion.destinationAmount, conversion.destinationCurrency)}</p></div>
+                </div>}
+                {conversion && <p data-testid="text-receipt-exchange-rate" className="mt-2 break-words text-[8px] text-[#c2d2dd]">Rate recorded: 1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p>}
               </section>
-              <div className="mt-3 flex items-center gap-2 border-t border-dashed border-[#dfe6e9] pt-3">
+
+              {transaction.recipient && <section className="rounded-xl border border-[#e4e9eb] bg-white p-3" aria-label="Transfer recipient">
+                <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#8291a0]">Recipient details on record</p>
+                <div className="mt-2 flex min-w-0 items-center gap-2.5">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eef5f5] text-[#397b7b]"><ShieldCheck size={15} /></div>
+                  <div className="min-w-0 flex-1"><p className="break-words text-[10px] font-bold text-[#263f58]">{transaction.recipient.name}</p><p className="mt-0.5 break-words text-[8px] text-[#7b8b9b]">{transaction.recipient.bank} · {transaction.recipient.country}</p></div>
+                  <p className="shrink-0 font-mono text-[8px] font-semibold text-[#526a80]">{transaction.recipient.account}</p>
+                </div>
+              </section>}
+
+              <section className="rounded-xl border border-[#e4e9eb] bg-white px-3">
+                <div className="flex items-center gap-1.5 border-b border-[#e9edf0] py-2 text-[8px] font-bold uppercase tracking-[.14em] text-[#718599]">
+                  <span className="inline-flex items-center gap-1.5"><Hash size={11} className="text-[#528c89]" />Transaction details</span>
+                </div>
+                <dl>
+                  <Row label="Reference" value={transaction.reference} testId="text-receipt-reference" strong mono />
+                  {transaction.sender && <>
+                    <Row label="Sender" value={transaction.sender.name} />
+                    <Row label="Source wallet" value={`••••••${transaction.sender.walletLast4}`} mono />
+                  </>}
+                  {transaction.recipient ? <>
+                    <Row label="Destination bank" value={transaction.recipient.bank} />
+                    <Row label="Country" value={transaction.recipient.country} />
+                    <Row label="Recipient account / IBAN" value={transaction.recipient.account} mono />
+                    <Row label="Recipient name" value={transaction.recipient.name} />
+                    {transaction.recipient.transferType === 'local_routing' && transaction.recipient.routingCode && <Row label="Routing number" value={transaction.recipient.routingCode} mono />}
+                    {transaction.recipient.transferType === 'international_wire' && transaction.recipient.swiftBic && <Row label="SWIFT / BIC" value={transaction.recipient.swiftBic} mono />}
+                    <Row label="Remark / description" value={transaction.recipient.remark || transaction.description || heading} />
+                  </> : <Row label="Counterparty" value={transaction.counterparty || 'Globus account'} />}
+                  <Row label="Date / time" value={formatDateTime(transaction.createdAt)} />
+                  {!transaction.recipient && <Row label="Fee" value={formatAmount(transaction.fee, transaction.currency)} />}
+                </dl>
+              </section>
+              <div className="flex items-center gap-2 border-t border-dashed border-[#dfe6e9] pt-2">
                 <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#edf5f1] text-[#4a826d]"><ShieldCheck size={13} /></div>
-                <p className="text-[9px] leading-4 text-[#7d8c98]">Internal Globus ledger record · Not proof of outside payment or settlement</p>
+                <p className="min-w-0 text-[8px] leading-4 text-[#7d8c98]">Recorded by Globus Bank · This receipt does not confirm settlement through an outside bank or payment service.</p>
                 <CalendarDays size={12} className="ml-auto shrink-0 text-[#8da0ab]" />
               </div>
             </div>
@@ -286,12 +246,12 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, temp
         <div ref={actionsRef} className="receipt-actions shrink-0 border-t border-[#e7ecee] bg-[#fafbf9] px-3 py-2.5 sm:px-5">
           {notice && <p role="status" data-testid="status-recipient-email-notice" className="mb-2 rounded-lg border border-[#eadfbf] bg-[#fbf7eb] px-3 py-2 text-left text-[10px] leading-4 text-[#806b3d]">{notice}</p>}
           <div className="flex flex-wrap items-center justify-end gap-2">
-            <button type="button" data-testid="button-save-receipt-png" aria-label="Save receipt PNG to device or gallery" disabled={exporting !== null || !completed} onClick={downloadPng} className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe4e8] bg-white px-2.5 py-2 text-[9px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><ImageDown size={13} />{exporting === 'png' ? 'Preparing image…' : 'Save PNG'}</button>
+          <button type="button" data-testid="button-save-receipt-png" aria-label="Save receipt PNG to device or gallery" disabled={exporting !== null || !completed} onClick={downloadPng} className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe4e8] bg-white px-2.5 py-2 text-[9px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><ImageDown size={13} />{exporting === 'png' ? 'Preparing image…' : 'Save PNG'}</button>
             <button type="button" data-testid="button-download-receipt-pdf" disabled={exporting !== null || !completed} onClick={downloadPdf} className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe4e8] bg-white px-2.5 py-2 text-[9px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><Download size={13} />{exporting === 'pdf' ? 'Preparing PDF…' : 'Download PDF'}</button>
             <button type="button" onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg bg-[#173858] px-3 py-2 text-[9px] font-bold text-white hover:bg-[#21496c]"><Printer size={13} /> Print</button>
           </div>
           {downloadError && <p role="alert" data-testid="status-receipt-download-error" className="mt-1 text-right text-[9px] text-[#a24940]">{downloadError}</p>}
-          <p className="mt-1 text-right text-[8px] text-[#8794a2]">On supported phones, choose “Save Image” to add the PNG to your gallery.</p>
+          <p className="mt-1 text-right text-[8px] text-[#8794a2]">On supported phones, choose “Save Image” in the device share sheet to add the PNG to Photos or Gallery. Other browsers download the file.</p>
         </div>
       </section>
     </div>

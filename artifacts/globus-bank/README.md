@@ -13,20 +13,22 @@ Globus Bank is a simulation-only multi-currency wallet experience. It is softwar
 - Server-authorized operations summary, account status actions, and ledger review.
 - Public about, help, fees, privacy, terms and contact pages.
 
-Member, incoming and external-recipient transfers and admin funding update fictional ledger records only. External party names and countries are labels; no bank details are collected, and no outside account is credited. Receipts are printable records of simulated activity, not proof of payment. Deposits, withdrawals and currency exchanges are **not connected to a provider**; their forms record simulated requests only.
+Member, incoming and external-recipient transfers and admin funding update fictional ledger records only. External party names and countries are labels; no bank details are collected, and no outside account is credited. Receipts are internal ledger records, not proof of outside payment. Vault wallet funding creates a balanced internal Globus ledger credit after server-side Vault-access, account, wallet, restriction, amount, and transaction-PIN checks; the customer may add a description that appears in transaction history. It does not receive, hold, or move outside funds. Withdrawals and currency exchanges are not connected to a provider and remain internal request records.
 
 ## Run and configure
 
-The managed `artifacts/globus-bank: web` and `artifacts/api-server: API Server` workflows run the app and API. PostgreSQL is the workspace's managed development database.
+The managed `artifacts/globus-bank: web` and `artifacts/api-server: API Server` workflows run the app and API. The app uses Supabase PostgreSQL through `SUPABASE_DATABASE_URL`; configure it separately in Replit development Secrets and Production app secrets.
 
 ```sh
 pnpm --filter @workspace/api-spec run codegen
-pnpm --filter @workspace/db run push
+pnpm --filter @workspace/db run generate
 pnpm --filter @workspace/api-server run typecheck
 pnpm --filter @workspace/globus-bank run typecheck
 ```
 
-Replit-managed Clerk provisions `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` and `VITE_CLERK_PUBLISHABLE_KEY`. Do not copy their values into source files, chat, or `.env.example`. The production Clerk proxy URL is platform-managed.
+The post-merge setup applies checked-in migrations to the development database. Production migrations are manual: set `SUPABASE_DATABASE_URL` to the production Supabase connection string in a trusted shell and run `pnpm --filter @workspace/db run migrate` before publishing code that needs the new schema. Do not run migrations from app startup or deployment build steps.
+
+The app uses your external Clerk application. Configure `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY` and `VITE_CLERK_PUBLISHABLE_KEY` separately in Replit's development Secrets and Publishing → Production app secrets. Use the external app's development keys in development and its production keys in production. Do not copy values into source files, chat or `.env.example`; configure the app's allowed domains and redirect URLs in Clerk.
 
 ### Simulation behavior
 
@@ -43,4 +45,5 @@ See:
 - [API reference](docs/api.md)
 - [Security and production-readiness checklist](docs/security.md)
 - [Backup and recovery](docs/operations.md)
+- [Railway deployment](docs/railway.md)
 - [Environment example](.env.example)

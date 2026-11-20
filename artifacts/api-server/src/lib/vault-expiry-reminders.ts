@@ -52,6 +52,7 @@ function escapeHtml(value: string): string {
 
 function getAppOrigin(): string | null {
   const host =
+    process.env.GLOBUS_APP_ORIGIN?.trim() ||
     process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
     process.env.REPLIT_DEV_DOMAIN?.trim();
   if (!host) return null;

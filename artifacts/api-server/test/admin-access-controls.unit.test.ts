@@ -6,6 +6,7 @@ import { test } from "node:test";
 import { UpdateAdminUserAccessControlsBody } from "@workspace/api-zod";
 import {
   buildAdminAccessControlsAuditEntry,
+  buildAdminAccessControlsAuditReason,
   normalizeAdminAccessReason,
 } from "../src/lib/admin-access-controls";
 import { setPasswordResetCache } from "../src/lib/password-reset";
@@ -81,6 +82,14 @@ test("reasons are normalized and audit records retain actor, target, action, and
         "Approved transfer access. Testing Mode disabled: true; separate transfer access granted: false. Neither setting grants Private Vault access.",
     },
   );
+  const auditReason = buildAdminAccessControlsAuditReason(
+    "Approved transfer access.",
+    { testingModeDisabled: true, transferAccessGranted: false },
+  );
+  assert.match(auditReason, /^Approved transfer access\./);
+  assert.match(auditReason, /Testing Mode disabled: true/);
+  assert.match(auditReason, /separate transfer access granted: false/);
+  assert.match(auditReason, /Neither setting grants Private Vault access/);
 });
 
 test("production-column migration is additive, idempotent, and limited to bank_users", () => {
@@ -105,6 +114,21 @@ test("production-column migration is additive, idempotent, and limited to bank_u
   assert.match(migration, /NULLIF\(btrim\(last_name\), ''\) IS NOT NULL/i);
   assert.match(migration, /profile_setup_completed_at IS NULL/i);
   assert.doesNotMatch(migration, /bank_account_tiers/i);
+});
+
+test("Vault grant migration only adds the explicit entitlement table", () => {
+  const migration = readFileSync(
+    new URL("../../../lib/db/migrations/20261120_private_vault_admin_entitlements.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    migration,
+    /CREATE TABLE IF NOT EXISTS public\.bank_vault_admin_entitlements/i,
+  );
+  assert.match(migration, /FOREIGN KEY \(user_id\) REFERENCES public\.bank_users\(id\)/i);
+  assert.match(migration, /FOREIGN KEY \(granted_by_user_id\) REFERENCES public\.bank_users\(id\)/i);
+  assert.match(migration, /CREATE INDEX IF NOT EXISTS/i);
+  assert.doesNotMatch(migration, /bank_account_tiers|account_tier_id/i);
 });
 
 test("access-control route denies anonymous and non-allowlisted users before database writes", async () => {

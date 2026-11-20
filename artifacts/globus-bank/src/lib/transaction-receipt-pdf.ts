@@ -1,4 +1,5 @@
 import type { ReceiptTemplateId } from './receipt-layouts';
+import { saveReceiptFileToDevice } from './receipt-file-delivery';
 
 export interface TransactionReceiptPdfData {
   reference: string;
@@ -144,10 +145,10 @@ function createPdfFromJpeg(imageBytes: Uint8Array) {
 }
 
 function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, receipt: TransactionReceiptPdfData) {
+  const template = receipt.template ?? 'standard';
   const left = PAGE_MARGIN;
   const right = PAGE_WIDTH - PAGE_MARGIN;
   const contentWidth = right - left;
-  const template = receipt.template ?? 'standard';
   const theme = {
     standard: { canvas: '#e8efed', ink: '#173951', accent: '#347c78', kicker: 'GLOBUS TRANSACTION RECORD' },
     bank_payment: { canvas: '#f3f6f7', ink: '#173858', accent: '#478783', kicker: 'GLOBUS BANK · TRANSACTION RECORD' },
@@ -155,11 +156,12 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
     transfer_ledger: { canvas: '#e9efea', ink: '#173c4b', accent: '#39786d', kicker: 'GLOBUS · LEDGER RECORD' },
     settlement_statement: { canvas: '#e8eeea', ink: '#173b4b', accent: '#39786d', kicker: 'INTERNAL TRANSACTION STATEMENT' },
   }[template];
+  const paperBackground = template === 'settlement_statement' ? '#fcfcf7' : template === 'transfer_ledger' ? '#fbfcf7' : '#fffefa';
   context.fillStyle = theme.canvas;
   context.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
 
-  drawRoundedRect(context, left - 22, 52, contentWidth + 44, PAGE_HEIGHT - 104, 26);
-  context.fillStyle = '#fffefa';
+  drawRoundedRect(context, left - 22, 52, contentWidth + 44, PAGE_HEIGHT - 104, template === 'settlement_statement' ? 2 : 26);
+  context.fillStyle = paperBackground;
   context.fill();
   context.strokeStyle = '#dce5e8';
   context.lineWidth = 2;
@@ -209,29 +211,36 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   const heroY = 370 + (Math.min(activityLines.length, 2) - 1) * 30;
   const heroHeight = receipt.sourceAmount && receipt.convertedAmount ? 310 : 215;
   drawRoundedRect(context, left, heroY, contentWidth, heroHeight, 24);
-  context.fillStyle = theme.ink;
+  const darkHero = template === 'standard' || template === 'bank_payment';
+  context.fillStyle = darkHero
+    ? theme.ink
+    : template === 'transfer_journey'
+      ? '#f5f8f4'
+      : template === 'transfer_ledger'
+        ? '#eff4ed'
+        : '#f1f5ef';
   context.fill();
 
-  context.fillStyle = '#a9d6d3';
+  context.fillStyle = darkHero ? '#a9d6d3' : '#718b81';
   context.font = '700 18px Arial, sans-serif';
   context.fillText(template === 'settlement_statement' ? 'AMOUNT RECORDED' : 'TRANSACTION AMOUNT', left + 34, heroY + 48);
-  context.fillStyle = '#ffffff';
+  context.fillStyle = darkHero ? '#ffffff' : '#203f49';
   context.font = '700 58px Arial, sans-serif';
   context.fillText(receipt.amount, left + 34, heroY + 116);
 
   if (receipt.sourceAmount && receipt.convertedAmount) {
-    context.strokeStyle = 'rgba(255,255,255,.18)';
+    context.strokeStyle = darkHero ? 'rgba(255,255,255,.18)' : '#dbe5df';
     context.beginPath();
     context.moveTo(left + 34, heroY + 144);
     context.lineTo(right - 34, heroY + 144);
     context.stroke();
 
     const halfWidth = (contentWidth - 96) / 2;
-    context.fillStyle = '#a9c0d1';
+    context.fillStyle = darkHero ? '#a9c0d1' : '#82928e';
     context.font = '700 16px Arial, sans-serif';
     context.fillText('SOURCE AMOUNT', left + 34, heroY + 180);
     context.fillText('CONVERTED TOTAL', left + 34 + halfWidth + 28, heroY + 180);
-    context.fillStyle = '#ffffff';
+    context.fillStyle = darkHero ? '#ffffff' : '#203f49';
     context.font = '600 25px Arial, sans-serif';
     context.fillText(receipt.sourceAmount, left + 34, heroY + 218);
     context.textAlign = 'right';
@@ -239,7 +248,7 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
     context.textAlign = 'left';
 
     if (receipt.exchangeRate) {
-      context.fillStyle = '#c2d2dd';
+      context.fillStyle = darkHero ? '#c2d2dd' : '#71868a';
       context.font = '400 18px Arial, sans-serif';
       context.fillText(`Rate: ${receipt.exchangeRate}`, left + 34, heroY + 270);
     }
@@ -372,16 +381,14 @@ export async function saveTransactionReceiptPng(
   });
   const safeReference = receipt.reference.replace(/[^a-z0-9_-]+/gi, '-');
   const file = new File([png], `globus-receipt-${safeReference}.png`, { type: 'image/png' });
-  if (navigator.share && navigator.canShare?.({ files: [file] })) {
-    try {
-      await navigator.share({ files: [file], title: 'Globus transaction receipt' });
-      return;
-    } catch (error) {
-      if (error instanceof DOMException && error.name === 'AbortError') return;
-      // Fall back to a standard image download when the device share sheet is unavailable.
-    }
-  }
-  downloadBlob(png, receipt.reference, 'png');
+  await saveReceiptFileToDevice(
+    file,
+    typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined,
+    typeof navigator.canShare === 'function'
+      ? navigator.canShare.bind(navigator)
+      : undefined,
+    (sharedFile) => downloadBlob(sharedFile, receipt.reference, 'png'),
+  );
 }
 
 async function renderReceiptCanvas(receipt: TransactionReceiptPdfData, logoUrl: string) {

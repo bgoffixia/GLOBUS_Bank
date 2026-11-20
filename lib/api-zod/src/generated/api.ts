@@ -48,12 +48,24 @@ export const GetBankProfileResponse = zod.object({
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getBankProfileResponseDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
+  "profileSetupComplete": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
+  "vaultSubscriptionActive": zod.boolean(),
+  "vaultAccessActive": zod.boolean(),
+  "vaultAccessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "depositAllowed": zod.boolean(),
   "withdrawalAllowed": zod.boolean(),
+  "accountTier": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "source": zod.enum(['paystack_subscription', 'default'])
+}),
   "createdAt": zod.coerce.date()
 })
 
@@ -88,6 +100,9 @@ export const GetBankVaultStatusResponse = zod.object({
   "configured": zod.boolean(),
   "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "subscriptionActive": zod.boolean(),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "requestedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable(),
   "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
@@ -116,6 +131,9 @@ export const InitializeBankVaultPasscodeResponse = zod.object({
   "configured": zod.boolean(),
   "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "subscriptionActive": zod.boolean(),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "requestedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable(),
   "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
@@ -124,68 +142,6 @@ export const InitializeBankVaultPasscodeResponse = zod.object({
   "paymentReference": zod.string().nullable(),
   "autoRenew": zod.boolean(),
   "renewalManagementReady": zod.boolean()
-})
-
-
-/**
- * @deprecated
- * @summary Disabled legacy manual subscription request
- */
-export const requestBankVaultSubscriptionHeaderXGlobusVaultSessionMin = 32;
-export const requestBankVaultSubscriptionHeaderXGlobusVaultSessionMax = 128;
-
-
-
-export const RequestBankVaultSubscriptionHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(requestBankVaultSubscriptionHeaderXGlobusVaultSessionMin).max(requestBankVaultSubscriptionHeaderXGlobusVaultSessionMax)
-})
-
-export const requestBankVaultSubscriptionResponseAmountMinorRegExp = new RegExp('^[0-9]+$');
-
-
-export const RequestBankVaultSubscriptionResponse = zod.object({
-  "configured": zod.boolean(),
-  "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
-  "subscriptionActive": zod.boolean(),
-  "requestedAt": zod.coerce.date().nullable(),
-  "expiresAt": zod.coerce.date().nullable(),
-  "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
-  "amountMinor": zod.string().regex(requestBankVaultSubscriptionResponseAmountMinorRegExp).nullable(),
-  "paymentStatus": zod.enum(['none', 'pending', 'failed', 'success']),
-  "paymentReference": zod.string().nullable(),
-  "autoRenew": zod.boolean(),
-  "renewalManagementReady": zod.boolean()
-})
-
-
-/**
- * @deprecated
- * @summary Disabled legacy subscription proof upload
- */
-export const createBankVaultSubscriptionProofUploadUrlHeaderXGlobusVaultSessionMin = 32;
-export const createBankVaultSubscriptionProofUploadUrlHeaderXGlobusVaultSessionMax = 128;
-
-
-
-export const CreateBankVaultSubscriptionProofUploadUrlHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(createBankVaultSubscriptionProofUploadUrlHeaderXGlobusVaultSessionMin).max(createBankVaultSubscriptionProofUploadUrlHeaderXGlobusVaultSessionMax)
-})
-
-export const createBankVaultSubscriptionProofUploadUrlBodySizeBytesMax = 10485760;
-
-export const createBankVaultSubscriptionProofUploadUrlBodyFileNameMax = 120;
-
-
-
-export const CreateBankVaultSubscriptionProofUploadUrlBody = zod.object({
-  "planCode": zod.enum(['1m', '3m', '1y']),
-  "contentType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
-  "sizeBytes": zod.number().int().min(1).max(createBankVaultSubscriptionProofUploadUrlBodySizeBytesMax),
-  "fileName": zod.string().min(1).max(createBankVaultSubscriptionProofUploadUrlBodyFileNameMax)
-})
-
-export const CreateBankVaultSubscriptionProofUploadUrlResponse = zod.object({
-  "uploadUrl": zod.string().url()
 })
 
 
@@ -207,6 +163,9 @@ export const getBankVaultBillingResponsePlansItemPriceMinorRegExp = new RegExp('
 export const GetBankVaultBillingResponse = zod.object({
   "configured": zod.boolean(),
   "provider": zod.enum(['paystack', 'unavailable']),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "recurringEnabled": zod.boolean().describe('True only after the server recurring flag and signed webhook are configured'),
   "plans": zod.array(zod.object({
   "code": zod.enum(['1m', '3m', '1y']),
@@ -272,6 +231,9 @@ export const VerifyBankVaultPaystackPaymentResponse = zod.object({
   "configured": zod.boolean(),
   "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "subscriptionActive": zod.boolean(),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "requestedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable(),
   "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
@@ -513,6 +475,44 @@ export const UpdateBankVaultEmailPreferencesResponse = zod.object({
 
 
 /**
+ * @summary Get the customer's preferred future transfer receipt layout
+ */
+export const getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin = 32;
+export const getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax = 128;
+
+
+
+export const GetBankVaultReceiptPreferenceHeader = zod.object({
+  "X-Globus-Vault-Session": zod.string().min(getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin).max(getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax)
+})
+
+export const GetBankVaultReceiptPreferenceResponse = zod.object({
+  "preferredReceiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'])
+})
+
+
+/**
+ * @summary Save the customer's preferred layout for future transfer receipts
+ */
+export const updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin = 32;
+export const updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax = 128;
+
+
+
+export const UpdateBankVaultReceiptPreferenceHeader = zod.object({
+  "X-Globus-Vault-Session": zod.string().min(updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin).max(updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax)
+})
+
+export const UpdateBankVaultReceiptPreferenceBody = zod.object({
+  "preferredReceiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'])
+})
+
+export const UpdateBankVaultReceiptPreferenceResponse = zod.object({
+  "preferredReceiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'])
+})
+
+
+/**
  * @summary Authenticate to the private customer vault
  */
 export const unlockBankVaultBodyPasscodeRegExp = new RegExp('^[0-9]{4}$');
@@ -559,6 +559,9 @@ export const UpdateBankVaultPasscodeResponse = zod.object({
   "configured": zod.boolean(),
   "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "subscriptionActive": zod.boolean(),
+  "adminGrantActive": zod.boolean(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "requestedAt": zod.coerce.date().nullable(),
   "expiresAt": zod.coerce.date().nullable(),
   "planCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
@@ -767,30 +770,47 @@ export const CompleteRequiredPasswordResetResponse = zod.object({
 /**
  * @summary Get the user's simulated balances and recent activity
  */
-export const getBankDashboardResponseProfileCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
-export const getBankDashboardResponseProfileDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
-export const getBankDashboardResponseVerificationNoticeMax = 500;
-
+export const getBankDashboardResponseProfileOneCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
+export const getBankDashboardResponseProfileOneDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
 
 
 export const GetBankDashboardResponse = zod.object({
   "profile": zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "customerId": zod.string().regex(getBankDashboardResponseProfileCustomerIdRegExp),
+  "customerId": zod.string().regex(getBankDashboardResponseProfileOneCustomerIdRegExp),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
-  "dateOfBirth": zod.string().regex(getBankDashboardResponseProfileDateOfBirthRegExp).nullable(),
+  "dateOfBirth": zod.string().regex(getBankDashboardResponseProfileOneDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
+  "profileSetupComplete": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
+  "vaultSubscriptionActive": zod.boolean(),
+  "vaultAccessActive": zod.boolean(),
+  "vaultAccessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "depositAllowed": zod.boolean(),
   "withdrawalAllowed": zod.boolean(),
-  "createdAt": zod.coerce.date()
+  "accountTier": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "source": zod.enum(['paystack_subscription', 'default'])
 }),
+  "createdAt": zod.coerce.date()
+}).and(zod.object({
+  "accountTier": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "source": zod.enum(['paystack_subscription', 'default'])
+}),
+  "testingMode": zod.boolean()
+})),
   "wallets": zod.array(zod.object({
   "id": zod.string(),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
@@ -804,6 +824,7 @@ export const GetBankDashboardResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -813,8 +834,7 @@ export const GetBankDashboardResponse = zod.object({
   "createdAt": zod.coerce.date()
 })),
   "referenceCurrency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
-  "internalLedger": zod.literal(true),
-  "verificationNotice": zod.string().max(getBankDashboardResponseVerificationNoticeMax).nullable()
+  "internalLedger": zod.literal(true)
 })
 
 
@@ -927,6 +947,7 @@ export const ListBankTransactionsResponseItem = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -946,22 +967,27 @@ export const updateBankProfileBodyFirstNameMax = 80;
 export const updateBankProfileBodyLastNameMin = 0;
 export const updateBankProfileBodyLastNameMax = 80;
 
-export const updateBankProfileBodyPhoneMin = 3;
-export const updateBankProfileBodyPhoneMax = 32;
+export const updateBankProfileBodyPhoneMax = 1024;
 
-export const updateBankProfileBodyCountryMin = 2;
-export const updateBankProfileBodyCountryMax = 80;
+export const updateBankProfileBodyCountryMax = 1024;
 
-export const updateBankProfileBodyDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateBankProfileBodyDateOfBirthMax = 1024;
+
+export const updateBankProfileBodyCityOfOriginMax = 1024;
+
+export const updateBankProfileBodyOccupationMax = 1024;
+
 
 
 export const UpdateBankProfileBody = zod.object({
   "firstName": zod.string().min(1).max(updateBankProfileBodyFirstNameMax),
   "lastName": zod.string().min(updateBankProfileBodyLastNameMin).max(updateBankProfileBodyLastNameMax),
-  "phone": zod.string().min(updateBankProfileBodyPhoneMin).max(updateBankProfileBodyPhoneMax),
-  "country": zod.string().min(updateBankProfileBodyCountryMin).max(updateBankProfileBodyCountryMax),
-  "dateOfBirth": zod.string().regex(updateBankProfileBodyDateOfBirthRegExp).optional(),
-  "acceptedTerms": zod.literal(true)
+  "phone": zod.string().max(updateBankProfileBodyPhoneMax).nullish(),
+  "country": zod.string().max(updateBankProfileBodyCountryMax).nullish(),
+  "dateOfBirth": zod.string().max(updateBankProfileBodyDateOfBirthMax).nullish(),
+  "cityOfOrigin": zod.string().max(updateBankProfileBodyCityOfOriginMax).nullish(),
+  "occupation": zod.string().max(updateBankProfileBodyOccupationMax).nullish(),
+  "acceptedTerms": zod.literal(true).optional()
 })
 
 export const updateBankProfileResponseCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
@@ -977,12 +1003,89 @@ export const UpdateBankProfileResponse = zod.object({
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(updateBankProfileResponseDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
+  "profileSetupComplete": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
   "verificationNote": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
+  "vaultSubscriptionActive": zod.boolean(),
+  "vaultAccessActive": zod.boolean(),
+  "vaultAccessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
   "depositAllowed": zod.boolean(),
   "withdrawalAllowed": zod.boolean(),
+  "accountTier": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "source": zod.enum(['paystack_subscription', 'default'])
+}),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Save sign-up profile details after verification
+ */
+export const saveSignupProfileBodyFirstNameMax = 80;
+
+export const saveSignupProfileBodyLastNameMax = 80;
+
+export const saveSignupProfileBodyPhoneMax = 1024;
+
+export const saveSignupProfileBodyCountryMax = 1024;
+
+export const saveSignupProfileBodyCityOfOriginMax = 1024;
+
+export const saveSignupProfileBodyDateOfBirthMax = 1024;
+
+export const saveSignupProfileBodyOccupationMax = 1024;
+
+
+
+export const SaveSignupProfileBody = zod.object({
+  "firstName": zod.string().min(1).max(saveSignupProfileBodyFirstNameMax),
+  "lastName": zod.string().min(1).max(saveSignupProfileBodyLastNameMax),
+  "phone": zod.string().max(saveSignupProfileBodyPhoneMax).optional(),
+  "country": zod.string().max(saveSignupProfileBodyCountryMax).optional(),
+  "cityOfOrigin": zod.string().max(saveSignupProfileBodyCityOfOriginMax).optional(),
+  "dateOfBirth": zod.string().max(saveSignupProfileBodyDateOfBirthMax).optional(),
+  "occupation": zod.string().max(saveSignupProfileBodyOccupationMax).optional(),
+  "acceptedTerms": zod.literal(true).optional()
+})
+
+export const saveSignupProfileResponseCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
+export const saveSignupProfileResponseDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const SaveSignupProfileResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "customerId": zod.string().regex(saveSignupProfileResponseCustomerIdRegExp),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "country": zod.string().nullable(),
+  "dateOfBirth": zod.string().regex(saveSignupProfileResponseDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
+  "profileSetupComplete": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
+  "transactionPinConfigured": zod.boolean(),
+  "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
+  "verificationNote": zod.string().nullable(),
+  "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
+  "vaultSubscriptionActive": zod.boolean(),
+  "vaultAccessActive": zod.boolean(),
+  "vaultAccessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant']),
+  "depositAllowed": zod.boolean(),
+  "withdrawalAllowed": zod.boolean(),
+  "accountTier": zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "source": zod.enum(['paystack_subscription', 'default'])
+}),
   "createdAt": zod.coerce.date()
 })
 
@@ -1001,103 +1104,6 @@ export const UpdateTransactionPinBody = zod.object({
 
 export const UpdateTransactionPinResponse = zod.object({
   "configured": zod.literal(true)
-})
-
-
-/**
- * @summary List identity documents belonging to the authenticated user
- */
-export const listMyIdentityDocumentsResponseSizeBytesMax = 10485760;
-
-
-
-export const ListMyIdentityDocumentsResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "contentType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
-  "sizeBytes": zod.number().int().min(1).max(listMyIdentityDocumentsResponseSizeBytesMax),
-  "status": zod.enum(['uploading', 'uploaded']),
-  "createdAt": zod.coerce.date(),
-  "uploadedAt": zod.coerce.date().nullable()
-})
-export const ListMyIdentityDocumentsResponse = zod.array(ListMyIdentityDocumentsResponseItem)
-
-
-/**
- * @summary Request a private upload URL for an identity document
- */
-export const createIdentityDocumentUploadUrlBodySizeBytesMax = 10485760;
-
-
-
-export const CreateIdentityDocumentUploadUrlBody = zod.object({
-  "contentType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
-  "sizeBytes": zod.number().int().min(1).max(createIdentityDocumentUploadUrlBodySizeBytesMax)
-})
-
-export const CreateIdentityDocumentUploadUrlResponse = zod.object({
-  "documentId": zod.string().uuid(),
-  "uploadUrl": zod.string().url()
-})
-
-
-/**
- * @summary Validate and complete an identity document upload
- */
-export const CompleteIdentityDocumentUploadParams = zod.object({
-  "documentId": zod.coerce.string().uuid()
-})
-
-export const completeIdentityDocumentUploadResponseSizeBytesMax = 10485760;
-
-
-
-export const CompleteIdentityDocumentUploadResponse = zod.object({
-  "id": zod.string().uuid(),
-  "contentType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
-  "sizeBytes": zod.number().int().min(1).max(completeIdentityDocumentUploadResponseSizeBytesMax),
-  "status": zod.enum(['uploading', 'uploaded']),
-  "createdAt": zod.coerce.date(),
-  "uploadedAt": zod.coerce.date().nullable()
-})
-
-
-/**
- * @summary Remove an identity document before it enters review
- */
-export const DeleteMyIdentityDocumentParams = zod.object({
-  "documentId": zod.coerce.string().uuid()
-})
-
-export const DeleteMyIdentityDocumentResponse = zod.void()
-
-
-/**
- * @summary Submit uploaded identity documents for review
- */
-export const SubmitIdentityDocumentsBody = zod.object({
-  "confirmed": zod.literal(true)
-})
-
-export const submitIdentityDocumentsResponseCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
-export const submitIdentityDocumentsResponseDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
-
-
-export const SubmitIdentityDocumentsResponse = zod.object({
-  "id": zod.string(),
-  "email": zod.string(),
-  "customerId": zod.string().regex(submitIdentityDocumentsResponseCustomerIdRegExp),
-  "firstName": zod.string().nullable(),
-  "lastName": zod.string().nullable(),
-  "phone": zod.string().nullable(),
-  "country": zod.string().nullable(),
-  "dateOfBirth": zod.string().regex(submitIdentityDocumentsResponseDateOfBirthRegExp).nullable(),
-  "transactionPinConfigured": zod.boolean(),
-  "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
-  "verificationNote": zod.string().nullable(),
-  "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
-  "depositAllowed": zod.boolean(),
-  "withdrawalAllowed": zod.boolean(),
-  "createdAt": zod.coerce.date()
 })
 
 
@@ -1216,6 +1222,7 @@ export const ListInternationalTransferRequestsResponseItem = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "destinationCountry": zod.string(),
   "recipientBank": zod.string(),
   "transferType": zod.enum(['local_routing', 'international_wire']),
@@ -1303,6 +1310,7 @@ export const CreateInternationalTransferRequestResponse = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "destinationCountry": zod.string(),
   "recipientBank": zod.string(),
   "transferType": zod.enum(['local_routing', 'international_wire']),
@@ -1330,9 +1338,6 @@ export const CreateInternationalTransferRequestResponse = zod.object({
  */
 export const upsertBankExchangeRateBodyDestinationCurrencyRegExp = new RegExp('^[A-Z]{3}$');
 export const upsertBankExchangeRateBodyRateRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,10})?$');
-export const upsertBankExchangeRateBodyReasonMin = 5;
-export const upsertBankExchangeRateBodyReasonMax = 500;
-
 export const upsertBankExchangeRateBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
@@ -1340,7 +1345,6 @@ export const UpsertBankExchangeRateBody = zod.object({
   "sourceCurrency": zod.enum(['USD', 'EUR', 'GBP', 'CAD']),
   "destinationCurrency": zod.string().regex(upsertBankExchangeRateBodyDestinationCurrencyRegExp).describe('ISO 4217 currency code for a rate quote, independent of supported source wallets.'),
   "rate": zod.string().regex(upsertBankExchangeRateBodyRateRegExp),
-  "reason": zod.string().min(upsertBankExchangeRateBodyReasonMin).max(upsertBankExchangeRateBodyReasonMax),
   "transactionPin": zod.string().regex(upsertBankExchangeRateBodyTransactionPinRegExp)
 })
 
@@ -1388,10 +1392,10 @@ export const CreateIncomingExternalTransferResponse = zod.void()
 
 
 /**
- * Deposit requests are credited immediately only for customers with an active Private Vault subscription and eligible account and wallet status. Withdrawal requests remain subject to administrator review.
+ * Deposit requests create internal Globus ledger credits for customers with valid Private Vault access and eligible account and wallet status. They never move outside funds; optional customer descriptions are stored with the transaction. Withdrawal requests remain subject to administrator review.
  * @summary Add funds with active Vault access or request a withdrawal
  */
-export const createLedgerRequestBodyAmountRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
+export const createLedgerRequestBodyAmountRegExp = new RegExp('^[0-9]{1,16}(\\.[0-9]{1,2})?$');
 export const createLedgerRequestBodyDescriptionMax = 140;
 
 export const createLedgerRequestBodyIdempotencyKeyMin = 16;
@@ -1403,7 +1407,7 @@ export const createLedgerRequestBodyTransactionPinRegExp = new RegExp('^[0-9]{6}
 export const CreateLedgerRequestBody = zod.object({
   "type": zod.enum(['deposit', 'withdrawal']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'CAD']),
-  "amount": zod.string().regex(createLedgerRequestBodyAmountRegExp),
+  "amount": zod.string().regex(createLedgerRequestBodyAmountRegExp).describe('Deposits allow up to 16 whole digits within the PostgreSQL bigint ledger limit; withdrawal validation allows up to 12.'),
   "description": zod.string().max(createLedgerRequestBodyDescriptionMax).optional(),
   "idempotencyKey": zod.string().min(createLedgerRequestBodyIdempotencyKeyMin).max(createLedgerRequestBodyIdempotencyKeyMax),
   "transactionPin": zod.string().regex(createLedgerRequestBodyTransactionPinRegExp),
@@ -1543,9 +1547,6 @@ export const convertAdminWalletCurrenciesToUsdBodyConversionsItemSourceAmountReg
 export const convertAdminWalletCurrenciesToUsdBodyConversionsItemExchangeRateRegExp = new RegExp('^[0-9]+(\\.[0-9]{1,10})?$');
 export const convertAdminWalletCurrenciesToUsdBodyConversionsMax = 500;
 
-export const convertAdminWalletCurrenciesToUsdBodyReasonMin = 5;
-export const convertAdminWalletCurrenciesToUsdBodyReasonMax = 500;
-
 export const convertAdminWalletCurrenciesToUsdBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
@@ -1556,7 +1557,6 @@ export const ConvertAdminWalletCurrenciesToUsdBody = zod.object({
   "exchangeRate": zod.string().regex(convertAdminWalletCurrenciesToUsdBodyConversionsItemExchangeRateRegExp),
   "rateUpdatedAt": zod.coerce.date()
 })).min(1).max(convertAdminWalletCurrenciesToUsdBodyConversionsMax),
-  "reason": zod.string().min(convertAdminWalletCurrenciesToUsdBodyReasonMin).max(convertAdminWalletCurrenciesToUsdBodyReasonMax),
   "transactionPin": zod.string().regex(convertAdminWalletCurrenciesToUsdBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })
@@ -1587,18 +1587,11 @@ export const UpdateAdminWalletStatusParams = zod.object({
   "walletId": zod.coerce.string().uuid()
 })
 
-export const updateAdminWalletStatusBodyReasonMin = 5;
-export const updateAdminWalletStatusBodyReasonMax = 500;
-
-export const updateAdminWalletStatusBodyNotesMax = 500;
-
 export const updateAdminWalletStatusBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const UpdateAdminWalletStatusBody = zod.object({
   "status": zod.enum(['active', 'restricted']),
-  "reason": zod.string().min(updateAdminWalletStatusBodyReasonMin).max(updateAdminWalletStatusBodyReasonMax),
-  "notes": zod.string().max(updateAdminWalletStatusBodyNotesMax).nullish(),
   "transactionPin": zod.string().regex(updateAdminWalletStatusBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })
@@ -1670,11 +1663,6 @@ export const ListAdminRestrictionsResponse = zod.object({
 /**
  * @summary Create a confirmed and audited account or wallet restriction
  */
-export const createAdminRestrictionBodyReasonMin = 5;
-export const createAdminRestrictionBodyReasonMax = 500;
-
-export const createAdminRestrictionBodyInternalNotesMax = 1000;
-
 export const createAdminRestrictionBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
@@ -1682,10 +1670,8 @@ export const CreateAdminRestrictionBody = zod.object({
   "userId": zod.string(),
   "walletId": zod.string().uuid().nullish(),
   "type": zod.enum(['suspend_user', 'restrict_outgoing_transfers', 'restrict_withdrawals', 'restrict_deposits', 'freeze_wallet', 'under_review', 'read_only']),
-  "reason": zod.string().min(createAdminRestrictionBodyReasonMin).max(createAdminRestrictionBodyReasonMax),
   "effectiveAt": zod.coerce.date(),
   "expiresAt": zod.coerce.date().nullish(),
-  "internalNotes": zod.string().max(createAdminRestrictionBodyInternalNotesMax).nullish(),
   "transactionPin": zod.string().regex(createAdminRestrictionBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })
@@ -1720,14 +1706,10 @@ export const RemoveAdminRestrictionParams = zod.object({
   "restrictionId": zod.coerce.string().uuid()
 })
 
-export const removeAdminRestrictionBodyReasonMin = 5;
-export const removeAdminRestrictionBodyReasonMax = 500;
-
 export const removeAdminRestrictionBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const RemoveAdminRestrictionBody = zod.object({
-  "reason": zod.string().min(removeAdminRestrictionBodyReasonMin).max(removeAdminRestrictionBodyReasonMax),
   "transactionPin": zod.string().regex(removeAdminRestrictionBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })
@@ -1796,8 +1778,6 @@ export const ListAdminAuditLogsResponse = zod.object({
 /**
  * @summary Read operational funding and frozen-wallet policies
  */
-export const getAdminSettingsResponseUnverifiedDashboardMessageMax = 500;
-
 export const getAdminSettingsResponseVaultPlan1mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const getAdminSettingsResponseVaultPlan3mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const getAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
@@ -1809,7 +1789,6 @@ export const GetAdminSettingsResponse = zod.object({
   "fundingLimit": zod.string(),
   "secondApprovalThreshold": zod.string(),
   "frozenIncomingPolicy": zod.enum(['allow_frozen']),
-  "unverifiedDashboardMessage": zod.string().min(1).max(getAdminSettingsResponseUnverifiedDashboardMessageMax),
   "vaultPlan1mPrice": zod.string().regex(getAdminSettingsResponseVaultPlan1mPriceRegExp),
   "vaultPlan3mPrice": zod.string().regex(getAdminSettingsResponseVaultPlan3mPriceRegExp),
   "vaultPlan1yPrice": zod.string().regex(getAdminSettingsResponseVaultPlan1yPriceRegExp),
@@ -1822,29 +1801,20 @@ export const GetAdminSettingsResponse = zod.object({
  */
 export const updateAdminSettingsBodyFundingLimitRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const updateAdminSettingsBodySecondApprovalThresholdRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
-export const updateAdminSettingsBodyUnverifiedDashboardMessageMax = 500;
-
 export const updateAdminSettingsBodyVaultPlan1mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const updateAdminSettingsBodyVaultPlan3mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const updateAdminSettingsBodyVaultPlan1yPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
-export const updateAdminSettingsBodyReasonMin = 5;
-export const updateAdminSettingsBodyReasonMax = 500;
-
 export const updateAdminSettingsBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const UpdateAdminSettingsBody = zod.object({
   "fundingLimit": zod.string().regex(updateAdminSettingsBodyFundingLimitRegExp),
   "secondApprovalThreshold": zod.string().regex(updateAdminSettingsBodySecondApprovalThresholdRegExp),
-  "unverifiedDashboardMessage": zod.string().min(1).max(updateAdminSettingsBodyUnverifiedDashboardMessageMax),
   "vaultPlan1mPrice": zod.string().regex(updateAdminSettingsBodyVaultPlan1mPriceRegExp),
   "vaultPlan3mPrice": zod.string().regex(updateAdminSettingsBodyVaultPlan3mPriceRegExp),
   "vaultPlan1yPrice": zod.string().regex(updateAdminSettingsBodyVaultPlan1yPriceRegExp),
-  "reason": zod.string().min(updateAdminSettingsBodyReasonMin).max(updateAdminSettingsBodyReasonMax),
   "transactionPin": zod.string().regex(updateAdminSettingsBodyTransactionPinRegExp)
 })
-
-export const updateAdminSettingsResponseUnverifiedDashboardMessageMax = 500;
 
 export const updateAdminSettingsResponseVaultPlan1mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const updateAdminSettingsResponseVaultPlan3mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
@@ -1857,7 +1827,6 @@ export const UpdateAdminSettingsResponse = zod.object({
   "fundingLimit": zod.string(),
   "secondApprovalThreshold": zod.string(),
   "frozenIncomingPolicy": zod.enum(['allow_frozen']),
-  "unverifiedDashboardMessage": zod.string().min(1).max(updateAdminSettingsResponseUnverifiedDashboardMessageMax),
   "vaultPlan1mPrice": zod.string().regex(updateAdminSettingsResponseVaultPlan1mPriceRegExp),
   "vaultPlan3mPrice": zod.string().regex(updateAdminSettingsResponseVaultPlan3mPriceRegExp),
   "vaultPlan1yPrice": zod.string().regex(updateAdminSettingsResponseVaultPlan1yPriceRegExp),
@@ -1905,15 +1874,11 @@ export const ReviewAdminLedgerRequestParams = zod.object({
   "requestId": zod.coerce.string().min(1)
 })
 
-export const reviewAdminLedgerRequestBodyReasonMin = 5;
-export const reviewAdminLedgerRequestBodyReasonMax = 500;
-
 export const reviewAdminLedgerRequestBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const ReviewAdminLedgerRequestBody = zod.object({
   "decision": zod.enum(['approve', 'reject']),
-  "reason": zod.string().min(reviewAdminLedgerRequestBodyReasonMin).max(reviewAdminLedgerRequestBodyReasonMax),
   "transactionPin": zod.string().regex(reviewAdminLedgerRequestBodyTransactionPinRegExp)
 })
 
@@ -1964,6 +1929,7 @@ export const ListAdminUsersResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "email": zod.string(),
+  "accountTierName": zod.string(),
   "customerId": zod.string().regex(listAdminUsersResponseItemsItemCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -1994,6 +1960,110 @@ export const ListAdminUsersResponse = zod.object({
 
 
 /**
+ * @summary Find users and inspect their Private Vault access source
+ */
+export const listAdminVaultAccessQuerySearchMin = 2;
+export const listAdminVaultAccessQuerySearchMax = 100;
+
+
+
+export const ListAdminVaultAccessQueryParams = zod.object({
+  "search": zod.coerce.string().min(listAdminVaultAccessQuerySearchMin).max(listAdminVaultAccessQuerySearchMax)
+})
+
+export const ListAdminVaultAccessResponse = zod.object({
+  "items": zod.array(zod.object({
+  "userId": zod.string(),
+  "email": zod.string().email(),
+  "customerId": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
+  "subscriptionActive": zod.boolean(),
+  "subscriptionExpiresAt": zod.coerce.date().nullable(),
+  "adminGrantActive": zod.boolean(),
+  "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantByUserId": zod.string().nullable(),
+  "adminGrantReason": zod.string().nullable(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant'])
+}))
+})
+
+
+/**
+ * @summary Grant a separate administrator Vault entitlement
+ */
+
+
+
+export const GrantAdminVaultAccessParams = zod.object({
+  "userId": zod.coerce.string().min(1)
+})
+
+export const grantAdminVaultAccessBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const GrantAdminVaultAccessBody = zod.object({
+  "transactionPin": zod.string().regex(grantAdminVaultAccessBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const GrantAdminVaultAccessResponse = zod.object({
+  "userId": zod.string(),
+  "email": zod.string().email(),
+  "customerId": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
+  "subscriptionActive": zod.boolean(),
+  "subscriptionExpiresAt": zod.coerce.date().nullable(),
+  "adminGrantActive": zod.boolean(),
+  "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantByUserId": zod.string().nullable(),
+  "adminGrantReason": zod.string().nullable(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant'])
+})
+
+
+/**
+ * @summary Revoke an administrator Vault entitlement without changing paid access
+ */
+
+
+
+export const RevokeAdminVaultAccessParams = zod.object({
+  "userId": zod.coerce.string().min(1)
+})
+
+export const revokeAdminVaultAccessBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const RevokeAdminVaultAccessBody = zod.object({
+  "transactionPin": zod.string().regex(revokeAdminVaultAccessBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const RevokeAdminVaultAccessResponse = zod.object({
+  "userId": zod.string(),
+  "email": zod.string().email(),
+  "customerId": zod.string().nullable(),
+  "firstName": zod.string().nullable(),
+  "lastName": zod.string().nullable(),
+  "subscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
+  "subscriptionActive": zod.boolean(),
+  "subscriptionExpiresAt": zod.coerce.date().nullable(),
+  "adminGrantActive": zod.boolean(),
+  "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantByUserId": zod.string().nullable(),
+  "adminGrantReason": zod.string().nullable(),
+  "accessActive": zod.boolean(),
+  "accessSource": zod.enum(['none', 'paystack_subscription', 'admin_grant'])
+})
+
+
+/**
  * @summary Get one user's profile, wallets, and recent activity
  */
 
@@ -2012,6 +2082,7 @@ export const GetAdminUserDetailResponse = zod.object({
   "user": zod.object({
   "id": zod.string(),
   "email": zod.string(),
+  "accountTierName": zod.string(),
   "customerId": zod.string().regex(getAdminUserDetailResponseUserCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2037,7 +2108,11 @@ export const GetAdminUserDetailResponse = zod.object({
 }),
   "phone": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getAdminUserDetailResponseDateOfBirthRegExp).nullable(),
+  "cityOfOrigin": zod.string().nullable(),
+  "occupation": zod.string().nullable(),
   "profileSetupCompletedAt": zod.coerce.date().nullable(),
+  "testingModeDisabled": zod.boolean(),
+  "transferAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "transactionCount": zod.number().int(),
   "wallets": zod.array(zod.object({
@@ -2053,6 +2128,7 @@ export const GetAdminUserDetailResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2084,14 +2160,9 @@ export const ResetAdminUserTransactionPinParams = zod.object({
   "userId": zod.coerce.string().min(1)
 })
 
-export const resetAdminUserTransactionPinBodyReasonMin = 5;
-export const resetAdminUserTransactionPinBodyReasonMax = 500;
-
-
-
 export const ResetAdminUserTransactionPinBody = zod.object({
-  "reason": zod.string().min(resetAdminUserTransactionPinBodyReasonMin).max(resetAdminUserTransactionPinBodyReasonMax)
-})
+
+}).passthrough()
 
 export const ResetAdminUserTransactionPinResponse = zod.object({
   "configured": zod.literal(false)
@@ -2108,13 +2179,7 @@ export const ResetAdminUserPasswordParams = zod.object({
   "userId": zod.coerce.string().min(1)
 })
 
-export const resetAdminUserPasswordBodyReasonMin = 5;
-export const resetAdminUserPasswordBodyReasonMax = 500;
-
-
-
 export const ResetAdminUserPasswordBody = zod.object({
-  "reason": zod.string().min(resetAdminUserPasswordBodyReasonMin).max(resetAdminUserPasswordBodyReasonMax),
   "confirmed": zod.literal(true)
 })
 
@@ -2140,17 +2205,8 @@ export const UpdateAdminUserStatusParams = zod.object({
   "userId": zod.coerce.string().min(1)
 })
 
-export const updateAdminUserStatusBodyReasonMin = 5;
-export const updateAdminUserStatusBodyReasonMax = 500;
-
-export const updateAdminUserStatusBodyNotesMax = 500;
-
-
-
 export const UpdateAdminUserStatusBody = zod.object({
-  "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
-  "reason": zod.string().min(updateAdminUserStatusBodyReasonMin).max(updateAdminUserStatusBodyReasonMax),
-  "notes": zod.string().max(updateAdminUserStatusBodyNotesMax).optional()
+  "accountStatus": zod.enum(['active', 'restricted', 'suspended'])
 })
 
 export const updateAdminUserStatusResponseCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
@@ -2160,6 +2216,7 @@ export const updateAdminUserStatusResponseVaultSubscriptionAmountMinorRegExp = n
 export const UpdateAdminUserStatusResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
+  "accountTierName": zod.string(),
   "customerId": zod.string().regex(updateAdminUserStatusResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2203,8 +2260,10 @@ export const updateAdminUserProfileBodyPhoneMax = 40;
 
 export const updateAdminUserProfileBodyCountryMax = 80;
 
-export const updateAdminUserProfileBodyReasonMin = 5;
-export const updateAdminUserProfileBodyReasonMax = 500;
+export const updateAdminUserProfileBodyCityOfOriginMax = 80;
+
+export const updateAdminUserProfileBodyDateOfBirthRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateAdminUserProfileBodyOccupationMax = 120;
 
 export const updateAdminUserProfileBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
@@ -2214,7 +2273,9 @@ export const UpdateAdminUserProfileBody = zod.object({
   "lastName": zod.string().max(updateAdminUserProfileBodyLastNameMax).nullish(),
   "phone": zod.string().max(updateAdminUserProfileBodyPhoneMax).nullish(),
   "country": zod.string().max(updateAdminUserProfileBodyCountryMax).nullish(),
-  "reason": zod.string().min(updateAdminUserProfileBodyReasonMin).max(updateAdminUserProfileBodyReasonMax),
+  "cityOfOrigin": zod.string().max(updateAdminUserProfileBodyCityOfOriginMax).nullish(),
+  "dateOfBirth": zod.string().regex(updateAdminUserProfileBodyDateOfBirthRegExp).nullish(),
+  "occupation": zod.string().max(updateAdminUserProfileBodyOccupationMax).nullish(),
   "transactionPin": zod.string().regex(updateAdminUserProfileBodyTransactionPinRegExp)
 })
 
@@ -2225,6 +2286,7 @@ export const updateAdminUserProfileResponseVaultSubscriptionAmountMinorRegExp = 
 export const UpdateAdminUserProfileResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
+  "accountTierName": zod.string(),
   "customerId": zod.string().regex(updateAdminUserProfileResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2251,7 +2313,7 @@ export const UpdateAdminUserProfileResponse = zod.object({
 
 
 /**
- * @summary Update a member's Testing Mode and transfer-access controls
+ * @summary Update independent per-customer Testing Mode and transfer access
  */
 
 
@@ -2282,31 +2344,6 @@ export const UpdateAdminUserAccessControlsResponse = zod.object({
 
 
 /**
- * @summary List a user's identity documents for admin review
- */
-
-
-
-export const ListAdminIdentityDocumentsParams = zod.object({
-  "userId": zod.coerce.string().min(1)
-})
-
-export const listAdminIdentityDocumentsResponseSizeBytesMax = 10485760;
-
-
-
-export const ListAdminIdentityDocumentsResponseItem = zod.object({
-  "id": zod.string().uuid(),
-  "contentType": zod.enum(['application/pdf', 'image/jpeg', 'image/png']),
-  "sizeBytes": zod.number().int().min(1).max(listAdminIdentityDocumentsResponseSizeBytesMax),
-  "status": zod.enum(['uploading', 'uploaded']),
-  "createdAt": zod.coerce.date(),
-  "uploadedAt": zod.coerce.date().nullable()
-})
-export const ListAdminIdentityDocumentsResponse = zod.array(ListAdminIdentityDocumentsResponseItem)
-
-
-/**
  * @summary Revoke a member's private vault subscription access
  */
 
@@ -2316,85 +2353,14 @@ export const UpdateAdminUserVaultSubscriptionParams = zod.object({
   "userId": zod.coerce.string().min(1)
 })
 
-export const updateAdminUserVaultSubscriptionBodyReasonMin = 5;
-export const updateAdminUserVaultSubscriptionBodyReasonMax = 500;
-
-
-
 export const UpdateAdminUserVaultSubscriptionBody = zod.object({
-  "status": zod.enum(['inactive']),
-  "reason": zod.string().min(updateAdminUserVaultSubscriptionBodyReasonMin).max(updateAdminUserVaultSubscriptionBodyReasonMax)
+  "status": zod.enum(['inactive'])
 })
 
 export const UpdateAdminUserVaultSubscriptionResponse = zod.object({
   "userId": zod.string(),
   "status": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']),
   "expiresAt": zod.coerce.date().nullable()
-})
-
-
-/**
- * @summary Stream an identity document to an authorized admin
- */
-export const GetAdminIdentityDocumentContentParams = zod.object({
-  "documentId": zod.coerce.string().uuid()
-})
-
-export const GetAdminIdentityDocumentContentResponse = zod.unknown()
-
-
-/**
- * @summary Record an identity review decision
- */
-
-
-
-export const UpdateAdminUserVerificationParams = zod.object({
-  "userId": zod.coerce.string().min(1)
-})
-
-export const updateAdminUserVerificationBodyReasonMin = 5;
-export const updateAdminUserVerificationBodyReasonMax = 500;
-
-export const updateAdminUserVerificationBodyUserMessageMax = 500;
-
-
-
-export const UpdateAdminUserVerificationBody = zod.object({
-  "verificationStatus": zod.enum(['approved', 'rejected', 'additional_information_required']),
-  "reason": zod.string().min(updateAdminUserVerificationBodyReasonMin).max(updateAdminUserVerificationBodyReasonMax),
-  "userMessage": zod.string().max(updateAdminUserVerificationBodyUserMessageMax).optional()
-})
-
-export const updateAdminUserVerificationResponseCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');
-export const updateAdminUserVerificationResponseVaultSubscriptionAmountMinorRegExp = new RegExp('^[0-9]+$');
-
-
-export const UpdateAdminUserVerificationResponse = zod.object({
-  "id": zod.string(),
-  "email": zod.string(),
-  "customerId": zod.string().regex(updateAdminUserVerificationResponseCustomerIdRegExp).nullable(),
-  "firstName": zod.string().nullable(),
-  "lastName": zod.string().nullable(),
-  "country": zod.string().nullable(),
-  "verificationStatus": zod.enum(['not_started', 'pending', 'approved', 'rejected', 'additional_information_required']),
-  "verificationNote": zod.string().nullable(),
-  "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
-  "accountRestrictionReason": zod.string().nullable(),
-  "accountRestrictionNotes": zod.string().nullable(),
-  "accountRestrictedAt": zod.coerce.date().nullable(),
-  "profileSetupCompletedAt": zod.coerce.date().nullable(),
-  "testingModeDisabled": zod.boolean(),
-  "transferAccessGranted": zod.boolean(),
-  "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
-  "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
-  "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
-  "vaultSubscriptionReason": zod.string().nullish(),
-  "vaultSubscriptionPlan": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullish(),
-  "vaultSubscriptionAmountMinor": zod.string().regex(updateAdminUserVerificationResponseVaultSubscriptionAmountMinorRegExp).nullish(),
-  "vaultSubscriptionAutoRenew": zod.boolean().optional(),
-  "walletCount": zod.number().int(),
-  "createdAt": zod.coerce.date()
 })
 
 
@@ -2415,11 +2381,6 @@ export const createAdminFundingBodyDescriptionMax = 240;
 
 export const createAdminFundingBodyInternalReferenceMax = 120;
 
-export const createAdminFundingBodyAdminNotesMax = 500;
-
-export const createAdminFundingBodyReasonMin = 5;
-export const createAdminFundingBodyReasonMax = 500;
-
 export const createAdminFundingBodyIdempotencyKeyMin = 16;
 export const createAdminFundingBodyIdempotencyKeyMax = 100;
 
@@ -2433,8 +2394,6 @@ export const CreateAdminFundingBody = zod.object({
   "senderName": zod.string().min(1).max(createAdminFundingBodySenderNameMax),
   "description": zod.string().min(1).max(createAdminFundingBodyDescriptionMax),
   "internalReference": zod.string().max(createAdminFundingBodyInternalReferenceMax).nullish(),
-  "adminNotes": zod.string().max(createAdminFundingBodyAdminNotesMax).nullish(),
-  "reason": zod.string().min(createAdminFundingBodyReasonMin).max(createAdminFundingBodyReasonMax),
   "idempotencyKey": zod.string().min(createAdminFundingBodyIdempotencyKeyMin).max(createAdminFundingBodyIdempotencyKeyMax),
   "transactionPin": zod.string().regex(createAdminFundingBodyTransactionPinRegExp)
 })
@@ -2444,6 +2403,7 @@ export const CreateAdminFundingResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2472,6 +2432,7 @@ export const ListAdminLedgerResponseItem = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2544,6 +2505,7 @@ export const ListAdminTransactionsResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2571,6 +2533,7 @@ export const GetAdminTransactionDetailResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2620,9 +2583,6 @@ export const CreateAdminTransactionCorrectionParams = zod.object({
 })
 
 export const createAdminTransactionCorrectionBodyAmountRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
-export const createAdminTransactionCorrectionBodyReasonMin = 5;
-export const createAdminTransactionCorrectionBodyReasonMax = 500;
-
 export const createAdminTransactionCorrectionBodyIdempotencyKeyMin = 16;
 export const createAdminTransactionCorrectionBodyIdempotencyKeyMax = 100;
 
@@ -2634,7 +2594,6 @@ export const CreateAdminTransactionCorrectionBody = zod.object({
   "walletId": zod.string().uuid().nullish(),
   "direction": zod.union([zod.literal('credit'),zod.literal('debit'),zod.literal(null)]).nullish(),
   "amount": zod.string().regex(createAdminTransactionCorrectionBodyAmountRegExp).nullish(),
-  "reason": zod.string().min(createAdminTransactionCorrectionBodyReasonMin).max(createAdminTransactionCorrectionBodyReasonMax),
   "idempotencyKey": zod.string().min(createAdminTransactionCorrectionBodyIdempotencyKeyMin).max(createAdminTransactionCorrectionBodyIdempotencyKeyMax),
   "transactionPin": zod.string().regex(createAdminTransactionCorrectionBodyTransactionPinRegExp)
 })
@@ -2644,6 +2603,7 @@ export const CreateAdminTransactionCorrectionResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2661,15 +2621,11 @@ export const UpdateAdminTransactionStatusParams = zod.object({
   "transactionId": zod.coerce.string().uuid()
 })
 
-export const updateAdminTransactionStatusBodyReasonMin = 5;
-export const updateAdminTransactionStatusBodyReasonMax = 500;
-
 export const updateAdminTransactionStatusBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const UpdateAdminTransactionStatusBody = zod.object({
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
-  "reason": zod.string().min(updateAdminTransactionStatusBodyReasonMin).max(updateAdminTransactionStatusBodyReasonMax),
   "transactionPin": zod.string().regex(updateAdminTransactionStatusBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })
@@ -2679,6 +2635,7 @@ export const UpdateAdminTransactionStatusResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2696,14 +2653,10 @@ export const ProcessAdminInternalTransferParams = zod.object({
   "transactionId": zod.coerce.string().uuid()
 })
 
-export const processAdminInternalTransferBodyReasonMin = 5;
-export const processAdminInternalTransferBodyReasonMax = 500;
-
 export const processAdminInternalTransferBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const ProcessAdminInternalTransferBody = zod.object({
-  "reason": zod.string().min(processAdminInternalTransferBodyReasonMin).max(processAdminInternalTransferBodyReasonMax),
   "transactionPin": zod.string().regex(processAdminInternalTransferBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })
@@ -2713,6 +2666,7 @@ export const ProcessAdminInternalTransferResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2730,15 +2684,11 @@ export const ReviewAdminFundingParams = zod.object({
   "transactionId": zod.coerce.string().uuid()
 })
 
-export const reviewAdminFundingBodyReasonMin = 5;
-export const reviewAdminFundingBodyReasonMax = 500;
-
 export const reviewAdminFundingBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const ReviewAdminFundingBody = zod.object({
   "decision": zod.enum(['approve', 'reject']),
-  "reason": zod.string().min(reviewAdminFundingBodyReasonMin).max(reviewAdminFundingBodyReasonMax),
   "transactionPin": zod.string().regex(reviewAdminFundingBodyTransactionPinRegExp)
 })
 
@@ -2747,6 +2697,7 @@ export const ReviewAdminFundingResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),

@@ -12,19 +12,9 @@ export interface AdminRestrictionInput {
   /** @nullable */
   walletId?: string | null;
   type: BankRestrictionType;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   effectiveAt: Date;
   /** @nullable */
   expiresAt?: Date | null;
-  /**
-     * @maxLength 1000
-     * @nullable
-     */
-  internalNotes?: string | null;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;

@@ -8,8 +8,9 @@ A simulation-only multi-currency wallet experience for exploring ledger-backed a
 - `pnpm run typecheck` — full typecheck across all packages
 - `pnpm run build` — typecheck + build all packages
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec
-- `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
-- Required env: `DATABASE_URL` — Postgres connection string
+- `pnpm --filter @workspace/db run generate` — generate checked-in Drizzle migrations from the schema
+- `pnpm --filter @workspace/db run migrate` — apply checked-in migrations to the selected Supabase database
+- Required env: `SUPABASE_DATABASE_URL` — environment-scoped Supabase PostgreSQL connection string
 
 ## Stack
 
@@ -31,6 +32,7 @@ A simulation-only multi-currency wallet experience for exploring ledger-backed a
 ## Architecture decisions
 
 - Clerk handles sign-in; the API creates a Globus profile and currency wallets on first account access.
+- Development and production use separate Supabase PostgreSQL databases through environment-scoped `SUPABASE_DATABASE_URL` secrets. Schema changes are checked in as Drizzle migrations; production migrations are applied explicitly, not during app startup or deployment builds.
 - Starting simulated value and transfers are fictional in every environment; the product labels them as simulations.
 - Deposits, withdrawals and exchanges create provider-setup requests only; they never change wallet balances.
 - Administrator API access is controlled by server-side Clerk ID and verified-primary-email allowlists (`GLOBUS_ADMIN_CLERK_IDS`, `GLOBUS_ADMIN_EMAILS`); client-supplied emails never grant access.

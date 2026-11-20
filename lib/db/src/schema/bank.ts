@@ -69,12 +69,26 @@ export const bankRequestTypeEnum = pgEnum("bank_request_type", [
 export const bankUsersTable = pgTable("bank_users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
+  preferredReceiptTemplate: text("preferred_receipt_template")
+    .notNull()
+    .default("standard"),
   customerId: text("customer_id").unique(),
   firstName: text("first_name"),
   lastName: text("last_name"),
+  profileSetupCompletedAt: timestamp("profile_setup_completed_at", {
+    withTimezone: true,
+  }),
   phone: text("phone"),
   country: text("country"),
+  cityOfOrigin: text("city_of_origin"),
   dateOfBirth: date("date_of_birth", { mode: "string" }),
+  occupation: text("occupation"),
+  testingModeDisabled: boolean("testing_mode_disabled")
+    .notNull()
+    .default(false),
+  transferAccessGranted: boolean("transfer_access_granted")
+    .notNull()
+    .default(false),
   transactionPinHash: text("transaction_pin_hash"),
   transactionPinFailedAttempts: integer("transaction_pin_failed_attempts")
     .notNull()
@@ -171,9 +185,6 @@ export const bankUsersTable = pgTable("bank_users", {
   vaultEmailAlertsEnabled: boolean("vault_email_alerts_enabled")
     .notNull()
     .default(false),
-  preferredReceiptTemplate: text("preferred_receipt_template")
-    .notNull()
-    .default("standard"),
   pushTransferAlertsEnabled: boolean("push_transfer_alerts_enabled")
     .notNull()
     .default(false),
@@ -190,13 +201,6 @@ export const bankUsersTable = pgTable("bank_users", {
   accountRestrictionNotes: text("account_restriction_notes"),
   accountRestrictedByUserId: text("account_restricted_by_user_id"),
   accountRestrictedAt: timestamp("account_restricted_at", { withTimezone: true }),
-  profileSetupCompletedAt: timestamp("profile_setup_completed_at", {
-    withTimezone: true,
-  }),
-  testingModeDisabled: boolean("testing_mode_disabled").notNull().default(false),
-  transferAccessGranted: boolean("transfer_access_granted")
-    .notNull()
-    .default(false),
   acceptedTermsAt: timestamp("accepted_terms_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
@@ -306,6 +310,7 @@ export const bankTransactionsTable = pgTable(
     reversalOfTransactionId: uuid("reversal_of_transaction_id"),
     correctionReason: text("correction_reason"),
     mode: text("mode").notNull().default("simulation"),
+    receiptTemplate: text("receipt_template").notNull().default("standard"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
@@ -548,6 +553,28 @@ export const bankVaultPaystackEventsTable = pgTable(
   },
   (table) => [
     index("bank_vault_paystack_event_user_idx").on(table.userId, table.createdAt),
+  ],
+);
+
+export const bankVaultAdminEntitlementsTable = pgTable(
+  "bank_vault_admin_entitlements",
+  {
+    userId: text("user_id")
+      .primaryKey()
+      .references(() => bankUsersTable.id, { onDelete: "cascade" }),
+    grantedByUserId: text("granted_by_user_id")
+      .notNull()
+      .references(() => bankUsersTable.id),
+    reason: text("reason").notNull(),
+    grantedAt: timestamp("granted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("bank_vault_admin_entitlement_grantor_idx").on(
+      table.grantedByUserId,
+      table.grantedAt,
+    ),
   ],
 );
 

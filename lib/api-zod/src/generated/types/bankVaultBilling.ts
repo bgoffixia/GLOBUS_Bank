@@ -5,12 +5,16 @@
  * Globus internal ledger API; no external financial provider is connected
  * OpenAPI spec version: 0.1.0
  */
+import type { BankVaultBillingAccessSource } from './bankVaultBillingAccessSource';
 import type { BankVaultBillingPlansItem } from './bankVaultBillingPlansItem';
 import type { BankVaultBillingProvider } from './bankVaultBillingProvider';
 
 export interface BankVaultBilling {
   configured: boolean;
   provider: BankVaultBillingProvider;
+  adminGrantActive: boolean;
+  accessActive: boolean;
+  accessSource: BankVaultBillingAccessSource;
   /** True only after the server recurring flag and signed webhook are configured */
   recurringEnabled: boolean;
   plans: BankVaultBillingPlansItem[];

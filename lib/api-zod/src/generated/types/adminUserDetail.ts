@@ -20,7 +20,13 @@ export interface AdminUserDetail {
      */
   dateOfBirth: string | null;
   /** @nullable */
+  cityOfOrigin: string | null;
+  /** @nullable */
+  occupation: string | null;
+  /** @nullable */
   profileSetupCompletedAt: Date | null;
+  testingModeDisabled: boolean;
+  transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
   transactionCount: number;
   wallets: Wallet[];

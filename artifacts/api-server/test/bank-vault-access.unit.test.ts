@@ -1,0 +1,231 @@
+import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
+import { test } from "node:test";
+import { getTableColumns } from "drizzle-orm";
+import { bankUsersTable } from "@workspace/db";
+import {
+  classifyVaultPaystackChargeFailure,
+  getVaultAccessSource,
+  hasActiveVaultAccess,
+  hasActiveVaultSubscription,
+  hasImmediateTransferAccess,
+  isVaultTestingMode,
+  resolveEffectiveAccountTier,
+} from "../src/lib/bank-vault";
+import { parseAmountToMinor } from "../src/lib/bank";
+import { normalizeVaultTopUpDescription } from "../src/lib/vault-subscriber-deposit";
+
+function fakeEntitlementLookup(granted: boolean) {
+  return {
+    select: () => ({
+      from: () => ({
+        where: () => ({
+          limit: async () => granted ? [{ userId: "member-1" }] : [],
+        }),
+      }),
+    }),
+  } as never;
+}
+
+test("admin entitlement grants Vault access without changing paid subscription state", async () => {
+  const expiredMember = {
+    id: "member-1",
+    vaultSubscriptionStatus: "expired",
+    vaultSubscriptionExpiresAt: new Date(Date.now() - 60_000),
+  };
+  assert.equal(hasActiveVaultSubscription(expiredMember), false);
+  assert.equal(await hasActiveVaultAccess(expiredMember, fakeEntitlementLookup(true)), true);
+  assert.equal(
+    await getVaultAccessSource(expiredMember, fakeEntitlementLookup(true)),
+    "admin_grant",
+  );
+});
+
+test("paid subscription access remains distinct when no admin grant exists", async () => {
+  const subscriber = {
+    id: "member-2",
+    vaultSubscriptionStatus: "active",
+    vaultSubscriptionExpiresAt: new Date(Date.now() + 60_000),
+  };
+  assert.equal(await hasActiveVaultAccess(subscriber, fakeEntitlementLookup(false)), true);
+  assert.equal(
+    await getVaultAccessSource(subscriber, fakeEntitlementLookup(false)),
+    "paystack_subscription",
+  );
+});
+
+test("no grant or active paid subscription means no Vault access", async () => {
+  const inactiveMember = {
+    id: "member-3",
+    vaultSubscriptionStatus: "inactive",
+    vaultSubscriptionExpiresAt: null,
+  };
+  assert.equal(await hasActiveVaultAccess(inactiveMember, fakeEntitlementLookup(false)), false);
+  assert.equal(
+    await getVaultAccessSource(inactiveMember, fakeEntitlementLookup(false)),
+    "none",
+  );
+});
+
+test("active Vault plans determine the displayed tier and expiry returns to Standard", () => {
+  const user = {
+    vaultSubscriptionStatus: "active",
+    vaultSubscriptionExpiresAt: new Date(Date.now() + 60_000),
+    vaultSubscriptionPlan: "3m",
+  };
+  assert.deepEqual(resolveEffectiveAccountTier(user), {
+    id: "gold",
+    name: "Gold 🪙",
+    source: "paystack_subscription",
+  });
+  assert.deepEqual(resolveEffectiveAccountTier({ ...user, vaultSubscriptionPlan: "1m" }), {
+    id: "silver",
+    name: "Silver🥈",
+    source: "paystack_subscription",
+  });
+  assert.deepEqual(resolveEffectiveAccountTier({ ...user, vaultSubscriptionPlan: "1y" }), {
+    id: "bronze",
+    name: "Bronze 🥉",
+    source: "paystack_subscription",
+  });
+  assert.deepEqual(
+    resolveEffectiveAccountTier(
+      {
+        ...user,
+        vaultSubscriptionExpiresAt: new Date(Date.now() - 60_000),
+      },
+    ),
+    { id: "standard", name: "Standard 🏦", source: "default" },
+  );
+  assert.deepEqual(
+    resolveEffectiveAccountTier({
+      ...user,
+      vaultSubscriptionPlan: "unknown",
+    }),
+    { id: "standard", name: "Standard 🏦", source: "default" },
+  );
+});
+
+test("production-compatible user schema and tier calculation do not require tier database objects", () => {
+  const columnNames = Object.values(getTableColumns(bankUsersTable)).map(
+    (column) => column.name,
+  );
+  assert.equal(columnNames.includes("account_tier_id"), false);
+
+  const schemaSource = readFileSync(
+    new URL("../../../lib/db/src/schema/bank.ts", import.meta.url),
+    "utf8",
+  );
+  const tierLibrarySource = readFileSync(
+    new URL("../src/lib/bank-vault.ts", import.meta.url),
+    "utf8",
+  );
+  const bankUserLibrarySource = readFileSync(
+    new URL("../src/lib/bank.ts", import.meta.url),
+    "utf8",
+  );
+  const customerRoutesSource = readFileSync(
+    new URL("../src/routes/bank.ts", import.meta.url),
+    "utf8",
+  );
+  const adminRoutesSource = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(schemaSource, /bank_account_tiers|account_tier_id/i);
+  assert.doesNotMatch(tierLibrarySource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
+  assert.doesNotMatch(bankUserLibrarySource, /bank_account_tiers|account_tier_id|accountTierId/i);
+  assert.match(
+    bankUserLibrarySource,
+    /export async function ensureBankUser[\s\S]*?\.select\(\)[\s\S]*?\.from\(bankUsersTable\)/,
+  );
+  assert.doesNotMatch(customerRoutesSource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
+  assert.doesNotMatch(adminRoutesSource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
+});
+
+test("Testing Mode clears only for an active paid subscription or admin grant", () => {
+  assert.equal(isVaultTestingMode("none"), true);
+  assert.equal(isVaultTestingMode("paystack_subscription"), false);
+  assert.equal(isVaultTestingMode("admin_grant"), false);
+  assert.equal(isVaultTestingMode("none", true), false);
+  assert.equal(isVaultTestingMode("paystack_subscription", true), false);
+});
+
+test("separate transfer access works without granting Vault access", () => {
+  assert.equal(hasImmediateTransferAccess(false, false), false);
+  assert.equal(hasImmediateTransferAccess(false, true), true);
+  assert.equal(hasImmediateTransferAccess(true, false), true);
+  assert.equal(isVaultTestingMode("none"), true);
+});
+
+test("failed Paystack charges are matched to the correct initial or renewal payment", () => {
+  const initialPayment = {
+    vaultSubscriptionStatus: "inactive",
+    vaultSubscriptionExpiresAt: null,
+    vaultSubscriptionPaymentReference: "GBV-initial",
+    vaultSubscriptionPaymentStatus: "pending",
+    vaultSubscriptionAmountMinor: "1200000",
+    vaultSubscriptionAutoRenew: false,
+    vaultPaystackPlanCode: null,
+    vaultPaystackSubscriptionCode: null,
+    vaultPaystackCustomerCode: null,
+  };
+  assert.equal(
+    classifyVaultPaystackChargeFailure(initialPayment, {
+      reference: "GBV-initial",
+      amount: 1_200_000,
+      currency: "NGN",
+      customerCode: null,
+      subscriptionCode: null,
+      providerPlanCode: null,
+    }),
+    "initial",
+  );
+  const recurringPayment = {
+    ...initialPayment,
+    vaultSubscriptionStatus: "active",
+    vaultSubscriptionExpiresAt: new Date(Date.now() + 60_000),
+    vaultSubscriptionPaymentReference: "GBV-old",
+    vaultSubscriptionPaymentStatus: "success",
+    vaultSubscriptionAutoRenew: true,
+    vaultPaystackPlanCode: "PLN_MONTHLY",
+    vaultPaystackSubscriptionCode: "SUB_MONTHLY",
+    vaultPaystackCustomerCode: "CUS_MEMBER",
+  };
+  assert.equal(
+    classifyVaultPaystackChargeFailure(recurringPayment, {
+      reference: "GBV-renewal",
+      amount: 1_200_000,
+      currency: "NGN",
+      customerCode: "CUS_MEMBER",
+      subscriptionCode: "SUB_MONTHLY",
+      providerPlanCode: "PLN_MONTHLY",
+    }),
+    "renewal",
+  );
+  assert.equal(
+    classifyVaultPaystackChargeFailure(recurringPayment, {
+      reference: "GBV-renewal",
+      amount: 1_200_001,
+      currency: "NGN",
+      customerCode: "CUS_MEMBER",
+      subscriptionCode: "SUB_MONTHLY",
+      providerPlanCode: "PLN_MONTHLY",
+    }),
+    null,
+  );
+});
+
+test("subscriber top-up amount parsing supports the expanded ledger range", () => {
+  assert.equal(parseAmountToMinor("2000000.50", 16), 200_000_050n);
+  assert.throws(() => parseAmountToMinor("2000000000000.50"), /valid amount/i);
+});
+
+test("customer ledger labels are normalized and default safely", () => {
+  assert.equal(
+    normalizeVaultTopUpDescription("  Monthly  \n\x00 savings  "),
+    "Monthly savings",
+  );
+  assert.equal(normalizeVaultTopUpDescription(" \n "), "Private Vault internal wallet credit");
+});

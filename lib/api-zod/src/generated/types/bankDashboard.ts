@@ -5,20 +5,15 @@
  * Globus internal ledger API; no external financial provider is connected
  * OpenAPI spec version: 0.1.0
  */
-import type { BankProfile } from './bankProfile';
+import type { BankDashboardProfile } from './bankDashboardProfile';
 import type { BankTransaction } from './bankTransaction';
 import type { CurrencyCode } from './currencyCode';
 import type { Wallet } from './wallet';
 
 export interface BankDashboard {
-  profile: BankProfile;
+  profile: BankDashboardProfile;
   wallets: Wallet[];
   recentTransactions: BankTransaction[];
   referenceCurrency: CurrencyCode;
   internalLedger: true;
-  /**
-     * @maxLength 500
-     * @nullable
-     */
-  verificationNotice: string | null;
 }

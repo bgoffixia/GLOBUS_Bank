@@ -24,7 +24,8 @@ import { CountrySelect } from '@/components/country-select';
 import { countries } from '@/lib/countries';
 import { currencyLabel, destinationCurrencies, destinationCurrencyForCountry } from '@/lib/destination-currency';
 import { previewConversion } from '@/lib/currency-conversion';
-import { digitsFor, formatAmount, formatRate, humanizeStatus, receiptFromRequest, TransferReceiptModal, type ReceiptTransaction } from './transfer-receipt';
+import { digitsFor, formatAmount, formatRate, humanizeStatus, TransferReceiptModal } from './transfer-receipt';
+import { receiptFromRequest, type ReceiptTransaction } from '@/lib/transfer-receipt-data';
 
 type TransferType = 'local_routing' | 'international_wire';
 type SourceCurrency = InternationalTransferRequestInput['sourceCurrency'];
@@ -92,7 +93,8 @@ export function InternationalTransferPage() {
   const headingRef = useRef<HTMLHeadingElement>(null);
 
   const pending = createRequest.isPending;
-  const verified = profile.data?.verificationStatus === 'approved';
+  const vaultAccessActive = profile.data?.vaultAccessActive === true;
+  const immediateTransferAccess = vaultAccessActive || profile.data?.transferAccessGranted === true;
   const pinConfigured = profile.data?.transactionPinConfigured !== false;
   const recipientEmailAlertsEnabled =
     emailAlertPreference.data?.enabled === true;
@@ -319,7 +321,7 @@ export function InternationalTransferPage() {
                 <RateWarning changed={rateChanged} lost={rateLost} onReview={() => { setRateSnapshot(liveRate); setConfirmed(false); }} />
                 <label className="flex cursor-pointer items-start gap-3 rounded-xl bg-[#f5f8f9] p-3 text-[11px] leading-5 text-[#3e566e]">
                   <input data-testid="checkbox-confirm-transfer" type="checkbox" checked={confirmed} onChange={e => setConfirmed(e.target.checked)} className="mt-0.5 h-4 w-4 accent-[#173b62]" />
-                  <span>I confirm these details are correct. {verified ? 'Globus will record this transfer once I enter my PIN.' : 'My account is not yet verified, so this will be sent to an administrator for review.'}</span>
+                  <span>I confirm these details are correct. {immediateTransferAccess ? 'Globus will record this transfer once I enter my PIN.' : 'Private Vault access or separate administrator transfer access is required for immediate processing; otherwise an administrator will review it.'}</span>
                 </label>
               </>}
 
@@ -337,8 +339,8 @@ export function InternationalTransferPage() {
           <div className="mt-auto flex items-center gap-2 rounded-b-[24px] border-t border-[#edf1f3] bg-[#fafbfc] px-4 py-3 sm:px-6">
             {step > 0 && <button type="button" data-testid="button-transfer-back" disabled={pending} onClick={() => go(step - 1)} className="inline-flex h-11 items-center gap-1.5 rounded-xl border border-[#dbe3e8] bg-white px-4 text-[11px] font-bold text-[#3e566e] disabled:opacity-50"><ArrowLeft size={14} /> Back</button>}
             {step < 4
-              ? <button type="button" data-testid="button-transfer-next" disabled={!stepValid[step]} onClick={next} className="ml-auto inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f51] px-5 text-[12px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[180px]">{step === 3 ? 'Confirm and continue' : 'Continue'} <ArrowRight size={15} /></button>
-              : <button type="button" data-testid="button-submit-international-transfer" disabled={!stepValid[4] || pending} onClick={submit} className="ml-auto inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f51] px-5 text-[12px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[180px]"><LockKeyhole size={14} /> {pending ? 'Submitting…' : verified ? 'Complete transfer' : 'Submit for review'}</button>}
+              ? <button type="button" data-testid="button-transfer-next" disabled={!stepValid[step]} onClick={next} className="ml-auto inline-flex h-10 flex-1 items-center justify-center gap-1.5 rounded-xl bg-[#142f51] px-4 text-[11px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[160px]">{step === 3 ? 'Confirm and continue' : 'Continue'} <ArrowRight size={14} /></button>
+              : <button type="button" data-testid="button-submit-international-transfer" disabled={!stepValid[4] || pending} onClick={submit} className="ml-auto inline-flex h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#142f51] px-5 text-[12px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[180px]"><LockKeyhole size={14} /> {pending ? 'Submitting…' : immediateTransferAccess ? 'Complete transfer' : 'Submit for review'}</button>}
           </div>
         </section>
       </div>
@@ -384,20 +386,20 @@ function PinPad({ value, onChange, disabled, onSubmit }: { value: string; onChan
       className="rounded-xl outline-none focus-visible:ring-2 focus-visible:ring-[#77aeb0]/40"
     >
       <div role="status" aria-label={`${value.length} of 6 digits entered`} data-testid="text-pin-progress" className="flex justify-center gap-2.5 py-2">
-        {Array.from({ length: 6 }).map((_, i) => <span key={i} className={`h-3 w-3 rounded-full transition ${i < value.length ? 'scale-110 bg-[#173b62]' : 'border border-[#c7d3dc] bg-white'}`} />)}
+        {Array.from({ length: 6 }).map((_, i) => <span key={i} className={`h-3 w-3 rounded-full transition ${i < value.length ? 'scale-110 bg-[#173b62]' : 'border-[0.75px] border-[#d9e1e7] bg-white'}`} />)}
       </div>
       <div className="mx-auto mt-2 grid max-w-[300px] grid-cols-3 gap-2">
         {['1', '2', '3', '4', '5', '6', '7', '8', '9'].map(d => <Key key={d} label={d} onClick={() => press(d)} disabled={disabled} />)}
         <Key label="Clear" onClick={() => !disabled && onChange('')} disabled={disabled} small testId="button-pin-clear" />
         <Key label="0" onClick={() => press('0')} disabled={disabled} />
-        <button type="button" aria-label="Delete last digit" data-testid="button-pin-delete" disabled={disabled} onClick={back} className="grid h-12 place-items-center rounded-xl text-[#4a637b] transition hover:bg-[#eef3f5] active:scale-95 disabled:opacity-40"><Delete size={18} /></button>
+        <button type="button" aria-label="Delete last digit" data-testid="button-pin-delete" disabled={disabled} onClick={back} className="grid h-[51px] place-items-center rounded-xl text-[#4a637b] transition hover:bg-[#eef3f5] active:scale-95 disabled:opacity-40"><Delete size={18} /></button>
       </div>
     </div>
   );
 }
 
 function Key({ label, onClick, disabled, small, testId }: { label: string; onClick: () => void; disabled: boolean; small?: boolean; testId?: string }) {
-  return <button type="button" data-testid={testId ?? `button-pin-${label}`} disabled={disabled} onClick={onClick} className={`h-12 rounded-xl border border-[#e3e9ed] bg-[#fafbfc] font-semibold text-[#1d3754] transition hover:bg-[#eef4f6] active:scale-95 disabled:opacity-40 ${small ? 'text-[10px] uppercase tracking-[.08em]' : 'bank-display text-[18px]'}`}>{label}</button>;
+  return <button type="button" data-testid={testId ?? `button-pin-${label}`} disabled={disabled} onClick={onClick} className={`h-[51px] rounded-xl border border-[#e3e9ed] bg-[#fafbfc] font-semibold text-[#1d3754] transition hover:bg-[#eef4f6] active:scale-95 disabled:opacity-40 ${small ? 'text-[10px] uppercase tracking-[.08em]' : 'bank-display text-[18px]'}`}>{label}</button>;
 }
 
 const inputCls = 'h-11 w-full rounded-xl border border-[#dfe6eb] bg-white px-3.5 text-[12px] text-[#344b64] outline-none transition placeholder:text-[#a0acb7] focus:border-[#77aeb0] focus:ring-2 focus:ring-[#77aeb0]/15';

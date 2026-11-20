@@ -36,7 +36,6 @@ import { useUser } from '@clerk/react';
 import { useQueryClient } from '@tanstack/react-query';
 import {
   getGetAdminAccessQueryKey,
-  getGetAdminIdentityDocumentContentUrl,
   getGetAdminSummaryQueryKey,
   getGetAdminUserDetailQueryKey,
   getGetBankDashboardQueryKey,
@@ -45,17 +44,13 @@ import {
   getListAdminLedgerQueryKey,
   getListAdminLedgerRequestsQueryKey,
   getListAdminTransactionStatusHistoryQueryKey,
-  getListAdminIdentityDocumentsQueryKey,
   getListAdminUsersQueryKey,
   getListBankExchangeRatesQueryKey,
   getListInternationalTransferRequestsQueryKey,
-  getListMyIdentityDocumentsQueryKey,
   getListBankTransactionsQueryKey,
   getListBankWalletsQueryKey,
   getListBankSavedPaymentMethodsQueryKey,
   useCreateAdminFunding,
-  useCreateIdentityDocumentUploadUrl,
-  useCompleteIdentityDocumentUpload,
   useCreateBankTransfer,
   useCreateBankSavedPaymentMethod,
   useCreateInternationalTransferRequest,
@@ -69,9 +64,7 @@ import {
   useListAdminLedger,
   useListAdminLedgerRequests,
   useListAdminTransactionStatusHistory,
-  useListAdminIdentityDocuments,
   useListAdminUsers,
-  useListMyIdentityDocuments,
   useListBankTransactions,
   useListBankWallets,
   useListBankSavedPaymentMethods,
@@ -79,22 +72,20 @@ import {
   useListInternationalTransferRequests,
   useUpdateAdminUserStatus,
   useUpdateAdminTransactionStatus,
-  useUpdateAdminUserVerification,
   useReviewAdminLedgerRequest,
   useResetAdminUserTransactionPin,
   useUpdateTransactionPin,
   useUpdateBankProfile,
   useUpsertBankExchangeRate,
-  useDeleteMyIdentityDocument,
   useDeleteBankSavedPaymentMethod,
-  useSubmitIdentityDocuments,
 } from '@workspace/api-client-react';
-import type { AdminLedgerRequest, AdminUser, BankTransaction, IdentityDocument, InternationalTransferRequest, Wallet, SavedPaymentMethod } from '@workspace/api-client-react';
+import type { AdminLedgerRequest, AdminUser, BankTransaction, InternationalTransferRequest, Wallet, SavedPaymentMethod } from '@workspace/api-client-react';
 import { GlobusLoader } from '@/components/globus-loader';
 import { BankSelect } from '@/components/bank-select';
 import { CountrySelect } from '@/components/country-select';
 import { InstallAppButton } from '@/components/pwa-install-prompt';
 import { countries } from '@/lib/countries';
+import { customerProfileFieldLabels, getMissingCustomerProfileFields } from '@/lib/customer-profile';
 import { destinationCurrencyForCountry } from '@/lib/destination-currency';
 import { TransferReceiptModal } from '@/components/transfer/transfer-receipt';
 import { PrivateVaultPanel } from '@/components/private-vault-panel';
@@ -139,13 +130,12 @@ export function HomePage() {
     <div className="public-viewport-scroll bg-[#f6f8fa] text-[#192e49]">
       <header className="relative z-10 mx-auto flex max-w-[1320px] items-center justify-between gap-2 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5 sm:gap-3 sm:px-6 sm:py-6 lg:px-12">
           <Link href={isSignedIn ? '/home' : '/'} aria-label="Globus Bank home" className="flex shrink-0 items-center">
-          <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank — Your world. Our priority." className="h-auto w-[108px] sm:w-[156px]" />
+          <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank — Your world. Our priority." className="h-auto w-[96px] min-[380px]:w-[108px] sm:w-[156px]" />
         </Link>
         <nav className="hidden items-center gap-8 text-[13px] font-medium text-[#607187] md:flex">
           <Link href="/fees" className="hover:text-[#142d4d]">Fees</Link>
-          <Link href="/help" className="hover:text-[#142d4d]">Help</Link>
         </nav>
-        <div className="flex shrink-0 items-center gap-1 sm:gap-3">
+        <div className="flex shrink-0 items-center gap-0.5 sm:gap-3">
           <InstallAppButton className="inline-flex items-center gap-1 rounded-xl border border-[#dbe5eb] bg-white px-2 py-2.5 text-[10px] font-bold text-[#36516d] hover:bg-[#f0f5f7] sm:gap-1.5 sm:px-3 sm:text-[12px]" />
           {isSignedIn ? (
             <Link href="/dashboard" className="whitespace-nowrap rounded-xl bg-[#142f51] px-3 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#1b4269] sm:px-5 sm:text-[13px]">Dashboard</Link>
@@ -237,11 +227,12 @@ export function HomePage() {
           <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#528f95]">Globus account records, clearly scoped</p>
           <h2 className="bank-display mt-4 max-w-[450px] text-[42px] font-semibold leading-[1.08] text-[#17304f] sm:text-[52px]">Know what Globus records.<br />Know what it doesn’t.</h2>
         </div>
-        <div className="grid gap-8 sm:grid-cols-2">
+        <div data-testid="landing-feature-grid" className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
           <FeatureBlock number="01" title="See the whole picture" copy="Review individual currency wallets, pending amounts and recent transactions in one focused workspace." />
           <FeatureBlock number="02" title="Route transfers with clarity" copy="Choose local routing or an international wire, review the currency conversion, and follow the recorded status in your account." />
-          <FeatureBlock number="03" title="Add wallet funds" copy="Verified customers with an active Private Vault subscription can add funds to eligible wallets immediately." />
-          <FeatureBlock number="04" title="Keep a clear record" copy="Every transaction has a reference, status and timestamp for straightforward review." />
+          <div className="sm:col-span-2 lg:col-span-1">
+            <FeatureBlock number="03" title="Keep a clear record" copy="Every transaction has a reference, status and timestamp for straightforward review." />
+          </div>
         </div>
       </section>
       <section className="mx-4 mb-16 rounded-[28px] bg-[#132f51] px-5 py-10 text-white sm:mx-10 sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1240px] lg:px-16 lg:py-16">
@@ -286,15 +277,10 @@ export function DashboardPage() {
   if (query.isError) return <Failure title="Your overview isn’t available" retry={() => query.refetch()} />;
   return (
     <>
-      <PageHeading eyebrow="Your dashboard" title={`Good to see you${dash?.profile.firstName ? `, ${dash.profile.firstName}` : ''}.`} subtitle="Wallets, quick actions, and recent activity." titleClassName="text-[14px] leading-5" />
-
-      {dash?.verificationNotice && (
-        <div role="status" className="mt-3 flex min-w-0 items-start gap-3 rounded-xl border border-[#eadbb0] bg-[#fbf7eb] px-3.5 py-3 text-[#725e34] sm:px-4">
-          <TriangleAlert size={17} className="mt-0.5 shrink-0 text-[#9a7b36]" />
-          <p className="min-w-0 break-words text-[10px] leading-5 sm:text-[11px]">{dash.verificationNotice}</p>
-        </div>
-      )}
-
+      {dash?.profile.testingMode && <div role="status" data-testid="dashboard-testing-mode-warning" className="mt-3 flex items-start gap-2 rounded-xl border border-[#ead9a8] bg-[#fff9e9] px-3.5 py-2.5 text-[10px] leading-4 text-[#765e2d]">
+        <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+        <p><strong className="font-bold">Testing Mode</strong> · Private Vault is not active for this account.</p>
+      </div>}
       <div className="mt-3 grid min-w-0 gap-2.5 xl:grid-cols-[1.15fr_.85fr]">
         <section className="balance-panel relative min-w-0 overflow-hidden rounded-[18px] p-3.5 text-white sm:p-4 xl:col-start-1 xl:row-start-1">
           <div className="absolute -right-10 -top-12 h-48 w-48 rounded-full border border-white/[.08]" />
@@ -304,6 +290,9 @@ export function DashboardPage() {
               <p className="text-[10px] font-medium text-[#cad9e4]">{selectedWallet ? `${currencyNames[selectedWallet.currency]} · available` : 'Available balance'}</p>
               <div data-testid="dashboard-active-wallet-balance" className="bank-display mt-1.5 break-words text-[clamp(1.8rem,7vw,2.8rem)] font-semibold tracking-[-.06em]">{selectedWallet ? formatMoney(Number(selectedWallet.available), selectedWallet.currency) : '—'}</div>
               {selectedWallet && <p className="mt-0.5 text-[10px] text-[#b5c7d4]">{selectedWallet.currency} wallet</p>}
+              <span data-testid="dashboard-account-tier-badge" className="mt-2 inline-flex max-w-full truncate rounded-full border border-white/20 bg-white/[.1] px-2.5 py-1 text-[9px] font-bold text-[#e4eff0]">
+                {dash?.profile.accountTier.name ?? 'Standard 🏦'}
+              </span>
             </div>
             {selectedWallet && <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 bg-white/[.08] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[.13em] text-[#d9e7eb]"><span className="h-1.5 w-1.5 rounded-full bg-[#8fd2cf]" /> {selectedWallet.currency}</span>}
           </div>
@@ -344,9 +333,7 @@ export function DashboardPage() {
             </div>
             {selectedWallet && <span className="shrink-0 rounded-full bg-[#eff5f6] px-2 py-1 text-[8px] font-bold text-[#456c73]">{selectedWallet.currency} wallet</span>}
           </div>
-          <nav role="toolbar" aria-label="Dashboard actions" className="grid min-w-0 grid-cols-3 gap-2">
-            <ActionTile href="/profile" icon={<UserRound size={16} />} label="Profile" testId="dashboard-quick-profile" />
-            <ActionTile href={currencyActionHref('/add-money', actionCurrency)} icon={<WalletCards size={16} />} label="Deposit" testId="dashboard-quick-deposit" />
+          <nav role="toolbar" aria-label="Dashboard actions" className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-4">
             <ActionTile href={currencyActionHref('/withdraw', actionCurrency)} icon={<ArrowUpRight size={16} />} label="Withdraw" testId="dashboard-quick-withdraw" />
             <ActionTile href={currencyActionHref('/transfer', actionCurrency)} icon={<ArrowLeftRight size={16} />} label="Transfer" testId="dashboard-quick-transfer" />
             <ActionTile href="/calculator" icon={<Calculator size={16} />} label="Convert" testId="dashboard-quick-converter" />
@@ -354,18 +341,7 @@ export function DashboardPage() {
           </nav>
         </section>
 
-        <section className="rounded-[16px] border border-[#e2e9ef] bg-white p-3.5 sm:p-4 xl:col-start-2 xl:row-start-1">
-          <div className="flex items-start justify-between">
-            <div><p className="text-[9px] font-medium text-[#78889a]">Account standing</p><h2 className="mt-1 text-[15px] font-semibold text-[#203851]">Your details, in order</h2></div>
-            <span className="grid h-8 w-8 place-items-center rounded-lg bg-[#eef5f6] text-[#43888e]"><ShieldCheck size={16} /></span>
-          </div>
-          <div className="mt-3 space-y-2.5">
-            <StatusLine label="Account" value={humanize(dash?.profile.accountStatus)} positive={dash?.profile.accountStatus === 'active'} />
-            <StatusLine label="Identity review" value={humanize(dash?.profile.verificationStatus)} positive={dash?.profile.verificationStatus === 'approved'} />
-          </div>
-          <Link href="/profile" data-testid="link-dashboard-profile" className="mt-3 inline-flex items-center gap-1 text-[9px] font-bold text-[#377b82]">Review profile <ChevronRight size={12} /></Link>
-        </section>
-        <section className="min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white xl:col-start-2 xl:row-start-2">
+        <section className="min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white xl:col-start-2 xl:row-start-1">
           <div className="flex items-center justify-between gap-2 border-b border-[#edf0f3] px-3.5 py-2.5">
             <div><h2 className="text-[12px] font-bold text-[#203851]">Recent activity{selectedWallet ? ` · ${selectedWallet.currency}` : ''}</h2><p className="mt-0.5 text-[9px] text-[#8592a1]">Latest wallet entries</p></div>
             <Link href={currencyActionHref('/transactions', actionCurrency)} aria-label="View all activity" className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#397d83]">View all <ChevronRight size={12} /></Link>
@@ -386,7 +362,6 @@ export function WalletsPage() {
   return (
     <>
       <PageHeading eyebrow="Currencies" title="Your wallets" subtitle="Available, pending and reserved amounts, shown separately." />
-      <div className="mt-7 flex items-center gap-3 rounded-2xl border border-[#dce9ea] bg-[#eef7f7] px-4 py-4 text-[12px] leading-5 text-[#467b80]"><Globe2 size={17} className="shrink-0" /> Balances show activity recorded in your Globus account. No outside bank or payment service holds or moves funds.</div>
       <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
         {(query.data ?? []).map((wallet) => (
           <Link key={wallet.id} href={`/wallets/${encodeURIComponent(wallet.id)}`} aria-label={`View ${wallet.currency} wallet details`} className="group block min-w-0 rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#65a4a7] focus-visible:ring-offset-2">
@@ -737,7 +712,7 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
     ? profileQuery.data.depositAllowed
     : profileQuery.data.withdrawalAllowed;
   if (!operationAllowed) {
-    const needsVerification = profileQuery.data.verificationStatus !== 'approved';
+    const needsSubscription = !profileQuery.data.vaultAccessActive;
     const needsDepositAccess = type === 'deposit';
     return (
       <div className="mx-auto min-w-0 max-w-[920px]" data-testid="financial-access-gate">
@@ -746,17 +721,17 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
           <h1 className="bank-display mt-0.5 text-[22px] font-semibold leading-tight text-[#213a55] sm:text-[26px]">{type === 'deposit' ? 'Deposit' : 'Withdrawal'}</h1>
         </header>
         <section className="mt-4 rounded-2xl border border-[#e6dfc8] bg-[#fbf8ee] p-4 sm:p-5">
-          <h2 className="text-[13px] font-bold text-[#6f5d35]">{needsVerification ? 'Identity verification required' : needsDepositAccess ? 'Deposit eligibility required' : 'Withdrawal access is restricted'}</h2>
+          <h2 className="text-[13px] font-bold text-[#6f5d35]">{needsSubscription ? 'Private Vault subscription required' : needsDepositAccess ? 'Deposit eligibility required' : 'Withdrawal access is restricted'}</h2>
           <p className="mt-2 max-w-[620px] text-[10px] leading-5 text-[#827653]">
-            {needsVerification
-              ? 'Your identity verification must be approved before you can submit this request.'
+            {needsSubscription
+              ? 'An active Private Vault subscription is required before you can submit this request.'
               : needsDepositAccess
-                ? 'Adding funds requires approved identity, an active Private Vault subscription, and no applicable account or wallet restriction.'
+              ? 'Adding funds requires an active Private Vault subscription and no applicable account or wallet restriction.'
                 : 'An account restriction currently blocks this operation. Deposit and withdrawal permissions are checked separately.'}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <Link href="/profile" className="inline-flex h-9 items-center justify-center rounded-lg bg-[#173653] px-4 text-[10px] font-bold text-white hover:bg-[#21496a]">
-              Review profile and verification
+              Review your profile
             </Link>
             {needsDepositAccess && <Link href="/private-vault" className="inline-flex h-9 items-center justify-center rounded-lg border border-[#d9cfad] bg-white px-4 text-[10px] font-bold text-[#735f38] hover:bg-[#fbf8ee]">View Private Vault</Link>}
           </div>
@@ -946,36 +921,35 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
 
 export function ProfilePage() {
   const queryClient = useQueryClient();
-  const query = useGetBankProfile({ query: { queryKey: getGetBankProfileQueryKey() } });
-  const documentsQuery = useListMyIdentityDocuments({
+  const { isLoaded: userLoaded, user } = useUser();
+  const query = useGetBankProfile({
     query: {
-      queryKey: getListMyIdentityDocumentsQueryKey(),
-      enabled: !!query.data,
+      queryKey: getGetBankProfileQueryKey(),
+      enabled: userLoaded && Boolean(user),
+      retry: (failureCount, error) => {
+        if (failureCount >= 2) return false;
+        if (error instanceof Error && /401|unauthorized/i.test(error.message)) return false;
+        return true;
+      },
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
     },
   });
   const update = useUpdateBankProfile();
-  const createIdentityUpload = useCreateIdentityDocumentUploadUrl();
-  const completeIdentityUpload = useCompleteIdentityDocumentUpload();
-  const deleteIdentityDocument = useDeleteMyIdentityDocument();
-  const submitIdentityDocuments = useSubmitIdentityDocuments();
-  const { user } = useUser();
   const [note, setNote] = useState('');
   const [customerIdCopied, setCustomerIdCopied] = useState(false);
   const [photoMessage, setPhotoMessage] = useState('');
   const [photoError, setPhotoError] = useState('');
   const [photoPending, setPhotoPending] = useState(false);
-  const [identityMessage, setIdentityMessage] = useState('');
-  const [identityError, setIdentityError] = useState('');
-  const [identityUploadPending, setIdentityUploadPending] = useState(false);
-  const [identityConsent, setIdentityConsent] = useState(false);
-  const [profileTab, setProfileTab] = useState<'overview' | 'details' | 'security' | 'verification'>('overview');
+  const [profileTab, setProfileTab] = useState<'overview' | 'details' | 'security'>('overview');
   const profile = query.data;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
+  const [cityOfOrigin, setCityOfOrigin] = useState('');
   const [dateOfBirth, setDateOfBirth] = useState('');
-  const [accepted, setAccepted] = useState(false);
+  const [occupation, setOccupation] = useState('');
   const [initialised, setInitialised] = useState(false);
   useEffect(() => {
     if (profile && !initialised) {
@@ -983,19 +957,32 @@ export function ProfilePage() {
       setLastName(profile.lastName ?? '');
       setPhone(profile.phone ?? '');
       setCountry(profile.country ?? '');
+      setCityOfOrigin(profile.cityOfOrigin ?? '');
       setDateOfBirth(profile.dateOfBirth ?? '');
+      setOccupation(profile.occupation ?? '');
       setInitialised(true);
     }
   }, [profile, initialised]);
   const submit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setNote('');
-    update.mutate({ data: { firstName: firstName.trim(), lastName: lastName.trim(), phone: phone.trim(), country: country.trim(), ...(dateOfBirth ? { dateOfBirth } : {}), acceptedTerms: true } }, {
+    if (!firstName.trim() || !lastName.trim()) {
+      setNote('Enter both your first and last name.');
+      return;
+    }
+    update.mutate({ data: {
+      firstName: firstName.trim(),
+      lastName: lastName.trim(),
+      phone: phone.trim() || null,
+      country: country.trim() || null,
+      cityOfOrigin: cityOfOrigin.trim() || null,
+      dateOfBirth: dateOfBirth || null,
+      occupation: occupation.trim() || null,
+    } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetBankProfileQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetBankDashboardQueryKey() });
-        setAccepted(false);
-        setNote('Profile saved. Account review status is managed separately.');
+        setNote('Profile saved.');
       },
       onError: error => setNote(error instanceof Error ? error.message : 'Profile could not be saved. Please try again.'),
     });
@@ -1075,104 +1062,14 @@ export function ProfilePage() {
       setPhotoPending(false);
     }
   };
-  const uploadIdentityDocuments = async (event: ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(event.currentTarget.files ?? []);
-    event.currentTarget.value = '';
-    if (files.length === 0) return;
-    setIdentityError('');
-    setIdentityMessage('');
-    const existingCount = documentsQuery.data?.length ?? 0;
-    if (existingCount + files.length > 5) {
-      setIdentityError('You can keep up to five identity documents for one review.');
-      return;
-    }
-    const allowedTypes = new Set(['application/pdf', 'image/jpeg', 'image/png']);
-    const invalidFile = files.find(
-      file =>
-        !allowedTypes.has(file.type) ||
-        file.size < 1 ||
-        file.size > 10 * 1024 * 1024,
-    );
-    if (invalidFile) {
-      setIdentityError('Each PDF, JPG or PNG must be a non-empty file no larger than 10 MB.');
-      return;
-    }
-    setIdentityUploadPending(true);
-    try {
-      for (const file of files) {
-        const upload = await createIdentityUpload.mutateAsync({
-          data: {
-            contentType: file.type as IdentityDocument['contentType'],
-            sizeBytes: file.size,
-          },
-        });
-        try {
-          const response = await fetch(upload.uploadUrl, {
-            method: 'PUT',
-            headers: { 'Content-Type': file.type },
-            body: file,
-          });
-          if (!response.ok) {
-            throw new Error('The file could not be uploaded. Please try again.');
-          }
-          await completeIdentityUpload.mutateAsync({
-            documentId: upload.documentId,
-          });
-        } catch (error) {
-          try {
-            await deleteIdentityDocument.mutateAsync({
-              documentId: upload.documentId,
-            });
-          } catch {
-            // Keep the original upload error; an incomplete row can be removed from the list.
-          }
-          throw error;
-        }
-      }
-      setIdentityMessage(`${files.length} document${files.length === 1 ? '' : 's'} uploaded. Submit them when you are ready.`);
-      await queryClient.invalidateQueries({ queryKey: getListMyIdentityDocumentsQueryKey() });
-    } catch (error) {
-      setIdentityError(error instanceof Error ? error.message : 'The identity documents could not be uploaded.');
-      await queryClient.invalidateQueries({ queryKey: getListMyIdentityDocumentsQueryKey() });
-    } finally {
-      setIdentityUploadPending(false);
-    }
-  };
-  const removeIdentityDocument = async (documentId: string) => {
-    setIdentityError('');
-    setIdentityMessage('');
-    try {
-      await deleteIdentityDocument.mutateAsync({ documentId });
-      await queryClient.invalidateQueries({ queryKey: getListMyIdentityDocumentsQueryKey() });
-      setIdentityMessage('Identity document removed.');
-    } catch (error) {
-      setIdentityError(error instanceof Error ? error.message : 'The identity document could not be removed.');
-    }
-  };
-  const submitForIdentityReview = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setIdentityError('');
-    setIdentityMessage('');
-    try {
-      await submitIdentityDocuments.mutateAsync({ data: { confirmed: true } });
-      setIdentityConsent(false);
-      await Promise.all([
-        queryClient.invalidateQueries({ queryKey: getGetBankProfileQueryKey() }),
-        queryClient.invalidateQueries({ queryKey: getGetBankDashboardQueryKey() }),
-        queryClient.invalidateQueries({ queryKey: getListMyIdentityDocumentsQueryKey() }),
-      ]);
-      setIdentityMessage('Your documents were submitted for review.');
-    } catch (error) {
-      setIdentityError(error instanceof Error ? error.message : 'Your documents could not be submitted for review.');
-    }
-  };
-  if (query.isLoading) return <PageSkeleton />;
-  if (query.isError) return <Failure title="Your profile is unavailable" retry={() => query.refetch()} />;
+  if (!userLoaded || query.isLoading) return <PageSkeleton />;
+  if (query.isError) return <Failure title="Your profile is unavailable" text="Your saved details are unchanged. Check your connection and try again." retry={() => void query.refetch()} />;
+  if (!profile) return <Failure title="Your profile is unavailable" text="Your saved details are unchanged. Try loading your profile again." retry={() => void query.refetch()} />;
+  const missingProfileFields = getMissingCustomerProfileFields(profile);
   const profileTabs = [
     { id: 'overview', label: 'Overview' },
     { id: 'details', label: 'Personal details' },
     { id: 'security', label: 'Security' },
-    { id: 'verification', label: 'Verification' },
   ] as const;
   return (
     <div className="flex h-full min-h-0 flex-col gap-2.5" data-testid="customer-profile-page">
@@ -1249,27 +1146,55 @@ export function ProfilePage() {
           <p className="mt-2 text-[8px] text-[#8794a2]">JPG, PNG or WebP · up to 5 MB. Your photo appears across Globus.</p>
           {photoMessage && <p role="status" className="mt-2 rounded-lg bg-[#f0f8f4] px-3 py-2 text-[9px] text-[#41755f]">{photoMessage}</p>}
           {photoError && <p role="alert" className="mt-2 rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940]">{photoError}</p>}
-          <div className="mt-4 grid gap-2 sm:grid-cols-3">
+          <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account</p><span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[9px] font-bold ${profile?.accountStatus === 'active' ? 'bg-[#edf6f1] text-[#4c836e]' : 'bg-[#fbf7eb] text-[#927944]'}`}>{humanize(profile?.accountStatus)}</span></div>
-            <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Identity verification</p><span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[9px] font-bold ${profile?.verificationStatus === 'approved' ? 'bg-[#edf6f1] text-[#4c836e]' : 'bg-[#fbf7eb] text-[#927944]'}`}>{humanize(profile?.verificationStatus)}</span></div>
-            <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Member since</p><p className="mt-1 text-[10px] font-semibold text-[#324962]">{formatDate(profile?.createdAt)}</p></div>
+            <div data-testid="profile-account-tier" className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account tier</p><span data-testid="profile-account-tier-badge" className="mt-1 inline-flex max-w-full truncate rounded-full border border-[#d5e5e2] bg-[#edf5f2] px-2 py-1 text-[9px] font-bold text-[#3f716d]">{profile.accountTier.name || 'Standard 🏦'}</span></div>
           </div>
+          <section className="mt-4 rounded-xl border border-[#e1e8ee] bg-white p-3" aria-label="Customer profile information" data-testid="customer-profile-completeness">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <h2 className="text-[10px] font-bold text-[#29425c]">Personal information</h2>
+              <span className="text-[8px] text-[#8492a0]">{missingProfileFields.length ? `${missingProfileFields.length} missing` : 'All details supplied'}</span>
+            </div>
+            <dl className="mt-2 grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+              {customerProfileFieldLabels.map(([key, label]) => {
+                const value = profile[key];
+                const provided = typeof value === 'string' && value.trim().length > 0;
+                return <div key={key} data-testid={`profile-field-${key}`} className="min-w-0">
+                  <dt className="text-[8px] font-semibold text-[#8492a0]">{label}</dt>
+                  <dd className={`mt-0.5 break-words text-[9px] font-semibold ${provided ? 'text-[#40566e]' : 'text-[#a07855]'}`}>
+                    {provided ? value : 'Missing'}
+                  </dd>
+                </div>;
+              })}
+            </dl>
+          </section>
           <button type="button" onClick={() => setProfileTab('details')} className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-[#173858] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269]">Review personal details <ArrowRight size={12} /></button>
         </section>}
-        {profileTab === 'details' && <form onSubmit={submit} className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
-          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">Keep your account information current.</p></div>
+        {profileTab === 'details' && (profile.profileSetupComplete ? <section className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5" data-testid="profile-details-readonly">
+          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">These details are read-only after initial setup. Contact an administrator to request a correction.</p></div>
+          <dl className="grid gap-3 sm:grid-cols-2">
+            {customerProfileFieldLabels.map(([key, label]) => {
+              const value = profile[key];
+              const provided = typeof value === 'string' && value.trim().length > 0;
+              return <div key={key} className="min-w-0 rounded-xl bg-[#f7f9fa] p-3"><dt className="text-[8px] font-bold uppercase tracking-[.1em] text-[#8291a0]">{label}</dt><dd className={`mt-1 break-words text-[10px] font-semibold ${provided ? 'text-[#40566e]' : 'text-[#a07855]'}`}>{provided ? value : 'Missing'}</dd></div>;
+            })}
+          </dl>
+          <p className="mt-3 text-[9px] text-[#7c8b9a]">Email address · {profile.email}</p>
+        </section> : <form onSubmit={submit} className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
+          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Complete your personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">This initial setup can be completed once. Later changes require an administrator.</p></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="First name"><input required maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} className={inputClass} /></Field>
-            <Field label="Last name"><input maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
-            <Field label="Phone"><input required minLength={3} maxLength={32} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} /></Field>
-            <Field label="Country or region"><input required minLength={2} maxLength={80} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} /></Field>
+            <Field label="Last name"><input required maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
+            <Field label="Phone number"><input maxLength={1024} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
+            <Field label="Country of origin"><input maxLength={1024} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
+            <Field label="City of origin"><input maxLength={1024} value={cityOfOrigin} onChange={event => setCityOfOrigin(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
             <Field label="Date of birth"><input type="date" value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} className={inputClass} /></Field>
+            <Field label="Occupation / employment status"><input maxLength={1024} value={occupation} onChange={event => setOccupation(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
             <Field label="Email address"><input disabled value={profile?.email ?? ''} className={`${inputClass} bg-[#f4f7f9] text-[#8190a0]`} /></Field>
           </div>
-          <label className="mt-3 flex items-start gap-2.5 text-[9px] leading-4 text-[#728296]"><input type="checkbox" checked={accepted} onChange={event => setAccepted(event.target.checked)} className="mt-0.5 accent-[#387e84]" /><span>I confirm these profile details are accurate and accept the Globus account terms.</span></label>
           {note && <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-[9px] ${note.startsWith('Profile saved') ? 'bg-[#f0f8f4] text-[#41755f]' : 'bg-[#fff1ef] text-[#a24940]'}`}>{note}</p>}
-          <button disabled={!accepted || update.isPending} className="mt-3 h-9 rounded-lg bg-[#142f51] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45">{update.isPending ? 'Saving profile…' : 'Save profile'}</button>
-        </form>}
+          <button disabled={update.isPending} className="mt-3 h-9 rounded-lg bg-[#142f51] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45">{update.isPending ? 'Saving profile…' : 'Save profile'}</button>
+        </form>)}
         {profileTab === 'security' && <section id="transaction-security" className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
@@ -1287,53 +1212,6 @@ export function ProfilePage() {
           <button disabled={updatePin.isPending || newPin.length !== 6 || confirmPin.length !== 6} className="h-10 w-fit rounded-lg bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{updatePin.isPending ? 'Saving PIN…' : profile?.transactionPinConfigured ? 'Update PIN' : 'Create PIN'}</button>
         </form>
         </section>}
-        {profileTab === 'verification' && <section id="identity-verification" className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
-          <div>
-            <p className="text-[9px] font-bold uppercase tracking-[.15em] text-[#55868b]">Private identity review</p>
-            <h2 className="mt-1 text-[13px] font-bold text-[#29425c]">Request identity verification</h2>
-            <p className="mt-1.5 max-w-2xl text-[10px] leading-4 text-[#718296]">You can request a review without uploading a file. PDF, JPG or PNG documents are optional, up to 10 MB each, with no 5 MB minimum.</p>
-          </div>
-          <span className="shrink-0 rounded-lg border border-[#d9e8e9] bg-[#f2f8f8] px-3 py-2 text-[10px] font-bold text-[#4e777a]">{humanize(profile?.verificationStatus)}</span>
-        </div>
-        {profile?.verificationNote && <p className="mt-3 rounded-lg border border-[#e4e9ed] bg-[#f8fafb] px-3 py-2.5 text-[10px] leading-4 text-[#52677c]"><b>Message from the reviewer:</b> {profile.verificationNote}</p>}
-        {identityMessage && <p role="status" className="mt-3 rounded-lg border border-[#cfe5db] bg-[#f1f8f4] px-3 py-2.5 text-[10px] text-[#417461]">{identityMessage}</p>}
-        {identityError && <p role="alert" className="mt-3 rounded-lg bg-[#fff1ef] px-3 py-2.5 text-[10px] text-[#a24940]">{identityError}</p>}
-        <div className="mt-3">
-          {documentsQuery.isLoading ? <ListSkeleton /> : documentsQuery.isError ? <InlineError text="Your identity documents are unavailable." retry={() => documentsQuery.refetch()} /> : documentsQuery.data?.length ? (
-            <ul className="space-y-1.5">
-              {documentsQuery.data.map((document, index) => (
-                <li key={document.id} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e7edf0] px-3 py-2">
-                  <div>
-                    <p className="text-[11px] font-semibold text-[#344b64]">Document {index + 1} · {document.contentType === 'application/pdf' ? 'PDF' : document.contentType === 'image/png' ? 'PNG image' : 'JPG image'}</p>
-                    <p className="mt-1 text-[10px] text-[#8492a0]">{(document.sizeBytes / 1024 / 1024).toFixed(2)} MB · {humanize(document.status)}{document.uploadedAt ? ` · ${formatDate(document.uploadedAt)}` : ''}</p>
-                  </div>
-                  {profile?.verificationStatus !== 'pending' && profile?.verificationStatus !== 'approved' && <button type="button" disabled={deleteIdentityDocument.isPending || identityUploadPending} onClick={() => removeIdentityDocument(document.id)} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#546b80] hover:bg-[#f5f8f9] disabled:opacity-50">Remove</button>}
-                </li>
-              ))}
-            </ul>
-          ) : <p className="rounded-xl border border-dashed border-[#dfe6eb] px-4 py-5 text-center text-[11px] text-[#8794a2]">No identity documents uploaded.</p>}
-        </div>
-        {profile?.verificationStatus !== 'pending' && profile?.verificationStatus !== 'approved' && (
-          <>
-            <label htmlFor="identity-document-upload" className={`mt-3 inline-flex cursor-pointer items-center gap-2 rounded-lg border border-[#dfe7eb] px-3 py-2.5 text-[9px] font-bold text-[#3f5c75] hover:bg-[#f5f8f9] ${identityUploadPending ? 'pointer-events-none opacity-50' : ''}`}>
-              <FileText size={14} />
-              {identityUploadPending ? 'Uploading documents…' : 'Choose PDF, JPG or PNG files'}
-            </label>
-            <input id="identity-document-upload" type="file" multiple accept="application/pdf,image/jpeg,image/png" className="sr-only" onChange={uploadIdentityDocuments} disabled={identityUploadPending} />
-            <p className="mt-2 text-[9px] leading-4 text-[#8794a2]">Do not upload documents for another person. Upload only government-approved identity documents that belong to you.</p>
-            <form onSubmit={submitForIdentityReview} className="mt-3 border-t border-[#edf0f2] pt-3">
-              <label className="flex items-start gap-2.5 text-[10px] leading-4 text-[#65798e]">
-                <input type="checkbox" required checked={identityConsent} onChange={event => setIdentityConsent(event.target.checked)} className="mt-0.5 accent-[#387e84]" />
-                <span>I confirm the information in my request matches the personal information I provided when creating my account, and any documents I upload belong to me.</span>
-              </label>
-              <button disabled={!identityConsent || submitIdentityDocuments.isPending || identityUploadPending || (documentsQuery.data ?? []).some(document => document.status === 'uploading')} className="mt-3 h-10 rounded-lg bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45">
-                {submitIdentityDocuments.isPending ? 'Submitting for review…' : profile?.verificationStatus === 'additional_information_required' ? 'Resubmit for review' : 'Submit for review'}
-              </button>
-            </form>
-          </>
-        )}
-        </section>}
       </div>
     </div>
   );
@@ -1341,7 +1219,13 @@ export function ProfilePage() {
 
 export function PrivateVaultPage() {
   return (
-    <div className="mx-auto min-w-0 max-w-[1240px]" data-testid="private-vault-page">
+    <div className="mx-auto min-w-0 max-w-[1280px] space-y-4" data-testid="private-vault-page">
+      <PageHeading
+        eyebrow="Private account workspace"
+        title="Private Vault"
+        subtitle="Manage wallet access, account security, alerts, and payment preferences."
+        titleClassName="text-[24px] leading-tight sm:text-[28px]"
+      />
       <PrivateVaultPanel />
     </div>
   );
@@ -1360,22 +1244,13 @@ function AdminLedgerRequestQueue() {
   const [reviewTarget, setReviewTarget] = useState<{
     request: AdminLedgerRequest;
     decision: 'approve' | 'reject';
-    reason: string;
   } | null>(null);
   const [transactionPin, setTransactionPin] = useState('');
 
   const decide = (request: AdminLedgerRequest, decision: 'approve' | 'reject') => {
-    const reason = window.prompt(
-      `${decision === 'approve' ? 'Approval' : 'Rejection'} reason for ${request.reference} (at least 5 characters):`,
-    );
-    if (reason === null) return;
-    if (reason.trim().length < 5) {
-      setError('Enter an audit reason of at least five characters.');
-      return;
-    }
     setError('');
     setTransactionPin('');
-    setReviewTarget({ request, decision, reason: reason.trim() });
+    setReviewTarget({ request, decision });
   };
 
   const submitDecision = async (event: FormEvent<HTMLFormElement>) => {
@@ -1390,7 +1265,6 @@ function AdminLedgerRequestQueue() {
         requestId: reviewTarget.request.id,
         data: {
           decision: reviewTarget.decision,
-          reason: reviewTarget.reason,
           transactionPin,
         },
       });
@@ -1416,7 +1290,7 @@ function AdminLedgerRequestQueue() {
       <section className="mt-6 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
         <div className="border-b border-[#edf0f3] px-5 py-4 sm:px-7">
           <h2 className="text-[14px] font-bold text-[#28405c]">Withdrawal approvals</h2>
-          <p className="mt-1 text-[10px] leading-4 text-[#8592a1]">Review and approve eligible withdrawal requests. Every decision requires an audit reason and administrator PIN.</p>
+          <p className="mt-1 text-[10px] leading-4 text-[#8592a1]">Review eligible withdrawal requests. Decisions are recorded automatically and require an administrator PIN.</p>
         </div>
         {error && !reviewTarget && <p role="alert" className="border-b border-[#edf0f3] bg-[#fff1ef] px-5 py-3 text-[11px] text-[#a24940]">{error}</p>}
         {requests.isLoading ? <ListSkeleton /> : requests.isError ? <InlineError text="Customer requests are unavailable." retry={() => requests.refetch()} /> : requests.data?.length ? (
@@ -1462,7 +1336,6 @@ export function AdminPage() {
   const queryClient = useQueryClient();
   const access = useGetAdminAccess({ query: { queryKey: getGetAdminAccessQueryKey(), retry: false } });
   const summary = useGetAdminSummary({ query: { queryKey: getGetAdminSummaryQueryKey(), enabled: !!access.data?.allowed, retry: false } });
-  const adminProfile = useGetBankProfile({ query: { queryKey: getGetBankProfileQueryKey(), enabled: !!access.data?.allowed } });
   const exchangeRates = useListBankExchangeRates({ query: { queryKey: getListBankExchangeRatesQueryKey(), enabled: !!access.data?.allowed } });
   const [search, setSearch] = useState('');
   const [statusError, setStatusError] = useState('');
@@ -1472,48 +1345,29 @@ export function AdminPage() {
   const [fundAmount, setFundAmount] = useState('');
   const [fundSenderName, setFundSenderName] = useState('');
   const [fundDescription, setFundDescription] = useState('');
-  const [fundReason, setFundReason] = useState('');
   const [fundTransactionPin, setFundTransactionPin] = useState('');
   const [fundingError, setFundingError] = useState('');
   const [fundingSuccess, setFundingSuccess] = useState<BankTransaction | null>(null);
-  const [identityTarget, setIdentityTarget] = useState<AdminUser | null>(null);
-  const [reviewDecision, setReviewDecision] = useState<
-    'approved' | 'rejected' | 'additional_information_required'
-  >('approved');
-  const [reviewReason, setReviewReason] = useState('');
-  const [reviewMessage, setReviewMessage] = useState('');
-  const [reviewError, setReviewError] = useState('');
-  const [reviewFeedback, setReviewFeedback] = useState('');
   const [rateSource, setRateSource] = useState<Currency>('USD');
   const [rateDestination, setRateDestination] = useState<Currency>('EUR');
   const [rateValue, setRateValue] = useState('');
-  const [rateReason, setRateReason] = useState('');
   const [ratePin, setRatePin] = useState('');
   const [rateMessage, setRateMessage] = useState('');
   const [statusTarget, setStatusTarget] = useState<BankTransaction | null>(null);
   const params = useMemo(() => ({ ...(search.trim() ? { search: search.trim() } : {}), limit: 100 }), [search]);
   const usersQuery = useListAdminUsers(params, { query: { queryKey: getListAdminUsersQueryKey(params), enabled: !!access.data?.allowed } });
   const users = { ...usersQuery, data: usersQuery.data?.items };
-  const reviewDocuments = useListAdminIdentityDocuments(identityTarget?.id ?? '', {
-    query: {
-      queryKey: getListAdminIdentityDocumentsQueryKey(identityTarget?.id ?? ''),
-      enabled: !!identityTarget,
-    },
-  });
   const ledgerParams = { limit: 100 };
   const ledger = useListAdminLedger(ledgerParams, { query: { queryKey: getListAdminLedgerQueryKey(ledgerParams), enabled: !!access.data?.allowed } });
   const update = useUpdateAdminUserStatus();
-  const updateVerification = useUpdateAdminUserVerification();
   const funding = useCreateAdminFunding();
   const updateTransactionStatus = useUpdateAdminTransactionStatus();
   const upsertExchangeRate = useUpsertBankExchangeRate();
   if (access.isLoading) return <PageSkeleton />;
   if (access.isError || !access.data?.allowed) return <Failure title="Operations access is restricted" text="This area is only available to authorized Globus operations staff." retry={() => access.refetch()} />;
   const setStatus = (userId: string, accountStatus: 'active' | 'suspended') => {
-    const reason = window.prompt(`Reason for setting this account to ${accountStatus}?`);
-    if (!reason || reason.trim().length < 5) return;
     setStatusError('');
-    update.mutate({ userId, data: { accountStatus, reason: reason.trim() } }, {
+    update.mutate({ userId, data: { accountStatus } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() });
@@ -1534,7 +1388,6 @@ export function AdminPage() {
         amount: fundAmount,
         senderName: fundSenderName.trim(),
         description: fundDescription.trim(),
-        reason: fundReason.trim(),
         transactionPin: fundTransactionPin,
         idempotencyKey: crypto.randomUUID(),
       },
@@ -1544,7 +1397,6 @@ export function AdminPage() {
         setFundAmount('');
         setFundSenderName('');
         setFundDescription('');
-        setFundReason('');
         setFundTransactionPin('');
         queryClient.invalidateQueries({ queryKey: getListAdminLedgerQueryKey() });
         queryClient.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() });
@@ -1558,13 +1410,12 @@ export function AdminPage() {
   };
   const saveTransactionStatus = async (
     status: BankTransaction['status'],
-    reason: string,
     transactionPin: string,
   ) => {
     if (!statusTarget) return;
     await updateTransactionStatus.mutateAsync({
       transactionId: statusTarget.id,
-      data: { status, reason, transactionPin, confirmed: true },
+      data: { status, transactionPin, confirmed: true },
     });
     setStatusTarget(null);
     await Promise.all([
@@ -1579,14 +1430,6 @@ export function AdminPage() {
       queryClient.invalidateQueries({ queryKey: getListBankTransactionsQueryKey() }),
     ]);
   };
-  const openIdentityReview = (user: AdminUser) => {
-    setIdentityTarget(user);
-    setReviewDecision('approved');
-    setReviewReason('');
-    setReviewMessage('');
-    setReviewError('');
-    setReviewFeedback('');
-  };
   const submitExchangeRate = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setRateMessage('');
@@ -1595,40 +1438,17 @@ export function AdminPage() {
         sourceCurrency: rateSource,
         destinationCurrency: rateDestination,
         rate: rateValue.trim(),
-        reason: rateReason.trim(),
         transactionPin: ratePin,
       },
     }, {
       onSuccess: () => {
         setRateMessage(`Saved ${rateSource} → ${rateDestination} rate.`);
         setRateValue('');
-        setRateReason('');
         setRatePin('');
         void queryClient.invalidateQueries({ queryKey: getListBankExchangeRatesQueryKey() });
       },
       onError: error => setRateMessage(error instanceof Error ? error.message : 'The internal rate could not be saved.'),
     });
-  };
-  const submitIdentityReview = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    if (!identityTarget) return;
-    setReviewError('');
-    setReviewFeedback('');
-    try {
-      await updateVerification.mutateAsync({
-        userId: identityTarget.id,
-        data: {
-          verificationStatus: reviewDecision,
-          reason: reviewReason.trim(),
-          ...(reviewMessage.trim() ? { userMessage: reviewMessage.trim() } : {}),
-        },
-      });
-      await queryClient.invalidateQueries({ queryKey: getListAdminUsersQueryKey() });
-      setReviewFeedback(`Identity decision saved for ${identityTarget.email}.`);
-      setIdentityTarget(null);
-    } catch (error) {
-      setReviewError(error instanceof Error ? error.message : 'The identity decision could not be saved.');
-    }
   };
   return (
     <>
@@ -1641,35 +1461,6 @@ export function AdminPage() {
         <Metric label="Wallet transactions" value={summary.data?.ledgerTransactions} />
       </div>
       <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-[#d9e7e8] bg-[#eff7f7] px-4 py-3 text-[11px] text-[#48767b]"><ShieldCheck size={15} /> Globus wallet records only · no outside funds are held or sent.</div>
-      <section className="mt-5 flex flex-wrap items-center justify-between gap-4 rounded-[18px] border border-[#dfe7ec] bg-white px-5 py-4">
-        <div>
-          <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#718296]">Your admin identity</p>
-          <p className="mt-1 text-[12px] font-semibold text-[#304962]">Verification status: {humanize(adminProfile.data?.verificationStatus)}</p>
-          <p className="mt-1 text-[10px] leading-4 text-[#7c8b9a]">Upload your own documents in Profile. You may approve your own review; the decision is recorded in the audit log.</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Link href="/profile#identity-verification" className="rounded-lg border border-[#dfe6eb] px-3 py-2.5 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f5f8f9]">Manage my documents</Link>
-          {adminProfile.data?.verificationStatus === 'pending' && <button type="button" onClick={() => openIdentityReview({
-            id: adminProfile.data!.id,
-            email: adminProfile.data!.email,
-            customerId: adminProfile.data!.customerId,
-            firstName: adminProfile.data!.firstName,
-            lastName: adminProfile.data!.lastName,
-            country: adminProfile.data!.country,
-            verificationStatus: adminProfile.data!.verificationStatus,
-            verificationNote: adminProfile.data!.verificationNote,
-            accountStatus: adminProfile.data!.accountStatus,
-            accountRestrictionReason: null,
-            accountRestrictionNotes: null,
-            accountRestrictedAt: null,
-            profileSetupCompletedAt: null,
-            testingModeDisabled: false,
-            transferAccessGranted: false,
-            walletCount: 0,
-            createdAt: adminProfile.data!.createdAt,
-          })} className="rounded-lg bg-[#142f51] px-3 py-2.5 text-[10px] font-bold text-white hover:bg-[#1b4269]">Review my identity</button>}
-        </div>
-      </section>
       <section className="mt-6 rounded-[20px] border border-[#dfe7ec] bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Internal conversion rates</p><h2 className="mt-1 text-[15px] font-bold text-[#29425c]">Manage calculator rates</h2><p className="mt-1 max-w-2xl text-[10px] leading-5 text-[#718296]">Rates are entered by Globus administrators and are not live market quotes. Each request stores the rate and timestamp used for its estimate.</p></div>
@@ -1678,19 +1469,17 @@ export function AdminPage() {
           <Field label="From"><select data-testid="select-rate-source" value={rateSource} onChange={event => setRateSource(event.target.value as Currency)} className={inputClass}>{currencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}</select></Field>
           <Field label="To"><select data-testid="select-rate-destination" value={rateDestination} onChange={event => setRateDestination(event.target.value as Currency)} className={inputClass}>{currencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}</select></Field>
           <Field label="Rate (1 from = amount to)"><input data-testid="input-exchange-rate" required inputMode="decimal" pattern="[0-9]+(\\.[0-9]{1,10})?" min="0.0000000001" max="999999999999" step="0.0000000001" value={rateValue} onChange={event => setRateValue(event.target.value)} placeholder="e.g. 0.92" className={inputClass} /></Field>
-          <Field label="Audit reason"><input data-testid="input-exchange-rate-reason" required minLength={5} maxLength={500} value={rateReason} onChange={event => setRateReason(event.target.value)} placeholder="Why is this rate changing?" className={inputClass} /></Field>
           <Field label="Your 6-digit transaction PIN"><input data-testid="input-exchange-rate-pin" required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={ratePin} onChange={event => setRatePin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} /></Field>
-          <button data-testid="button-save-exchange-rate" disabled={upsertExchangeRate.isPending || rateSource === rateDestination || !rateValue || rateReason.trim().length < 5 || ratePin.length !== 6} className="h-11 self-end rounded-xl bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{upsertExchangeRate.isPending ? 'Saving…' : 'Save rate'}</button>
+          <button data-testid="button-save-exchange-rate" disabled={upsertExchangeRate.isPending || rateSource === rateDestination || !rateValue || ratePin.length !== 6} className="h-11 self-end rounded-xl bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{upsertExchangeRate.isPending ? 'Saving…' : 'Save rate'}</button>
         </form>
         {rateMessage && <p role="status" className="mt-3 rounded-lg border border-[#dfe8ec] bg-[#f7f9fa] px-3 py-2 text-[10px] text-[#516b80]">{rateMessage}</p>}
         {exchangeRates.isLoading ? <div className="mt-5"><ListSkeleton /></div> : exchangeRates.isError ? <InlineError text="Conversion rates are unavailable." retry={() => exchangeRates.refetch()} /> : exchangeRates.data?.length ? <div className="mt-5 overflow-x-auto rounded-xl border border-[#e7edf0]"><table className="w-full min-w-[440px] text-left"><thead className="bg-[#f7f9fa] text-[9px] uppercase tracking-[.13em] text-[#8291a0]"><tr><th className="px-4 py-3">Pair</th><th className="px-4 py-3">Rate</th><th className="px-4 py-3">Updated</th></tr></thead><tbody>{exchangeRates.data.map(rate => <tr key={`${rate.sourceCurrency}-${rate.destinationCurrency}`} data-testid={`row-rate-${rate.sourceCurrency}-${rate.destinationCurrency}`} className="border-t border-[#edf0f2] text-[10px] text-[#445a71]"><td className="px-4 py-3 font-semibold">{rate.sourceCurrency} → {rate.destinationCurrency}</td><td className="px-4 py-3 font-mono">{rate.rate}</td><td className="px-4 py-3">{formatDateTime(rate.updatedAt)}</td></tr>)}</tbody></table></div> : <div className="mt-5 rounded-xl bg-[#f7f9fa] px-4 py-3 text-[10px] text-[#75879a]">No rates are configured. Add a currency pair to enable the conversion calculator.</div>}
       </section>
       {statusError && <p role="alert" className="mt-3 rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{statusError}</p>}
-      {reviewFeedback && <p role="status" className="mt-3 rounded-lg border border-[#cfe5db] bg-[#f1f8f4] px-4 py-3 text-[11px] text-[#417461]">{reviewFeedback}</p>}
       {fundTarget && <section className="mt-6 rounded-[20px] border border-[#dfe7ec] bg-white p-5 sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-4">
           <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Admin balance adjustment</p><h2 className="mt-1 text-[15px] font-bold text-[#29425c]">Adjust a user wallet</h2><p className="mt-1 text-[11px] text-[#7e8d9c]">{[fundTarget.firstName, fundTarget.lastName].filter(Boolean).join(' ') || 'Globus member'} · {fundTarget.email}</p></div>
-          <button type="button" aria-label="Close funding form" onClick={() => { setFundTarget(null); setFundingError(''); setFundingSuccess(null); setFundSenderName(''); setFundDescription(''); setFundReason(''); setFundTransactionPin(''); }} className="rounded-lg p-2 text-[#6d8092] hover:bg-[#f1f5f7]"><X size={16} /></button>
+          <button type="button" aria-label="Close funding form" onClick={() => { setFundTarget(null); setFundingError(''); setFundingSuccess(null); setFundSenderName(''); setFundDescription(''); setFundTransactionPin(''); }} className="rounded-lg p-2 text-[#6d8092] hover:bg-[#f1f5f7]"><X size={16} /></button>
         </div>
         <p className="mb-5 rounded-lg border border-[#d9e8e9] bg-[#f2f8f8] px-4 py-3 text-[10px] leading-4 text-[#4e777a]">This records a wallet credit or debit in Globus and writes an audit entry. It does not move outside funds. Maximum per entry: 1,000,000.00.</p>
         <form onSubmit={submitFunding} className="grid gap-4 sm:grid-cols-2">
@@ -1699,59 +1488,21 @@ export function AdminPage() {
           <Field label="Amount"><input required inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" min="0.01" max="1000000" value={fundAmount} onChange={event => setFundAmount(event.target.value)} placeholder="0.00" className={inputClass} /></Field>
           <Field label="Counterparty / adjustment label"><input required maxLength={120} value={fundSenderName} onChange={event => setFundSenderName(event.target.value)} placeholder="Globus operations" className={inputClass} /></Field>
           <Field label="Transaction description"><input required maxLength={240} value={fundDescription} onChange={event => setFundDescription(event.target.value)} placeholder="Reason shown in transaction activity" className={inputClass} /></Field>
-          <div className="sm:col-span-2"><Field label="Reason (recorded in the audit log)"><textarea required minLength={5} maxLength={500} rows={3} value={fundReason} onChange={event => setFundReason(event.target.value)} placeholder="Reason for this balance adjustment" className={`${inputClass} h-auto py-3`} /></Field></div>
           <div className="sm:col-span-2"><Field label="Your 6-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={fundTransactionPin} onChange={event => setFundTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} /></Field></div>
           {fundingError && <p role="alert" className="sm:col-span-2 rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{fundingError}</p>}
           {fundingSuccess && <p role="status" className="sm:col-span-2 rounded-lg border border-[#cfe5db] bg-[#f1f8f4] px-4 py-3 text-[11px] text-[#417461]">Balance adjustment recorded · {fundingSuccess.reference}</p>}
-          <div className="sm:col-span-2"><button disabled={funding.isPending || fundTransactionPin.length !== 6 || !fundAmount || !fundSenderName.trim() || !fundDescription.trim() || !fundReason.trim()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#142f51] px-5 text-[11px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{funding.isPending ? 'Recording adjustment…' : 'Save balance adjustment'} <ArrowRight size={14} /></button></div>
+          <div className="sm:col-span-2"><button disabled={funding.isPending || fundTransactionPin.length !== 6 || !fundAmount || !fundSenderName.trim() || !fundDescription.trim()} className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#142f51] px-5 text-[11px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{funding.isPending ? 'Recording adjustment…' : 'Save balance adjustment'} <ArrowRight size={14} /></button></div>
         </form>
       </section>}
       <AdminLedgerRequestQueue />
       <section className="mt-7 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
-        <div className="flex flex-col gap-3 border-b border-[#edf0f3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7"><div><h2 className="text-[14px] font-bold text-[#28405c]">Registered users</h2><p className="mt-1 text-[10px] text-[#8592a1]">Account status changes require a documented reason.</p></div><label className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8996a4]" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, email, or Customer ID" className="h-10 w-full rounded-lg border border-[#e0e7ec] bg-white pl-9 pr-3 text-[11px] outline-none sm:w-[240px]" /></label></div>
-        {users.isLoading ? <ListSkeleton /> : users.isError ? <InlineError text="User records are unavailable." retry={() => users.refetch()} /> : users.data?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[1080px] text-left"><thead className="bg-[#f7f9fa] text-[9px] uppercase tracking-[.13em] text-[#8291a0]"><tr><th className="px-6 py-3">Member</th><th className="px-4 py-3">Region</th><th className="px-4 py-3">Verification</th><th className="px-4 py-3">Account</th><th className="px-4 py-3">Wallets</th><th className="px-6 py-3 text-right">Actions</th></tr></thead><tbody>{users.data.map(user => <tr key={user.id} className="border-t border-[#edf0f2] text-[11px] text-[#445a71]"><td className="px-6 py-4"><b className="block text-[#2d435c]">{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'Globus member'}</b><span className="mt-1 block text-[10px] text-[#8a97a5]">{user.email}</span><span className="mt-1 block font-mono text-[10px] font-semibold tracking-[.08em] text-[#52717e]">Customer ID: {user.customerId ?? '—'}</span></td><td className="px-4 py-4">{user.country || '—'}</td><td className="px-4 py-4"><span>{humanize(user.verificationStatus)}</span>{user.verificationNote && <span className="mt-1 block max-w-[220px] truncate text-[9px] text-[#8794a2]" title={user.verificationNote}>{user.verificationNote}</span>}</td><td className="px-4 py-4">{humanize(user.accountStatus)}</td><td className="px-4 py-4">{user.walletCount}</td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/users/${encodeURIComponent(user.id)}`} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8]">Manage</Link>{(user.verificationStatus === 'pending' || user.verificationStatus === 'additional_information_required') && <button onClick={() => openIdentityReview(user)} className="rounded-lg border border-[#d7e6e7] bg-[#f2f8f8] px-3 py-2 text-[10px] font-bold text-[#36777c] hover:bg-[#e5f2f2]">Review ID</button>}<button disabled={user.accountStatus !== 'active'} onClick={() => { setFundTarget(user); setFundingError(''); setFundingSuccess(null); }} className="rounded-lg bg-[#eff7f7] px-3 py-2 text-[10px] font-bold text-[#36777c] hover:bg-[#e2f1f1] disabled:cursor-not-allowed disabled:opacity-40">Fund</button><button disabled={update.isPending} onClick={() => setStatus(user.id, user.accountStatus === 'active' ? 'suspended' : 'active')} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8] disabled:opacity-50">{user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}</button></div></td></tr>)}</tbody></table></div> : <EmptyState title="No users found" text="Try another email, name, or Customer ID." />}
+          <div className="flex flex-col gap-3 border-b border-[#edf0f3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7"><div><h2 className="text-[14px] font-bold text-[#28405c]">Registered users</h2><p className="mt-1 text-[10px] text-[#8592a1]">Account status decisions are recorded automatically.</p></div><label className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8996a4]" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, email, or Customer ID" className="h-10 w-full rounded-lg border border-[#e0e7ec] bg-white pl-9 pr-3 text-[11px] outline-none sm:w-[240px]" /></label></div>
+         {users.isLoading ? <ListSkeleton /> : users.isError ? <InlineError text="User records are unavailable." retry={() => users.refetch()} /> : users.data?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead className="bg-[#f7f9fa] text-[9px] uppercase tracking-[.13em] text-[#8291a0]"><tr><th className="px-6 py-3">Member</th><th className="px-4 py-3">Region</th><th className="px-4 py-3">Account</th><th className="px-4 py-3">Wallets</th><th className="px-6 py-3 text-right">Actions</th></tr></thead><tbody>{users.data.map(user => <tr key={user.id} className="border-t border-[#edf0f2] text-[11px] text-[#445a71]"><td className="px-6 py-4"><b className="block text-[#2d435c]">{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'Globus member'}</b><span className="mt-1 block text-[10px] text-[#8a97a5]">{user.email}</span><span className="mt-1 block font-mono text-[10px] font-semibold tracking-[.08em] text-[#52717e]">Customer ID: {user.customerId ?? '—'}</span></td><td className="px-4 py-4">{user.country || '—'}</td><td className="px-4 py-4">{humanize(user.accountStatus)}</td><td className="px-4 py-4">{user.walletCount}</td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/users/${encodeURIComponent(user.id)}`} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8]">Manage</Link><button disabled={user.accountStatus !== 'active'} onClick={() => { setFundTarget(user); setFundingError(''); setFundingSuccess(null); }} className="rounded-lg bg-[#eff7f7] px-3 py-2 text-[10px] font-bold text-[#36777c] hover:bg-[#e2f1f1] disabled:cursor-not-allowed disabled:opacity-40">Fund</button><button disabled={update.isPending} onClick={() => setStatus(user.id, user.accountStatus === 'active' ? 'suspended' : 'active')} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8] disabled:opacity-50">{user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}</button></div></td></tr>)}</tbody></table></div> : <EmptyState title="No users found" text="Try another email, name, or Customer ID." />}
       </section>
       <section className="mt-6 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
         <div className="border-b border-[#edf0f3] px-5 py-4 sm:px-7"><h2 className="text-[14px] font-bold text-[#28405c]">Transaction review</h2><p className="mt-1 text-[10px] text-[#8592a1]">Review account activity and transaction status. Corrections preserve the original record and create separate audited entries.</p></div>
         {ledger.isLoading ? <ListSkeleton /> : ledger.isError ? <InlineError text="Transaction records are unavailable." retry={() => ledger.refetch()} /> : ledger.data?.length ? <TransactionList transactions={ledger.data} onStatusOverride={transaction => setStatusTarget(transaction)} statusPending={updateTransactionStatus.isPending} /> : <EmptyState title="No transactions to review" text="There are no recorded transactions to review." />}
       </section>
-      {identityTarget && <div className="fixed inset-0 z-50 flex items-center justify-center bg-[#14263e]/55 p-4" role="presentation">
-        <section role="dialog" aria-modal="true" aria-labelledby="identity-review-title" className="max-h-[90dvh] w-full max-w-2xl overflow-y-auto rounded-[22px] border border-[#dfe7ec] bg-white p-5 shadow-2xl sm:p-7">
-          <div className="flex items-start justify-between gap-4">
-            <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Private admin review</p><h2 id="identity-review-title" className="mt-1 text-[16px] font-bold text-[#29425c]">Review identity documents</h2><p className="mt-1 text-[11px] text-[#7e8d9c]">{identityTarget.email} · {humanize(identityTarget.verificationStatus)}</p></div>
-            <button type="button" aria-label="Close identity review" onClick={() => setIdentityTarget(null)} className="rounded-lg p-2 text-[#6d8092] hover:bg-[#f1f5f7]"><X size={16} /></button>
-          </div>
-          <p className="mt-5 rounded-lg border border-[#d9e8e9] bg-[#f2f8f8] px-4 py-3 text-[10px] leading-4 text-[#4e777a]">Download files only for this review. Approval or rejection permanently deletes the uploaded documents; requesting more information keeps them available.</p>
-          <div className="mt-4">
-            {reviewDocuments.isLoading ? <ListSkeleton /> : reviewDocuments.isError ? <InlineError text="Identity documents could not be loaded." retry={() => reviewDocuments.refetch()} /> : reviewDocuments.data?.length ? (
-              <ul className="space-y-2">
-                {reviewDocuments.data.map((document, index) => (
-                  <li key={document.id} className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#e7edf0] px-4 py-3">
-                    <div><p className="text-[11px] font-semibold text-[#344b64]">Document {index + 1} · {document.contentType === 'application/pdf' ? 'PDF' : document.contentType === 'image/png' ? 'PNG image' : 'JPG image'}</p><p className="mt-1 text-[10px] text-[#8492a0]">{(document.sizeBytes / 1024 / 1024).toFixed(2)} MB · Uploaded {document.uploadedAt ? formatDate(document.uploadedAt) : formatDate(document.createdAt)}</p></div>
-                    <button type="button" onClick={() => window.open(getGetAdminIdentityDocumentContentUrl(document.id), '_blank', 'noopener,noreferrer')} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f5f8f9]">Download securely</button>
-                  </li>
-                ))}
-              </ul>
-            ) : <EmptyState title="No uploaded documents" text="This member has no files available for review." />}
-          </div>
-          <form onSubmit={submitIdentityReview} className="mt-6 border-t border-[#edf0f2] pt-5">
-            <Field label="Decision">
-              <select value={reviewDecision} onChange={event => setReviewDecision(event.target.value as typeof reviewDecision)} className={inputClass}>
-                <option value="approved">Approve identity</option>
-                {identityTarget.id !== adminProfile.data?.id && <>
-                  <option value="rejected">Reject and close review</option>
-                  <option value="additional_information_required">Request more information</option>
-                </>}
-              </select>
-            </Field>
-            {identityTarget.id === adminProfile.data?.id && <p className="mt-3 rounded-lg border border-[#eadfbe] bg-[#fbf7eb] px-4 py-3 text-[10px] leading-5 text-[#806b3d]">This is a self-approval. Globus records the decision but does not provide independent identity verification.</p>}
-            {reviewDecision === 'additional_information_required' && <div className="mt-4"><Field label="Message for the member"><textarea required minLength={5} maxLength={500} rows={3} value={reviewMessage} onChange={event => setReviewMessage(event.target.value)} placeholder="Explain what additional documents or details are needed." className={`${inputClass} h-auto py-3`} /></Field></div>}
-            <div className="mt-4"><Field label="Internal audit reason"><textarea required minLength={5} maxLength={500} rows={3} value={reviewReason} onChange={event => setReviewReason(event.target.value)} placeholder="Reason for this identity review decision." className={`${inputClass} h-auto py-3`} /></Field></div>
-            {reviewError && <p role="alert" className="mt-4 rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{reviewError}</p>}
-            <div className="mt-5 flex flex-wrap justify-end gap-2"><button type="button" onClick={() => setIdentityTarget(null)} className="rounded-xl border border-[#dfe6eb] px-4 py-3 text-[10px] font-bold text-[#546b80] hover:bg-[#f5f8f9]">Cancel</button><button disabled={updateVerification.isPending || reviewDocuments.isLoading || !reviewDocuments.data?.length} className="rounded-xl bg-[#142f51] px-4 py-3 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{updateVerification.isPending ? 'Saving decision…' : 'Save decision'}</button></div>
-          </form>
-        </section>
-      </div>}
       {statusTarget && <TransactionStatusDialog
         transaction={statusTarget}
         pending={updateTransactionStatus.isPending}
@@ -1776,19 +1527,9 @@ export function AdminUserManagementPage() {
     },
   });
   const user = detail.data?.user;
-  const canReviewIdentity =
-    user?.verificationStatus === 'pending' ||
-    user?.verificationStatus === 'additional_information_required';
-  const identityDocuments = useListAdminIdentityDocuments(userId, {
-    query: {
-      queryKey: getListAdminIdentityDocumentsQueryKey(userId),
-      enabled: !!userId && !!access.data?.allowed && canReviewIdentity,
-    },
-  });
   const updateStatus = useUpdateAdminUserStatus();
   const createFunding = useCreateAdminFunding();
   const updateTransactionStatus = useUpdateAdminTransactionStatus();
-  const updateVerification = useUpdateAdminUserVerification();
   const resetTransactionPin = useResetAdminUserTransactionPin();
 
   const [currency, setCurrency] = useState<Currency>('USD');
@@ -1796,19 +1537,12 @@ export function AdminUserManagementPage() {
   const [amount, setAmount] = useState('');
   const [senderName, setSenderName] = useState('Globus operations');
   const [fundingDescription, setFundingDescription] = useState('');
-  const [fundingReason, setFundingReason] = useState('');
   const [fundingPin, setFundingPin] = useState('');
   const [fundingError, setFundingError] = useState('');
   const [fundingReference, setFundingReference] = useState('');
   const [pageMessage, setPageMessage] = useState('');
   const [pageError, setPageError] = useState('');
   const [statusTarget, setStatusTarget] = useState<BankTransaction | null>(null);
-  const [decision, setDecision] = useState<
-    'approved' | 'rejected' | 'additional_information_required'
-  >('approved');
-  const [decisionReason, setDecisionReason] = useState('');
-  const [decisionMessage, setDecisionMessage] = useState('');
-  const [decisionError, setDecisionError] = useState('');
 
   const refreshUserData = async () => {
     await Promise.all([
@@ -1824,16 +1558,11 @@ export function AdminUserManagementPage() {
   const changeAccountStatus = async () => {
     if (!user) return;
     const nextStatus = user.accountStatus === 'active' ? 'suspended' : 'active';
-    const reason = window.prompt(`Reason for setting this account to ${nextStatus}?`);
-    if (!reason || reason.trim().length < 5) {
-      if (reason !== null) setPageError('Enter a reason of at least five characters.');
-      return;
-    }
     setPageError('');
     try {
       await updateStatus.mutateAsync({
         userId,
-        data: { accountStatus: nextStatus, reason: reason.trim() },
+        data: { accountStatus: nextStatus },
       });
       await refreshUserData();
       setPageMessage(`Account ${nextStatus === 'active' ? 'reactivated' : 'suspended'}.`);
@@ -1856,7 +1585,6 @@ export function AdminUserManagementPage() {
           amount,
           senderName: senderName.trim(),
           description: fundingDescription.trim(),
-          reason: fundingReason.trim(),
           transactionPin: fundingPin,
           idempotencyKey: crypto.randomUUID(),
         },
@@ -1864,7 +1592,6 @@ export function AdminUserManagementPage() {
       setFundingReference(transaction.reference);
       setAmount('');
       setFundingDescription('');
-      setFundingReason('');
       setFundingPin('');
       await refreshUserData();
     } catch (error) {
@@ -1874,18 +1601,12 @@ export function AdminUserManagementPage() {
 
   const resetMemberTransactionPin = async () => {
     if (!user) return;
-    const reason = window.prompt('Enter an audit reason for resetting this member’s transaction PIN (at least 5 characters).');
-    if (reason === null) return;
-    if (reason.trim().length < 5) {
-      setPageError('Enter a reset reason of at least five characters.');
-      return;
-    }
     if (!window.confirm('Reset this member’s PIN? They will need to create a new PIN before making another transaction.')) return;
     setPageError('');
     try {
       await resetTransactionPin.mutateAsync({
         userId,
-        data: { reason: reason.trim() },
+        data: {},
       });
       await refreshUserData();
       setPageMessage('Transaction PIN reset. The member must create a new PIN before their next transaction.');
@@ -1896,47 +1617,18 @@ export function AdminUserManagementPage() {
 
   const saveUserTransactionStatus = async (
     status: BankTransaction['status'],
-    reason: string,
     transactionPin: string,
   ) => {
     if (!statusTarget) return;
     await updateTransactionStatus.mutateAsync({
       transactionId: statusTarget.id,
-      data: { status, reason, transactionPin, confirmed: true },
+      data: { status, transactionPin, confirmed: true },
     });
     setStatusTarget(null);
     await refreshUserData();
     setPageMessage(`Transaction ${statusTarget.reference} status was updated.`);
   };
 
-  const submitIdentityDecision = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    setDecisionError('');
-    setPageMessage('');
-    try {
-      await updateVerification.mutateAsync({
-        userId,
-        data: {
-          verificationStatus: decision,
-          reason: decisionReason.trim(),
-          ...(decisionMessage.trim()
-            ? { userMessage: decisionMessage.trim() }
-            : {}),
-        },
-      });
-      await Promise.all([
-        refreshUserData(),
-        queryClient.invalidateQueries({
-          queryKey: getListAdminIdentityDocumentsQueryKey(userId),
-        }),
-      ]);
-      setDecisionReason('');
-      setDecisionMessage('');
-      setPageMessage('Identity review decision saved.');
-    } catch (error) {
-      setDecisionError(error instanceof Error ? error.message : 'The identity decision could not be saved.');
-    }
-  };
 
   if (access.isLoading) return <PageSkeleton />;
   if (access.isError || !access.data?.allowed) {
@@ -2004,9 +1696,8 @@ export function AdminUserManagementPage() {
             </dl>
             <div className="mt-5 grid gap-3 border-t border-[#edf0f2] pt-5 sm:grid-cols-2">
               <div className="rounded-xl bg-[#f7f9fa] p-4"><StatusLine label="Account" value={humanize(profile.accountStatus)} positive={profile.accountStatus === 'active'} /></div>
-              <div className="rounded-xl bg-[#f7f9fa] p-4"><StatusLine label="Identity review" value={humanize(profile.verificationStatus)} positive={profile.verificationStatus === 'approved'} /></div>
+              <div className="rounded-xl bg-[#f7f9fa] p-4"><StatusLine label="Private Vault" value={humanize(profile.vaultSubscriptionStatus)} positive={profile.vaultSubscriptionStatus === 'active'} /></div>
             </div>
-            {profile.verificationNote && <p className="mt-4 rounded-lg border border-[#e4e9ed] bg-[#f8fafb] px-4 py-3 text-[10px] leading-5 text-[#52677c]"><b>Reviewer message:</b> {profile.verificationNote}</p>}
           </section>
 
           <section className="rounded-[20px] border border-[#e1e8ee] bg-white p-5 sm:p-7">
@@ -2031,43 +1722,14 @@ export function AdminUserManagementPage() {
               <Field label="Amount"><input required inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" min="0.01" max="1000000" value={amount} onChange={event => setAmount(event.target.value)} placeholder="0.00" className={inputClass} /></Field>
               <Field label="Counterparty / adjustment label"><input required maxLength={120} value={senderName} onChange={event => setSenderName(event.target.value)} className={inputClass} /></Field>
               <Field label="Description"><input required maxLength={240} value={fundingDescription} onChange={event => setFundingDescription(event.target.value)} placeholder="Shown in activity" className={inputClass} /></Field>
-              <Field label="Audit reason"><textarea required minLength={5} maxLength={500} rows={3} value={fundingReason} onChange={event => setFundingReason(event.target.value)} className={`${inputClass} h-auto py-3`} /></Field>
               <Field label="Your 6-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={fundingPin} onChange={event => setFundingPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} /></Field>
               {fundingError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{fundingError}</p>}
               {fundingReference && <p role="status" className="rounded-lg bg-[#f1f8f4] px-3 py-2 text-[10px] text-[#417461]">Balance adjustment recorded · {fundingReference}</p>}
-              <button disabled={profile.accountStatus !== 'active' || createFunding.isPending || fundingPin.length !== 6 || !amount || !senderName.trim() || !fundingDescription.trim() || !fundingReason.trim()} className="h-10 w-full rounded-xl bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{createFunding.isPending ? 'Recording…' : 'Save balance adjustment'}</button>
+              <button disabled={profile.accountStatus !== 'active' || createFunding.isPending || fundingPin.length !== 6 || !amount || !senderName.trim() || !fundingDescription.trim()} className="h-10 w-full rounded-xl bg-[#142f51] px-4 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{createFunding.isPending ? 'Recording…' : 'Save balance adjustment'}</button>
               {profile.accountStatus !== 'active' && <p className="text-[9px] text-[#9b8050]">Reactivate the account before adjusting its balance.</p>}
             </form>
           </section>
 
-          <section className="rounded-[20px] border border-[#e1e8ee] bg-white p-5 sm:p-6">
-            <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#71869a]">Identity management</p>
-            <h2 className="mt-1 text-[14px] font-bold text-[#29425c]">Verification status</h2>
-              <p className="mt-2 text-[10px] leading-4 text-[#7e8d9c]">This is an internal Globus account review, not bank or government identity verification.</p>
-            {canReviewIdentity ? (
-              <>
-                {identityDocuments.isLoading ? <div className="mt-4"><ListSkeleton /></div> : identityDocuments.isError ? <div className="mt-4"><InlineError text="Identity documents could not be loaded." retry={() => identityDocuments.refetch()} /></div> : identityDocuments.data?.length ? (
-                  <ul className="mt-4 space-y-2">
-                    {identityDocuments.data.map((document, index) => (
-                      <li key={document.id} className="flex items-center justify-between gap-3 rounded-lg border border-[#e7edf0] px-3 py-2.5">
-                        <span className="text-[9px] font-semibold text-[#536b82]">Document {index + 1} · {(document.sizeBytes / 1024 / 1024).toFixed(2)} MB</span>
-                        <button type="button" onClick={() => window.open(getGetAdminIdentityDocumentContentUrl(document.id), '_blank', 'noopener,noreferrer')} className="text-[9px] font-bold text-[#36777c] hover:underline">Download</button>
-                      </li>
-                    ))}
-                  </ul>
-                ) : <p className="mt-4 text-[10px] text-[#8794a2]">No uploaded documents are available.</p>}
-                <form onSubmit={submitIdentityDecision} className="mt-5 space-y-3 border-t border-[#edf0f2] pt-4">
-                  <Field label="Decision"><select value={decision} onChange={event => setDecision(event.target.value as typeof decision)} className={inputClass}><option value="approved">Approve identity</option><option value="rejected">Reject and close review</option><option value="additional_information_required">Request more information</option></select></Field>
-                  {decision === 'additional_information_required' && <Field label="Message for member"><textarea required minLength={5} maxLength={500} rows={3} value={decisionMessage} onChange={event => setDecisionMessage(event.target.value)} className={`${inputClass} h-auto py-3`} /></Field>}
-                  <Field label="Internal audit reason"><textarea required minLength={5} maxLength={500} rows={3} value={decisionReason} onChange={event => setDecisionReason(event.target.value)} className={`${inputClass} h-auto py-3`} /></Field>
-                  {decisionError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{decisionError}</p>}
-                  <button disabled={updateVerification.isPending || identityDocuments.isLoading || !identityDocuments.data?.length} className="h-10 w-full rounded-xl border border-[#d7e6e7] bg-[#f2f8f8] px-4 text-[10px] font-bold text-[#36777c] hover:bg-[#e5f2f2] disabled:cursor-not-allowed disabled:opacity-50">{updateVerification.isPending ? 'Saving…' : 'Save identity decision'}</button>
-                </form>
-              </>
-            ) : (
-              <div className="mt-4 rounded-lg bg-[#f7f9fa] px-3 py-3 text-[10px] leading-4 text-[#718294]">There is no identity review awaiting a decision. Current status: <b>{humanize(profile.verificationStatus)}</b>.</div>
-            )}
-          </section>
           <section className="rounded-[20px] border border-[#e1e8ee] bg-white p-5 sm:p-6">
             <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#71869a]">Transaction security</p>
             <h2 className="mt-1 text-[14px] font-bold text-[#29425c]">Member PIN</h2>
@@ -2087,9 +1749,8 @@ export function AdminUserManagementPage() {
 }
 
 const disclosureCopy: Record<string, { eyebrow: string; title: string; intro: string; sections: [string, string][] }> = {
-  '/help': { eyebrow: 'Support', title: 'Help with your Globus account.', intro: 'Understand how account activity and requests are handled.', sections: [['How do deposits work?', 'Verified customers with an active Private Vault subscription can select an eligible wallet and add funds. The wallet is credited immediately after the PIN and account checks pass. Account restrictions still apply.'], ['How do withdrawals work?', 'A pending withdrawal reserves the requested amount. Approval records the change in Globus; rejection releases the reserve. No outside payout is made.'], ['Can I send someone money?', 'Globus does not support member-to-member transfers. Transfer requests record the details in Globus but do not contact the recipient’s bank or send outside funds.'], ['How do international requests work?', 'Frankfurter reference rates are used to show converted amounts, with Grey available as a rate-only fallback. Rate quotes do not execute transfers; Globus does not contact the destination bank or send outside funds.'], ['Where can I find my Customer ID?', 'Open your Profile page to view or copy your Customer ID. It identifies your Globus account, not a bank account or payment address.']] },
   '/fees': { eyebrow: 'Fees and rates', title: 'Understand transfer requests and rates.', intro: 'Globus does not process external deposits, payouts, or card payments.', sections: [['Rate quotes', 'Globus uses Frankfurter reference rates, with Grey as a fallback source. Availability depends on currency-pair support; quotes can change and are not confirmation of a payment.'], ['Fees', 'Globus records account requests and does not charge an outside transaction fee through a payment provider.'], ['Currency balances', 'Currency wallets are recorded separately. The rate and converted amount shown on a transfer receipt match the quote used when Globus recorded that request.']] },
-  '/contact': { eyebrow: 'Contact', title: 'Contact information is not configured yet.', intro: 'A verified support channel has not been configured for Globus.', sections: [['Account help', 'Visit Help for guidance about the software. Do not include passwords, verification codes or sensitive payment details in support requests.'], ['Recorded activity', 'Include the transaction reference when asking about an account record.'], ['Operational disclosure', 'Globus support cannot complete, trace or reverse an external payment through this product.']] },
+  '/contact': { eyebrow: 'Contact', title: 'Contact information is not configured yet.', intro: 'A verified support channel has not been configured for Globus.', sections: [['Account help', 'Do not include passwords, verification codes or sensitive payment details in support requests.'], ['Recorded activity', 'Include the transaction reference when asking about an account record.'], ['Operational disclosure', 'Globus support cannot complete, trace or reverse an external payment through this product.']] },
 };
 
 export function DisclosurePage({ path }: { path: string }) {
@@ -2260,10 +1921,9 @@ function TransactionStatusDialog({
   transaction: BankTransaction;
   pending: boolean;
   onClose: () => void;
-  onSave: (status: BankTransaction['status'], reason: string, transactionPin: string) => Promise<void>;
+  onSave: (status: BankTransaction['status'], transactionPin: string) => Promise<void>;
 }) {
   const [status, setStatus] = useState<BankTransaction['status']>(transaction.status);
-  const [reason, setReason] = useState('');
   const [transactionPin, setTransactionPin] = useState('');
   const [error, setError] = useState('');
   const allowedStatuses: BankTransaction['status'][] =
@@ -2277,7 +1937,6 @@ function TransactionStatusDialog({
 
   useEffect(() => {
     setStatus(transaction.status);
-    setReason('');
     setTransactionPin('');
     setError('');
   }, [transaction.id, transaction.status]);
@@ -2286,7 +1945,7 @@ function TransactionStatusDialog({
     event.preventDefault();
     setError('');
     try {
-      await onSave(status, reason.trim(), transactionPin);
+      await onSave(status, transactionPin);
     } catch (saveError) {
       setError(saveError instanceof Error ? saveError.message : 'The transaction status could not be updated.');
     }
@@ -2307,9 +1966,6 @@ function TransactionStatusDialog({
               {allowedStatuses.map(value => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
             </select>
           </Field>
-          <Field label="Audit reason">
-            <textarea required minLength={5} maxLength={500} rows={3} value={reason} onChange={event => setReason(event.target.value)} placeholder="Explain why this recorded status is being changed." className={`${inputClass} h-auto py-3`} />
-          </Field>
           <Field label="Your 6-digit transaction PIN">
             <input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={transactionPin} onChange={event => setTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} />
           </Field>
@@ -2317,7 +1973,7 @@ function TransactionStatusDialog({
           {error && <p role="alert" className="rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{error}</p>}
           <div className="flex flex-wrap justify-end gap-2">
             <button type="button" onClick={onClose} className="rounded-xl border border-[#dfe6eb] px-4 py-3 text-[10px] font-bold text-[#546b80] hover:bg-[#f5f8f9]">Cancel</button>
-            <button disabled={pending || !allowedStatuses.includes(status) || reason.trim().length < 5 || transactionPin.length !== 6} className="rounded-xl bg-[#142f51] px-4 py-3 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Saving status…' : 'Confirm status correction'}</button>
+            <button disabled={pending || !allowedStatuses.includes(status) || transactionPin.length !== 6} className="rounded-xl bg-[#142f51] px-4 py-3 text-[10px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Saving status…' : 'Confirm status correction'}</button>
           </div>
         </form>
       </section>

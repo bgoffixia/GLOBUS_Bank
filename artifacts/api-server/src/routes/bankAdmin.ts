@@ -1,5 +1,4 @@
-import { Router, type IRouter, type RequestHandler } from "express";
-import { pipeline } from "node:stream/promises";
+import { Router, type IRouter, type Request, type RequestHandler } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import {
   and,
@@ -30,7 +29,6 @@ import {
   CreateAdminTransactionCorrectionBody,
   CreateAdminTransactionCorrectionParams,
   CreateAdminTransactionCorrectionResponse,
-  GetAdminIdentityDocumentContentParams,
   GetAdminAccessResponse,
   GetAdminSettingsResponse,
   GetAdminSummaryResponse,
@@ -51,14 +49,11 @@ import {
   ListAdminLedgerResponse,
   ListAdminTransactionStatusHistoryParams,
   ListAdminTransactionStatusHistoryResponse,
-  ListAdminIdentityDocumentsParams,
-  ListAdminIdentityDocumentsResponse,
   ListAdminUsersQueryParams,
   ListAdminUsersResponse,
+  ListAdminVaultAccessQueryParams,
+  ListAdminVaultAccessResponse,
   ListAdminLedgerRequestsQueryParams,
-  UpdateAdminUserVerificationBody,
-  UpdateAdminUserVerificationParams,
-  UpdateAdminUserVerificationResponse,
   UpdateAdminUserStatusBody,
   UpdateAdminUserStatusParams,
   UpdateAdminUserStatusResponse,
@@ -71,6 +66,12 @@ import {
   UpdateAdminUserVaultSubscriptionBody,
   UpdateAdminUserVaultSubscriptionParams,
   UpdateAdminUserVaultSubscriptionResponse,
+  GrantAdminVaultAccessBody,
+  GrantAdminVaultAccessParams,
+  GrantAdminVaultAccessResponse,
+  RevokeAdminVaultAccessBody,
+  RevokeAdminVaultAccessParams,
+  RevokeAdminVaultAccessResponse,
   UpdateAdminSettingsBody,
   UpdateAdminSettingsResponse,
   UpdateAdminWalletStatusBody,
@@ -104,13 +105,13 @@ import {
   bankAuditLogsTable,
   bankAdminSettingsTable,
   bankExchangeRatesTable,
-  bankIdentityDocumentsTable,
   bankInternationalTransferRequestsTable,
   bankLedgerEntriesTable,
   bankRestrictionsTable,
   bankSandboxRequestsTable,
   bankTransactionsTable,
   bankUsersTable,
+  bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
   bankWalletsTable,
   db,
@@ -140,16 +141,16 @@ import {
   userWallet,
 } from "../lib/bank";
 import { getExchangeRate } from "../lib/exchange-rates";
-import {
-  deleteIdentityDocumentObject,
-  getIdentityDocumentFile,
-} from "../lib/identityDocumentStorage";
 import { verifyTransactionPin } from "../lib/transaction-pin";
-import { vaultSubscriptionStatus } from "../lib/bank-vault";
 import {
   buildAdminAccessControlsAuditEntry,
   normalizeAdminAccessReason,
 } from "../lib/admin-access-controls";
+import {
+  getEffectiveAccountTier,
+  hasActiveVaultAccess,
+  vaultSubscriptionStatus,
+} from "../lib/bank-vault";
 import {
   notifyTransferRecipient,
   sendPushToUser,
@@ -158,12 +159,77 @@ import {
 import {
   minorAmountToDecimal,
 } from "../lib/vault-subscription";
-import {
-  deleteVaultSubscriptionProof,
-  getVaultSubscriptionProofFile,
-} from "../lib/vault-subscription-proof-storage";
 
 const router: IRouter = Router();
+
+const adminAuditOperationLabels: Array<[string, string]> = [
+  ["/bank/admin/exchange-rates", "exchange rate update"],
+  ["/bank/admin/wallet-currency-migration", "legacy wallet currency conversion"],
+  ["/bank/admin/wallets/:walletId", "wallet status change"],
+  ["/bank/admin/restrictions/:restrictionId/remove", "restriction removal"],
+  ["/bank/admin/restrictions", "restriction creation"],
+  ["/bank/admin/settings", "operations settings update"],
+  ["/bank/admin/ledger-requests/:requestId", "customer request review"],
+  ["/bank/admin/users/:userId/vault-access/grant", "Private Vault admin grant"],
+  ["/bank/admin/users/:userId/vault-access/revoke", "Private Vault admin grant revocation"],
+  ["/bank/admin/users/:userId/transaction-pin/reset", "customer transaction PIN reset"],
+  ["/bank/admin/users/:userId/password-reset", "customer password reset"],
+  ["/bank/admin/users/:userId/status", "customer account status change"],
+  ["/bank/admin/users/:userId/profile", "customer profile update"],
+  ["/bank/admin/users/:userId/access-controls", "customer access controls update"],
+  ["/bank/admin/users/:userId/vault-subscription", "Private Vault subscription access removal"],
+  ["/bank/admin/users/:userId/funding", "customer wallet adjustment"],
+  ["/bank/admin/transactions/:transactionId/process", "internal transfer processing"],
+  ["/bank/admin/transactions/:transactionId/funding-review", "funding adjustment review"],
+  ["/bank/admin/transactions/:transactionId/status", "transaction status correction"],
+  ["/bank/admin/transactions/:transactionId", "transaction correction"],
+];
+
+const adminAuditDetailFields = [
+  "accountStatus",
+  "status",
+  "decision",
+  "type",
+  "vaultPlanCode",
+  "testingModeDisabled",
+  "transferAccessGranted",
+  "direction",
+  "currency",
+  "amount",
+  "sourceCurrency",
+  "destinationCurrency",
+  "rate",
+  "kind",
+  "effectiveAt",
+  "expiresAt",
+  "name",
+] as const;
+
+function generatedAdminAuditReason(req: Request): string {
+  const route = String(req.route?.path ?? `${req.baseUrl}${req.path}`);
+  const operation = adminAuditOperationLabels.find(([path]) => route === path)?.[1]
+    ?? `${req.method.toLowerCase()} ${route}`;
+  const body = typeof req.body === "object" && req.body !== null
+    ? req.body as Record<string, unknown>
+    : {};
+  const details = adminAuditDetailFields.flatMap((field) => {
+    const value = body[field];
+    if (typeof value !== "string" && typeof value !== "number" && typeof value !== "boolean") {
+      return [];
+    }
+    const safeValue = String(value).replace(/[\r\n\t]/g, " ").slice(0, 80);
+    return safeValue ? [`${field}=${safeValue}`] : [];
+  });
+  return `Automatically generated audit reason for ${operation}${details.length ? ` (${details.join(", ")})` : ""}.`
+    .slice(0, 500);
+}
+
+const removedIdentityWorkflow: RequestHandler = (_req, res): void => {
+  res.status(410).json({ error: "Identity review workflows are no longer available." });
+};
+router.use("/bank/admin/users/:userId/verification-documents", removedIdentityWorkflow);
+router.use("/bank/admin/identity-documents", removedIdentityWorkflow);
+router.all("/bank/admin/users/:userId/verification", removedIdentityWorkflow);
 
 function configuredAdminIds(): Set<string> {
   return new Set(
@@ -198,6 +264,90 @@ async function isAllowlistedAdmin(userId: string): Promise<boolean> {
     primaryEmail?.verification?.status === "verified" &&
       allowedEmails.has(primaryEmail.emailAddress.trim().toLowerCase()),
   );
+}
+
+function adminVaultAccessRecord(
+  user: typeof bankUsersTable.$inferSelect,
+  grant: typeof bankVaultAdminEntitlementsTable.$inferSelect | null,
+) {
+  const subscriptionStatus = vaultSubscriptionStatus(
+    user.vaultSubscriptionStatus,
+    user.vaultSubscriptionExpiresAt,
+  );
+  const subscriptionActive = subscriptionStatus === "active";
+  const accessSource = grant
+    ? "admin_grant"
+    : subscriptionActive
+      ? "paystack_subscription"
+      : "none";
+  return {
+    userId: user.id,
+    email: user.email,
+    customerId: user.customerId,
+    firstName: user.firstName,
+    lastName: user.lastName,
+    subscriptionStatus,
+    subscriptionActive,
+    subscriptionExpiresAt: user.vaultSubscriptionExpiresAt?.toISOString() ?? null,
+    adminGrantActive: Boolean(grant),
+    adminGrantAt: grant?.grantedAt.toISOString() ?? null,
+    adminGrantByUserId: grant?.grantedByUserId ?? null,
+    adminGrantReason: grant?.reason ?? null,
+    accessActive: Boolean(grant) || subscriptionActive,
+    accessSource,
+  };
+}
+
+async function applyAdminVaultEntitlementAction(
+  actorUserId: string,
+  targetUserId: string,
+  reason: string,
+  action: "grant" | "revoke",
+) {
+  if (actorUserId === targetUserId && action === "revoke") {
+    return { selfRevoke: true as const };
+  }
+  return db.transaction(async (tx) => {
+    const [target] = await tx
+      .select()
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, targetUserId))
+      .for("update");
+    if (!target) return { notFound: true as const };
+
+    if (action === "grant") {
+      const [grant] = await tx
+        .insert(bankVaultAdminEntitlementsTable)
+        .values({
+          userId: target.id,
+          grantedByUserId: actorUserId,
+          reason,
+        })
+        .onConflictDoNothing()
+        .returning();
+      if (!grant) return { alreadyGranted: true as const };
+    } else {
+      const [grant] = await tx
+        .delete(bankVaultAdminEntitlementsTable)
+        .where(eq(bankVaultAdminEntitlementsTable.userId, target.id))
+        .returning({ userId: bankVaultAdminEntitlementsTable.userId });
+      if (!grant) return { notGranted: true as const };
+      await tx
+        .delete(bankVaultSessionsTable)
+        .where(eq(bankVaultSessionsTable.userId, target.id));
+    }
+
+    await tx.insert(bankAuditLogsTable).values({
+      actorUserId,
+      targetUserId: target.id,
+      action:
+        action === "grant"
+          ? "grant_admin_private_vault_access"
+          : "revoke_admin_private_vault_access",
+      reason,
+    });
+    return { target };
+  });
 }
 
 function restrictionStatus(
@@ -345,7 +495,6 @@ function adminSettingsPayload(settings: Awaited<ReturnType<typeof getOrCreateAdm
     fundingLimit: settings.fundingLimit,
     secondApprovalThreshold: settings.secondApprovalThreshold,
     frozenIncomingPolicy: "allow_frozen" as const,
-    unverifiedDashboardMessage: settings.unverifiedDashboardMessage,
     vaultPlan1mPrice: minorAmountToDecimal(settings.vaultPlan1mPriceMinor),
     vaultPlan3mPrice: minorAmountToDecimal(settings.vaultPlan3mPriceMinor),
     vaultPlan1yPrice: minorAmountToDecimal(settings.vaultPlan1yPriceMinor),
@@ -373,81 +522,6 @@ function respondWithTransactionPinError(
   } else {
     res.status(404).json({ error: "The account for this transaction was not found." });
   }
-}
-
-async function runIdentityReview(input: {
-  actorUserId: string;
-  userId: string;
-  verificationStatus:
-    | "approved"
-    | "rejected"
-    | "additional_information_required";
-  reason: string;
-  userMessage: string | null;
-}) {
-  return db.transaction(async (tx) => {
-    const [user] = await tx
-      .select()
-      .from(bankUsersTable)
-      .where(eq(bankUsersTable.id, input.userId))
-      .for("update");
-    if (!user) {
-      return { notFound: true as const };
-    }
-    if (
-      user.verificationStatus !== "pending" &&
-      user.verificationStatus !== "additional_information_required"
-    ) {
-      return { error: "This user does not have an identity review awaiting a decision." };
-    }
-
-    const documents = await tx
-      .select()
-      .from(bankIdentityDocumentsTable)
-      .where(eq(bankIdentityDocumentsTable.userId, input.userId))
-      .for("update");
-    if (documents.some((document) => document.status !== "uploaded")) {
-      return {
-        error:
-          "Finish or remove each in-progress identity document upload before recording a decision.",
-      };
-    }
-
-    const finalDecision =
-      input.verificationStatus === "approved" ||
-      input.verificationStatus === "rejected";
-    if (finalDecision) {
-      for (const document of documents) {
-        await deleteIdentityDocumentObject(document.objectPath);
-      }
-    }
-
-    const [updated] = await tx
-      .update(bankUsersTable)
-      .set({
-        verificationStatus: input.verificationStatus,
-        verificationNote: input.userMessage,
-        updatedAt: new Date(),
-      })
-      .where(eq(bankUsersTable.id, input.userId))
-      .returning();
-    if (finalDecision) {
-      await tx
-        .delete(bankIdentityDocumentsTable)
-        .where(eq(bankIdentityDocumentsTable.userId, input.userId));
-    }
-    await tx.insert(bankAuditLogsTable).values({
-      actorUserId: input.actorUserId,
-      targetUserId: input.userId,
-      action: `identity_review_${input.verificationStatus}`,
-      reason: input.reason,
-    });
-    const [walletCount] = await tx
-      .select({ value: count() })
-      .from(bankWalletsTable)
-      .where(eq(bankWalletsTable.userId, input.userId));
-    return { user: updated, walletCount: Number(walletCount?.value ?? 0) };
-  });
 }
 
 router.get("/bank/admin/access", requireSignedIn, async (req, res): Promise<void> => {
@@ -496,11 +570,7 @@ router.put("/bank/admin/exchange-rates", requireAdmin, async (req, res): Promise
     respondWithTransactionPinError(res, pinResult);
     return;
   }
-  const reason = parsed.data.reason.trim();
-  if (reason.length < 5) {
-    res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-    return;
-  }
+  const reason = generatedAdminAuditReason(req);
   const rate = await db.transaction(async (tx) => {
     const now = new Date();
     const [savedRate] = await tx
@@ -1260,7 +1330,7 @@ router.post(
       }> = [];
       for (const item of prepared) {
         const reference = createReference();
-        const description = `Legacy ${item.source.currency} balance converted to USD. Rate ${item.rate.rate} from ${item.rate.provider}, quoted ${item.rate.checkedAt.toISOString()}. Reason: ${parsed.data.reason.trim()}`;
+        const description = `Legacy ${item.source.currency} balance converted to USD. Rate ${item.rate.rate} from ${item.rate.provider}, quoted ${item.rate.checkedAt.toISOString()}. ${generatedAdminAuditReason(req)}`;
         const [transaction] = await tx
           .insert(bankTransactionsTable)
           .values({
@@ -1279,7 +1349,7 @@ router.post(
             counterparty: "Currency conversion",
             description,
             adminReference: "Legacy wallet conversion to USD",
-            adminNotes: parsed.data.reason.trim(),
+            adminNotes: null,
             mode: "internal_ledger",
           })
           .returning();
@@ -1375,11 +1445,7 @@ router.patch(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const result = await db.transaction(async (tx) => {
       const [observedWallet] = await tx
         .select({ userId: bankWalletsTable.userId })
@@ -1412,7 +1478,7 @@ router.patch(
             reason,
             effectiveAt: now,
             createdByUserId: actorUserId,
-            internalNotes: parsed.data.notes?.trim() || null,
+            internalNotes: null,
           })
           .returning();
       } else {
@@ -1473,9 +1539,7 @@ router.patch(
         .set({
           status: remainsFrozen ? "restricted" : "active",
           restrictionReason: remainsFrozen ? remainingFreeze?.reason ?? reason : null,
-          restrictionNotes: remainsFrozen
-            ? remainingFreeze?.internalNotes ?? parsed.data.notes?.trim() ?? null
-            : null,
+          restrictionNotes: remainsFrozen ? remainingFreeze?.internalNotes ?? null : null,
           restrictedByUserId: remainsFrozen
             ? remainingFreeze?.createdByUserId ?? actorUserId
             : null,
@@ -1488,7 +1552,7 @@ router.patch(
         actorUserId,
         targetUserId: user.id,
         action: restricted ? "freeze_wallet" : "unfreeze_wallet",
-        reason: `${wallet.currency} wallet ${wallet.id}: ${reason}${parsed.data.notes?.trim() ? ` Notes: ${parsed.data.notes.trim()}` : ""}${!restricted && remainsFrozen ? " Other active freeze restrictions remain in effect." : ""}`,
+        reason: `${wallet.currency} wallet ${wallet.id}: ${reason}${!restricted && remainsFrozen ? " Other active freeze restrictions remain in effect." : ""}`,
       });
       const balance = await balanceForWallet(tx, wallet.id);
       return { wallet: updated, user, balance };
@@ -1657,24 +1721,13 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     });
     return;
   }
-  const reason = parsed.data.reason.trim();
-  if (reason.length < 5) {
-    res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-    return;
-  }
-  const unverifiedDashboardMessage =
-    parsed.data.unverifiedDashboardMessage.trim();
-  if (!unverifiedDashboardMessage) {
-    res.status(400).json({ error: "Enter a default message for unverified members." });
-    return;
-  }
+  const reason = generatedAdminAuditReason(req);
   const [settings] = await db
     .insert(bankAdminSettingsTable)
     .values({
       id: "operations",
       fundingLimit: formatMinorAmount(fundingLimitMinor),
       secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
-      unverifiedDashboardMessage,
       vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
       vaultPlan3mPriceMinor: vaultPlan3mPriceMinor.toString(),
       vaultPlan1yPriceMinor: vaultPlan1yPriceMinor.toString(),
@@ -1685,7 +1738,6 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
       set: {
         fundingLimit: formatMinorAmount(fundingLimitMinor),
         secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
-        unverifiedDashboardMessage,
         vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
         vaultPlan3mPriceMinor: vaultPlan3mPriceMinor.toString(),
         vaultPlan1yPriceMinor: vaultPlan1yPriceMinor.toString(),
@@ -1889,10 +1941,10 @@ router.post(
           userId: customer.id,
           walletId: wallet?.id ?? null,
           type: parsed.data.type,
-          reason: parsed.data.reason.trim(),
+          reason: generatedAdminAuditReason(req),
           effectiveAt,
           expiresAt,
-          internalNotes: parsed.data.internalNotes?.trim() || null,
+          internalNotes: null,
           createdByUserId: actorUserId,
         })
         .returning();
@@ -1900,7 +1952,7 @@ router.post(
         actorUserId,
         targetUserId: customer.id,
         action: "create_account_restriction",
-        reason: `${parsed.data.type} restriction ${restriction.id} effective ${effectiveAt.toISOString()}${expiresAt ? ` until ${expiresAt.toISOString()}` : ""}. ${parsed.data.reason.trim()}`,
+        reason: `${generatedAdminAuditReason(req)} Restriction ${restriction.id} is ${parsed.data.type}, effective ${effectiveAt.toISOString()}${expiresAt ? ` until ${expiresAt.toISOString()}` : ""}.`,
       });
       const [actor] = await tx
         .select()
@@ -1989,7 +2041,7 @@ router.post(
           status: "removed",
           removedAt: new Date(),
           removedByUserId: actorUserId,
-          removalReason: parsed.data.reason.trim(),
+          removalReason: generatedAdminAuditReason(req),
         })
         .where(eq(bankRestrictionsTable.id, restriction.id))
         .returning();
@@ -2052,7 +2104,7 @@ router.post(
         actorUserId,
         targetUserId: customer.id,
         action: "remove_account_restriction",
-        reason: `Restriction ${restriction.id} (${restriction.type}) removed. ${parsed.data.reason.trim()}`,
+        reason: `${generatedAdminAuditReason(req)} Restriction ${restriction.id} (${restriction.type}) removed.`,
       });
       return { restriction: updated, customer, wallet, creator, actor };
     });
@@ -2184,6 +2236,9 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       profileSetupCompletedAt: bankUsersTable.profileSetupCompletedAt,
       testingModeDisabled: bankUsersTable.testingModeDisabled,
       transferAccessGranted: bankUsersTable.transferAccessGranted,
+      vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
+      vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
+      vaultSubscriptionPlan: bankUsersTable.vaultSubscriptionPlan,
       createdAt: bankUsersTable.createdAt,
       walletCount: count(bankWalletsTable.id),
     })
@@ -2205,6 +2260,9 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       bankUsersTable.profileSetupCompletedAt,
       bankUsersTable.testingModeDisabled,
       bankUsersTable.transferAccessGranted,
+      bankUsersTable.vaultSubscriptionStatus,
+      bankUsersTable.vaultSubscriptionExpiresAt,
+      bankUsersTable.vaultSubscriptionPlan,
       bankUsersTable.createdAt,
     )
     .orderBy(desc(bankUsersTable.createdAt))
@@ -2240,6 +2298,7 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       {
         items: rows.map((row) => ({
           ...row,
+          accountTierName: getEffectiveAccountTier(row, now).name,
           verificationStatus: row.verificationStatus as
             | "not_started"
             | "pending"
@@ -2279,6 +2338,181 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
 });
 
 router.get(
+  "/bank/admin/vault-access",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const parsed = ListAdminVaultAccessQueryParams.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: parsed.error.message });
+      return;
+    }
+    const search = parsed.data.search.trim();
+    if (search.length < 2) {
+      res.status(400).json({ error: "Enter at least two characters to search." });
+      return;
+    }
+    const needle = `%${search.replace(/[\\%_]/g, "\\$&")}%`;
+    const rows = await db
+      .select({
+        user: bankUsersTable,
+        grant: bankVaultAdminEntitlementsTable,
+      })
+      .from(bankUsersTable)
+      .leftJoin(
+        bankVaultAdminEntitlementsTable,
+        eq(bankVaultAdminEntitlementsTable.userId, bankUsersTable.id),
+      )
+      .where(
+        or(
+          ilike(bankUsersTable.email, needle),
+          ilike(bankUsersTable.id, needle),
+          ilike(bankUsersTable.customerId, needle),
+        ),
+      )
+      .orderBy(desc(bankUsersTable.createdAt))
+      .limit(25);
+    res.json(
+      ListAdminVaultAccessResponse.parse({
+        items: rows.map(({ user, grant }) =>
+          adminVaultAccessRecord(user, grant),
+        ),
+      }),
+    );
+  },
+);
+
+router.post(
+  "/bank/admin/users/:userId/vault-access/grant",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    const params = GrantAdminVaultAccessParams.safeParse(req.params);
+    const parsed = GrantAdminVaultAccessBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success
+          ? params.error.message
+          : parsed.error?.message ?? "Invalid Private Vault grant.",
+      });
+      return;
+    }
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in with an administrator account." });
+      return;
+    }
+    const reason = generatedAdminAuditReason(req);
+    const actor = await ensureBankUser(authUserId);
+    const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
+    if (pinResult !== "valid") {
+      const status = pinResult === "locked" ? 429 : pinResult === "not_configured" ? 409 : 403;
+      res.status(status).json({
+        error: pinResult === "not_configured"
+          ? "Set up an administrator transaction PIN before granting access."
+          : pinResult === "locked"
+            ? "Too many incorrect PIN attempts. Try again later."
+            : "The administrator transaction PIN is incorrect.",
+      });
+      return;
+    }
+    const result = await applyAdminVaultEntitlementAction(
+      actor.id,
+      params.data.userId,
+      reason,
+      "grant",
+    );
+    if ("notFound" in result) {
+      res.status(404).json({ error: "User record not found." });
+      return;
+    }
+    if ("alreadyGranted" in result) {
+      res.status(409).json({ error: "This user already has Admin-granted Vault access." });
+      return;
+    }
+    if (!("target" in result) || !result.target) {
+      res.status(500).json({ error: "The Vault entitlement change could not be confirmed." });
+      return;
+    }
+    const [grant] = await db
+      .select()
+      .from(bankVaultAdminEntitlementsTable)
+      .where(eq(bankVaultAdminEntitlementsTable.userId, result.target.id))
+      .limit(1);
+    res.json(
+      GrantAdminVaultAccessResponse.parse(
+        adminVaultAccessRecord(result.target, grant ?? null),
+      ),
+    );
+  },
+);
+
+router.post(
+  "/bank/admin/users/:userId/vault-access/revoke",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    const params = RevokeAdminVaultAccessParams.safeParse(req.params);
+    const parsed = RevokeAdminVaultAccessBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success
+          ? params.error.message
+          : parsed.error?.message ?? "Invalid Private Vault revocation.",
+      });
+      return;
+    }
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in with an administrator account." });
+      return;
+    }
+    if (params.data.userId === authUserId) {
+      res.status(403).json({ error: "Administrators cannot manage their own Vault access." });
+      return;
+    }
+    const reason = generatedAdminAuditReason(req);
+    const actor = await ensureBankUser(authUserId);
+    const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
+    if (pinResult !== "valid") {
+      const status = pinResult === "locked" ? 429 : pinResult === "not_configured" ? 409 : 403;
+      res.status(status).json({
+        error: pinResult === "not_configured"
+          ? "Set up an administrator transaction PIN before revoking access."
+          : pinResult === "locked"
+            ? "Too many incorrect PIN attempts. Try again later."
+            : "The administrator transaction PIN is incorrect.",
+      });
+      return;
+    }
+    const result = await applyAdminVaultEntitlementAction(
+      actor.id,
+      params.data.userId,
+      reason,
+      "revoke",
+    );
+    if ("selfRevoke" in result) {
+      res.status(403).json({ error: "Administrators cannot manage their own Vault access." });
+      return;
+    }
+    if ("notFound" in result) {
+      res.status(404).json({ error: "User record not found." });
+      return;
+    }
+    if ("notGranted" in result) {
+      res.status(409).json({ error: "This user has no Admin-granted Vault access to revoke." });
+      return;
+    }
+    if (!("target" in result) || !result.target) {
+      res.status(500).json({ error: "The Vault entitlement change could not be confirmed." });
+      return;
+    }
+    res.json(
+      RevokeAdminVaultAccessResponse.parse(
+        adminVaultAccessRecord(result.target, null),
+      ),
+    );
+  },
+);
+
+router.get(
   "/bank/admin/users/:userId",
   requireAdmin,
   async (req, res): Promise<void> => {
@@ -2297,6 +2531,7 @@ router.get(
       return;
     }
     const now = new Date();
+    const effectiveAccountTier = getEffectiveAccountTier(user, now);
     const [wallets, transactions, history, transactionCountRows, activeRestrictions] = await Promise.all([
       getWalletsForUser(user.id),
       listUserTransactions(user.id, { limit: 50 }),
@@ -2357,6 +2592,7 @@ router.get(
         user: {
           id: user.id,
           email: user.email,
+          accountTierName: effectiveAccountTier.name,
           customerId: user.customerId,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -2393,8 +2629,12 @@ router.get(
         },
         phone: user.phone,
         dateOfBirth: user.dateOfBirth,
+        cityOfOrigin: user.cityOfOrigin,
+        occupation: user.occupation,
         profileSetupCompletedAt:
           user.profileSetupCompletedAt?.toISOString() ?? null,
+        testingModeDisabled: user.testingModeDisabled,
+        transferAccessGranted: user.transferAccessGranted,
         transactionPinConfigured: !!user.transactionPinHash,
         transactionCount: Number(transactionCountRows[0]?.value ?? 0),
         wallets,
@@ -2442,11 +2682,7 @@ router.post(
       return;
     }
     const actorUserId = (await ensureBankUser(authenticatedClerkId)).id;
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a reset reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const reset = await db.transaction(async (tx) => {
       const [target] = await tx
         .update(bankUsersTable)
@@ -2514,7 +2750,7 @@ router.post(
       return;
     }
 
-    const reason = parsed.data.reason.trim();
+    const reason = generatedAdminAuditReason(req);
     const requestedAt = new Date().toISOString();
     await db.insert(bankAuditLogsTable).values({
       actorUserId,
@@ -2655,6 +2891,7 @@ router.patch(
       return;
     }
 
+    const reason = generatedAdminAuditReason(req);
     const result = await db.transaction(async (tx) => {
       const now = new Date();
       const [user] = await tx
@@ -2662,13 +2899,8 @@ router.patch(
         .set({
           accountStatus: parsed.data.accountStatus,
           accountRestrictionReason:
-            parsed.data.accountStatus === "restricted"
-              ? parsed.data.reason.trim()
-              : null,
-          accountRestrictionNotes:
-            parsed.data.accountStatus === "restricted"
-              ? parsed.data.notes?.trim() || null
-              : null,
+            parsed.data.accountStatus === "restricted" ? reason : null,
+          accountRestrictionNotes: null,
           accountRestrictedByUserId:
             parsed.data.accountStatus === "restricted" ? actorUserId : null,
           accountRestrictedAt:
@@ -2690,7 +2922,7 @@ router.patch(
             : parsed.data.accountStatus === "restricted"
               ? "restrict_user"
               : "restore_user",
-        reason: `${parsed.data.reason.trim()}${parsed.data.notes?.trim() ? ` Notes: ${parsed.data.notes.trim()}` : ""}`,
+        reason,
       });
 
       return user;
@@ -2755,7 +2987,7 @@ router.patch(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
+    const reason = generatedAdminAuditReason(req);
     const profileFields = {
       ...(parsed.data.firstName !== undefined
         ? { firstName: parsed.data.firstName?.trim() || null }
@@ -2769,10 +3001,19 @@ router.patch(
       ...(parsed.data.country !== undefined
         ? { country: parsed.data.country?.trim() || null }
         : {}),
+      ...(parsed.data.cityOfOrigin !== undefined
+        ? { cityOfOrigin: parsed.data.cityOfOrigin?.trim() || null }
+        : {}),
+      ...(parsed.data.dateOfBirth !== undefined
+        ? { dateOfBirth: parsed.data.dateOfBirth || null }
+        : {}),
+      ...(parsed.data.occupation !== undefined
+        ? { occupation: parsed.data.occupation?.trim() || null }
+        : {}),
     };
-    if (Object.keys(profileFields).length === 0 || reason.length < 5) {
+    if (Object.keys(profileFields).length === 0) {
       res.status(400).json({
-        error: "Change at least one permitted profile field and enter a reason.",
+        error: "Change at least one permitted profile field.",
       });
       return;
     }
@@ -2940,22 +3181,16 @@ router.patch(
         return { recurringActive: true as const };
       }
       const now = new Date();
-      const proofPathToDelete = user.vaultSubscriptionProofObjectPath;
       const [updated] = await tx
         .update(bankUsersTable)
         .set({
           vaultSubscriptionStatus: "inactive",
           vaultSubscriptionReviewedAt: now,
           vaultSubscriptionReviewedByUserId: admin.id,
-          vaultSubscriptionReason: parsed.data.reason.trim(),
+          vaultSubscriptionReason: generatedAdminAuditReason(req),
           vaultSubscriptionExpiresAt: null,
           vaultSubscriptionPlan: null,
           vaultSubscriptionAmountMinor: null,
-          vaultSubscriptionProofObjectPath: null,
-          vaultSubscriptionProofContentType: null,
-          vaultSubscriptionProofSizeBytes: null,
-          vaultSubscriptionProofFileName: null,
-          vaultSubscriptionProofUploadedAt: null,
           updatedAt: now,
         })
         .where(eq(bankUsersTable.id, user.id))
@@ -2967,9 +3202,9 @@ router.patch(
         actorUserId: admin.id,
         targetUserId: user.id,
         action: "revoke_private_vault_subscription",
-        reason: parsed.data.reason.trim(),
+        reason: generatedAdminAuditReason(req),
       });
-      return { user: updated, proofPathToDelete };
+      return { user: updated };
     });
     if ("notFound" in result) {
       res.status(404).json({ error: "User record not found." });
@@ -2980,12 +3215,6 @@ router.patch(
         error: "The member must cancel Paystack renewal before an administrator can remove Vault access.",
       });
       return;
-    }
-    if (result.proofPathToDelete) {
-      void deleteVaultSubscriptionProof(result.proofPathToDelete, result.user.id).catch(
-        (error) =>
-          req.log.error({ error }, "Could not delete reviewed private vault payment proof"),
-      );
     }
     res.json(
       UpdateAdminUserVaultSubscriptionResponse.parse({
@@ -3007,267 +3236,6 @@ router.get(
     res.status(410).json({
       error: "Manual subscription proof review is disabled. Paystack confirmation controls Vault activation.",
     });
-  },
-);
-
-router.get(
-  "/bank/admin/users/:userId/vault-subscription/proof",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const params = ListAdminIdentityDocumentsParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const [user] = await db
-      .select({
-        id: bankUsersTable.id,
-        status: bankUsersTable.vaultSubscriptionStatus,
-        objectPath: bankUsersTable.vaultSubscriptionProofObjectPath,
-        contentType: bankUsersTable.vaultSubscriptionProofContentType,
-      })
-      .from(bankUsersTable)
-      .where(eq(bankUsersTable.id, params.data.userId))
-      .limit(1);
-    if (
-      !user ||
-      user.status !== "pending" ||
-      !user.objectPath ||
-      !user.contentType
-    ) {
-      res.status(404).json({ error: "Pending payment proof was not found." });
-      return;
-    }
-    try {
-      const file = getVaultSubscriptionProofFile(user.objectPath, user.id);
-      res.setHeader("Content-Type", user.contentType);
-      res.setHeader(
-        "Content-Disposition",
-        user.contentType === "application/pdf"
-          ? 'attachment; filename="vault-payment-proof.pdf"'
-          : user.contentType === "image/png"
-            ? 'attachment; filename="vault-payment-proof.png"'
-            : 'attachment; filename="vault-payment-proof.jpg"',
-      );
-      res.setHeader("Cache-Control", "private, no-store");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      await pipeline(file.createReadStream(), res);
-    } catch (error) {
-      req.log.warn({ error }, "Private vault payment proof could not be streamed");
-      if (!res.headersSent) {
-        res.status(404).json({ error: "Pending payment proof could not be opened." });
-      }
-    }
-  },
-);
-
-router.get(
-  "/bank/admin/users/:userId/verification-documents",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const params = ListAdminIdentityDocumentsParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const [user] = await db
-      .select({
-        id: bankUsersTable.id,
-        verificationStatus: bankUsersTable.verificationStatus,
-      })
-      .from(bankUsersTable)
-      .where(eq(bankUsersTable.id, params.data.userId))
-      .limit(1);
-    if (!user) {
-      res.status(404).json({ error: "User record not found." });
-      return;
-    }
-    if (
-      user.verificationStatus !== "pending" &&
-      user.verificationStatus !== "additional_information_required"
-    ) {
-      res.json(ListAdminIdentityDocumentsResponse.parse([]));
-      return;
-    }
-    const documents = await db
-      .select()
-      .from(bankIdentityDocumentsTable)
-      .where(
-        and(
-          eq(bankIdentityDocumentsTable.userId, user.id),
-          eq(bankIdentityDocumentsTable.status, "uploaded"),
-        ),
-      )
-      .orderBy(asc(bankIdentityDocumentsTable.createdAt));
-    res.json(
-      ListAdminIdentityDocumentsResponse.parse(
-        documents.map((document) => ({
-          id: document.id,
-          contentType: document.contentType as
-            | "application/pdf"
-            | "image/jpeg"
-            | "image/png",
-          sizeBytes: document.sizeBytes,
-          status: document.status as "uploading" | "uploaded",
-          createdAt: document.createdAt.toISOString(),
-          uploadedAt: document.uploadedAt?.toISOString() ?? null,
-        })),
-      ),
-    );
-  },
-);
-
-router.get(
-  "/bank/admin/identity-documents/:documentId/content",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const params = GetAdminIdentityDocumentContentParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const [document] = await db
-      .select({
-        document: bankIdentityDocumentsTable,
-        verificationStatus: bankUsersTable.verificationStatus,
-      })
-      .from(bankIdentityDocumentsTable)
-      .innerJoin(
-        bankUsersTable,
-        eq(bankUsersTable.id, bankIdentityDocumentsTable.userId),
-      )
-      .where(
-        and(
-          eq(bankIdentityDocumentsTable.id, params.data.documentId),
-          eq(bankIdentityDocumentsTable.status, "uploaded"),
-        ),
-      )
-      .limit(1);
-    if (
-      !document ||
-      (document.verificationStatus !== "pending" &&
-        document.verificationStatus !== "additional_information_required")
-    ) {
-      res.status(404).json({ error: "Identity document not found." });
-      return;
-    }
-    try {
-      const file = getIdentityDocumentFile(document.document.objectPath);
-      const [exists] = await file.exists();
-      if (!exists) {
-        res.status(404).json({ error: "Identity document not found." });
-        return;
-      }
-      const extension =
-        document.document.contentType === "application/pdf"
-          ? "pdf"
-          : document.document.contentType === "image/png"
-            ? "png"
-            : "jpg";
-      res.setHeader("Content-Type", document.document.contentType);
-      res.setHeader(
-        "Content-Disposition",
-        `attachment; filename="identity-document-${document.document.id}.${extension}"`,
-      );
-      res.setHeader("Content-Length", String(document.document.sizeBytes));
-      res.setHeader("Cache-Control", "private, no-store");
-      res.setHeader("X-Content-Type-Options", "nosniff");
-      await pipeline(file.createReadStream(), res);
-    } catch (error) {
-      req.log.error({ err: error }, "Could not stream a private identity document");
-      if (!res.headersSent) {
-        res.status(503).json({ error: "The identity document is temporarily unavailable." });
-      } else {
-        res.destroy(error instanceof Error ? error : undefined);
-      }
-    }
-  },
-);
-
-router.patch(
-  "/bank/admin/users/:userId/verification",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const params = UpdateAdminUserVerificationParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const parsed = UpdateAdminUserVerificationBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
-      return;
-    }
-    const authenticatedClerkId = getAuth(req).userId;
-    if (!authenticatedClerkId) {
-      res.status(401).json({ error: "Sign in to access your Globus account." });
-      return;
-    }
-    const actorUserId = (await ensureBankUser(authenticatedClerkId)).id;
-    if (
-      params.data.userId === actorUserId &&
-      parsed.data.verificationStatus !== "approved"
-    ) {
-      res.status(400).json({
-        error: "Administrators may approve their own identity, but cannot reject or request more information from themselves.",
-      });
-      return;
-    }
-    const reason = parsed.data.reason.trim();
-    const userMessage = parsed.data.userMessage?.trim() ?? "";
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-      return;
-    }
-    if (
-      parsed.data.verificationStatus === "additional_information_required" &&
-      !userMessage
-    ) {
-      res.status(400).json({
-        error: "Include a message telling the user what additional information is needed.",
-      });
-      return;
-    }
-
-    let result: Awaited<ReturnType<typeof runIdentityReview>>;
-    try {
-      result = await runIdentityReview({
-        actorUserId,
-        userId: params.data.userId,
-        verificationStatus: parsed.data.verificationStatus,
-        reason,
-        userMessage: userMessage || null,
-      });
-    } catch (error) {
-      req.log.error({ err: error }, "Could not complete identity verification decision");
-      res.status(503).json({
-        error: "Private document cleanup failed. No final verification decision was recorded; retry the review.",
-      });
-      return;
-    }
-    if ("notFound" in result) {
-      res.status(404).json({ error: "User record not found." });
-      return;
-    }
-    if ("error" in result) {
-      res.status(409).json({ error: result.error });
-      return;
-    }
-    res.json(
-      UpdateAdminUserVerificationResponse.parse({
-        id: result.user.id,
-        email: result.user.email,
-        customerId: result.user.customerId,
-        firstName: result.user.firstName,
-        lastName: result.user.lastName,
-        country: result.user.country,
-        verificationStatus: result.user.verificationStatus,
-        verificationNote: result.user.verificationNote,
-        accountStatus: result.user.accountStatus,
-        walletCount: result.walletCount,
-        createdAt: result.user.createdAt.toISOString(),
-      }),
-    );
   },
 );
 
@@ -3302,13 +3270,9 @@ router.post(
       return;
     }
 
-    const reason = parsed.data.reason.trim();
+    const reason = generatedAdminAuditReason(req);
     const senderName = parsed.data.senderName.trim();
     const description = parsed.data.description.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a funding reason of at least five characters." });
-      return;
-    }
     if (!senderName || !description) {
       res.status(400).json({ error: "Enter a sender name and transaction description." });
       return;
@@ -3361,7 +3325,7 @@ router.post(
           duplicate.counterparty === senderName &&
           duplicate.description === description &&
           duplicate.adminReference === (parsed.data.internalReference?.trim() || null) &&
-          duplicate.adminNotes === (parsed.data.adminNotes?.trim() || null);
+          duplicate.adminNotes === null;
         return sameRequest
           ? { transaction: duplicate }
           : { error: "That request reference is already in use." };
@@ -3429,7 +3393,7 @@ router.post(
           counterparty: senderName,
           description,
           adminReference: parsed.data.internalReference?.trim() || null,
-          adminNotes: parsed.data.adminNotes?.trim() || null,
+          adminNotes: null,
           mode: "internal_ledger",
         })
         .returning();
@@ -3511,11 +3475,7 @@ router.post(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     const result = await db.transaction(async (tx) => {
       const [transaction] = await tx
         .select()
@@ -3731,11 +3691,7 @@ router.patch(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
 
     const result = await db.transaction(async (tx) => {
       const [request] = await tx
@@ -3777,11 +3733,11 @@ router.patch(
       }
       if (
         parsed.data.decision === "approve" &&
-        target.verificationStatus !== "approved"
+        !(await hasActiveVaultAccess(target, tx))
       ) {
         return {
           error:
-            "Identity verification must be approved before this deposit or withdrawal can be completed.",
+            "An active Private Vault subscription is required before this deposit or withdrawal can be completed.",
         };
       }
 
@@ -4127,11 +4083,7 @@ router.post(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter a correction reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
     let adjustmentMinor: bigint | null = null;
     if (parsed.data.kind === "adjustment") {
       if (!parsed.data.walletId || !parsed.data.direction || !parsed.data.amount) {
@@ -4666,7 +4618,7 @@ router.post(
           actorUserId,
           targetUserId,
           action: "process_internal_transfer",
-          reason: `Transaction ${transaction.reference}: pending → completed. ${parsed.data.reason.trim()}`,
+          reason: `${generatedAdminAuditReason(req)} Transaction ${transaction.reference}: pending → completed.`,
         })),
       );
       const notification = await storeNotification(tx, {
@@ -4749,11 +4701,7 @@ router.patch(
       respondWithTransactionPinError(res, pinResult);
       return;
     }
-    const reason = parsed.data.reason.trim();
-    if (reason.length < 5) {
-      res.status(400).json({ error: "Enter an audit reason of at least five characters." });
-      return;
-    }
+    const reason = generatedAdminAuditReason(req);
 
     const result = await db.transaction(async (tx) => {
       const [transaction] = await tx

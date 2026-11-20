@@ -5,6 +5,7 @@ const EMAIL_FROM_ADDRESS_PATTERN = /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/;
 
 function appOrigin(): string | null {
   const configuredHost =
+    process.env.GLOBUS_APP_ORIGIN?.trim() ||
     process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
     process.env.REPLIT_DEV_DOMAIN?.trim();
   if (!configuredHost) return null;

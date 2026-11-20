@@ -6,11 +6,7 @@
  * OpenAPI spec version: 0.1.0
  */
 
-export interface AdminUserPasswordResetInput {
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
-  confirmed: true;
-}
+export const AdminUserPasswordResetInputValue = {
+  confirmed: true,
+} as const;
+export type AdminUserPasswordResetInput = typeof AdminUserPasswordResetInputValue;

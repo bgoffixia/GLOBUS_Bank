@@ -12,7 +12,10 @@ import type { LedgerRequestInputType } from './ledgerRequestInputType';
 export interface LedgerRequestInput {
   type: LedgerRequestInputType;
   currency: ActiveCurrencyCode;
-  /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
+  /**
+     * Deposits allow up to 16 whole digits within the PostgreSQL bigint ledger limit; withdrawal validation allows up to 12.
+     * @pattern ^[0-9]{1,16}(\.[0-9]{1,2})?$
+     */
   amount: string;
   /** @maxLength 140 */
   description?: string;

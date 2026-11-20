@@ -7,6 +7,7 @@
  */
 import type { BankTransactionMode } from './bankTransactionMode';
 import type { CurrencyCode } from './currencyCode';
+import type { ReceiptTemplate } from './receiptTemplate';
 import type { TransactionStatus } from './transactionStatus';
 import type { TransactionType } from './transactionType';
 
@@ -15,6 +16,7 @@ export interface BankTransaction {
   reference: string;
   type: TransactionType;
   status: TransactionStatus;
+  receiptTemplate: ReceiptTemplate;
   currency: CurrencyCode;
   amount: string;
   fee: string;

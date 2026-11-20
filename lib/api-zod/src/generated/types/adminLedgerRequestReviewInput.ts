@@ -9,11 +9,6 @@ import type { AdminLedgerRequestReviewInputDecision } from './adminLedgerRequest
 
 export interface AdminLedgerRequestReviewInput {
   decision: AdminLedgerRequestReviewInputDecision;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }

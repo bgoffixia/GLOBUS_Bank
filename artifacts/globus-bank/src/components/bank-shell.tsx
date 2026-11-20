@@ -3,15 +3,12 @@ import {
   ArrowDownLeft,
   ArrowLeftRight,
   Calculator,
-  CircleHelp,
-  CreditCard,
   House,
   LayoutDashboard,
   LogOut,
   LockKeyhole,
   Menu,
   ShieldCheck,
-  UserRound,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -19,7 +16,9 @@ import { useState, type ReactNode } from 'react';
 import { useClerk, useUser } from '@clerk/react';
 import {
   getGetAdminAccessQueryKey,
+  getGetBankProfileQueryKey,
   useGetAdminAccess,
+  useGetBankProfile,
 } from '@workspace/api-client-react';
 import { InstallAppButton } from '@/components/pwa-install-prompt';
 import { NotificationsCenter } from '@/components/notifications-center';
@@ -34,12 +33,10 @@ const dashboardTools = [
   { href: '/wallets', label: 'Wallets', ariaLabel: 'Manage wallets', icon: WalletCards },
   { href: '/transactions', label: 'Activity', ariaLabel: 'Transaction activity', icon: ArrowLeftRight },
   { href: '/calculator', label: 'Convert', ariaLabel: 'Currency converter', icon: Calculator },
-  { href: '/profile', label: 'Profile', ariaLabel: 'Your profile', icon: UserRound },
 ];
 
 const moneyLinks = [
   { href: '/transfer', label: 'Transfer', icon: ArrowLeftRight },
-  { href: '/add-money', label: 'Deposit request', icon: CreditCard },
   { href: '/withdraw', label: 'Withdrawal request', icon: ArrowDownLeft },
 ];
 
@@ -49,6 +46,12 @@ export function BankShell({ children }: { children: ReactNode }) {
   const { user } = useUser();
   const { signOut } = useClerk();
   const isDashboard = location === '/dashboard';
+  const dashboardProfile = useGetBankProfile({
+    query: {
+      queryKey: getGetBankProfileQueryKey(),
+      enabled: isDashboard,
+    },
+  });
   const isProfile = location === '/profile' || location === '/settings';
   const isSingleViewportPage = location === '/add-money' || location === '/calculator' || location === '/private-vault' || isProfile;
   const adminAccess = useGetAdminAccess({
@@ -75,13 +78,8 @@ export function BankShell({ children }: { children: ReactNode }) {
           <NavGroup title="Your account" links={primaryLinks} location={location} onNavigate={() => setMobileMenu(false)} />
           <NavGroup title="Move money" links={moneyLinks} location={location} onNavigate={() => setMobileMenu(false)} />
           <div>
-            <p className="mb-2 px-3 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500">Resources</p>
-            <Link href="/help" onClick={() => setMobileMenu(false)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-300 transition hover:bg-white/[0.07] hover:text-white">
-              <CircleHelp size={17} strokeWidth={1.8} />
-              Help centre
-            </Link>
             {adminAccess.data?.allowed && (
-              <Link href="/admin" onClick={() => setMobileMenu(false)} className="mt-1 flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-300 transition hover:bg-white/[0.07] hover:text-white">
+              <Link href="/admin" onClick={() => setMobileMenu(false)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-300 transition hover:bg-white/[0.07] hover:text-white">
                 <ShieldCheck size={17} strokeWidth={1.8} />
                 Operations
               </Link>
@@ -113,7 +111,16 @@ export function BankShell({ children }: { children: ReactNode }) {
             <button aria-label="Open navigation" onClick={() => setMobileMenu(true)} className="shrink-0 rounded-lg p-2 text-[#283c55] hover:bg-[#e9eff4] lg:hidden">
               <Menu size={19} />
             </button>
-            <p className="min-w-0 truncate text-[11px] font-medium text-[#738297] sm:text-[12px]"><span className="hidden sm:inline">Globus Bank <span className="px-1.5 text-[#c5ced7]">/</span> </span><span className="text-[#253850]">{pageLabel(location)}</span></p>
+            {isDashboard ? (
+              <div className="min-w-0">
+                <p className="truncate text-[8px] font-bold uppercase tracking-[.14em] text-[#738297] sm:text-[9px]">Dashboard</p>
+                <p data-testid="dashboard-header-greeting" className="truncate text-[11px] font-bold text-[#253850] sm:text-[13px]">
+                  Good to see you{(dashboardProfile.data?.firstName ?? user?.firstName) ? `, ${dashboardProfile.data?.firstName ?? user?.firstName}` : ''}.
+                </p>
+              </div>
+            ) : (
+              <p className="min-w-0 truncate text-[11px] font-medium text-[#738297] sm:text-[12px]"><span className="hidden sm:inline">Globus Bank <span className="px-1.5 text-[#c5ced7]">/</span> </span><span className="text-[#253850]">{pageLabel(location)}</span></p>
+            )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <NotificationsCenter />

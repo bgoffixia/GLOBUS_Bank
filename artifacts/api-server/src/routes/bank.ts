@@ -13,18 +13,10 @@ import {
   CreateBankSavedPaymentMethodResponse,
   CompleteRequiredPasswordResetBody,
   CompleteRequiredPasswordResetResponse,
-  CreateIdentityDocumentUploadUrlBody,
-  CreateIdentityDocumentUploadUrlResponse,
-  CreateBankVaultSubscriptionProofUploadUrlBody,
-  CreateBankVaultSubscriptionProofUploadUrlResponse,
   CreateExternalTransferBody,
   CreateExternalTransferResponse,
   CreateIncomingExternalTransferBody,
   CreateLedgerRequestBody,
-  CompleteIdentityDocumentUploadParams,
-  CompleteIdentityDocumentUploadResponse,
-  DeleteMyIdentityDocumentParams,
-  DeleteMyIdentityDocumentResponse,
   DeleteBankSavedPaymentMethodParams,
   DeleteBankSavedPaymentMethodResponse,
   CreateIncomingExternalTransferResponse,
@@ -50,17 +42,16 @@ import {
   GetBankVaultBillingResponse,
   GetBankVaultEmailPreferencesHeader,
   GetBankVaultEmailPreferencesResponse,
+  GetBankVaultReceiptPreferenceHeader,
+  GetBankVaultReceiptPreferenceResponse,
   ClearBankNotificationsResponse,
   InitializeBankVaultPasscodeBody,
   InitializeBankVaultPasscodeResponse,
-  RequestBankVaultSubscriptionHeader,
-  RequestBankVaultSubscriptionResponse,
   ListBankNotificationsResponse,
   ListBankVaultWalletControlsHeader,
   ListBankVaultWalletControlsResponse,
   ListBankExchangeRatesResponse,
   ListInternationalTransferRequestsResponse,
-  ListMyIdentityDocumentsResponse,
   ListBankTransactionsQueryParams,
   ListBankTransactionsResponse,
   ListBankVaultTransactionNotesHeader,
@@ -69,8 +60,6 @@ import {
   ListBankSavedPaymentMethodsResponse,
   LookupCustomerIdBody,
   LookupCustomerIdResponse,
-  SubmitIdentityDocumentsBody,
-  SubmitIdentityDocumentsResponse,
   UpdateTransactionPinBody,
   UpdateTransactionPinResponse,
   UpdateBankProfileBody,
@@ -83,6 +72,9 @@ import {
   UpdateBankVaultEmailPreferencesBody,
   UpdateBankVaultEmailPreferencesHeader,
   UpdateBankVaultEmailPreferencesResponse,
+  UpdateBankVaultReceiptPreferenceBody,
+  UpdateBankVaultReceiptPreferenceHeader,
+  UpdateBankVaultReceiptPreferenceResponse,
   UpdateBankVaultTransactionNoteBody,
   UpdateBankVaultTransactionNoteHeader,
   UpdateBankVaultTransactionNoteParams,
@@ -100,6 +92,7 @@ import {
   MarkBankNotificationReadResponse,
   SaveBankPushSubscriptionBody,
   SaveBankPushSubscriptionResponse,
+  SaveSignupProfileBody,
 } from "@workspace/api-zod";
 import {
   bankAuditLogsTable,
@@ -108,7 +101,6 @@ import {
   bankPushSubscriptionsTable,
   bankVaultTransactionNotesTable,
   bankExchangeRatesTable,
-  bankIdentityDocumentsTable,
   bankInternationalTransferRequestsTable,
   bankLedgerEntriesTable,
   bankSandboxRequestsTable,
@@ -140,39 +132,30 @@ import {
   userWallet,
 } from "../lib/bank";
 import {
-  createIdentityDocumentUploadUrl,
-  deleteIdentityDocumentObject,
-  getIdentityDocumentFile,
-  sealIdentityDocumentUpload,
-  validateUploadedIdentityDocument,
-} from "../lib/identityDocumentStorage";
-import {
-  createVaultSubscriptionProofUploadUrl,
-  deleteVaultSubscriptionProof,
-  getVaultSubscriptionProofFile,
-  validateVaultSubscriptionProof,
-  VAULT_PROOF_MAX_BYTES,
-  VAULT_PROOF_CONTENT_TYPES,
-} from "../lib/vault-subscription-proof-storage";
-import {
   CUSTOMER_EMAIL_SENDER_DOMAIN,
   CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
   normalizeCustomerEmailSenderLocalPart,
 } from "../lib/customer-email-sender";
+import {
+  normalizeRequiredProfileName,
+  sanitizeBankProfileUpdateDetails,
+  sanitizeSignupProfileDetails,
+} from "../lib/signup-profile";
 import { getExchangeRate } from "../lib/exchange-rates";
 import {
   addVaultSubscriptionMonths,
   getVaultPlanPriceMinor,
   getVaultSubscriptionPlan,
   isVaultSubscriptionPlanCode,
-  minorAmountToDecimal,
 } from "../lib/vault-subscription";
 import {
   createPaystackVaultPlan,
   getPaystackSecretKey,
   isPaystackVaultRecurringEnabled,
+  isNewPaystackWebhookEvent,
   initializePaystackVaultCheckout,
   isValidPaystackWebhookSignature,
+  paystackVaultEventKey,
   sendPaystackSubscriptionManagementEmail,
   verifyPaystackVaultCheckout,
 } from "../lib/paystack-vault";
@@ -192,8 +175,13 @@ import {
   setPasswordResetCache,
 } from "../lib/password-reset";
 import {
+  classifyVaultPaystackChargeFailure,
+  hasImmediateTransferAccess,
   initializeVaultPasscode,
-  hasActiveVaultSubscription,
+  getEffectiveAccountTier,
+  getVaultAccessSource,
+  hasActiveVaultAccess,
+  isVaultTestingMode,
   isVaultPasscodeSessionValid,
   isVaultSessionActive,
   resolveFutureTransferStatus,
@@ -216,8 +204,6 @@ import {
 } from "../lib/transfer-notifications";
 
 const router: IRouter = Router();
-const DEFAULT_UNVERIFIED_DASHBOARD_MESSAGE =
-  "Your identity verification is not complete. Submit a request for review to access eligible account features.";
 const customerIdLookupLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 8,
@@ -290,7 +276,7 @@ async function getOrCreateAdminSettings() {
   return retried;
 }
 
-function bankVaultStatusPayload(user: typeof bankUsersTable.$inferSelect) {
+async function bankVaultStatusPayload(user: typeof bankUsersTable.$inferSelect) {
   const legacyManualRequest =
     user.vaultSubscriptionStatus === "pending" &&
     user.vaultSubscriptionPaymentStatus !== "pending" &&
@@ -299,10 +285,14 @@ function bankVaultStatusPayload(user: typeof bankUsersTable.$inferSelect) {
     legacyManualRequest ? "inactive" : user.vaultSubscriptionStatus,
     user.vaultSubscriptionExpiresAt,
   );
+  const accessSource = await getVaultAccessSource(user);
   return {
     configured: Boolean(user.vaultPasscodeHash),
     subscriptionStatus,
     subscriptionActive: subscriptionStatus === "active",
+    adminGrantActive: accessSource === "admin_grant",
+    accessActive: accessSource !== "none",
+    accessSource,
     requestedAt: legacyManualRequest
       ? null
       : user.vaultSubscriptionRequestedAt?.toISOString() ?? null,
@@ -412,9 +402,9 @@ function paystackCustomerFromEvent(data: Record<string, unknown>) {
   };
 }
 
-function bankVaultEmailPreferencesPayload(user: typeof bankUsersTable.$inferSelect) {
+async function bankVaultEmailPreferencesPayload(user: typeof bankUsersTable.$inferSelect) {
   return {
-    transactionEmailAlertsEnabled: vaultTransferEmailAlertsEnabled(user),
+    transactionEmailAlertsEnabled: await vaultTransferEmailAlertsEnabled(user),
     bannerTheme: user.vaultEmailBannerTheme,
     bannerHeadline: user.vaultEmailBannerHeadline,
     bannerBackgroundColor: user.vaultEmailBannerBackgroundColor,
@@ -531,17 +521,6 @@ async function getOrCreateBankUser(clerkUserId: string) {
   return ensureBankUser(clerkUserId);
 }
 
-function identityDocumentResponse(document: typeof bankIdentityDocumentsTable.$inferSelect) {
-  return {
-    id: document.id,
-    contentType: document.contentType as "application/pdf" | "image/jpeg" | "image/png",
-    sizeBytes: document.sizeBytes,
-    status: document.status as "uploading" | "uploaded",
-    createdAt: document.createdAt.toISOString(),
-    uploadedAt: document.uploadedAt?.toISOString() ?? null,
-  };
-}
-
 function internationalTransferRequestResponse(
   request: typeof bankInternationalTransferRequestsTable.$inferSelect,
   transaction: typeof bankTransactionsTable.$inferSelect,
@@ -562,6 +541,7 @@ function internationalTransferRequestResponse(
     id: transaction.id,
     reference: transaction.reference,
     status: transaction.status,
+    receiptTemplate: transaction.receiptTemplate,
     transferType: request.transferType as "local_routing" | "international_wire",
     destinationCountry: request.destinationCountry,
     recipientBank: request.recipientBank,
@@ -585,56 +565,6 @@ function internationalTransferRequestResponse(
     remark: request.remark,
     createdAt: request.createdAt.toISOString(),
   };
-}
-
-async function completeIdentityDocument(input: {
-  userId: string;
-  documentId: string;
-  sealUpload: (uploadPath: string) => Promise<string>;
-}) {
-  return db.transaction(async (tx) => {
-    const [user] = await tx
-      .select()
-      .from(bankUsersTable)
-      .where(eq(bankUsersTable.id, input.userId))
-      .for("update");
-    const [document] = await tx
-      .select()
-      .from(bankIdentityDocumentsTable)
-      .where(
-        and(
-          eq(bankIdentityDocumentsTable.id, input.documentId),
-          eq(bankIdentityDocumentsTable.userId, input.userId),
-        ),
-      )
-      .for("update");
-    if (!user || !document) {
-      return { notFound: true as const };
-    }
-    if (user.verificationStatus === "approved" || user.verificationStatus === "pending") {
-      return { error: "Documents cannot be changed while verification is pending or approved." };
-    }
-    if (document.status === "uploaded") {
-      return { document, uploadObjectPath: null };
-    }
-    const sealedPath = await input.sealUpload(document.objectPath);
-    const [updated] = await tx
-      .update(bankIdentityDocumentsTable)
-      .set({
-        objectPath: sealedPath,
-        status: "uploaded",
-        uploadedAt: new Date(),
-      })
-      .where(eq(bankIdentityDocumentsTable.id, document.id))
-      .returning();
-    await tx.insert(bankAuditLogsTable).values({
-      actorUserId: input.userId,
-      targetUserId: input.userId,
-      action: "upload_identity_document",
-      reason: "Member uploaded an identity document for review.",
-    });
-    return { document: updated, uploadObjectPath: document.objectPath };
-  });
 }
 
 router.post(
@@ -663,6 +593,9 @@ router.post(
 );
 
 router.use("/bank", requireSignedIn);
+router.use("/bank/verification", (_req, res): void => {
+  res.status(410).json({ error: "Identity verification workflows are no longer available." });
+});
 
 router.post("/bank/me/password-reset/complete", passwordResetLimiter, async (req, res): Promise<void> => {
   const userId = getAuth(req).userId;
@@ -716,7 +649,7 @@ router.get("/bank/me", async (req, res): Promise<void> => {
   }
 
   const user = await getOrCreateBankUser(userId);
-  const [accountStatus, operationEligibility] = await Promise.all([
+  const [accountStatus, operationEligibility, accountTier] = await Promise.all([
     getEffectiveBankAccountStatus(
       user.id,
       user.accountStatus as "active" | "restricted" | "suspended",
@@ -724,8 +657,8 @@ router.get("/bank/me", async (req, res): Promise<void> => {
     getBankOperationEligibility(
       user.id,
       user.accountStatus as "active" | "restricted" | "suspended",
-      user.verificationStatus,
     ),
+    getEffectiveAccountTier(user),
   ]);
   res.json(
     GetBankProfileResponse.parse({
@@ -734,14 +667,108 @@ router.get("/bank/me", async (req, res): Promise<void> => {
       customerId: user.customerId,
       firstName: user.firstName,
       lastName: user.lastName,
+      profileSetupComplete: Boolean(user.profileSetupCompletedAt),
+      transferAccessGranted: user.transferAccessGranted,
       phone: user.phone,
       country: user.country,
+      cityOfOrigin: user.cityOfOrigin,
       dateOfBirth: user.dateOfBirth,
+      occupation: user.occupation,
       transactionPinConfigured: !!user.transactionPinHash,
       verificationStatus: user.verificationStatus,
       verificationNote: user.verificationNote,
       accountStatus,
       ...operationEligibility,
+      accountTier,
+      createdAt: user.createdAt.toISOString(),
+    }),
+  );
+});
+
+router.put("/bank/signup-profile", async (req, res): Promise<void> => {
+  const authUserId = getAuth(req).userId;
+  if (!authUserId) {
+    res.status(401).json({ error: "Sign in to access your Globus account." });
+    return;
+  }
+
+  const parsed = SaveSignupProfileBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+
+  const firstName = normalizeRequiredProfileName(parsed.data.firstName);
+  const lastName = normalizeRequiredProfileName(parsed.data.lastName);
+  if (!firstName || !lastName) {
+    res.status(400).json({ error: "Enter your first and last name to save your profile." });
+    return;
+  }
+
+  const currentUser = await getOrCreateBankUser(authUserId);
+  if (currentUser.profileSetupCompletedAt) {
+    res.status(409).json({
+      error: "Initial profile setup is complete. Contact an administrator to update personal details.",
+    });
+    return;
+  }
+  const optionalDetails = sanitizeSignupProfileDetails(parsed.data);
+  const [user] = await db
+    .update(bankUsersTable)
+    .set({
+      firstName,
+      lastName,
+      profileSetupCompletedAt: new Date(),
+      ...optionalDetails,
+      ...(parsed.data.acceptedTerms === true
+        ? { acceptedTermsAt: new Date() }
+        : {}),
+      updatedAt: new Date(),
+    })
+    .where(and(
+      eq(bankUsersTable.id, currentUser.id),
+      isNull(bankUsersTable.profileSetupCompletedAt),
+    ))
+    .returning();
+  if (!user) {
+    res.status(409).json({
+      error: "Initial profile setup has already been completed.",
+    });
+    return;
+  }
+
+  const [accountStatus, operationEligibility, accountTier] = await Promise.all([
+    getEffectiveBankAccountStatus(
+      user.id,
+      user.accountStatus as "active" | "restricted" | "suspended",
+    ),
+    getBankOperationEligibility(
+      user.id,
+      user.accountStatus as "active" | "restricted" | "suspended",
+    ),
+    getEffectiveAccountTier(user),
+  ]);
+
+  res.json(
+    GetBankProfileResponse.parse({
+      id: user.id,
+      email: user.email,
+      customerId: user.customerId,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      profileSetupComplete: Boolean(user.profileSetupCompletedAt),
+      transferAccessGranted: user.transferAccessGranted,
+      phone: user.phone,
+      country: user.country,
+      cityOfOrigin: user.cityOfOrigin,
+      dateOfBirth: user.dateOfBirth,
+      occupation: user.occupation,
+      transactionPinConfigured: !!user.transactionPinHash,
+      verificationStatus: user.verificationStatus,
+      verificationNote: user.verificationNote,
+      accountStatus,
+      ...operationEligibility,
+      accountTier,
       createdAt: user.createdAt.toISOString(),
     }),
   );
@@ -800,24 +827,13 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
   }
 
   const profile = await getOrCreateBankUser(authUserId);
-  const verificationNoticePromise =
-    profile.verificationStatus === "approved"
-      ? Promise.resolve(null)
-      : (async () => {
-          await db
-            .insert(bankAdminSettingsTable)
-            .values({ id: "operations" })
-            .onConflictDoNothing();
-          const [settings] = await db
-            .select({
-              message: bankAdminSettingsTable.unverifiedDashboardMessage,
-            })
-            .from(bankAdminSettingsTable)
-            .where(eq(bankAdminSettingsTable.id, "operations"))
-            .limit(1);
-          return settings?.message || DEFAULT_UNVERIFIED_DASHBOARD_MESSAGE;
-        })();
-  const [wallets, recentTransactions, accountStatus, operationEligibility, verificationNotice] = await Promise.all([
+  const [
+    wallets,
+    recentTransactions,
+    accountStatus,
+    operationEligibility,
+    effectiveAccountTier,
+  ] = await Promise.all([
     getWalletsForUser(profile.id),
     getRecentTransactions(profile.id),
     getEffectiveBankAccountStatus(
@@ -827,10 +843,10 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
     getBankOperationEligibility(
       profile.id,
       profile.accountStatus as "active" | "restricted" | "suspended",
-      profile.verificationStatus,
     ),
-    verificationNoticePromise,
+    getEffectiveAccountTier(profile),
   ]);
+  const accessSource = operationEligibility.vaultAccessSource;
 
   res.json(
     GetBankDashboardResponse.parse({
@@ -840,21 +856,31 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
         customerId: profile.customerId,
         firstName: profile.firstName,
         lastName: profile.lastName,
+        profileSetupComplete: Boolean(profile.profileSetupCompletedAt),
+        transferAccessGranted: profile.transferAccessGranted,
         phone: profile.phone,
         country: profile.country,
+        cityOfOrigin: profile.cityOfOrigin,
         dateOfBirth: profile.dateOfBirth,
+        occupation: profile.occupation,
         transactionPinConfigured: !!profile.transactionPinHash,
         verificationStatus: profile.verificationStatus,
         verificationNote: profile.verificationNote,
         accountStatus,
         ...operationEligibility,
+        accountTier: effectiveAccountTier,
+        testingMode: isVaultTestingMode(
+          accessSource,
+          profile.testingModeDisabled,
+        ),
+        vaultAccessActive: accessSource !== "none",
+        vaultAccessSource: accessSource,
         createdAt: profile.createdAt.toISOString(),
       },
       wallets,
       recentTransactions,
       referenceCurrency: "USD",
       internalLedger: true,
-      verificationNotice,
     }),
   );
 });
@@ -924,8 +950,8 @@ router.post(
       res.status(409).json({ error: "Complete account setup before saving a payment method." });
       return;
     }
-    if (user.verificationStatus !== "approved") {
-      res.status(403).json({ error: "Complete identity verification before saving payment methods." });
+    if (!(await hasActiveVaultAccess(user))) {
+      res.status(403).json({ error: "An active Private Vault subscription is required to save payment methods." });
       return;
     }
 
@@ -1133,34 +1159,44 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
     return;
   }
 
-  if (
-    parsed.data.dateOfBirth &&
-    (!Number.isFinite(Date.parse(`${parsed.data.dateOfBirth}T00:00:00.000Z`)) ||
-      new Date(`${parsed.data.dateOfBirth}T00:00:00.000Z`)
-        .toISOString()
-        .slice(0, 10) !== parsed.data.dateOfBirth ||
-      parsed.data.dateOfBirth > new Date().toISOString().slice(0, 10))
-  ) {
-    res.status(400).json({ error: "Enter a valid date of birth that is not in the future." });
+  const firstName = normalizeRequiredProfileName(parsed.data.firstName);
+  const lastName = normalizeRequiredProfileName(parsed.data.lastName);
+  if (!firstName || !lastName) {
+    res.status(400).json({ error: "Enter both your first and last name to update your profile." });
     return;
   }
 
   const currentUser = await getOrCreateBankUser(authUserId);
+  if (currentUser.profileSetupCompletedAt) {
+    res.status(403).json({
+      error: "Personal details are read-only after initial setup. Contact an administrator to request a change.",
+    });
+    return;
+  }
+  const profileUpdates = {
+    firstName,
+    lastName,
+    profileSetupCompletedAt: new Date(),
+    ...sanitizeBankProfileUpdateDetails(parsed.data),
+    ...(parsed.data.acceptedTerms === true
+      ? { acceptedTermsAt: new Date() }
+      : {}),
+    updatedAt: new Date(),
+  };
   const [user] = await db
     .update(bankUsersTable)
-    .set({
-      firstName: parsed.data.firstName.trim(),
-      lastName: parsed.data.lastName.trim() || null,
-      phone: parsed.data.phone.trim(),
-      country: parsed.data.country.trim(),
-      ...(parsed.data.dateOfBirth
-        ? { dateOfBirth: parsed.data.dateOfBirth }
-        : {}),
-      acceptedTermsAt: new Date(),
-      updatedAt: new Date(),
-    })
-    .where(eq(bankUsersTable.id, currentUser.id))
+    .set(profileUpdates)
+    .where(and(
+      eq(bankUsersTable.id, currentUser.id),
+      isNull(bankUsersTable.profileSetupCompletedAt),
+    ))
     .returning();
+  if (!user) {
+    res.status(403).json({
+      error: "Personal details are read-only after initial setup. Contact an administrator to request a change.",
+    });
+    return;
+  }
 
   const [accountStatus, operationEligibility] = await Promise.all([
     getEffectiveBankAccountStatus(
@@ -1170,7 +1206,6 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
     getBankOperationEligibility(
       user.id,
       user.accountStatus as "active" | "restricted" | "suspended",
-      user.verificationStatus,
     ),
   ]);
 
@@ -1181,9 +1216,13 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
       customerId: user.customerId,
       firstName: user.firstName,
       lastName: user.lastName,
+      profileSetupComplete: Boolean(user.profileSetupCompletedAt),
+      transferAccessGranted: user.transferAccessGranted,
       phone: user.phone,
       country: user.country,
+      cityOfOrigin: user.cityOfOrigin,
       dateOfBirth: user.dateOfBirth,
+      occupation: user.occupation,
       transactionPinConfigured: !!user.transactionPinHash,
       verificationStatus: user.verificationStatus,
       verificationNote: user.verificationNote,
@@ -1231,351 +1270,6 @@ router.put("/bank/transaction-pin", async (req, res): Promise<void> => {
   }
   res.status(404).json({ error: "The account for this transaction was not found." });
 });
-
-router.get("/bank/verification/documents", async (req, res): Promise<void> => {
-  const authUserId = getAuth(req).userId;
-  if (!authUserId) {
-    res.status(401).json({ error: "Sign in to access your Globus account." });
-    return;
-  }
-  const user = await getOrCreateBankUser(authUserId);
-  const documents = await db
-    .select()
-    .from(bankIdentityDocumentsTable)
-    .where(eq(bankIdentityDocumentsTable.userId, user.id))
-    .orderBy(desc(bankIdentityDocumentsTable.createdAt));
-  res.json(
-    ListMyIdentityDocumentsResponse.parse(
-      documents.map(identityDocumentResponse),
-    ),
-  );
-});
-
-router.post(
-  "/bank/verification/documents/upload-url",
-  async (req, res): Promise<void> => {
-    const authUserId = getAuth(req).userId;
-    if (!authUserId) {
-      res.status(401).json({ error: "Sign in to access your Globus account." });
-      return;
-    }
-    const parsed = CreateIdentityDocumentUploadUrlBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
-      return;
-    }
-    const account = await getOrCreateBankUser(authUserId);
-
-    let upload: { uploadUrl: string; objectPath: string };
-    try {
-      upload = await createIdentityDocumentUploadUrl();
-    } catch (error) {
-      req.log.error({ err: error }, "Could not create identity document upload URL");
-      res.status(503).json({ error: "Private document storage is unavailable." });
-      return;
-    }
-
-    const result = await db.transaction(async (tx) => {
-      const [user] = await tx
-        .select()
-        .from(bankUsersTable)
-        .where(eq(bankUsersTable.id, account.id))
-        .for("update");
-      if (!user) {
-        return { notFound: true as const };
-      }
-      if (user.verificationStatus === "approved" || user.verificationStatus === "pending") {
-        return { error: "Documents cannot be changed while verification is pending or approved." };
-      }
-      const [documentCount] = await tx
-        .select({ value: count() })
-        .from(bankIdentityDocumentsTable)
-        .where(eq(bankIdentityDocumentsTable.userId, user.id));
-      if ((documentCount?.value ?? 0) >= 5) {
-        return { error: "Remove an existing document before uploading another. You can upload up to five." };
-      }
-      const [document] = await tx
-        .insert(bankIdentityDocumentsTable)
-        .values({
-          userId: user.id,
-          objectPath: upload.objectPath,
-          contentType: parsed.data.contentType,
-          sizeBytes: parsed.data.sizeBytes,
-          status: "uploading",
-        })
-        .returning();
-      return { document };
-    });
-
-    if ("notFound" in result) {
-      res.status(404).json({ error: "User record not found." });
-      return;
-    }
-    if ("error" in result) {
-      res.status(409).json({ error: result.error });
-      return;
-    }
-    res.status(201).json(
-      CreateIdentityDocumentUploadUrlResponse.parse({
-        documentId: result.document.id,
-        uploadUrl: upload.uploadUrl,
-      }),
-    );
-  },
-);
-
-router.post(
-  "/bank/verification/documents/:documentId/complete",
-  async (req, res): Promise<void> => {
-    const params = CompleteIdentityDocumentUploadParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const authUserId = getAuth(req).userId;
-    if (!authUserId) {
-      res.status(401).json({ error: "Sign in to access your Globus account." });
-      return;
-    }
-    const user = await getOrCreateBankUser(authUserId);
-    const [document] = await db
-      .select()
-      .from(bankIdentityDocumentsTable)
-      .where(
-        and(
-          eq(bankIdentityDocumentsTable.id, params.data.documentId),
-          eq(bankIdentityDocumentsTable.userId, user.id),
-        ),
-      )
-      .limit(1);
-    if (!document) {
-      res.status(404).json({ error: "Identity document not found." });
-      return;
-    }
-    if (document.status === "uploaded") {
-      res.json(CompleteIdentityDocumentUploadResponse.parse(identityDocumentResponse(document)));
-      return;
-    }
-
-    if (user.verificationStatus === "approved" || user.verificationStatus === "pending") {
-      res.status(409).json({ error: "Documents cannot be changed while verification is pending or approved." });
-      return;
-    }
-    let valid = false;
-    try {
-      valid = await validateUploadedIdentityDocument(
-        getIdentityDocumentFile(document.objectPath),
-        document.contentType,
-        document.sizeBytes,
-      );
-    } catch (error) {
-      req.log.warn({ err: error }, "Identity document upload is not available for validation");
-    }
-    if (!valid) {
-      try {
-        await deleteIdentityDocumentObject(document.objectPath);
-        await db
-          .delete(bankIdentityDocumentsTable)
-          .where(
-            and(
-              eq(bankIdentityDocumentsTable.id, document.id),
-              eq(bankIdentityDocumentsTable.userId, user.id),
-              eq(bankIdentityDocumentsTable.status, "uploading"),
-            ),
-          );
-      } catch (error) {
-        req.log.warn({ err: error }, "Invalid identity upload could not be cleaned up");
-      }
-      res.status(409).json({
-        error: "The upload is missing, incomplete, or does not match the selected PDF, JPG, or PNG file type.",
-      });
-      return;
-    }
-
-    let sealedObjectPath: string | null = null;
-    let result: Awaited<ReturnType<typeof completeIdentityDocument>>;
-    try {
-      result = await completeIdentityDocument({
-        userId: user.id,
-        documentId: document.id,
-        sealUpload: async (uploadPath) => {
-          sealedObjectPath = await sealIdentityDocumentUpload(uploadPath);
-          return sealedObjectPath;
-        },
-      });
-    } catch (error) {
-      if (sealedObjectPath) {
-        await deleteIdentityDocumentObject(sealedObjectPath).catch(() => undefined);
-      }
-      req.log.error({ err: error }, "Could not finalize a private identity document");
-      res.status(503).json({ error: "The document could not be finalized. Please try again." });
-      return;
-    }
-
-    if ("notFound" in result) {
-      res.status(404).json({ error: "Identity document not found." });
-      return;
-    }
-    if ("error" in result) {
-      res.status(409).json({ error: result.error });
-      return;
-    }
-    if (result.uploadObjectPath) {
-      try {
-        await deleteIdentityDocumentObject(result.uploadObjectPath);
-      } catch (error) {
-        req.log.warn({ err: error }, "Temporary identity upload could not be removed");
-      }
-    }
-    res.json(
-      CompleteIdentityDocumentUploadResponse.parse(
-        identityDocumentResponse(result.document),
-      ),
-    );
-  },
-);
-
-router.delete(
-  "/bank/verification/documents/:documentId",
-  async (req, res): Promise<void> => {
-    const params = DeleteMyIdentityDocumentParams.safeParse(req.params);
-    if (!params.success) {
-      res.status(400).json({ error: params.error.message });
-      return;
-    }
-    const authUserId = getAuth(req).userId;
-    if (!authUserId) {
-      res.status(401).json({ error: "Sign in to access your Globus account." });
-      return;
-    }
-    const profile = await getOrCreateBankUser(authUserId);
-    const result = await db.transaction(async (tx) => {
-      const [user] = await tx
-        .select()
-        .from(bankUsersTable)
-        .where(eq(bankUsersTable.id, profile.id))
-        .for("update");
-      const [document] = await tx
-        .select()
-        .from(bankIdentityDocumentsTable)
-        .where(
-          and(
-            eq(bankIdentityDocumentsTable.id, params.data.documentId),
-            eq(bankIdentityDocumentsTable.userId, profile.id),
-          ),
-        )
-        .for("update");
-      if (!user || !document) {
-        return { notFound: true as const };
-      }
-      if (user.verificationStatus === "pending" || user.verificationStatus === "approved") {
-        return { error: "Documents cannot be removed while verification is pending or approved." };
-      }
-      try {
-        await deleteIdentityDocumentObject(document.objectPath);
-      } catch (error) {
-        req.log.error({ err: error }, "Could not remove identity document");
-        return { error: "The document could not be removed from private storage." };
-      }
-      await tx
-        .delete(bankIdentityDocumentsTable)
-        .where(eq(bankIdentityDocumentsTable.id, document.id));
-      await tx.insert(bankAuditLogsTable).values({
-        actorUserId: profile.id,
-        targetUserId: profile.id,
-        action: "remove_identity_document",
-        reason: "Member removed an identity document before review.",
-      });
-      return { deleted: true as const };
-    });
-    if ("notFound" in result) {
-      res.status(404).json({ error: "Identity document not found." });
-      return;
-    }
-    if ("error" in result) {
-      res.status(409).json({ error: result.error });
-      return;
-    }
-    res.status(204).send();
-    DeleteMyIdentityDocumentResponse.parse(undefined);
-  },
-);
-
-router.post(
-  "/bank/verification/submit",
-  async (req, res): Promise<void> => {
-    const parsed = SubmitIdentityDocumentsBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
-      return;
-    }
-    const authUserId = getAuth(req).userId;
-    if (!authUserId) {
-      res.status(401).json({ error: "Sign in to access your Globus account." });
-      return;
-    }
-    const profile = await getOrCreateBankUser(authUserId);
-    const result = await db.transaction(async (tx) => {
-      const [user] = await tx
-        .select()
-        .from(bankUsersTable)
-        .where(eq(bankUsersTable.id, profile.id))
-        .for("update");
-      if (!user) {
-        return { notFound: true as const };
-      }
-      if (user.verificationStatus === "pending" || user.verificationStatus === "approved") {
-        return { error: "This verification is already pending or approved." };
-      }
-      const documents = await tx
-        .select({ status: bankIdentityDocumentsTable.status })
-        .from(bankIdentityDocumentsTable)
-        .where(eq(bankIdentityDocumentsTable.userId, user.id));
-      if (documents.some((document) => document.status === "uploading")) {
-        return { error: "Finish or remove each in-progress upload before submitting for review." };
-      }
-      const uploadedCount = documents.filter((document) => document.status === "uploaded").length;
-      const [updated] = await tx
-        .update(bankUsersTable)
-        .set({
-          verificationStatus: "pending",
-          verificationNote: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(bankUsersTable.id, profile.id))
-        .returning();
-      await tx.insert(bankAuditLogsTable).values({
-        actorUserId: profile.id,
-        targetUserId: profile.id,
-        action: "submit_identity_documents",
-        reason: `Member submitted an identity verification request with ${uploadedCount} uploaded document(s).`,
-      });
-      return { user: updated };
-    });
-    if ("notFound" in result) {
-      res.status(404).json({ error: "User record not found." });
-      return;
-    }
-    if ("error" in result) {
-      res.status(409).json({ error: result.error });
-      return;
-    }
-    res.json(
-      SubmitIdentityDocumentsResponse.parse({
-        id: result.user.id,
-        email: result.user.email,
-        firstName: result.user.firstName,
-        lastName: result.user.lastName,
-        phone: result.user.phone,
-        country: result.user.country,
-        verificationStatus: result.user.verificationStatus,
-        verificationNote: result.user.verificationNote,
-        accountStatus: result.user.accountStatus,
-        createdAt: result.user.createdAt.toISOString(),
-      }),
-    );
-  },
-);
 
 router.post("/bank/transfers", (_req, res): void => {
   res.status(410).json({
@@ -1743,7 +1437,7 @@ router.post(
   const requestedRecipientEmail =
     parsed.data.recipientEmail?.trim().toLowerCase() ?? "";
   const recipientEmailAlertsEnabled =
-    vaultTransferEmailAlertsEnabled(sender);
+    await vaultTransferEmailAlertsEnabled(sender);
   if (requestedRecipientEmail && !recipientEmailAlertsEnabled) {
     res.status(409).json({
       error: "Recipient email alerts are turned off. Enable them in your Private Vault before adding an email.",
@@ -1847,7 +1541,7 @@ router.post(
     if (!lockedSender) return { error: "The Globus account could not be found." };
     if (
       requestedRecipientEmail &&
-      !vaultTransferEmailAlertsEnabled(lockedSender)
+      !(await vaultTransferEmailAlertsEnabled(lockedSender, tx))
     ) {
       return {
         error:
@@ -1914,7 +1608,10 @@ router.post(
 
     const status = resolveFutureTransferStatus(
       lockedWallet.futureTransferMode,
-      lockedSender.verificationStatus === "approved",
+      hasImmediateTransferAccess(
+        await hasActiveVaultAccess(lockedSender, tx),
+        lockedSender.transferAccessGranted,
+      ),
     );
     const reference = createReference();
     const conversionSummary = `${formatMinorAmount(amountMinor)} ${parsed.data.sourceCurrency} converted to ${formatMinorAmount(destinationAmountMinor, parsed.data.destinationCurrency)} ${parsed.data.destinationCurrency} at ${rate}`;
@@ -1931,6 +1628,7 @@ router.post(
         currency: parsed.data.sourceCurrency,
         amountMinor,
         feeMinor: 0n,
+        receiptTemplate: lockedSender.preferredReceiptTemplate,
         counterparty: `${parsed.data.recipientAccountName.trim()} · ${parsed.data.recipientBank.trim()} · ****${accountNumber.slice(-4)} · ${parsed.data.destinationCountry.trim()}${routingCode ? ` · Routing ${routingCode}` : ""}${swiftBic ? ` · SWIFT/BIC ${swiftBic}` : ""}`,
         description: `${parsed.data.transferType === "local_routing" ? "Local routing" : "International wire"} transfer${parsed.data.remark?.trim() ? ` · ${parsed.data.remark.trim()}` : ""} · ${conversionSummary}`,
         mode: "internal_ledger",
@@ -2366,7 +2064,10 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
   }
   let amountMinor: bigint;
   try {
-    amountMinor = parseAmountToMinor(parsed.data.amount);
+    amountMinor = parseAmountToMinor(
+      parsed.data.amount,
+      parsed.data.type === "deposit" ? 16 : 12,
+    );
   } catch (error) {
     res.status(400).json({
       error:
@@ -2379,11 +2080,6 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
     res.status(400).json({ error: "The amount must be greater than zero." });
     return;
   }
-  if (amountMinor > 100_000_000n) {
-    res.status(400).json({ error: "Requests cannot exceed 1,000,000.00." });
-    return;
-  }
-
   const existing = await db
     .select()
     .from(bankSandboxRequestsTable)
@@ -2413,7 +2109,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
     ) {
       res.status(409).json({
         error:
-          "This earlier deposit was not credited. Submit a new top-up request with an active Private Vault subscription.",
+          "This earlier deposit was not credited. Submit a new top-up request with active Private Vault access.",
       });
       return;
     }
@@ -2427,7 +2123,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
         status: existingStatus,
         message:
           existing[0].type === "deposit" && existingStatus === "approved"
-            ? "Your Globus wallet was credited."
+            ? "Your internal Globus ledger credit was posted."
             : existingStatus === "pending_review"
               ? "Your withdrawal request is waiting for an administrator to review it."
               : `Your request was ${existingStatus}.`,
@@ -2439,10 +2135,10 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
 
   if (
     parsed.data.type === "deposit" &&
-    !hasActiveVaultSubscription(user)
+    !(await hasActiveVaultAccess(user))
   ) {
     res.status(403).json({
-      error: "An active Private Vault subscription is required to add wallet funds.",
+      error: "Active Private Vault access is required to add wallet funds.",
     });
     return;
   }
@@ -2473,7 +2169,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
       ) {
         return {
           error:
-            "This earlier deposit was not credited. Submit a new top-up request with an active Private Vault subscription.",
+            "This earlier deposit was not credited. Submit a new top-up request with active Private Vault access.",
         };
       }
       return duplicate.userId === userId &&
@@ -2493,7 +2189,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
         currency: parsed.data.currency,
         amountMinor,
         idempotencyKey: parsed.data.idempotencyKey,
-        description: "Private Vault wallet top-up",
+        description: parsed.data.description,
       });
       if ("error" in topUp) return { error: topUp.error };
       return {
@@ -2637,7 +2333,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
       status: approved ? "approved" : "pending_review",
       message:
         approved
-          ? "Your Globus wallet was credited."
+          ? "Your internal Globus ledger credit was posted."
           : "Your available balance is reserved while an administrator reviews this withdrawal request.",
       createdAt: request.sandboxRequest.createdAt.toISOString(),
     }),
@@ -2652,7 +2348,7 @@ router.get("/bank/vault/status", async (req, res): Promise<void> => {
   }
   const user = await getOrCreateBankUser(authUserId);
   res.json(
-    GetBankVaultStatusResponse.parse(bankVaultStatusPayload(user)),
+    GetBankVaultStatusResponse.parse(await bankVaultStatusPayload(user)),
   );
 });
 
@@ -2677,10 +2373,14 @@ router.get("/bank/vault/billing", async (req, res): Promise<void> => {
   }
   const settings = await getOrCreateAdminSettings();
   const paystackConfigured = getPaystackSecretKey() !== null;
+  const accessSource = await getVaultAccessSource(user);
   res.json(
     GetBankVaultBillingResponse.parse({
       configured: paystackConfigured,
       provider: paystackConfigured ? "paystack" : "unavailable",
+      adminGrantActive: accessSource === "admin_grant",
+      accessActive: accessSource !== "none",
+      accessSource,
       recurringEnabled: paystackConfigured && isPaystackVaultRecurringEnabled(),
       plans: (["1m", "3m", "1y"] as const).map((code) => {
         const plan = getVaultSubscriptionPlan(code);
@@ -2707,7 +2407,7 @@ router.get("/bank/vault/transfer-email-alert", async (req, res): Promise<void> =
   res.json(
     GetBankVaultTransferEmailAlertResponse.parse({
       enabled:
-        vaultTransferEmailAlertsEnabled(user),
+        await vaultTransferEmailAlertsEnabled(user),
     }),
   );
 });
@@ -2848,7 +2548,6 @@ router.post(
       if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
         return { expired: true as const };
       }
-      const oldProofPath = lockedUser.vaultSubscriptionProofObjectPath;
       const [updated] = await tx
         .update(bankUsersTable)
         .set({
@@ -2868,16 +2567,11 @@ router.post(
           vaultSubscriptionReviewedByUserId: null,
           vaultSubscriptionReason: null,
           vaultSubscriptionExpiresAt: null,
-          vaultSubscriptionProofObjectPath: null,
-          vaultSubscriptionProofContentType: null,
-          vaultSubscriptionProofSizeBytes: null,
-          vaultSubscriptionProofFileName: null,
-          vaultSubscriptionProofUploadedAt: null,
           updatedAt: now,
         })
         .where(eq(bankUsersTable.id, user.id))
         .returning();
-      return { user: updated, oldProofPath };
+      return { user: updated };
     });
     if ("missing" in prepared) {
       res.status(404).json({ error: "The Globus account could not be found." });
@@ -2901,16 +2595,6 @@ router.post(
       });
       return;
     }
-    if (prepared.oldProofPath) {
-      void deleteVaultSubscriptionProof(prepared.oldProofPath, user.id).catch(
-        (error) =>
-          req.log.error(
-            { error },
-            "Could not remove replaced Private Vault payment proof",
-          ),
-      );
-    }
-
     try {
       const checkout = await initializePaystackVaultCheckout({
         secretKey,
@@ -2990,7 +2674,7 @@ router.post(
       return;
     }
     if (user.vaultSubscriptionPaymentStatus === "success") {
-      res.json(VerifyBankVaultPaystackPaymentResponse.parse(bankVaultStatusPayload(user)));
+      res.json(VerifyBankVaultPaystackPaymentResponse.parse(await bankVaultStatusPayload(user)));
       return;
     }
     if (user.vaultSubscriptionPaymentStatus !== "pending") {
@@ -3133,7 +2817,7 @@ router.post(
     }
     res.json(
       VerifyBankVaultPaystackPaymentResponse.parse(
-        bankVaultStatusPayload(result.user),
+        await bankVaultStatusPayload(result.user),
       ),
     );
   },
@@ -3254,13 +2938,13 @@ router.post(
         const [inserted] = await tx
           .insert(bankVaultPaystackEventsTable)
           .values({
-            eventKey: `subscription.create:${subscriptionCode}`,
+            eventKey: paystackVaultEventKey("subscription.create", subscriptionCode),
             eventType,
             userId: user.id,
           })
           .onConflictDoNothing()
           .returning({ id: bankVaultPaystackEventsTable.id });
-        if (!inserted) return;
+        if (!isNewPaystackWebhookEvent(inserted)) return;
         await tx
           .update(bankUsersTable)
           .set({
@@ -3298,13 +2982,13 @@ router.post(
         const [inserted] = await tx
           .insert(bankVaultPaystackEventsTable)
           .values({
-          eventKey: `${eventType}:${subscriptionCode}`,
+            eventKey: paystackVaultEventKey(eventType, subscriptionCode),
             eventType,
             userId: user.id,
           })
           .onConflictDoNothing()
           .returning({ id: bankVaultPaystackEventsTable.id });
-        if (!inserted) return;
+        if (!isNewPaystackWebhookEvent(inserted)) return;
         await tx
           .update(bankUsersTable)
           .set({
@@ -3317,7 +3001,7 @@ router.post(
       return;
     }
 
-    if (eventType !== "charge.success") {
+    if (eventType !== "charge.success" && eventType !== "charge.failed") {
       res.json({ received: true });
       return;
     }
@@ -3337,6 +3021,71 @@ router.post(
       .where(sql`lower(${bankUsersTable.email}) = ${customer.email}`)
       .limit(1);
     if (!user) {
+      res.json({ received: true });
+      return;
+    }
+    if (eventType === "charge.failed") {
+      await db.transaction(async (tx) => {
+        const [lockedUser] = await tx
+          .select()
+          .from(bankUsersTable)
+          .where(eq(bankUsersTable.id, user.id))
+          .for("update");
+        if (!lockedUser) return;
+        const failureKind = classifyVaultPaystackChargeFailure(
+          lockedUser,
+          {
+            reference,
+            amount,
+            currency,
+            customerCode: customer.code ?? null,
+            subscriptionCode,
+            providerPlanCode,
+          },
+        );
+        if (!failureKind) return;
+
+        const [inserted] = await tx
+          .insert(bankVaultPaystackEventsTable)
+          .values({
+            eventKey: paystackVaultEventKey("charge.failed", reference),
+            eventType,
+            paymentReference: reference,
+            userId: user.id,
+          })
+          .onConflictDoNothing()
+          .returning({ id: bankVaultPaystackEventsTable.id });
+        if (!isNewPaystackWebhookEvent(inserted)) return;
+
+        if (failureKind === "initial") {
+          await tx
+            .update(bankUsersTable)
+            .set({
+              vaultSubscriptionStatus: "inactive",
+              vaultSubscriptionPaymentStatus: "failed",
+              vaultSubscriptionAutoRenew: false,
+              vaultPaystackPlanCode: null,
+              vaultPaystackSubscriptionCode: null,
+              vaultPaystackCustomerCode: null,
+              updatedAt: new Date(),
+            })
+            .where(eq(bankUsersTable.id, user.id));
+          await tx.insert(bankAuditLogsTable).values({
+            actorUserId: user.id,
+            targetUserId: user.id,
+            action: "fail_private_vault_paystack_webhook",
+            reason: `Paystack confirmed the initial Private Vault payment ${reference} failed; no paid access was activated.`,
+          });
+          return;
+        }
+
+        await tx.insert(bankAuditLogsTable).values({
+          actorUserId: user.id,
+          targetUserId: user.id,
+          action: "fail_private_vault_paystack_renewal",
+          reason: `Paystack reported renewal charge ${reference} failed. Existing access remains valid only until ${lockedUser.vaultSubscriptionExpiresAt?.toISOString() ?? "its current expiry"}.`,
+        });
+      });
       res.json({ received: true });
       return;
     }
@@ -3387,14 +3136,14 @@ router.post(
       const [inserted] = await tx
         .insert(bankVaultPaystackEventsTable)
         .values({
-          eventKey: `charge.success:${reference}`,
+          eventKey: paystackVaultEventKey("charge.success", reference),
           eventType,
           paymentReference: reference,
           userId: user.id,
         })
         .onConflictDoNothing()
         .returning({ id: bankVaultPaystackEventsTable.id });
-      if (!inserted) return;
+      if (!isNewPaystackWebhookEvent(inserted)) return;
 
       if (initialPayment) {
         if (lockedUser.vaultSubscriptionPaymentStatus === "pending") {
@@ -3470,283 +3219,6 @@ router.use("/bank/vault/subscription", (_req, res): void => {
 });
 
 router.post(
-  "/bank/vault/subscription/proof-upload-url",
-  vaultSubscriptionRequestLimiter,
-  async (req, res): Promise<void> => {
-    const authUserId = getAuth(req).userId;
-    if (!authUserId) {
-      res.status(401).json({ error: "Sign in to upload subscription payment proof." });
-      return;
-    }
-    const sessionToken = req.get("X-Globus-Vault-Session") ?? "";
-    const parsedHeader = RequestBankVaultSubscriptionHeader.safeParse({
-      "X-Globus-Vault-Session": sessionToken,
-    });
-    const parsed = CreateBankVaultSubscriptionProofUploadUrlBody.safeParse(req.body);
-    if (!parsedHeader.success || !parsed.success) {
-      res.status(400).json({
-        error: !parsedHeader.success
-          ? parsedHeader.error.message
-          : parsed.error?.message ?? "Enter valid payment proof details.",
-      });
-      return;
-    }
-    if (
-      !isVaultSubscriptionPlanCode(parsed.data.planCode) ||
-      !VAULT_PROOF_CONTENT_TYPES.includes(
-        parsed.data.contentType as (typeof VAULT_PROOF_CONTENT_TYPES)[number],
-      ) ||
-      parsed.data.sizeBytes > VAULT_PROOF_MAX_BYTES
-    ) {
-      res.status(400).json({ error: "Upload a PDF, JPG, or PNG file up to 10 MB." });
-      return;
-    }
-    const user = await getOrCreateBankUser(authUserId);
-    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
-      res.status(403).json({ error: "Your Private Vault session expired. Unlock it again." });
-      return;
-    }
-    const settings = await getOrCreateAdminSettings();
-    if (
-      !settings.vaultPaymentMethod.trim() ||
-      !settings.vaultPaymentInstructions.trim()
-    ) {
-      res.status(409).json({
-        error: "Manual payment instructions are not configured yet. Try again later.",
-      });
-      return;
-    }
-    const priceMinor = getVaultPlanPriceMinor(settings, parsed.data.planCode);
-    if (!/^[0-9]+$/.test(priceMinor) || BigInt(priceMinor) <= 0n) {
-      res.status(409).json({ error: "This access plan is temporarily unavailable." });
-      return;
-    }
-    const filename = parsed.data.fileName
-      .trim()
-      .replace(/[\u0000-\u001f\u007f]/g, "")
-      .slice(-120);
-    if (!filename) {
-      res.status(400).json({ error: "Choose a valid proof filename." });
-      return;
-    }
-    let signedUpload: { uploadUrl: string; objectPath: string };
-    try {
-      signedUpload = await createVaultSubscriptionProofUploadUrl(user.id);
-    } catch (error) {
-      req.log.error({ error }, "Could not create private vault proof upload URL");
-      res.status(503).json({ error: "Private proof upload is temporarily unavailable." });
-      return;
-    }
-    const result = await db.transaction(async (tx) => {
-      const [lockedUser] = await tx
-        .select()
-        .from(bankUsersTable)
-        .where(eq(bankUsersTable.id, user.id))
-        .for("update");
-      if (!lockedUser) return { missing: true as const };
-      const currentStatus = vaultSubscriptionStatus(
-        lockedUser.vaultSubscriptionStatus,
-        lockedUser.vaultSubscriptionExpiresAt,
-      );
-      if (currentStatus === "active" || currentStatus === "pending") {
-        return { conflict: true as const, oldPath: signedUpload.objectPath };
-      }
-      if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
-        return { expired: true as const, oldPath: signedUpload.objectPath };
-      }
-      const oldPath = lockedUser.vaultSubscriptionProofObjectPath;
-      await tx
-        .update(bankUsersTable)
-        .set({
-          vaultSubscriptionPlan: parsed.data.planCode,
-          vaultSubscriptionAmountMinor: priceMinor,
-          vaultSubscriptionProofObjectPath: signedUpload.objectPath,
-          vaultSubscriptionProofContentType: parsed.data.contentType,
-          vaultSubscriptionProofSizeBytes: parsed.data.sizeBytes,
-          vaultSubscriptionProofFileName: filename,
-          vaultSubscriptionProofUploadedAt: null,
-          updatedAt: new Date(),
-        })
-        .where(eq(bankUsersTable.id, user.id));
-      return { oldPath };
-    });
-    if ("missing" in result) {
-      void deleteVaultSubscriptionProof(signedUpload.objectPath, user.id).catch(() => {});
-      res.status(404).json({ error: "The Globus account could not be found." });
-      return;
-    }
-    if ("conflict" in result || "expired" in result) {
-      void deleteVaultSubscriptionProof(signedUpload.objectPath, user.id).catch(() => {});
-      res.status("expired" in result ? 403 : 409).json({
-        error: "expired" in result
-          ? "Your Private Vault session expired. Unlock it again."
-          : "An active or pending subscription cannot be changed.",
-      });
-      return;
-    }
-    if (result.oldPath && result.oldPath !== signedUpload.objectPath) {
-      void deleteVaultSubscriptionProof(result.oldPath, user.id).catch((error) =>
-        req.log.error({ error }, "Could not remove replaced private vault proof"),
-      );
-    }
-    res.json(
-      CreateBankVaultSubscriptionProofUploadUrlResponse.parse({
-        uploadUrl: signedUpload.uploadUrl,
-      }),
-    );
-  },
-);
-
-router.post("/bank/vault/subscription", vaultSubscriptionRequestLimiter, async (req, res): Promise<void> => {
-  const authUserId = getAuth(req).userId;
-  if (!authUserId) {
-    res.status(401).json({ error: "Sign in to request private vault access." });
-    return;
-  }
-  const sessionToken = req.get("X-Globus-Vault-Session") ?? "";
-  const parsedHeader = RequestBankVaultSubscriptionHeader.safeParse({
-    "X-Globus-Vault-Session": sessionToken,
-  });
-  if (!parsedHeader.success) {
-    res.status(400).json({ error: parsedHeader.error.message });
-    return;
-  }
-  const user = await getOrCreateBankUser(authUserId);
-  if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
-    res.status(403).json({ error: "Enter your private vault passcode before requesting access." });
-    return;
-  }
-  const currentStatus = vaultSubscriptionStatus(
-    user.vaultSubscriptionStatus,
-    user.vaultSubscriptionExpiresAt,
-  );
-  if (currentStatus === "active" || currentStatus === "pending") {
-    res.status(409).json({
-      error: currentStatus === "pending"
-        ? "Your private vault access request is already awaiting administrator review."
-        : "Private vault access is already active for this account.",
-    });
-    return;
-  }
-  if (user.vaultSubscriptionAutoRenew) {
-    res.status(409).json({
-      error: "Manage or cancel your existing Paystack renewal before requesting another plan.",
-    });
-    return;
-  }
-  const requestedPlan = user.vaultSubscriptionPlan;
-  const requestedAmountMinor = user.vaultSubscriptionAmountMinor;
-  if (
-    !user.vaultSubscriptionProofObjectPath ||
-    !user.vaultSubscriptionProofContentType ||
-    !user.vaultSubscriptionProofSizeBytes ||
-    !requestedPlan ||
-    !requestedAmountMinor ||
-    !isVaultSubscriptionPlanCode(requestedPlan)
-  ) {
-    res.status(400).json({ error: "Choose a plan and upload payment proof before submitting." });
-    return;
-  }
-  try {
-    const proofFile = getVaultSubscriptionProofFile(
-      user.vaultSubscriptionProofObjectPath,
-      user.id,
-    );
-    const validProof = await validateVaultSubscriptionProof(
-      proofFile,
-      user.vaultSubscriptionProofContentType,
-      user.vaultSubscriptionProofSizeBytes,
-    );
-    if (!validProof) {
-      res.status(400).json({
-        error: "The uploaded proof could not be verified. Upload a valid PDF, JPG, or PNG up to 10 MB.",
-      });
-      return;
-    }
-  } catch (error) {
-    req.log.warn({ error }, "Private vault payment proof validation failed");
-    res.status(400).json({
-      error: "The uploaded proof could not be verified. Upload it again and retry.",
-    });
-    return;
-  }
-  const result = await db.transaction(async (tx) => {
-    const [lockedUser] = await tx
-      .select()
-      .from(bankUsersTable)
-      .where(eq(bankUsersTable.id, user.id))
-      .for("update");
-    if (!lockedUser) return { missing: true as const };
-    const currentStatus = vaultSubscriptionStatus(
-      lockedUser.vaultSubscriptionStatus,
-      lockedUser.vaultSubscriptionExpiresAt,
-    );
-    if (currentStatus === "active" || currentStatus === "pending") {
-      return { conflict: true as const, status: currentStatus };
-    }
-    if (lockedUser.vaultSubscriptionAutoRenew) {
-      return { renewal: true as const };
-    }
-    if (
-      lockedUser.vaultSubscriptionProofObjectPath !== user.vaultSubscriptionProofObjectPath ||
-      lockedUser.vaultSubscriptionPlan !== user.vaultSubscriptionPlan
-    ) {
-      return { changed: true as const };
-    }
-    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
-      return { expired: true as const };
-    }
-    const now = new Date();
-    const [updated] = await tx
-      .update(bankUsersTable)
-      .set({
-        vaultSubscriptionStatus: "pending",
-        vaultSubscriptionRequestedAt: now,
-        vaultSubscriptionReviewedAt: null,
-        vaultSubscriptionReviewedByUserId: null,
-        vaultSubscriptionReason: null,
-        vaultSubscriptionExpiresAt: null,
-        vaultSubscriptionProofUploadedAt: now,
-        updatedAt: now,
-      })
-      .where(eq(bankUsersTable.id, user.id))
-      .returning();
-    await tx.insert(bankAuditLogsTable).values({
-      actorUserId: user.id,
-      targetUserId: user.id,
-      action: "request_private_vault_subscription",
-      reason: `Member submitted payment proof for the ${requestedPlan} plan at NGN ${minorAmountToDecimal(requestedAmountMinor)}.`,
-    });
-    return { user: updated };
-  });
-  if ("missing" in result) {
-    res.status(404).json({ error: "The Globus account could not be found." });
-    return;
-  }
-  if ("conflict" in result) {
-    res.status(409).json({ error: result.status === "pending"
-      ? "Your private vault access request is already awaiting review."
-      : "Private vault access is already active for this account." });
-    return;
-  }
-  if ("changed" in result) {
-    res.status(409).json({ error: "Your proof upload changed. Upload it again before submitting." });
-    return;
-  }
-  if ("expired" in result) {
-    res.status(403).json({ error: "Your Private Vault session expired. Unlock it again." });
-    return;
-  }
-  if ("renewal" in result) {
-    res.status(409).json({
-      error: "Manage or cancel your existing Paystack renewal before requesting another plan.",
-    });
-    return;
-  }
-  res.json(RequestBankVaultSubscriptionResponse.parse(bankVaultStatusPayload(result.user)));
-});
-
-router.post(
   "/bank/vault/status",
   vaultAttemptLimiter,
   async (req, res): Promise<void> => {
@@ -3779,7 +3251,7 @@ router.post(
     });
     const refreshed = await getOrCreateBankUser(authUserId);
     res.json(
-      InitializeBankVaultPasscodeResponse.parse(bankVaultStatusPayload(refreshed)),
+      InitializeBankVaultPasscodeResponse.parse(await bankVaultStatusPayload(refreshed)),
     );
   },
 );
@@ -3856,7 +3328,7 @@ router.patch(
     });
     const refreshed = await getOrCreateBankUser(authUserId);
     res.json(
-      UpdateBankVaultPasscodeResponse.parse(bankVaultStatusPayload(refreshed)),
+      UpdateBankVaultPasscodeResponse.parse(await bankVaultStatusPayload(refreshed)),
     );
   },
 );
@@ -3878,13 +3350,13 @@ router.get(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
-    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }
     res.json(
       GetBankVaultEmailPreferencesResponse.parse(
-        bankVaultEmailPreferencesPayload(user),
+        await bankVaultEmailPreferencesPayload(user),
       ),
     );
   },
@@ -4081,9 +3553,111 @@ router.patch(
     }
     res.json(
       UpdateBankVaultEmailPreferencesResponse.parse(
-        bankVaultEmailPreferencesPayload(result.user),
+        await bankVaultEmailPreferencesPayload(result.user),
       ),
     );
+  },
+);
+
+router.get(
+  "/bank/vault/receipt-preference",
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to access your Globus account." });
+      return;
+    }
+    const sessionToken = req.get("X-Globus-Vault-Session") ?? "";
+    const parsedHeader = GetBankVaultReceiptPreferenceHeader.safeParse({
+      "X-Globus-Vault-Session": sessionToken,
+    });
+    if (!parsedHeader.success) {
+      res.status(403).json({ error: "Unlock your private vault to view receipt preferences." });
+      return;
+    }
+    const user = await getOrCreateBankUser(authUserId);
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
+      res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
+      return;
+    }
+    res.json(
+      GetBankVaultReceiptPreferenceResponse.parse({
+        preferredReceiptTemplate: user.preferredReceiptTemplate,
+      }),
+    );
+  },
+);
+
+router.patch(
+  "/bank/vault/receipt-preference",
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to access your Globus account." });
+      return;
+    }
+    const sessionToken = req.get("X-Globus-Vault-Session") ?? "";
+    const parsedHeader = UpdateBankVaultReceiptPreferenceHeader.safeParse({
+      "X-Globus-Vault-Session": sessionToken,
+    });
+    const parsed = UpdateBankVaultReceiptPreferenceBody.safeParse(req.body);
+    if (!parsedHeader.success || !parsed.success) {
+      res.status(400).json({
+        error: !parsedHeader.success
+          ? parsedHeader.error.message
+          : parsed.error?.message ?? "Choose a supported receipt layout.",
+      });
+      return;
+    }
+    const user = await getOrCreateBankUser(authUserId);
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
+      res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
+      return;
+    }
+    const result = await db.transaction(async (tx) => {
+      const [lockedUser] = await tx
+        .select()
+        .from(bankUsersTable)
+        .where(eq(bankUsersTable.id, user.id))
+        .for("update");
+      if (!lockedUser) return { missing: true as const };
+      if (!(await isVaultSessionActive(user.id, sessionToken))) {
+        return { expired: true as const };
+      }
+      if (!(await hasActiveVaultAccess(lockedUser, tx))) {
+        return { noAccess: true as const };
+      }
+      const [updated] = await tx
+        .update(bankUsersTable)
+        .set({
+          preferredReceiptTemplate: parsed.data.preferredReceiptTemplate,
+          updatedAt: new Date(),
+        })
+        .where(eq(bankUsersTable.id, user.id))
+        .returning({
+          preferredReceiptTemplate: bankUsersTable.preferredReceiptTemplate,
+        });
+      await tx.insert(bankAuditLogsTable).values({
+        actorUserId: user.id,
+        targetUserId: user.id,
+        action: "update_transfer_receipt_preference",
+        reason: "Member selected a receipt layout for future transfers.",
+      });
+      return { preference: updated };
+    });
+    if ("missing" in result) {
+      res.status(404).json({ error: "The Globus account could not be found." });
+      return;
+    }
+    if ("expired" in result) {
+      res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
+      return;
+    }
+    if ("noAccess" in result) {
+      res.status(403).json({ error: "Active Private Vault access is required to change receipt preferences." });
+      return;
+    }
+    res.json(UpdateBankVaultReceiptPreferenceResponse.parse(result.preference));
   },
 );
 
@@ -4104,7 +3678,7 @@ router.get(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
-    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }
@@ -4159,15 +3733,6 @@ router.put(
     const user = await getOrCreateBankUser(authUserId);
     if (!(await isVaultSessionActive(user.id, sessionToken))) {
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
-      return;
-    }
-    if (
-      vaultSubscriptionStatus(
-        user.vaultSubscriptionStatus,
-        user.vaultSubscriptionExpiresAt,
-      ) !== "active"
-    ) {
-      res.status(403).json({ error: "An active Vault subscription is required to change personal notes." });
       return;
     }
     const [transaction] = await db
@@ -4249,15 +3814,6 @@ router.delete(
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }
-    if (
-      vaultSubscriptionStatus(
-        user.vaultSubscriptionStatus,
-        user.vaultSubscriptionExpiresAt,
-      ) !== "active"
-    ) {
-      res.status(403).json({ error: "An active Vault subscription is required to change personal notes." });
-      return;
-    }
     const [deleted] = await db
       .delete(bankVaultTransactionNotesTable)
       .where(
@@ -4297,7 +3853,7 @@ router.get(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
-    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }

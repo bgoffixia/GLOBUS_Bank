@@ -22,7 +22,6 @@ export function buildAdminAccessControlsAuditReason(
 ): string {
   return `${reason} Testing Mode disabled: ${controls.testingModeDisabled}; separate transfer access granted: ${controls.transferAccessGranted}. Neither setting grants Private Vault access.`;
 }
-
 export function buildAdminAccessControlsAuditEntry(input: {
   actorUserId: string;
   targetUserId: string;

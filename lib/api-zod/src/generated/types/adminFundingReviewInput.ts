@@ -9,11 +9,6 @@ import type { AdminFundingReviewInputDecision } from './adminFundingReviewInputD
 
 export interface AdminFundingReviewInput {
   decision: AdminFundingReviewInputDecision;
-  /**
-     * @minLength 5
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
 }

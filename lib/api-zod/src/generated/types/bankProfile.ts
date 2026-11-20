@@ -6,7 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { BankProfileAccountStatus } from './bankProfileAccountStatus';
+import type { BankProfileVaultAccessSource } from './bankProfileVaultAccessSource';
 import type { BankProfileVerificationStatus } from './bankProfileVerificationStatus';
+import type { DashboardAccountTier } from './dashboardAccountTier';
 
 export interface BankProfile {
   id: string;
@@ -26,12 +28,22 @@ export interface BankProfile {
      * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
      */
   dateOfBirth: string | null;
+  /** @nullable */
+  cityOfOrigin: string | null;
+  /** @nullable */
+  occupation: string | null;
+  profileSetupComplete: boolean;
+  transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
   verificationStatus: BankProfileVerificationStatus;
   /** @nullable */
   verificationNote: string | null;
   accountStatus: BankProfileAccountStatus;
+  vaultSubscriptionActive: boolean;
+  vaultAccessActive: boolean;
+  vaultAccessSource: BankProfileVaultAccessSource;
   depositAllowed: boolean;
   withdrawalAllowed: boolean;
+  accountTier: DashboardAccountTier;
   createdAt: Date;
 }

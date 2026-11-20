@@ -7,7 +7,7 @@ import { ErrorBoundary } from '@/components/error-boundary';
 import { BankShell } from '@/components/bank-shell';
 import { Toaster } from '@/components/ui/toaster';
 import { TooltipProvider } from '@/components/ui/tooltip';
-import { AuthFrame, ClerkSignInForm, ClerkSignUpForm, EmailRecoverySignInForm } from '@/components/auth-pages';
+import { AuthFrame, ClerkSignInForm, ClerkSignUpForm, EmailRecoverySignInForm, PendingSignupProfilePersistence } from '@/components/auth-pages';
 import { PasswordResetLinkPage, RequiredPasswordResetPage } from '@/components/auth-pages';
 import { PwaInstallPrompt } from '@/components/pwa-install-prompt';
 import { GlobusLoader } from '@/components/globus-loader';
@@ -222,7 +222,7 @@ function ClerkRoutes() {
   return (
     <ClerkProvider
       publishableKey={clerkPubKey}
-      proxyUrl={clerkProxyUrl}
+      proxyUrl={clerkProxyUrl || undefined}
       appearance={clerkAppearance}
       signInUrl={`${basePath}/sign-in`}
       signUpUrl={`${basePath}/sign-up`}
@@ -244,6 +244,7 @@ function ClerkRoutes() {
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
       <ClerkQueryClientCacheInvalidator />
+      <PendingSignupProfilePersistence />
       <Switch>
         <Route path="/" component={HomeRedirect} />
         <Route path="/home">
@@ -267,13 +268,16 @@ function ClerkRoutes() {
         <Route path="/send"><Redirect to="/transfer" /></Route>
         <Route path="/transfer"><ProtectedPage><InternationalTransferPage /></ProtectedPage></Route>
         <Route path="/international-transfer"><ProtectedPage><InternationalTransferPage /></ProtectedPage></Route>
-        <Route path="/add-money"><ProtectedPage><ProviderRequestPage type="deposit" /></ProtectedPage></Route>
+        <Route path="/add-money"><Redirect to="/private-vault" /></Route>
+        <Route path="/vault"><Redirect to="/private-vault" /></Route>
         <Route path="/withdraw"><ProtectedPage><ProviderRequestPage type="withdrawal" /></ProtectedPage></Route>
         <Route path="/customer-id"><Redirect to="/profile" /></Route>
         <Route path="/receive"><Redirect to="/profile" /></Route>
         <Route path="/profile"><ProtectedPage><ProfilePage /></ProtectedPage></Route>
         <Route path="/private-vault"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/settings"><Redirect to="/profile" /></Route>
+        <Route path="/admin/vault-acces"><Redirect to="/admin/vault-access" /></Route>
+        <Route path="/admin/vault-access"><ProtectedAdminPage /></Route>
         <Route path="/admin/users/:userId"><ProtectedAdminPage /></Route>
         <Route path="/admin/users"><ProtectedAdminPage /></Route>
         <Route path="/admin/accounts"><ProtectedAdminPage /></Route>
@@ -285,7 +289,6 @@ function ClerkRoutes() {
         <Route path="/admin/settings"><ProtectedAdminPage /></Route>
         <Route path="/admin/logout"><ProtectedAdminPage /></Route>
         <Route path="/admin"><ProtectedAdminPage /></Route>
-        <Route path="/help"><DisclosurePage path="/help" /></Route>
         <Route path="/fees"><DisclosurePage path="/fees" /></Route>
         <Route path="/contact"><DisclosurePage path="/contact" /></Route>
         <Route component={NotFound} />
