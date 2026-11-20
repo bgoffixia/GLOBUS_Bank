@@ -6,12 +6,12 @@ import {
 } from "node:crypto";
 import { and, eq, gt, inArray, lte } from "drizzle-orm";
 import {
-  bankAccountTiersTable,
   bankUsersTable,
   bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
   db,
 } from "@workspace/db";
+import { getVaultSubscriptionPlan } from "./vault-subscription";
 
 const KEY_LENGTH = 64;
 const MAX_FAILED_ATTEMPTS = 5;
@@ -34,7 +34,7 @@ export type VaultSubscriptionState =
 
 export type EffectiveAccountTierSource =
   | "paystack_subscription"
-  | "admin_assigned";
+  | "default";
 
 export type EffectiveAccountTier = {
   id: string;
@@ -126,15 +126,21 @@ export function resolveEffectiveAccountTier(
   user: {
     vaultSubscriptionStatus: string;
     vaultSubscriptionExpiresAt: Date | null;
+    vaultSubscriptionPlan: string | null;
   },
-  mappedPlanTier: Pick<EffectiveAccountTier, "id" | "name"> | null,
-  assignedTier: Pick<EffectiveAccountTier, "id" | "name">,
   now = new Date(),
 ): EffectiveAccountTier {
-  if (hasActiveVaultSubscription(user, now) && mappedPlanTier) {
-    return { ...mappedPlanTier, source: "paystack_subscription" };
+  if (hasActiveVaultSubscription(user, now) && user.vaultSubscriptionPlan) {
+    const plan = getVaultSubscriptionPlan(user.vaultSubscriptionPlan);
+    if (plan) {
+      return {
+        id: plan.tierId,
+        name: plan.tierName,
+        source: "paystack_subscription",
+      };
+    }
   }
-  return { ...assignedTier, source: "admin_assigned" };
+  return { id: "standard", name: "Standard 🏦", source: "default" };
 }
 
 export function isVaultTestingMode(
@@ -151,58 +157,18 @@ export function hasImmediateTransferAccess(
   return vaultAccessActive || transferAccessGranted;
 }
 
-type VaultAccessExecutor = Pick<typeof db, "select">;
-
-export async function getEffectiveAccountTier(
+export function getEffectiveAccountTier(
   user: {
-    accountTierId: string;
     vaultSubscriptionStatus: string;
     vaultSubscriptionExpiresAt: Date | null;
     vaultSubscriptionPlan: string | null;
   },
-  executor: VaultAccessExecutor = db,
   now = new Date(),
-): Promise<EffectiveAccountTier> {
-  const [assignedTier] = await executor
-    .select({
-      id: bankAccountTiersTable.id,
-      name: bankAccountTiersTable.name,
-    })
-    .from(bankAccountTiersTable)
-    .where(eq(bankAccountTiersTable.id, user.accountTierId))
-    .limit(1);
-  if (!assignedTier) {
-    throw new Error("The customer’s assigned account tier is missing.");
-  }
-
-  let mappedPlanTier: Pick<EffectiveAccountTier, "id" | "name"> | null = null;
-  if (
-    user.vaultSubscriptionPlan &&
-    hasActiveVaultSubscription(user, now)
-  ) {
-    const [tier] = await executor
-      .select({
-        id: bankAccountTiersTable.id,
-        name: bankAccountTiersTable.name,
-      })
-      .from(bankAccountTiersTable)
-      .where(
-        and(
-          eq(bankAccountTiersTable.vaultPlanCode, user.vaultSubscriptionPlan),
-          eq(bankAccountTiersTable.active, true),
-        ),
-      )
-      .limit(1);
-    mappedPlanTier = tier ?? null;
-  }
-
-  return resolveEffectiveAccountTier(
-    user,
-    mappedPlanTier,
-    assignedTier,
-    now,
-  );
+): EffectiveAccountTier {
+  return resolveEffectiveAccountTier(user, now);
 }
+
+type VaultAccessExecutor = Pick<typeof db, "select">;
 
 export async function hasAdminVaultEntitlement(
   userId: string,

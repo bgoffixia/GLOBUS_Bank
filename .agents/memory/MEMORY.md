@@ -10,3 +10,4 @@
 - [Private Vault subscription renewal](private-vault-subscription-renewal.md) — Renewal is customer opt-in; expose it only after Paystack webhook processing is configured and tested.
 - [Verified signup and dashboard continuity](verified-signup-dashboard.md) — A verified Clerk session must reach the dashboard with a Customer ID despite missing or invalid optional profile details.
 - [Receipt preference snapshots](receipt-preference-snapshots.md) — Apply a saved receipt design to future transfers only; historical receipts keep their stored layout.
+- [Production-compatible account tiers](production-account-tier-compatibility.md) — Derive displayed tiers from active Vault plan fields; production does not persist account-tier assignments.

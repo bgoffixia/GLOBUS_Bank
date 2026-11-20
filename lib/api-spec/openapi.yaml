@@ -1342,113 +1342,6 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "403":
           $ref: "#/components/responses/Forbidden"
-  /bank/admin/account-tiers:
-    get:
-      operationId: listAdminAccountTiers
-      tags: [admin]
-      summary: List account tiers and Vault plan mappings
-      responses:
-        "200":
-          description: Account tier catalog
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminAccountTierList"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-    post:
-      operationId: createAdminAccountTier
-      tags: [admin]
-      summary: Create an account tier
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AdminAccountTierInput"
-      responses:
-        "201":
-          description: Account tier created
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminAccountTierResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "409":
-          $ref: "#/components/responses/Conflict"
-  /bank/admin/account-tiers/{tierId}:
-    patch:
-      operationId: updateAdminAccountTier
-      tags: [admin]
-      summary: Update an account tier and its Vault plan mapping
-      parameters:
-        - name: tierId
-          in: path
-          required: true
-          schema: { type: string, minLength: 1, maxLength: 100 }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AdminAccountTierInput"
-      responses:
-        "200":
-          description: Account tier updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminAccountTierResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
-  /bank/admin/users/{userId}/account-tier:
-    patch:
-      operationId: setAdminUserAccountTier
-      tags: [admin]
-      summary: Assign a tier to an individual customer
-      parameters:
-        - name: userId
-          in: path
-          required: true
-          schema: { type: string, minLength: 1, maxLength: 200 }
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              $ref: "#/components/schemas/AdminAccountTierAssignmentInput"
-      responses:
-        "200":
-          description: Customer account tier updated
-          content:
-            application/json:
-              schema:
-                $ref: "#/components/schemas/AdminAccountTierAssignmentResponse"
-        "400":
-          $ref: "#/components/responses/BadRequest"
-        "401":
-          $ref: "#/components/responses/Unauthorized"
-        "403":
-          $ref: "#/components/responses/Forbidden"
-        "404":
-          $ref: "#/components/responses/NotFound"
-        "409":
-          $ref: "#/components/responses/Conflict"
   /bank/admin/vault-access:
     get:
       operationId: listAdminVaultAccess
@@ -2462,7 +2355,7 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
-        source: { type: string, enum: [paystack_subscription, admin_assigned] }
+        source: { type: string, enum: [paystack_subscription, default] }
       required: [id, name, source]
     BankDashboardProfile:
       allOf:
@@ -2624,7 +2517,6 @@ components:
       properties:
         id: { type: string }
         email: { type: string }
-        accountTierId: { type: string }
         accountTierName: { type: string }
         customerId: { type: ["string", "null"], pattern: "^[A-Z0-9]{7}$" }
         firstName: { type: ["string", "null"] }
@@ -2648,54 +2540,7 @@ components:
         vaultSubscriptionAutoRenew: { type: boolean }
         walletCount: { type: integer }
         createdAt: { type: string, format: date-time }
-      required: [id, email, accountTierId, accountTierName, customerId, firstName, lastName, country, verificationStatus, verificationNote, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, profileSetupCompletedAt, testingModeDisabled, transferAccessGranted, walletCount, createdAt]
-    AdminAccountTier:
-      type: object
-      properties:
-        id: { type: string }
-        name: { type: string, minLength: 2, maxLength: 80 }
-        description: { type: ["string", "null"], maxLength: 240 }
-        vaultPlanCode: { type: ["string", "null"], enum: [1m, 3m, 1y, null] }
-        active: { type: boolean }
-        createdAt: { type: string, format: date-time }
-        updatedAt: { type: string, format: date-time }
-      required: [id, name, description, vaultPlanCode, active, createdAt, updatedAt]
-    AdminAccountTierList:
-      type: object
-      properties:
-        items:
-          type: array
-          items: { $ref: "#/components/schemas/AdminAccountTier" }
-      required: [items]
-    AdminAccountTierInput:
-      type: object
-      properties:
-        name: { type: string, minLength: 2, maxLength: 80 }
-        description: { type: ["string", "null"], maxLength: 240 }
-        vaultPlanCode: { type: ["string", "null"], enum: [1m, 3m, 1y, null] }
-        active: { type: boolean }
-        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-        confirmed: { type: boolean, enum: [true] }
-      required: [name, description, vaultPlanCode, active, transactionPin, confirmed]
-    AdminAccountTierResponse:
-      type: object
-      properties:
-        item: { $ref: "#/components/schemas/AdminAccountTier" }
-      required: [item]
-    AdminAccountTierAssignmentInput:
-      type: object
-      properties:
-        tierId: { type: string, minLength: 1, maxLength: 100 }
-        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-        confirmed: { type: boolean, enum: [true] }
-      required: [tierId, transactionPin, confirmed]
-    AdminAccountTierAssignmentResponse:
-      type: object
-      properties:
-        userId: { type: string }
-        accountTierId: { type: string }
-        accountTierName: { type: string }
-      required: [userId, accountTierId, accountTierName]
+      required: [id, email, accountTierName, customerId, firstName, lastName, country, verificationStatus, verificationNote, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, profileSetupCompletedAt, testingModeDisabled, transferAccessGranted, walletCount, createdAt]
     AdminUserPage:
       type: object
       properties:

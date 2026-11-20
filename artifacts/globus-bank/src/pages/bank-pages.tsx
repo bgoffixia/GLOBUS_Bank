@@ -291,7 +291,7 @@ export function DashboardPage() {
               <div data-testid="dashboard-active-wallet-balance" className="bank-display mt-1.5 break-words text-[clamp(1.8rem,7vw,2.8rem)] font-semibold tracking-[-.06em]">{selectedWallet ? formatMoney(Number(selectedWallet.available), selectedWallet.currency) : '—'}</div>
               {selectedWallet && <p className="mt-0.5 text-[10px] text-[#b5c7d4]">{selectedWallet.currency} wallet</p>}
               <span data-testid="dashboard-account-tier-badge" className="mt-2 inline-flex max-w-full truncate rounded-full border border-white/20 bg-white/[.1] px-2.5 py-1 text-[9px] font-bold text-[#e4eff0]">
-                {dash?.profile.accountTier.name ?? 'Not assigned'}
+                {dash?.profile.accountTier.name ?? 'Standard 🏦'}
               </span>
             </div>
             {selectedWallet && <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 bg-white/[.08] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[.13em] text-[#d9e7eb]"><span className="h-1.5 w-1.5 rounded-full bg-[#8fd2cf]" /> {selectedWallet.currency}</span>}
@@ -1148,7 +1148,7 @@ export function ProfilePage() {
           {photoError && <p role="alert" className="mt-2 rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940]">{photoError}</p>}
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             <div className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account</p><span className={`mt-1 inline-flex rounded-full px-2 py-1 text-[9px] font-bold ${profile?.accountStatus === 'active' ? 'bg-[#edf6f1] text-[#4c836e]' : 'bg-[#fbf7eb] text-[#927944]'}`}>{humanize(profile?.accountStatus)}</span></div>
-            <div data-testid="profile-account-tier" className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account tier</p><span data-testid="profile-account-tier-badge" className="mt-1 inline-flex max-w-full truncate rounded-full border border-[#d5e5e2] bg-[#edf5f2] px-2 py-1 text-[9px] font-bold text-[#3f716d]">{profile.accountTier.name || 'Not assigned'}</span></div>
+            <div data-testid="profile-account-tier" className="rounded-xl bg-[#f7f9fa] p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#71869a]">Account tier</p><span data-testid="profile-account-tier-badge" className="mt-1 inline-flex max-w-full truncate rounded-full border border-[#d5e5e2] bg-[#edf5f2] px-2 py-1 text-[9px] font-bold text-[#3f716d]">{profile.accountTier.name || 'Standard 🏦'}</span></div>
           </div>
           <section className="mt-4 rounded-xl border border-[#e1e8ee] bg-white p-3" aria-label="Customer profile information" data-testid="customer-profile-completeness">
             <div className="flex flex-wrap items-center justify-between gap-2">

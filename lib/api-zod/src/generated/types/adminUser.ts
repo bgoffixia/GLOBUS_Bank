@@ -13,7 +13,6 @@ import type { AdminUserVerificationStatus } from './adminUserVerificationStatus'
 export interface AdminUser {
   id: string;
   email: string;
-  accountTierId: string;
   accountTierName: string;
   /**
      * @nullable

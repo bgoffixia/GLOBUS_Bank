@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
+import { getTableColumns } from "drizzle-orm";
+import { bankUsersTable } from "@workspace/db";
 import {
   classifyVaultPaystackChargeFailure,
   getVaultAccessSource,
@@ -64,25 +67,81 @@ test("no grant or active paid subscription means no Vault access", async () => {
   );
 });
 
-test("a valid paid plan selects its mapped tier and expiry restores the assigned tier", () => {
-  const assignedTier = { id: "gold", name: "Gold" };
-  const mappedTier = { id: "vault-annual", name: "Vault Annual" };
+test("active Vault plans determine the displayed tier and expiry returns to Standard", () => {
   const user = {
     vaultSubscriptionStatus: "active",
     vaultSubscriptionExpiresAt: new Date(Date.now() + 60_000),
+    vaultSubscriptionPlan: "3m",
   };
-  assert.deepEqual(
-    resolveEffectiveAccountTier(user, mappedTier, assignedTier),
-    { ...mappedTier, source: "paystack_subscription" },
-  );
+  assert.deepEqual(resolveEffectiveAccountTier(user), {
+    id: "gold",
+    name: "Gold 🪙",
+    source: "paystack_subscription",
+  });
+  assert.deepEqual(resolveEffectiveAccountTier({ ...user, vaultSubscriptionPlan: "1m" }), {
+    id: "silver",
+    name: "Silver🥈",
+    source: "paystack_subscription",
+  });
+  assert.deepEqual(resolveEffectiveAccountTier({ ...user, vaultSubscriptionPlan: "1y" }), {
+    id: "bronze",
+    name: "Bronze 🥉",
+    source: "paystack_subscription",
+  });
   assert.deepEqual(
     resolveEffectiveAccountTier(
-      { ...user, vaultSubscriptionExpiresAt: new Date(Date.now() - 60_000) },
-      mappedTier,
-      assignedTier,
+      {
+        ...user,
+        vaultSubscriptionExpiresAt: new Date(Date.now() - 60_000),
+      },
     ),
-    { ...assignedTier, source: "admin_assigned" },
+    { id: "standard", name: "Standard 🏦", source: "default" },
   );
+  assert.deepEqual(
+    resolveEffectiveAccountTier({
+      ...user,
+      vaultSubscriptionPlan: "unknown",
+    }),
+    { id: "standard", name: "Standard 🏦", source: "default" },
+  );
+});
+
+test("production-compatible user schema and tier calculation do not require tier database objects", () => {
+  const columnNames = Object.values(getTableColumns(bankUsersTable)).map(
+    (column) => column.name,
+  );
+  assert.equal(columnNames.includes("account_tier_id"), false);
+
+  const schemaSource = readFileSync(
+    new URL("../../../lib/db/src/schema/bank.ts", import.meta.url),
+    "utf8",
+  );
+  const tierLibrarySource = readFileSync(
+    new URL("../src/lib/bank-vault.ts", import.meta.url),
+    "utf8",
+  );
+  const bankUserLibrarySource = readFileSync(
+    new URL("../src/lib/bank.ts", import.meta.url),
+    "utf8",
+  );
+  const customerRoutesSource = readFileSync(
+    new URL("../src/routes/bank.ts", import.meta.url),
+    "utf8",
+  );
+  const adminRoutesSource = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+
+  assert.doesNotMatch(schemaSource, /bank_account_tiers|account_tier_id/i);
+  assert.doesNotMatch(tierLibrarySource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
+  assert.doesNotMatch(bankUserLibrarySource, /bank_account_tiers|account_tier_id|accountTierId/i);
+  assert.match(
+    bankUserLibrarySource,
+    /export async function ensureBankUser[\s\S]*?\.select\(\)[\s\S]*?\.from\(bankUsersTable\)/,
+  );
+  assert.doesNotMatch(customerRoutesSource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
+  assert.doesNotMatch(adminRoutesSource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
 });
 
 test("Testing Mode clears only for an active paid subscription or admin grant", () => {

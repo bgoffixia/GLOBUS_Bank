@@ -64,7 +64,7 @@ export const GetBankProfileResponse = zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'admin_assigned'])
+  "source": zod.enum(['paystack_subscription', 'default'])
 }),
   "createdAt": zod.coerce.date()
 })
@@ -780,14 +780,14 @@ export const GetBankDashboardResponse = zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'admin_assigned'])
+  "source": zod.enum(['paystack_subscription', 'default'])
 }),
   "createdAt": zod.coerce.date()
 }).and(zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'admin_assigned'])
+  "source": zod.enum(['paystack_subscription', 'default'])
 }),
   "testingMode": zod.boolean()
 })),
@@ -999,7 +999,7 @@ export const UpdateBankProfileResponse = zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'admin_assigned'])
+  "source": zod.enum(['paystack_subscription', 'default'])
 }),
   "createdAt": zod.coerce.date()
 })
@@ -1064,7 +1064,7 @@ export const SaveSignupProfileResponse = zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'admin_assigned'])
+  "source": zod.enum(['paystack_subscription', 'default'])
 }),
   "createdAt": zod.coerce.date()
 })
@@ -1909,7 +1909,6 @@ export const ListAdminUsersResponse = zod.object({
   "items": zod.array(zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "accountTierId": zod.string(),
   "accountTierName": zod.string(),
   "customerId": zod.string().regex(listAdminUsersResponseItemsItemCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
@@ -1937,146 +1936,6 @@ export const ListAdminUsersResponse = zod.object({
   "total": zod.number().int(),
   "page": zod.number().int(),
   "pageSize": zod.number().int()
-})
-
-
-/**
- * @summary List account tiers and Vault plan mappings
- */
-export const listAdminAccountTiersResponseItemsItemNameMin = 2;
-export const listAdminAccountTiersResponseItemsItemNameMax = 80;
-
-export const listAdminAccountTiersResponseItemsItemDescriptionMax = 240;
-
-
-
-export const ListAdminAccountTiersResponse = zod.object({
-  "items": zod.array(zod.object({
-  "id": zod.string(),
-  "name": zod.string().min(listAdminAccountTiersResponseItemsItemNameMin).max(listAdminAccountTiersResponseItemsItemNameMax),
-  "description": zod.string().max(listAdminAccountTiersResponseItemsItemDescriptionMax).nullable(),
-  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
-  "active": zod.boolean(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-}))
-})
-
-
-/**
- * @summary Create an account tier
- */
-export const createAdminAccountTierBodyNameMin = 2;
-export const createAdminAccountTierBodyNameMax = 80;
-
-export const createAdminAccountTierBodyDescriptionMax = 240;
-
-export const createAdminAccountTierBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
-
-
-export const CreateAdminAccountTierBody = zod.object({
-  "name": zod.string().min(createAdminAccountTierBodyNameMin).max(createAdminAccountTierBodyNameMax),
-  "description": zod.string().max(createAdminAccountTierBodyDescriptionMax).nullable(),
-  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
-  "active": zod.boolean(),
-  "transactionPin": zod.string().regex(createAdminAccountTierBodyTransactionPinRegExp),
-  "confirmed": zod.literal(true)
-})
-
-export const createAdminAccountTierResponseItemNameMin = 2;
-export const createAdminAccountTierResponseItemNameMax = 80;
-
-export const createAdminAccountTierResponseItemDescriptionMax = 240;
-
-
-
-export const CreateAdminAccountTierResponse = zod.object({
-  "item": zod.object({
-  "id": zod.string(),
-  "name": zod.string().min(createAdminAccountTierResponseItemNameMin).max(createAdminAccountTierResponseItemNameMax),
-  "description": zod.string().max(createAdminAccountTierResponseItemDescriptionMax).nullable(),
-  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
-  "active": zod.boolean(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
-})
-
-
-/**
- * @summary Update an account tier and its Vault plan mapping
- */
-export const updateAdminAccountTierPathTierIdMax = 100;
-
-
-
-export const UpdateAdminAccountTierParams = zod.object({
-  "tierId": zod.coerce.string().min(1).max(updateAdminAccountTierPathTierIdMax)
-})
-
-export const updateAdminAccountTierBodyNameMin = 2;
-export const updateAdminAccountTierBodyNameMax = 80;
-
-export const updateAdminAccountTierBodyDescriptionMax = 240;
-
-export const updateAdminAccountTierBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
-
-
-export const UpdateAdminAccountTierBody = zod.object({
-  "name": zod.string().min(updateAdminAccountTierBodyNameMin).max(updateAdminAccountTierBodyNameMax),
-  "description": zod.string().max(updateAdminAccountTierBodyDescriptionMax).nullable(),
-  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
-  "active": zod.boolean(),
-  "transactionPin": zod.string().regex(updateAdminAccountTierBodyTransactionPinRegExp),
-  "confirmed": zod.literal(true)
-})
-
-export const updateAdminAccountTierResponseItemNameMin = 2;
-export const updateAdminAccountTierResponseItemNameMax = 80;
-
-export const updateAdminAccountTierResponseItemDescriptionMax = 240;
-
-
-
-export const UpdateAdminAccountTierResponse = zod.object({
-  "item": zod.object({
-  "id": zod.string(),
-  "name": zod.string().min(updateAdminAccountTierResponseItemNameMin).max(updateAdminAccountTierResponseItemNameMax),
-  "description": zod.string().max(updateAdminAccountTierResponseItemDescriptionMax).nullable(),
-  "vaultPlanCode": zod.union([zod.literal('1m'),zod.literal('3m'),zod.literal('1y'),zod.literal(null)]).nullable(),
-  "active": zod.boolean(),
-  "createdAt": zod.coerce.date(),
-  "updatedAt": zod.coerce.date()
-})
-})
-
-
-/**
- * @summary Assign a tier to an individual customer
- */
-export const setAdminUserAccountTierPathUserIdMax = 200;
-
-
-
-export const SetAdminUserAccountTierParams = zod.object({
-  "userId": zod.coerce.string().min(1).max(setAdminUserAccountTierPathUserIdMax)
-})
-
-export const setAdminUserAccountTierBodyTierIdMax = 100;
-
-export const setAdminUserAccountTierBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
-
-
-export const SetAdminUserAccountTierBody = zod.object({
-  "tierId": zod.string().min(1).max(setAdminUserAccountTierBodyTierIdMax),
-  "transactionPin": zod.string().regex(setAdminUserAccountTierBodyTransactionPinRegExp),
-  "confirmed": zod.literal(true)
-})
-
-export const SetAdminUserAccountTierResponse = zod.object({
-  "userId": zod.string(),
-  "accountTierId": zod.string(),
-  "accountTierName": zod.string()
 })
 
 
@@ -2203,7 +2062,6 @@ export const GetAdminUserDetailResponse = zod.object({
   "user": zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "accountTierId": zod.string(),
   "accountTierName": zod.string(),
   "customerId": zod.string().regex(getAdminUserDetailResponseUserCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
@@ -2338,7 +2196,6 @@ export const updateAdminUserStatusResponseVaultSubscriptionAmountMinorRegExp = n
 export const UpdateAdminUserStatusResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "accountTierId": zod.string(),
   "accountTierName": zod.string(),
   "customerId": zod.string().regex(updateAdminUserStatusResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
@@ -2409,7 +2266,6 @@ export const updateAdminUserProfileResponseVaultSubscriptionAmountMinorRegExp = 
 export const UpdateAdminUserProfileResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
-  "accountTierId": zod.string(),
   "accountTierName": zod.string(),
   "customerId": zod.string().regex(updateAdminUserProfileResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),

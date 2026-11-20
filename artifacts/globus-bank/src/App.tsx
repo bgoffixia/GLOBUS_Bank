@@ -281,7 +281,6 @@ function ClerkRoutes() {
         <Route path="/admin/transactions"><ProtectedAdminPage /></Route>
         <Route path="/admin/funding"><ProtectedAdminPage /></Route>
         <Route path="/admin/wallets"><ProtectedAdminPage /></Route>
-        <Route path="/admin/account-tiers"><ProtectedAdminPage /></Route>
         <Route path="/admin/restrictions"><ProtectedAdminPage /></Route>
         <Route path="/admin/audit"><ProtectedAdminPage /></Route>
         <Route path="/admin/settings"><ProtectedAdminPage /></Route>

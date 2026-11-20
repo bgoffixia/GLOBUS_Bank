@@ -5,7 +5,6 @@ import express from "express";
 import { after, test } from "node:test";
 import { and, eq, inArray } from "drizzle-orm";
 import {
-  bankAccountTiersTable,
   bankAuditLogsTable,
   bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
@@ -31,8 +30,6 @@ const targetEmail = `${targetId}@example.test`;
 const adminPin = "481639";
 const originalAdminIds = process.env.GLOBUS_ADMIN_CLERK_IDS;
 const originalAdminEmails = process.env.GLOBUS_ADMIN_EMAILS;
-let createdTierId: string | null = null;
-
 after(async () => {
   const ids = [adminId, nonAdminId, targetId, paidUserId];
   try {
@@ -48,16 +45,7 @@ after(async () => {
     await db.delete(bankAuditLogsTable).where(
       inArray(bankAuditLogsTable.targetUserId, ids),
     );
-    await db
-      .update(bankUsersTable)
-      .set({ accountTierId: "standard" })
-      .where(inArray(bankUsersTable.id, ids));
     await db.delete(bankUsersTable).where(inArray(bankUsersTable.id, ids));
-    if (createdTierId) {
-      await db
-        .delete(bankAccountTiersTable)
-        .where(eq(bankAccountTiersTable.id, createdTierId));
-    }
   } finally {
     await pool.end();
     if (originalAdminIds === undefined) delete process.env.GLOBUS_ADMIN_CLERK_IDS;
@@ -316,98 +304,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       vaultSubscriptionStatus: "inactive",
       vaultSubscriptionExpiresAt: null,
     }), true);
-
-    const tierInput = {
-      name: "Test customer tier",
-      description: "Tier assignment integration test.",
-      vaultPlanCode: null,
-      active: true,
-      transactionPin: adminPin,
-      confirmed: true,
-    };
-    const unauthorizedTierCreate = await request("/account-tiers", nonAdminId, {
-      method: "POST",
-      body: JSON.stringify(tierInput),
-    });
-    assert.equal(unauthorizedTierCreate.status, 403);
-    const tierCreate = await request("/account-tiers", adminId, {
-      method: "POST",
-      body: JSON.stringify(tierInput),
-    });
-    assert.equal(tierCreate.status, 201, await tierCreate.clone().text());
-    const tierCreatedData = await tierCreate.json() as {
-      item: { id: string; name: string; vaultPlanCode: string | null };
-    };
-    createdTierId = tierCreatedData.item.id;
-    assert.equal(tierCreatedData.item.name, tierInput.name);
-    assert.equal(tierCreatedData.item.vaultPlanCode, null);
-
-    const tierUpdate = await request(`/account-tiers/${createdTierId}`, adminId, {
-      method: "PATCH",
-      body: JSON.stringify({
-        ...tierInput,
-        name: "Test customer tier updated",
-      }),
-    });
-    assert.equal(tierUpdate.status, 200, await tierUpdate.clone().text());
-
-    const unauthorizedAssignment = await request(
-      `/users/${targetId}/account-tier`,
-      nonAdminId,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          tierId: createdTierId,
-          transactionPin: adminPin,
-          confirmed: true,
-        }),
-      },
-    );
-    assert.equal(unauthorizedAssignment.status, 403);
-    const selfTierAssignment = await request(
-      `/users/${adminId}/account-tier`,
-      adminId,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          tierId: createdTierId,
-          reason: "Self tier change is prohibited",
-          transactionPin: adminPin,
-          confirmed: true,
-        }),
-      },
-    );
-    assert.equal(selfTierAssignment.status, 200, await selfTierAssignment.clone().text());
-    const tierAssignment = await request(
-      `/users/${targetId}/account-tier`,
-      adminId,
-      {
-        method: "PATCH",
-        body: JSON.stringify({
-          tierId: createdTierId,
-          transactionPin: adminPin,
-          confirmed: true,
-        }),
-      },
-    );
-    assert.equal(tierAssignment.status, 200, await tierAssignment.clone().text());
-    const assigned = await tierAssignment.json() as {
-      userId: string;
-      accountTierId: string;
-      accountTierName: string;
-    };
-    assert.equal(assigned.userId, targetId);
-    assert.equal(assigned.accountTierId, createdTierId);
-    assert.equal(assigned.accountTierName, "Test customer tier updated");
-    assert.equal(
-      await getVaultAccessSource({
-        id: targetId,
-        vaultSubscriptionStatus: "inactive",
-        vaultSubscriptionExpiresAt: null,
-      }),
-      "none",
-    );
-    assert.equal(isVaultTestingMode("none"), true);
 
     const initialSearch = await request(
       `/vault-access?search=${encodeURIComponent(targetEmail)}`,

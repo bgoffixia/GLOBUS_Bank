@@ -741,8 +741,7 @@ test.describe('admin pages and wide tables at phone widths', () => {
     const member = {
       id: 'viewport-member',
       email: 'viewport-member@example.test',
-      accountTierId: 'standard',
-      accountTierName: 'Standard',
+      accountTierName: 'Standard 🏦',
       customerId: 'ABC1234',
       firstName: 'Viewport',
       lastName: 'Member',

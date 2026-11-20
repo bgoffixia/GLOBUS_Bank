@@ -283,7 +283,7 @@ export type DashboardAccountTierSource = typeof DashboardAccountTierSource[keyof
 
 export const DashboardAccountTierSource = {
   paystack_subscription: 'paystack_subscription',
-  admin_assigned: 'admin_assigned',
+  default: 'default',
 } as const;
 
 export interface DashboardAccountTier {
@@ -1233,7 +1233,6 @@ export const AdminUserVaultSubscriptionPlan = {
 export interface AdminUser {
   id: string;
   email: string;
-  accountTierId: string;
   accountTierName: string;
   /**
      * @nullable
@@ -1277,93 +1276,6 @@ export interface AdminUser {
   vaultSubscriptionAutoRenew?: boolean;
   walletCount: number;
   createdAt: string;
-}
-
-/**
- * @nullable
- */
-export type AdminAccountTierVaultPlanCode = typeof AdminAccountTierVaultPlanCode[keyof typeof AdminAccountTierVaultPlanCode] | null;
-
-
-export const AdminAccountTierVaultPlanCode = {
-  '1m': '1m',
-  '3m': '3m',
-  '1y': '1y',
-} as const;
-
-export interface AdminAccountTier {
-  id: string;
-  /**
-     * @minLength 2
-     * @maxLength 80
-     */
-  name: string;
-  /**
-     * @maxLength 240
-     * @nullable
-     */
-  description: string | null;
-  /** @nullable */
-  vaultPlanCode: AdminAccountTierVaultPlanCode;
-  active: boolean;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface AdminAccountTierList {
-  items: AdminAccountTier[];
-}
-
-/**
- * @nullable
- */
-export type AdminAccountTierInputVaultPlanCode = typeof AdminAccountTierInputVaultPlanCode[keyof typeof AdminAccountTierInputVaultPlanCode] | null;
-
-
-export const AdminAccountTierInputVaultPlanCode = {
-  '1m': '1m',
-  '3m': '3m',
-  '1y': '1y',
-} as const;
-
-export interface AdminAccountTierInput {
-  /**
-     * @minLength 2
-     * @maxLength 80
-     */
-  name: string;
-  /**
-     * @maxLength 240
-     * @nullable
-     */
-  description: string | null;
-  /** @nullable */
-  vaultPlanCode: AdminAccountTierInputVaultPlanCode;
-  active: boolean;
-  /** @pattern ^[0-9]{6}$ */
-  transactionPin: string;
-  confirmed: true;
-}
-
-export interface AdminAccountTierResponse {
-  item: AdminAccountTier;
-}
-
-export interface AdminAccountTierAssignmentInput {
-  /**
-     * @minLength 1
-     * @maxLength 100
-     */
-  tierId: string;
-  /** @pattern ^[0-9]{6}$ */
-  transactionPin: string;
-  confirmed: true;
-}
-
-export interface AdminAccountTierAssignmentResponse {
-  userId: string;
-  accountTierId: string;
-  accountTierName: string;
 }
 
 export interface AdminUserPage {

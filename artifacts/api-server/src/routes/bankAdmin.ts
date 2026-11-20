@@ -1,6 +1,5 @@
 import { Router, type IRouter, type Request, type RequestHandler } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
-import { randomUUID } from "node:crypto";
 import {
   and,
   asc,
@@ -22,8 +21,6 @@ import {
   CreateAdminFundingBody,
   CreateAdminFundingParams,
   CreateAdminFundingResponse,
-  CreateAdminAccountTierBody,
-  CreateAdminAccountTierResponse,
   GetAdminWalletCurrencyMigrationPreviewResponse,
   ConvertAdminWalletCurrenciesToUsdBody,
   ConvertAdminWalletCurrenciesToUsdResponse,
@@ -39,7 +36,6 @@ import {
   GetAdminTransactionDetailResponse,
   GetAdminUserDetailParams,
   GetAdminUserDetailResponse,
-  ListAdminAccountTiersResponse,
   ListAdminRestrictionsQueryParams,
   ListAdminRestrictionsResponse,
   ListAdminAccountsQueryParams,
@@ -101,18 +97,11 @@ import {
   ResetAdminUserTransactionPinBody,
   ResetAdminUserTransactionPinParams,
   ResetAdminUserTransactionPinResponse,
-  SetAdminUserAccountTierBody,
-  SetAdminUserAccountTierParams,
-  SetAdminUserAccountTierResponse,
   UpdateAdminUserAccessControlsBody,
   UpdateAdminUserAccessControlsParams,
   UpdateAdminUserAccessControlsResponse,
-  UpdateAdminAccountTierBody,
-  UpdateAdminAccountTierParams,
-  UpdateAdminAccountTierResponse,
 } from "@workspace/api-zod";
 import {
-  bankAccountTiersTable,
   bankAuditLogsTable,
   bankAdminSettingsTable,
   bankExchangeRatesTable,
@@ -158,6 +147,7 @@ import {
   normalizeAdminAccessReason,
 } from "../lib/admin-access-controls";
 import {
+  getEffectiveAccountTier,
   hasActiveVaultAccess,
   vaultSubscriptionStatus,
 } from "../lib/bank-vault";
@@ -180,9 +170,6 @@ const adminAuditOperationLabels: Array<[string, string]> = [
   ["/bank/admin/restrictions", "restriction creation"],
   ["/bank/admin/settings", "operations settings update"],
   ["/bank/admin/ledger-requests/:requestId", "customer request review"],
-  ["/bank/admin/account-tiers/:tierId", "account tier update"],
-  ["/bank/admin/account-tiers", "account tier creation"],
-  ["/bank/admin/users/:userId/account-tier", "customer account tier assignment"],
   ["/bank/admin/users/:userId/vault-access/grant", "Private Vault admin grant"],
   ["/bank/admin/users/:userId/vault-access/revoke", "Private Vault admin grant revocation"],
   ["/bank/admin/users/:userId/transaction-pin/reset", "customer transaction PIN reset"],
@@ -203,7 +190,6 @@ const adminAuditDetailFields = [
   "status",
   "decision",
   "type",
-  "tierId",
   "vaultPlanCode",
   "testingModeDisabled",
   "transferAccessGranted",
@@ -309,23 +295,6 @@ function adminVaultAccessRecord(
     adminGrantReason: grant?.reason ?? null,
     accessActive: Boolean(grant) || subscriptionActive,
     accessSource,
-  };
-}
-
-function isUniqueConstraintError(error: unknown): boolean {
-  if (typeof error !== "object" || error === null) return false;
-  const queryError = error as {
-    code?: unknown;
-    cause?: { code?: unknown };
-  };
-  return queryError.code === "23505" || queryError.cause?.code === "23505";
-}
-
-function accountTierRecord(tier: typeof bankAccountTiersTable.$inferSelect) {
-  return {
-    ...tier,
-    createdAt: tier.createdAt.toISOString(),
-    updatedAt: tier.updatedAt.toISOString(),
   };
 }
 
@@ -2254,8 +2223,6 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
     .select({
       id: bankUsersTable.id,
       email: bankUsersTable.email,
-      accountTierId: bankUsersTable.accountTierId,
-      accountTierName: bankAccountTiersTable.name,
       customerId: bankUsersTable.customerId,
       firstName: bankUsersTable.firstName,
       lastName: bankUsersTable.lastName,
@@ -2269,20 +2236,17 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       profileSetupCompletedAt: bankUsersTable.profileSetupCompletedAt,
       testingModeDisabled: bankUsersTable.testingModeDisabled,
       transferAccessGranted: bankUsersTable.transferAccessGranted,
+      vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
+      vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
+      vaultSubscriptionPlan: bankUsersTable.vaultSubscriptionPlan,
       createdAt: bankUsersTable.createdAt,
       walletCount: count(bankWalletsTable.id),
     })
     .from(bankUsersTable)
     .leftJoin(bankWalletsTable, eq(bankWalletsTable.userId, bankUsersTable.id))
-    .leftJoin(
-      bankAccountTiersTable,
-      eq(bankAccountTiersTable.id, bankUsersTable.accountTierId),
-    )
     .where(filters.length ? and(...filters) : undefined)
     .groupBy(
       bankUsersTable.id,
-      bankUsersTable.accountTierId,
-      bankAccountTiersTable.name,
       bankUsersTable.email,
       bankUsersTable.firstName,
       bankUsersTable.lastName,
@@ -2296,6 +2260,9 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       bankUsersTable.profileSetupCompletedAt,
       bankUsersTable.testingModeDisabled,
       bankUsersTable.transferAccessGranted,
+      bankUsersTable.vaultSubscriptionStatus,
+      bankUsersTable.vaultSubscriptionExpiresAt,
+      bankUsersTable.vaultSubscriptionPlan,
       bankUsersTable.createdAt,
     )
     .orderBy(desc(bankUsersTable.createdAt))
@@ -2331,6 +2298,7 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       {
         items: rows.map((row) => ({
           ...row,
+          accountTierName: getEffectiveAccountTier(row, now).name,
           verificationStatus: row.verificationStatus as
             | "not_started"
             | "pending"
@@ -2368,255 +2336,6 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
     ),
   );
 });
-
-router.get(
-  "/bank/admin/account-tiers",
-  requireAdmin,
-  async (_req, res): Promise<void> => {
-    const tiers = await db
-      .select()
-      .from(bankAccountTiersTable)
-      .orderBy(asc(bankAccountTiersTable.name));
-    res.json(
-      ListAdminAccountTiersResponse.parse({
-        items: tiers.map(accountTierRecord),
-      }),
-    );
-  },
-);
-
-router.post(
-  "/bank/admin/account-tiers",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const authUserId = getAuth(req).userId;
-    const parsed = CreateAdminAccountTierBody.safeParse(req.body);
-    if (!parsed.success) {
-      res.status(400).json({ error: parsed.error.message });
-      return;
-    }
-    if (!authUserId) {
-      res.status(401).json({ error: "Sign in with an administrator account." });
-      return;
-    }
-    const name = parsed.data.name.trim();
-    const reason = generatedAdminAuditReason(req);
-    if (name.length < 2) {
-      res.status(400).json({ error: "Enter a tier name with at least two characters." });
-      return;
-    }
-    const actor = await ensureBankUser(authUserId);
-    const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
-    if (pinResult !== "valid") {
-      const status = pinResult === "locked" ? 429 : pinResult === "not_configured" ? 409 : 403;
-      res.status(status).json({
-        error: pinResult === "not_configured"
-          ? "Set up an administrator transaction PIN before changing account tiers."
-          : pinResult === "locked"
-            ? "Too many incorrect PIN attempts. Try again later."
-            : "The administrator transaction PIN is incorrect.",
-      });
-      return;
-    }
-    try {
-      const tier = await db.transaction(async (tx) => {
-        const [created] = await tx
-          .insert(bankAccountTiersTable)
-          .values({
-            id: `account-tier-${randomUUID()}`,
-            name,
-            description: parsed.data.description?.trim() || null,
-            vaultPlanCode: parsed.data.vaultPlanCode,
-            active: parsed.data.active,
-          })
-          .returning();
-        await tx.insert(bankAuditLogsTable).values({
-          actorUserId: actor.id,
-          targetUserId: actor.id,
-          action: "create_account_tier",
-          reason: `${reason} Created tier ${created.name} (${created.id}); mapped Vault plan: ${created.vaultPlanCode ?? "none"}.`,
-        });
-        return created;
-      });
-      res.status(201).json(
-        CreateAdminAccountTierResponse.parse({ item: accountTierRecord(tier) }),
-      );
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        res.status(409).json({
-          error: "That tier name or Vault plan mapping is already in use.",
-        });
-        return;
-      }
-      throw error;
-    }
-  },
-);
-
-router.patch(
-  "/bank/admin/account-tiers/:tierId",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const authUserId = getAuth(req).userId;
-    const params = UpdateAdminAccountTierParams.safeParse(req.params);
-    const parsed = UpdateAdminAccountTierBody.safeParse(req.body);
-    if (!params.success || !parsed.success) {
-      res.status(400).json({
-        error: !params.success
-          ? params.error.message
-          : parsed.error?.message ?? "Invalid account tier.",
-      });
-      return;
-    }
-    if (!authUserId) {
-      res.status(401).json({ error: "Sign in with an administrator account." });
-      return;
-    }
-    const name = parsed.data.name.trim();
-    const reason = generatedAdminAuditReason(req);
-    if (name.length < 2) {
-      res.status(400).json({ error: "Enter a tier name with at least two characters." });
-      return;
-    }
-    if (params.data.tierId === "standard" && !parsed.data.active) {
-      res.status(409).json({ error: "The default Standard tier must remain active." });
-      return;
-    }
-    const actor = await ensureBankUser(authUserId);
-    const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
-    if (pinResult !== "valid") {
-      const status = pinResult === "locked" ? 429 : pinResult === "not_configured" ? 409 : 403;
-      res.status(status).json({
-        error: pinResult === "not_configured"
-          ? "Set up an administrator transaction PIN before changing account tiers."
-          : pinResult === "locked"
-            ? "Too many incorrect PIN attempts. Try again later."
-            : "The administrator transaction PIN is incorrect.",
-      });
-      return;
-    }
-    try {
-      const result = await db.transaction(async (tx) => {
-        const [tier] = await tx
-          .update(bankAccountTiersTable)
-          .set({
-            name,
-            description: parsed.data.description?.trim() || null,
-            vaultPlanCode: parsed.data.vaultPlanCode,
-            active: parsed.data.active,
-            updatedAt: new Date(),
-          })
-          .where(eq(bankAccountTiersTable.id, params.data.tierId))
-          .returning();
-        if (!tier) return null;
-        await tx.insert(bankAuditLogsTable).values({
-          actorUserId: actor.id,
-          targetUserId: actor.id,
-          action: "update_account_tier",
-          reason: `${reason} Updated tier ${tier.name} (${tier.id}); mapped Vault plan: ${tier.vaultPlanCode ?? "none"}; active: ${tier.active}.`,
-        });
-        return tier;
-      });
-      if (!result) {
-        res.status(404).json({ error: "Account tier not found." });
-        return;
-      }
-      res.json(
-        UpdateAdminAccountTierResponse.parse({ item: accountTierRecord(result) }),
-      );
-    } catch (error) {
-      if (isUniqueConstraintError(error)) {
-        res.status(409).json({
-          error: "That tier name or Vault plan mapping is already in use.",
-        });
-        return;
-      }
-      throw error;
-    }
-  },
-);
-
-router.patch(
-  "/bank/admin/users/:userId/account-tier",
-  requireAdmin,
-  async (req, res): Promise<void> => {
-    const authUserId = getAuth(req).userId;
-    const params = SetAdminUserAccountTierParams.safeParse(req.params);
-    const parsed = SetAdminUserAccountTierBody.safeParse(req.body);
-    if (!params.success || !parsed.success) {
-      res.status(400).json({
-        error: !params.success
-          ? params.error.message
-          : parsed.error?.message ?? "Invalid customer tier assignment.",
-      });
-      return;
-    }
-    if (!authUserId) {
-      res.status(401).json({ error: "Sign in with an administrator account." });
-      return;
-    }
-    const reason = generatedAdminAuditReason(req);
-    const actor = await ensureBankUser(authUserId);
-    const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
-    if (pinResult !== "valid") {
-      const status = pinResult === "locked" ? 429 : pinResult === "not_configured" ? 409 : 403;
-      res.status(status).json({
-        error: pinResult === "not_configured"
-          ? "Set up an administrator transaction PIN before changing account tiers."
-          : pinResult === "locked"
-            ? "Too many incorrect PIN attempts. Try again later."
-            : "The administrator transaction PIN is incorrect.",
-      });
-      return;
-    }
-    const result = await db.transaction(async (tx) => {
-      const [tier] = await tx
-        .select()
-        .from(bankAccountTiersTable)
-        .where(
-          and(
-            eq(bankAccountTiersTable.id, parsed.data.tierId),
-            eq(bankAccountTiersTable.active, true),
-          ),
-        )
-        .limit(1);
-      if (!tier) return { invalidTier: true as const };
-      const [target] = await tx
-        .select()
-        .from(bankUsersTable)
-        .where(eq(bankUsersTable.id, params.data.userId))
-        .for("update");
-      if (!target) return { notFound: true as const };
-      const [updated] = await tx
-        .update(bankUsersTable)
-        .set({ accountTierId: tier.id, updatedAt: new Date() })
-        .where(eq(bankUsersTable.id, target.id))
-        .returning({ id: bankUsersTable.id });
-      await tx.insert(bankAuditLogsTable).values({
-        actorUserId: actor.id,
-        targetUserId: target.id,
-        action: "set_customer_account_tier",
-        reason: `${reason} Assigned tier ${tier.name} (${tier.id}). This assignment does not grant Vault access.`,
-      });
-      return { userId: updated.id, tier };
-    });
-    if ("invalidTier" in result) {
-      res.status(400).json({ error: "Choose an active account tier." });
-      return;
-    }
-    if ("notFound" in result) {
-      res.status(404).json({ error: "Customer record not found." });
-      return;
-    }
-    res.json(
-      SetAdminUserAccountTierResponse.parse({
-        userId: result.userId,
-        accountTierId: result.tier.id,
-        accountTierName: result.tier.name,
-      }),
-    );
-  },
-);
 
 router.get(
   "/bank/admin/vault-access",
@@ -2811,19 +2530,8 @@ router.get(
       res.status(404).json({ error: "User record not found." });
       return;
     }
-    const [accountTier] = await db
-      .select({
-        id: bankAccountTiersTable.id,
-        name: bankAccountTiersTable.name,
-      })
-      .from(bankAccountTiersTable)
-      .where(eq(bankAccountTiersTable.id, user.accountTierId))
-      .limit(1);
-    if (!accountTier) {
-      res.status(500).json({ error: "The customer’s account tier is unavailable." });
-      return;
-    }
     const now = new Date();
+    const effectiveAccountTier = getEffectiveAccountTier(user, now);
     const [wallets, transactions, history, transactionCountRows, activeRestrictions] = await Promise.all([
       getWalletsForUser(user.id),
       listUserTransactions(user.id, { limit: 50 }),
@@ -2884,8 +2592,7 @@ router.get(
         user: {
           id: user.id,
           email: user.email,
-          accountTierId: accountTier.id,
-          accountTierName: accountTier.name,
+          accountTierName: effectiveAccountTier.name,
           customerId: user.customerId,
           firstName: user.firstName,
           lastName: user.lastName,
