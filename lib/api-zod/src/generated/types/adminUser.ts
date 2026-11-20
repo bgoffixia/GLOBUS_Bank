@@ -6,6 +6,8 @@
  * OpenAPI spec version: 0.1.0
  */
 import type { AdminUserAccountStatus } from './adminUserAccountStatus';
+import type { AdminUserAccountTierSource } from './adminUserAccountTierSource';
+import type { AdminUserAdminAccountTier } from './adminUserAdminAccountTier';
 import type { AdminUserVaultSubscriptionPlan } from './adminUserVaultSubscriptionPlan';
 import type { AdminUserVaultSubscriptionStatus } from './adminUserVaultSubscriptionStatus';
 
@@ -13,6 +15,9 @@ export interface AdminUser {
   id: string;
   email: string;
   accountTierName: string;
+  accountTierSource: AdminUserAccountTierSource;
+  /** @nullable */
+  adminAccountTier: AdminUserAdminAccountTier;
   /**
      * @nullable
      * @pattern ^[A-Z0-9]{7}$

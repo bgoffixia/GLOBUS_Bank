@@ -11,8 +11,13 @@ import {
   hasImmediateTransferAccess,
   isVaultTestingMode,
   resolveEffectiveAccountTier,
+  resolveFutureTransferStatus,
 } from "../src/lib/bank-vault";
 import { parseAmountToMinor } from "../src/lib/bank";
+import {
+  bankRestrictionTypeError,
+  isOutgoingTransferEnabled,
+} from "../src/lib/bank";
 import { normalizeVaultTopUpDescription } from "../src/lib/vault-subscriber-deposit";
 
 function fakeEntitlementLookup(granted: boolean) {
@@ -106,11 +111,53 @@ test("active Vault plans determine the displayed tier and expiry returns to Stan
   );
 });
 
+test("administrator base tier applies after a paid plan ends but never grants Vault access", async () => {
+  const assigned = {
+    vaultSubscriptionStatus: "inactive",
+    vaultSubscriptionExpiresAt: null,
+    vaultSubscriptionPlan: null,
+    adminAccountTier: "silver",
+  };
+  assert.deepEqual(resolveEffectiveAccountTier(assigned), {
+    id: "silver",
+    name: "Silver🥈",
+    source: "admin_assignment",
+  });
+  assert.deepEqual(resolveEffectiveAccountTier({
+    ...assigned,
+    vaultSubscriptionStatus: "active",
+    vaultSubscriptionExpiresAt: new Date(Date.now() + 60_000),
+    vaultSubscriptionPlan: "3m",
+  }), {
+    id: "gold",
+    name: "Gold 🪙",
+    source: "paystack_subscription",
+  });
+  assert.deepEqual(resolveEffectiveAccountTier({
+    ...assigned,
+    vaultSubscriptionStatus: "expired",
+    vaultSubscriptionExpiresAt: new Date(Date.now() - 60_000),
+  }), {
+    id: "silver",
+    name: "Silver🥈",
+    source: "admin_assignment",
+  });
+  assert.equal(
+    await hasActiveVaultAccess(
+      { id: "tier-only", ...assigned },
+      fakeEntitlementLookup(false),
+    ),
+    false,
+    "a tier assignment alone must not grant Vault access",
+  );
+});
+
 test("production-compatible user schema and tier calculation do not require tier database objects", () => {
   const columnNames = Object.values(getTableColumns(bankUsersTable)).map(
     (column) => column.name,
   );
   assert.equal(columnNames.includes("account_tier_id"), false);
+  assert.equal(columnNames.includes("admin_account_tier"), true);
 
   const schemaSource = readFileSync(
     new URL("../../../lib/db/src/schema/bank.ts", import.meta.url),
@@ -132,6 +179,17 @@ test("production-compatible user schema and tier calculation do not require tier
     new URL("../src/routes/bankAdmin.ts", import.meta.url),
     "utf8",
   );
+  const tierMigration = readFileSync(
+    new URL("../../../lib/db/migrations/20261120_admin_account_tier_override.sql", import.meta.url),
+    "utf8",
+  );
+  const accountTierRouteStart = adminRoutesSource.indexOf(
+    'router.patch(\n  "/bank/admin/users/:userId/account-tier"',
+  );
+  const accountTierRoute = adminRoutesSource.slice(
+    accountTierRouteStart,
+    accountTierRouteStart + 2_500,
+  );
 
   assert.doesNotMatch(schemaSource, /bank_account_tiers|account_tier_id/i);
   assert.doesNotMatch(tierLibrarySource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
@@ -142,6 +200,16 @@ test("production-compatible user schema and tier calculation do not require tier
   );
   assert.doesNotMatch(customerRoutesSource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
   assert.doesNotMatch(adminRoutesSource, /bankAccountTiersTable|bank_account_tiers|accountTierId/i);
+  assert.doesNotMatch(tierMigration, /bank_account_tiers|account_tier_id/i);
+  assert.match(tierMigration, /ADD COLUMN IF NOT EXISTS admin_account_tier text/i);
+  assert.notEqual(accountTierRouteStart, -1);
+  assert.match(accountTierRoute, /requireAdmin/);
+  assert.match(accountTierRoute, /verifyTransactionPin/);
+  assert.match(accountTierRoute, /insert\(bankAuditLogsTable\)/);
+  assert.match(accountTierRoute, /generatedAdminAuditReason\(req\)/);
+  assert.match(accountTierRoute, /actorUserId:\s*actor\.id/);
+  assert.match(accountTierRoute, /targetUserId:\s*user\.id/);
+  assert.match(accountTierRoute, /action:\s*"assign_customer_account_tier"/);
 });
 
 test("Testing Mode clears only for an active paid subscription or admin grant", () => {
@@ -150,6 +218,11 @@ test("Testing Mode clears only for an active paid subscription or admin grant", 
   assert.equal(isVaultTestingMode("admin_grant"), false);
   assert.equal(isVaultTestingMode("none", true), false);
   assert.equal(isVaultTestingMode("paystack_subscription", true), false);
+  assert.match(
+    readFileSync(new URL("../src/lib/bank-vault.ts", import.meta.url), "utf8"),
+    /export async function isVaultSessionActive[\s\S]*?hasActiveVaultAccess/,
+    "an admin grant should satisfy the same full-access check as a paid Vault plan",
+  );
 });
 
 test("separate transfer access works without granting Vault access", () => {
@@ -157,6 +230,53 @@ test("separate transfer access works without granting Vault access", () => {
   assert.equal(hasImmediateTransferAccess(false, true), true);
   assert.equal(hasImmediateTransferAccess(true, false), true);
   assert.equal(isVaultTestingMode("none"), true);
+});
+
+test("separate transfer grant bypasses transfer controls only", () => {
+  assert.equal(isOutgoingTransferEnabled(false, true), true);
+  assert.equal(isOutgoingTransferEnabled(false, false), false);
+  assert.equal(
+    bankRestrictionTypeError(
+      new Set(["restrict_outgoing_transfers"]),
+      "outgoing_transfer",
+      true,
+    ),
+    null,
+  );
+  assert.match(
+    bankRestrictionTypeError(
+      new Set(["restrict_outgoing_transfers"]),
+      "outgoing_transfer",
+      false,
+    ) ?? "",
+    /restricted/i,
+  );
+  for (const hardStop of ["suspend_user", "under_review", "read_only", "freeze_wallet"]) {
+    assert.notEqual(
+      bankRestrictionTypeError(
+        new Set([hardStop]),
+        "outgoing_transfer",
+        true,
+      ),
+      null,
+      `${hardStop} must remain enforced even with a transfer grant`,
+    );
+  }
+  assert.equal(
+    bankRestrictionTypeError(
+      new Set(["restrict_deposits"]),
+      "outgoing_transfer",
+      true,
+    ),
+    null,
+    "unrelated operation restrictions do not become transfer controls",
+  );
+  assert.equal(
+    resolveFutureTransferStatus("failed", true),
+    "failed",
+    "an administrator's explicit no-posting mode remains authoritative",
+  );
+  assert.equal(resolveFutureTransferStatus("pending", true), "pending");
 });
 
 test("failed Paystack charges are matched to the correct initial or renewal payment", () => {

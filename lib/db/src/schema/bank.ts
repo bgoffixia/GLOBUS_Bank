@@ -89,6 +89,7 @@ export const bankUsersTable = pgTable("bank_users", {
   transferAccessGranted: boolean("transfer_access_granted")
     .notNull()
     .default(false),
+  adminAccountTier: text("admin_account_tier"),
   transactionPinHash: text("transaction_pin_hash"),
   transactionPinFailedAttempts: integer("transaction_pin_failed_attempts")
     .notNull()
@@ -212,6 +213,10 @@ export const bankUsersTable = pgTable("bank_users", {
   check(
     "bank_users_preferred_receipt_template_check",
     sql`${table.preferredReceiptTemplate} in ('standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement', 'editorial_ledger', 'transfer_ledger_columnar', 'settlement_ledger', 'reconciliation_statement', 'settlement_timeline', 'archival_statement')`,
+  ),
+  check(
+    "bank_users_admin_account_tier_check",
+    sql`${table.adminAccountTier} is null or ${table.adminAccountTier} in ('standard', 'silver', 'gold', 'bronze')`,
   ),
   uniqueIndex("bank_users_vault_email_sender_local_part_unique").on(
     table.vaultEmailSenderLocalPart,

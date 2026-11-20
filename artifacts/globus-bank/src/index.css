@@ -368,6 +368,45 @@ img, svg, video, canvas {
   scroll-snap-type: x proximity;
 }
 
+.vault-locked-shell,
+.vault-unlocked-shell {
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100svh;
+  overflow: hidden;
+}
+
+.vault-locked-shell {
+  display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.vault-unlocked-shell {
+  display: grid;
+  grid-template-rows: auto auto minmax(0, 1fr);
+}
+
+.vault-workspace-grid {
+  grid-template-rows: minmax(0, 1fr);
+}
+
+.vault-page-content {
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scroll-behavior: smooth;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vault-unlock-scroll-region {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
 .vault-page-navigation > * {
   scroll-snap-align: start;
 }
@@ -445,6 +484,10 @@ img, svg, video, canvas {
   }
 
   .vault-page-navigation {
+    scroll-behavior: auto !important;
+  }
+
+  .vault-page-content {
     scroll-behavior: auto !important;
   }
 }

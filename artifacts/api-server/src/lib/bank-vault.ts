@@ -34,12 +34,22 @@ export type VaultSubscriptionState =
 
 export type EffectiveAccountTierSource =
   | "paystack_subscription"
+  | "admin_assignment"
   | "default";
 
+export type AdminAccountTierCode = "standard" | "silver" | "gold" | "bronze";
+
 export type EffectiveAccountTier = {
-  id: string;
+  id: AdminAccountTierCode;
   name: string;
   source: EffectiveAccountTierSource;
+};
+
+const ADMIN_ACCOUNT_TIER_LABELS: Record<AdminAccountTierCode, string> = {
+  standard: "Standard 🏦",
+  silver: "Silver🥈",
+  gold: "Gold 🪙",
+  bronze: "Bronze 🥉",
 };
 
 export function vaultSubscriptionStatus(
@@ -127,6 +137,7 @@ export function resolveEffectiveAccountTier(
     vaultSubscriptionStatus: string;
     vaultSubscriptionExpiresAt: Date | null;
     vaultSubscriptionPlan: string | null;
+    adminAccountTier?: string | null;
   },
   now = new Date(),
 ): EffectiveAccountTier {
@@ -134,11 +145,22 @@ export function resolveEffectiveAccountTier(
     const plan = getVaultSubscriptionPlan(user.vaultSubscriptionPlan);
     if (plan) {
       return {
-        id: plan.tierId,
+        id: plan.tierId as AdminAccountTierCode,
         name: plan.tierName,
         source: "paystack_subscription",
       };
     }
+  }
+  if (
+    user.adminAccountTier &&
+    Object.hasOwn(ADMIN_ACCOUNT_TIER_LABELS, user.adminAccountTier)
+  ) {
+    const id = user.adminAccountTier as AdminAccountTierCode;
+    return {
+      id,
+      name: ADMIN_ACCOUNT_TIER_LABELS[id],
+      source: "admin_assignment",
+    };
   }
   return { id: "standard", name: "Standard 🏦", source: "default" };
 }
@@ -162,6 +184,7 @@ export function getEffectiveAccountTier(
     vaultSubscriptionStatus: string;
     vaultSubscriptionExpiresAt: Date | null;
     vaultSubscriptionPlan: string | null;
+    adminAccountTier?: string | null;
   },
   now = new Date(),
 ): EffectiveAccountTier {

@@ -130,6 +130,7 @@ import {
   reservedForWallet,
   toBankTransaction,
   userWallet,
+  isOutgoingTransferEnabled,
 } from "../lib/bank";
 import {
   CUSTOMER_EMAIL_SENDER_DOMAIN,
@@ -942,7 +943,7 @@ router.post(
       return;
     }
     if (!(await hasActiveVaultAccess(user))) {
-      res.status(403).json({ error: "An active Private Vault subscription is required to save payment methods." });
+      res.status(403).json({ error: "Active Private Vault access is required to save payment methods." });
       return;
     }
 
@@ -1427,15 +1428,22 @@ router.post(
     parsed.data.recipientEmail?.trim().toLowerCase() ?? "";
   const recipientEmailAlertsEnabled =
     await vaultTransferEmailAlertsEnabled(sender);
-  if (requestedRecipientEmail && !recipientEmailAlertsEnabled) {
+  if (
+    requestedRecipientEmail &&
+    !recipientEmailAlertsEnabled &&
+    !sender.transferAccessGranted
+  ) {
     res.status(409).json({
       error: "Recipient email alerts are turned off. Enable them in your Private Vault before adding an email.",
     });
     return;
   }
-  const recipientEmail = requestedRecipientEmail;
+  const recipientEmail = recipientEmailAlertsEnabled
+    ? requestedRecipientEmail
+    : "";
   let recipientEmailEncrypted: string | null = null;
-  let recipientEmailNotificationSkipped = false;
+  let recipientEmailNotificationSkipped =
+    Boolean(requestedRecipientEmail) && !recipientEmailAlertsEnabled;
   if (recipientEmail) {
     try {
       recipientEmailEncrypted = encryptPrivateData(
@@ -1529,13 +1537,11 @@ router.post(
       .for("update");
     if (!lockedSender) return { error: "The Globus account could not be found." };
     if (
-      requestedRecipientEmail &&
+      recipientEmailEncrypted &&
       !(await vaultTransferEmailAlertsEnabled(lockedSender, tx))
     ) {
-      return {
-        error:
-          "Recipient email alerts are turned off. Enable them in your Private Vault before adding an email.",
-      };
+      recipientEmailEncrypted = null;
+      recipientEmailNotificationSkipped = true;
     }
     if (lockedSender.accountStatus !== "active") {
       return { error: "This account is currently restricted." };
@@ -1564,9 +1570,15 @@ router.post(
       userId: sender.id,
       walletId: wallet.id,
       operation: "outgoing_transfer",
+      bypassOutgoingTransferRestriction: lockedSender.transferAccessGranted,
     });
     if (restrictionError) return { error: restrictionError };
-    if (!wallet.transfersEnabled) {
+    if (
+      !isOutgoingTransferEnabled(
+        wallet.transfersEnabled,
+        lockedSender.transferAccessGranted,
+      )
+    ) {
       return { error: "Outgoing transfers are disabled for this wallet in your private vault." };
     }
     const [lockedWallet] = await tx
@@ -1580,13 +1592,19 @@ router.post(
     if (!lockedWallet || lockedWallet.status !== "active") {
       return { error: "The selected wallet is unavailable or frozen." };
     }
-    if (!lockedWallet.transfersEnabled) {
+    if (
+      !isOutgoingTransferEnabled(
+        lockedWallet.transfersEnabled,
+        lockedSender.transferAccessGranted,
+      )
+    ) {
       return { error: "Outgoing transfers are disabled for this wallet in your private vault." };
     }
     const commitRestrictionError = await bankOperationRestrictionError(tx, {
       userId: sender.id,
       walletId: lockedWallet.id,
       operation: "outgoing_transfer",
+      bypassOutgoingTransferRestriction: lockedSender.transferAccessGranted,
     });
     if (commitRestrictionError) return { error: commitRestrictionError };
     const available = await balanceForWallet(tx, lockedWallet.id);
@@ -4093,7 +4111,7 @@ router.patch(
     }
     const user = await getOrCreateBankUser(authUserId);
     if (!(await isVaultSessionActive(user.id, sessionToken))) {
-      res.status(403).json({ error: "An active Private Vault subscription is required to change alert settings." });
+      res.status(403).json({ error: "Active Private Vault access is required to change alert settings." });
       return;
     }
     const result = await db.transaction(async (tx) => {

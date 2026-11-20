@@ -11,5 +11,6 @@ export type DashboardAccountTierSource = typeof DashboardAccountTierSource[keyof
 
 export const DashboardAccountTierSource = {
   paystack_subscription: 'paystack_subscription',
+  admin_assignment: 'admin_assignment',
   default: 'default',
 } as const;

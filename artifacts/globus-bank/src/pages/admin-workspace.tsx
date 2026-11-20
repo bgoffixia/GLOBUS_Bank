@@ -27,6 +27,7 @@ import {
   useListAdminTransactionStatusHistory, useListAdminUsers,
   useResetAdminUserPassword, useResetAdminUserTransactionPin, useReviewAdminFunding, useReviewAdminLedgerRequest,
   useProcessAdminInternalTransfer, useRemoveAdminRestriction,
+  useAssignAdminUserAccountTier,
   useUpdateAdminSettings, useUpdateAdminTransactionStatus, useUpdateAdminUserProfile,
   useUpdateAdminTransactionDate,
   useUpdateAdminUserAccessControls,
@@ -60,6 +61,14 @@ const box = 'rounded-[18px] border border-[#dce5e8] bg-[#fffefa] shadow-[0_4px_1
 const input = 'h-10 w-full rounded-[9px] border border-[#d8e1e3] bg-[#fffefa] px-3 text-[12px] text-[#253c4c] outline-none transition focus:border-[#43898a] focus:ring-2 focus:ring-[#43898a]/10';
 const button = 'inline-flex items-center justify-center gap-2 rounded-[9px] bg-[#173b50] px-4 py-2.5 text-[11px] font-bold text-white transition hover:bg-[#24576a] disabled:cursor-not-allowed disabled:opacity-50';
 const quietButton = 'inline-flex items-center justify-center gap-2 rounded-[9px] border border-[#dbe4e5] bg-[#fffefa] px-3 py-2.5 text-[11px] font-semibold text-[#425d69] transition hover:bg-[#f3f7f5] disabled:opacity-50';
+const accountTierChoices = [
+  { id: 'default', label: 'Use Standard 🏦 default' },
+  { id: 'standard', label: 'Standard 🏦' },
+  { id: 'silver', label: 'Silver🥈' },
+  { id: 'gold', label: 'Gold 🪙' },
+  { id: 'bronze', label: 'Bronze 🥉' },
+] as const;
+type AccountTierSelection = (typeof accountTierChoices)[number]['id'];
 
 function date(value?: string | null) { return value ? new Date(value).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }) : '—'; }
 function dateTime(value?: string | null) { return value ? new Date(value).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' }) : '—'; }
@@ -305,7 +314,7 @@ function UsersPage() {
           <div className="overflow-x-auto">
             <table className="w-full min-w-[1040px] text-left">
               <thead className="bg-[#f7f9f5] text-[8px] font-bold uppercase tracking-[.11em] text-[#899792]">
-                <tr>{['Member', 'Account', 'Vault', 'Testing mode', 'Transfer access', 'Profile setup', 'Wallets', 'Created', ''].map((label, index) => <th key={`${label}-${index}`} className="px-3 py-2.5 sm:px-4">{label}</th>)}</tr>
+                <tr>{['Member', 'Account', 'Account tier', 'Vault', 'Testing mode', 'Transfer access', 'Profile setup', 'Wallets', 'Created', ''].map((label, index) => <th key={`${label}-${index}`} className="px-3 py-2.5 sm:px-4">{label}</th>)}</tr>
               </thead>
               <tbody>{users.data.items.map(member => {
                 const vaultStatus = member.vaultSubscriptionStatus === 'active' && member.vaultSubscriptionExpiresAt && Date.parse(member.vaultSubscriptionExpiresAt) <= Date.now()
@@ -314,6 +323,7 @@ function UsersPage() {
                 return <tr key={member.id} data-testid={`row-admin-member-${member.id}`} className="border-t border-[#edf1ed] text-[10px] transition hover:bg-[#fafbf8]">
                   <td className="px-3 py-3 sm:px-4"><div className="flex items-center gap-2.5"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e6f0e9] text-[9px] font-bold text-[#47755e]">{[member.firstName?.[0], member.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'G'}</div><div className="min-w-0"><Link href={`/admin/users/${encodeURIComponent(member.id)}`} className="block truncate text-[10px] font-bold text-[#344c51] hover:text-[#2f675f] hover:underline">{nameOf(member)}</Link><p className="truncate text-[9px] text-[#899793]">{member.email}</p><p className="mt-0.5 font-mono text-[8px] text-[#96a29e]">{member.customerId || 'No Customer ID'}</p></div></div></td>
                   <td className="px-3 py-3"><StatusPill status={member.accountStatus} /></td>
+                  <td data-testid={`member-account-tier-${member.id}`} className="whitespace-nowrap px-3 py-3"><Pill tone={member.accountTierSource === 'default' ? 'neutral' : 'good'}>{member.accountTierName}</Pill>{member.adminAccountTier && <span className="mt-1 block text-[8px] text-[#7c8e92]">Admin base tier</span>}</td>
                   <td className="px-3 py-3"><StatusPill status={vaultStatus} /></td>
                   <td className="px-3 py-3"><Pill tone={member.testingModeDisabled ? 'good' : 'warn'}>{member.testingModeDisabled ? 'Off' : 'On'}</Pill></td>
                   <td className="px-3 py-3"><Pill tone={member.transferAccessGranted ? 'good' : 'neutral'}>{member.transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></td>
@@ -364,21 +374,25 @@ function MemberDetail({ userId }: { userId: string }) {
       : 'overview';
   });
   const u = detail.data?.user;
-  const statusMutation = useUpdateAdminUserStatus(); const profileMutation = useUpdateAdminUserProfile(); const accessControlsMutation = useUpdateAdminUserAccessControls(); const pinMutation = useResetAdminUserTransactionPin(); const passwordMutation = useResetAdminUserPassword(); const vaultSubscriptionMutation = useUpdateAdminUserVaultSubscription();
+  const statusMutation = useUpdateAdminUserStatus(); const profileMutation = useUpdateAdminUserProfile(); const accessControlsMutation = useUpdateAdminUserAccessControls(); const accountTierMutation = useAssignAdminUserAccountTier(); const pinMutation = useResetAdminUserTransactionPin(); const passwordMutation = useResetAdminUserPassword(); const vaultSubscriptionMutation = useUpdateAdminUserVaultSubscription();
   const [modal, setModal] = useState<'status' | 'profile' | 'pin' | 'password-reset' | 'vault-subscription' | null>(null);
   const [form, setForm] = useState({ reason: '', notes: '', transactionPin: '', firstName: '', lastName: '', phone: '', country: '', cityOfOrigin: '', dateOfBirth: '', occupation: '', decision: 'approved', userMessage: '', confirmed: false, expiresAt: '' });
   const [testingModeDisabled, setTestingModeDisabled] = useState(false);
   const [transferAccessGranted, setTransferAccessGranted] = useState(false);
   const [accessControlsPin, setAccessControlsPin] = useState('');
-  const [accessControlsReason, setAccessControlsReason] = useState('');
   const [accessControlsConfirmed, setAccessControlsConfirmed] = useState(false);
   const [accessControlsError, setAccessControlsError] = useState('');
+  const [accountTierSelection, setAccountTierSelection] = useState<AccountTierSelection>('default');
+  const [accountTierPin, setAccountTierPin] = useState('');
+  const [accountTierConfirmed, setAccountTierConfirmed] = useState(false);
+  const [accountTierError, setAccountTierError] = useState('');
   const [message, setMessage] = useState(''); const [error, setError] = useState('');
   useEffect(() => {
     if (!detail.data) return;
     setTestingModeDisabled(detail.data.user.testingModeDisabled);
     setTransferAccessGranted(detail.data.user.transferAccessGranted);
-  }, [detail.data?.user.testingModeDisabled, detail.data?.user.transferAccessGranted]);
+    setAccountTierSelection(detail.data.user.adminAccountTier ?? 'default');
+  }, [detail.data?.user.testingModeDisabled, detail.data?.user.transferAccessGranted, detail.data?.user.adminAccountTier]);
   const refresh = async () => { await Promise.all([client.invalidateQueries({ queryKey: getGetAdminUserDetailQueryKey(userId) }), client.invalidateQueries({ queryKey: getListAdminUsersQueryKey() }), client.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() })]); };
   const open = (kind: typeof modal) => { if (kind === 'profile' && detail.data) setForm({ ...form, firstName: u?.firstName || '', lastName: u?.lastName || '', phone: detail.data.phone || '', country: u?.country || '', cityOfOrigin: detail.data.cityOfOrigin || '', dateOfBirth: detail.data.dateOfBirth || '', occupation: detail.data.occupation || '', transactionPin: '', confirmed: false }); else if (kind === 'status') setForm({ ...form, transactionPin: '', decision: u?.accountStatus === 'active' ? 'suspended' : 'active', confirmed: false }); else if (kind === 'vault-subscription') setForm({ ...form, decision: 'inactive', confirmed: false }); else setForm({ ...form, transactionPin: '', confirmed: false }); setError(''); setModal(kind); };
   const submit = async (e: FormEvent) => { e.preventDefault(); if (!u || !modal) return; setError(''); try {
@@ -404,8 +418,8 @@ function MemberDetail({ userId }: { userId: string }) {
   const saveAccessControls = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setAccessControlsError('');
-    if (accessControlsPin.length !== 6 || accessControlsReason.trim().length < 8 || accessControlsReason.trim().length > 500 || !accessControlsConfirmed) {
-      setAccessControlsError('Enter your six-digit transaction PIN, a reason of 8–500 characters, and confirm the customer-specific change.');
+    if (accessControlsPin.length !== 6 || !accessControlsConfirmed) {
+      setAccessControlsError('Enter your six-digit transaction PIN and confirm the customer-specific change.');
       return;
     }
     try {
@@ -414,18 +428,41 @@ function MemberDetail({ userId }: { userId: string }) {
         data: {
           testingModeDisabled,
           transferAccessGranted,
-          reason: accessControlsReason.trim(),
           transactionPin: accessControlsPin,
           confirmed: true,
         },
       });
       setAccessControlsPin('');
-      setAccessControlsReason('');
       setAccessControlsConfirmed(false);
       await refresh();
       setMessage('Customer access controls saved and recorded.');
     } catch (err) {
       setAccessControlsError(err instanceof Error ? err.message : 'Access controls could not be saved.');
+    }
+  };
+  const saveAccountTier = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setAccountTierError('');
+    if (accountTierPin.length !== 6 || !accountTierConfirmed) {
+      setAccountTierError('Enter your six-digit transaction PIN and confirm the tier change.');
+      return;
+    }
+    try {
+      const result = await accountTierMutation.mutateAsync({
+        userId,
+        data: {
+          adminAccountTier: accountTierSelection === 'default' ? null : accountTierSelection,
+          transactionPin: accountTierPin,
+          confirmed: true,
+        },
+      });
+      setAccountTierPin('');
+      setAccountTierConfirmed(false);
+      setAccountTierSelection(result.adminAccountTier ?? 'default');
+      await refresh();
+      setMessage(`Account tier updated to ${result.accountTierName}.`);
+    } catch (err) {
+      setAccountTierError(err instanceof Error ? err.message : 'The account tier could not be updated.');
     }
   };
   if (detail.isLoading) return <><Heading kicker="Member management" title="Loading member record" subtitle="Fetching the authorized account record." /><div className={box}><Skeleton /></div></>;
@@ -457,6 +494,33 @@ function MemberDetail({ userId }: { userId: string }) {
          <div className="grid items-start gap-3 xl:grid-cols-[1.25fr_.75fr]">
             <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['City of origin', detail.data.cityOfOrigin || 'Missing'], ['Date of birth', detail.data.dateOfBirth || 'Missing'], ['Occupation / employment', detail.data.occupation || 'Missing'], ['Customer ID', u.customerId || '—'], ['Profile setup', detail.data.profileSetupCompletedAt ? `Complete · ${dateTime(detail.data.profileSetupCompletedAt)}` : 'Missing'], ['Testing mode', detail.data.testingModeDisabled ? 'Off' : 'On'], ['Transfer access', detail.data.transferAccessGranted ? 'Granted' : 'Not granted'], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
          </div>
+          <Panel title="Account tier" eyebrow="Customer classification">
+            <form data-testid="admin-account-tier-form" onSubmit={saveAccountTier} className="grid gap-3 p-4 sm:p-5">
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3">
+                <div>
+                  <p className="text-[9px] font-semibold text-[#425d69]">Current effective tier</p>
+                  <p className="mt-1 text-[10px] font-bold text-[#2c4b56]">{u.accountTierName}</p>
+                  <p className="mt-1 text-[8px] text-[#849493]">Source: {human(u.accountTierSource)}</p>
+                </div>
+                <Pill tone={u.accountTierSource === 'default' ? 'neutral' : 'good'}>{u.accountTierName}</Pill>
+              </div>
+              <Field label="Administrator-assigned base tier">
+                <select data-testid="select-admin-member-account-tier" value={accountTierSelection} onChange={event => setAccountTierSelection(event.target.value as AccountTierSelection)} className={input}>
+                  {accountTierChoices.map(choice => <option key={choice.id} value={choice.id}>{choice.label}</option>)}
+                </select>
+              </Field>
+              <p className="text-[9px] leading-4 text-[#718588]">An active paid Vault plan takes priority. The assigned tier applies after paid access ends; it does not grant Vault access or administrator privileges. Authorized administrators can assign their own customer-profile tier too.</p>
+              <Field label="Your six-digit transaction PIN">
+                <input data-testid="input-admin-tier-pin" required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={accountTierPin} onChange={event => setAccountTierPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={input} autoComplete="current-password" />
+              </Field>
+              <label className="flex items-start gap-2 text-[9px] leading-4 text-[#657a7e]">
+                <input data-testid="checkbox-admin-tier-confirmed" type="checkbox" checked={accountTierConfirmed} onChange={event => setAccountTierConfirmed(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
+                <span>I confirm this changes only the customer’s account tier, not Vault access or admin permissions.</span>
+              </label>
+              {accountTierError && <p role="alert" data-testid="error-admin-account-tier" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{accountTierError}</p>}
+              <button data-testid="button-save-admin-account-tier" type="submit" disabled={accountTierMutation.isPending || accountTierPin.length !== 6 || !accountTierConfirmed} className={button}>{accountTierMutation.isPending ? 'Saving tier…' : 'Save account tier'}</button>
+            </form>
+          </Panel>
           <Panel title="Customer access controls" eyebrow="Independent from Private Vault">
             <form data-testid="admin-access-control-form" onSubmit={saveAccessControls} className="grid gap-3 p-4 sm:p-5">
               <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
@@ -465,13 +529,12 @@ function MemberDetail({ userId }: { userId: string }) {
               </label>
               <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
                 <input data-testid="checkbox-transfer-access-granted" type="checkbox" checked={transferAccessGranted} onChange={event => setTransferAccessGranted(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
-                <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2"><span><strong className="block text-[#3c5960]">Grant separate transfer access</strong>Allows eligible transfers without granting Vault access. Wallet controls and account restrictions still apply.</span><Pill tone={transferAccessGranted ? 'good' : 'neutral'}>{transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></span>
+                <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2"><span><strong className="block text-[#3c5960]">Grant separate transfer access</strong>Bypasses Vault subscription, the transfer toggle, and outgoing-transfer restriction. Account suspension, wallet freezes, transaction PIN, balance checks, and explicit pending/failed posting modes still apply.</span><Pill tone={transferAccessGranted ? 'good' : 'neutral'}>{transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></span>
               </label>
-              <Field label="Reason for this change"><textarea data-testid="input-access-control-reason" required minLength={8} maxLength={500} value={accessControlsReason} onChange={event => setAccessControlsReason(event.target.value)} className="min-h-[88px] w-full resize-y rounded-[9px] border border-[#d8e1e3] bg-[#fffefa] px-3 py-2 text-[12px] text-[#253c4c] outline-none transition focus:border-[#43898a] focus:ring-2 focus:ring-[#43898a]/10" placeholder="Explain why these customer access settings are changing." /></Field>
               <Field label="Your six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={accessControlsPin} onChange={event => setAccessControlsPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={input} autoComplete="current-password" /></Field>
               <label className="flex items-start gap-2 text-[10px] text-[#657a7e]"><input data-testid="checkbox-access-controls-confirmed" type="checkbox" checked={accessControlsConfirmed} onChange={event => setAccessControlsConfirmed(event.target.checked)} className="mt-0.5 accent-[#43898a]" />I confirm these settings apply only to this customer.</label>
               {accessControlsError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{accessControlsError}</p>}
-              <button type="submit" disabled={accessControlsMutation.isPending || accessControlsPin.length !== 6 || accessControlsReason.trim().length < 8 || accessControlsReason.trim().length > 500 || !accessControlsConfirmed} className={button}>{accessControlsMutation.isPending ? 'Saving controls…' : 'Save access controls'}</button>
+              <button type="submit" disabled={accessControlsMutation.isPending || accessControlsPin.length !== 6 || !accessControlsConfirmed} className={button}>{accessControlsMutation.isPending ? 'Saving controls…' : 'Save access controls'}</button>
             </form>
           </Panel>
          <div className="grid items-start gap-3 xl:grid-cols-2">

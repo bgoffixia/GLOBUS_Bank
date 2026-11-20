@@ -740,7 +740,7 @@ export function PrivateVaultPanel() {
   const paidSubscriptionActive = !!status.data?.subscriptionActive;
   const checkoutPending = status.data?.paymentStatus === 'pending';
   const vaultHeader = (
-    <header className="sticky top-0 z-30 flex min-h-[68px] items-center justify-between gap-2 border-b border-[#e1e8eb] bg-white/95 px-3 py-3 backdrop-blur sm:px-5">
+    <header data-testid="vault-page-header" className="relative z-30 flex min-h-[68px] items-center justify-between gap-2 border-b border-[#e1e8eb] bg-white px-3 py-3 sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
         {vaultSessionActive && <button type="button" aria-label="Open Vault workspace navigation" aria-expanded={mobileNavigationOpen} aria-controls="vault-workspace-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dfe7eb] bg-white text-[#29465d] hover:bg-[#f4f8f9] lg:hidden" data-testid="button-vault-navigation"><Menu size={17} /></button>}
         <div className="min-w-0">
@@ -783,11 +783,10 @@ export function PrivateVaultPanel() {
 
   if (!vaultSessionActive) {
     return (
-      <section className="min-h-dvh min-w-0 bg-[#f5f8fa]" data-testid="private-vault-panel">
+      <section className="vault-locked-shell min-w-0 bg-[#f5f8fa]" data-vault-locked="true" data-testid="private-vault-panel">
         {vaultHeader}
-        {serviceNavigation}
-        <main className="mx-auto flex min-h-[calc(100dvh-68px)] w-full max-w-[760px] items-center justify-center px-4 py-8 sm:px-6">
-          <section className="w-full rounded-[20px] border border-[#dce5e8] bg-white p-5 shadow-[0_14px_40px_rgba(21,48,71,.08)] sm:p-8" data-testid="vault-unlock-gate">
+        <main className="vault-unlock-scroll-region min-h-0 w-full overflow-y-auto overscroll-y-contain px-4 py-4 sm:px-6 sm:py-6" data-testid="vault-unlock-scroll-region">
+          <section className="mx-auto w-full max-w-[760px] rounded-[20px] border border-[#dce5e8] bg-white p-5 shadow-[0_14px_40px_rgba(21,48,71,.08)] sm:p-8" data-testid="vault-unlock-gate">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#eef6f6] text-[#43888e]"><LockKeyhole size={20} /></span>
             <h2 className="mt-4 text-[18px] font-bold tracking-[-.02em] text-[#233c54] sm:text-[20px]">
               {status.data?.configured ? 'Unlock your Private Vault' : 'Set up your Private Vault'}
@@ -825,13 +824,13 @@ export function PrivateVaultPanel() {
 
   return (
     <>
-    <section className="min-h-dvh min-w-0 w-full bg-[#f5f8fa]" data-testid="private-vault-panel">
+    <section className="vault-unlocked-shell min-w-0 w-full bg-[#f5f8fa]" data-vault-locked="false" data-testid="private-vault-panel">
       {vaultHeader}
       {serviceNavigation}
-      <div className="grid min-h-[calc(100dvh-68px)] min-w-0 lg:grid-cols-[204px_minmax(0,1fr)]">
-        <aside className="sticky top-[68px] hidden h-[calc(100dvh-68px)] min-h-[440px] flex-col bg-[#173b4b] px-3 py-4 text-white lg:flex">
+      <div className="vault-workspace-grid grid min-h-0 min-w-0 lg:grid-cols-[204px_minmax(0,1fr)]">
+        <aside className="hidden min-h-0 flex-col bg-[#173b4b] px-3 py-4 text-white lg:flex">
           <p className="px-2 pb-3 text-[8px] font-bold uppercase tracking-[.16em] text-[#a9c8c0]">Vault workspace</p>
-          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Vault workspace navigation">
+          <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain" aria-label="Vault workspace navigation">
             {vaultNavigation.map(item => {
               const Icon = item.icon;
               const disabled = !sessionToken && item.requiresUnlock;
@@ -842,7 +841,7 @@ export function PrivateVaultPanel() {
             Wallet policies apply to future requests. Existing ledger activity and receipt details remain unchanged.
           </div>
         </aside>
-        <div className="min-w-0 space-y-3 p-3 sm:p-4 vault-page-content" data-vault-page={location.split('/').filter(Boolean).at(-1) ?? 'private-vault'}>
+        <main className="vault-page-content min-h-0 min-w-0 space-y-3 overflow-x-hidden overflow-y-auto overscroll-y-contain p-3 sm:p-4" data-testid="vault-page-scroll-region" data-vault-page={location.split('/').filter(Boolean).at(-1) ?? 'private-vault'}>
       <section data-vault-view="subscription" className="overflow-hidden rounded-xl border border-[#dce5e8] bg-[#fffefa] shadow-[0_8px_24px_rgba(21,48,71,.05)]" data-testid="vault-subscription-card">
         <div className="flex flex-col gap-3 border-l-[3px] border-[#b99a58] bg-[linear-gradient(115deg,#fffefa,#f5f8f6)] p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="min-w-0">
@@ -1197,13 +1196,13 @@ export function PrivateVaultPanel() {
       </section>
       {(error || updateControl.isError) && <p role="alert" data-testid="status-vault-error" className="mt-3 rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940]">{error || 'A wallet policy could not be saved.'}</p>}
       {message && <p role="status" data-testid="status-vault-message" className="mt-3 rounded-lg bg-[#f0f8f4] px-3 py-2 text-[9px] text-[#41755f]">{message}</p>}
-        </div>
+        </main>
       </div>
       {mobileNavigationOpen && <div className="fixed inset-0 z-[60] lg:hidden">
         <button type="button" aria-label="Close Vault navigation overlay" className="absolute inset-0 bg-[#0b1b2d]/55" onClick={() => setMobileNavigationOpen(false)} />
-        <aside id="vault-workspace-mobile-navigation" role="dialog" aria-modal="true" aria-labelledby="vault-mobile-navigation-title" className="absolute inset-y-0 left-0 flex w-[min(290px,86vw)] flex-col bg-[#173b4b] p-4 text-white shadow-2xl">
+        <aside id="vault-workspace-mobile-navigation" role="dialog" aria-modal="true" aria-labelledby="vault-mobile-navigation-title" className="absolute inset-y-0 left-0 flex w-[min(290px,86vw)] flex-col overflow-y-auto overscroll-contain bg-[#173b4b] p-4 text-white shadow-2xl">
           <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4"><div><p className="text-[8px] font-bold uppercase tracking-[.15em] text-[#a9c8c0]">Globus Bank</p><h3 id="vault-mobile-navigation-title" className="mt-1 text-[13px] font-bold">Vault workspace</h3></div><button type="button" aria-label="Close Vault navigation" onClick={() => setMobileNavigationOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-[#d5e2e1] hover:bg-white/10"><X size={16} /></button></div>
-          <nav className="mt-4 space-y-1" aria-label="Vault workspace navigation">
+          <nav className="mt-4 min-h-0 space-y-1 overflow-y-auto overscroll-contain" aria-label="Vault workspace navigation">
             {vaultNavigation.map(item => {
               const Icon = item.icon;
               const disabled = !sessionToken && item.requiresUnlock;

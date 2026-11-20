@@ -1,10 +1,10 @@
 ---
 name: Production-compatible account tiers
-description: Keep tier display derived from subscription fields when production has no tier catalog.
+description: Keep admin-assigned base tiers separate from paid Vault access and avoid unsupported tier catalog tables.
 ---
 
-In the production-compatible Globus Bank schema, account tiers are not persisted. Customers use Standard as the base display tier; only an active paid Vault subscription maps to a tier ID and label from the existing application plan configuration. Do not query or write `bank_users.account_tier_id` or `bank_account_tiers`, and do not represent administrator tier assignments as stored state without an approved persistence model.
+The production-compatible Globus Bank schema has no `bank_account_tiers` table or `bank_users.account_tier_id`. The user has requested administrator assignment of customer base tiers, including an administrator's own customer profile. Persist this only as nullable `bank_users.admin_account_tier`, constrained to the existing tier codes; never use it to grant Vault access or administrator privileges. An active paid Vault plan takes precedence, then the assigned base tier, then Standard.
 
-**Why:** Production intentionally omits both objects. Drizzle full-row reads and dashboard/profile tier lookups fail when runtime code expects them.
+**Why:** Production intentionally omits the tier catalog and subscription foreign key, but a requested persistent admin assignment needs a separate small field that does not introduce either unsupported object.
 
-**How to apply:** Keep the current Drizzle bank-user model aligned with production, compute display tiers purely from subscription status, expiry, and plan fields, and avoid admin controls that imply persisted assignments.
+**How to apply:** Keep plan-to-tier mapping as the paid source of truth; use the nullable admin base tier only when no active mapped subscription applies. Require the allowlisted admin guard, transaction PIN, and audit log. Keep Vault entitlement checks independent from all tier values.

@@ -82,6 +82,66 @@ async function expectNoHorizontalOverflow(page: Page, context: string) {
   ).toEqual([]);
 }
 
+async function expectVaultContentToScroll(page: Page, width: number) {
+  const region = page.getByTestId('vault-page-scroll-region');
+  await expect(region).toBeVisible();
+  const measurement = await region.evaluate(element => {
+    const probe = document.createElement('div');
+    probe.dataset.viewportScrollProbe = 'true';
+    probe.setAttribute('aria-hidden', 'true');
+    probe.style.height = '1200px';
+    probe.style.width = '1px';
+    element.append(probe);
+    const overflowY = getComputedStyle(element).overflowY;
+    const clientHeight = element.clientHeight;
+    element.scrollTop = element.scrollHeight;
+    const result = {
+      overflowY,
+      clientHeight,
+      scrollHeight: element.scrollHeight,
+      scrollTop: element.scrollTop,
+      probeBottom: probe.getBoundingClientRect().bottom,
+      regionBottom: element.getBoundingClientRect().bottom,
+    };
+    probe.remove();
+    element.scrollTop = 0;
+    return result;
+  });
+  expect(measurement.overflowY, `Vault content should scroll vertically at ${width}px`).toBe('auto');
+  expect(measurement.scrollHeight, `Vault content should be allowed to exceed its viewport at ${width}px`).toBeGreaterThan(measurement.clientHeight);
+  expect(measurement.scrollTop, `Vault content should reach the end of a long page at ${width}px`).toBeGreaterThan(0);
+  expect(measurement.probeBottom, `The final item should be reachable without clipping at ${width}px`).toBeLessThanOrEqual(measurement.regionBottom + 1);
+}
+
+test('Vault service navigation is passcode-gated and admin tier controls are present', () => {
+  const vaultSource = readFileSync(
+    new URL('../src/components/private-vault-panel.tsx', import.meta.url),
+    'utf8',
+  );
+  const lockedStart = vaultSource.indexOf('if (!vaultSessionActive) {');
+  const unlockedStart = vaultSource.indexOf('\n  return (\n    <>', lockedStart);
+  expect(lockedStart).toBeGreaterThanOrEqual(0);
+  expect(unlockedStart).toBeGreaterThan(lockedStart);
+  expect(vaultSource.slice(lockedStart, unlockedStart)).not.toContain('{serviceNavigation}');
+  expect(vaultSource.slice(unlockedStart)).toContain('{serviceNavigation}');
+  expect(vaultSource).toContain('data-testid="vault-page-scroll-region"');
+
+  const vaultCss = readFileSync(
+    new URL('../src/index.css', import.meta.url),
+    'utf8',
+  );
+  expect(vaultCss).toMatch(/\.vault-page-content\s*\{[^}]*overflow-y:\s*auto/s);
+  expect(vaultCss).toMatch(/\.vault-unlocked-shell\s*\{[^}]*grid-template-rows:\s*auto auto minmax\(0, 1fr\)/s);
+
+  const adminSource = readFileSync(
+    new URL('../src/pages/admin-workspace.tsx', import.meta.url),
+    'utf8',
+  );
+  expect(adminSource).toContain('data-testid="admin-account-tier-form"');
+  expect(adminSource).toContain('data-testid="select-admin-member-account-tier"');
+  expect(adminSource).toContain('data-testid="checkbox-transfer-access-granted"');
+});
+
 async function openAndCheck(page: Page, path: string, width: number, context: string) {
   await page.setViewportSize({ width, height: 850 });
   await page.goto(path, { waitUntil: 'domcontentloaded' });
@@ -655,14 +715,21 @@ test.describe('signed-in member pages at phone widths', () => {
 
   test('member access statuses and reasoned controls render and submit', async ({ page }) => {
     let submitted: Record<string, unknown> | null = null;
+    let tierSubmitted: Record<string, unknown> | null = null;
     let testingModeDisabled = false;
     let transferAccessGranted = false;
+    let adminAccountTier: string | null = null;
+    let accountTierName = 'Standard 🏦';
+    let accountTierSource = 'default';
     const member = {
       id: 'viewport-member',
       email: 'viewport-member@example.test',
       customerId: 'ABC1234',
       firstName: 'Viewport',
       lastName: 'Member',
+      accountTierName,
+      accountTierSource,
+      adminAccountTier,
       country: 'US',
       verificationStatus: 'approved',
       verificationNote: null,
@@ -688,6 +755,27 @@ test.describe('signed-in member pages at phone widths', () => {
       const pathname = new URL(request.url()).pathname;
       if (pathname.endsWith('/access')) {
         await route.fulfill({ json: { allowed: true, roles: ['operations'] } });
+      } else if (pathname.endsWith('/account-tier') && request.method() === 'PATCH') {
+        tierSubmitted = request.postDataJSON() as Record<string, unknown>;
+        adminAccountTier = typeof tierSubmitted.adminAccountTier === 'string'
+          ? tierSubmitted.adminAccountTier
+          : null;
+        accountTierSource = adminAccountTier ? 'admin_assignment' : 'default';
+        accountTierName = adminAccountTier === 'gold'
+          ? 'Gold 🪙'
+          : adminAccountTier === 'silver'
+            ? 'Silver🥈'
+            : adminAccountTier === 'bronze'
+              ? 'Bronze 🥉'
+              : 'Standard 🏦';
+        await route.fulfill({
+          json: {
+            userId: member.id,
+            adminAccountTier,
+            accountTierName,
+            accountTierSource,
+          },
+        });
       } else if (pathname.endsWith('/access-controls') && request.method() === 'PATCH') {
         submitted = request.postDataJSON() as Record<string, unknown>;
         testingModeDisabled = submitted.testingModeDisabled === true;
@@ -698,7 +786,7 @@ test.describe('signed-in member pages at phone widths', () => {
       } else if (pathname.endsWith('/users/viewport-member')) {
         await route.fulfill({
           json: {
-            user: { ...member, testingModeDisabled, transferAccessGranted },
+            user: { ...member, accountTierName, accountTierSource, adminAccountTier, testingModeDisabled, transferAccessGranted },
             phone: null,
             dateOfBirth: null,
             profileSetupCompletedAt: member.profileSetupCompletedAt,
@@ -712,7 +800,7 @@ test.describe('signed-in member pages at phone widths', () => {
       } else if (pathname.endsWith('/users')) {
         await route.fulfill({
           json: {
-            items: [{ ...member, testingModeDisabled, transferAccessGranted }],
+            items: [{ ...member, accountTierName, accountTierSource, adminAccountTier, testingModeDisabled, transferAccessGranted }],
             total: 1,
             page: 1,
             pageSize: 25,
@@ -776,18 +864,28 @@ test.describe('signed-in member pages at phone widths', () => {
 
     await page.getByTestId('checkbox-testing-mode-disabled').check();
     await page.getByTestId('checkbox-transfer-access-granted').check();
-    await page.getByLabel('Reason for this change').fill('Approved transfer access for this customer.');
     await page.getByLabel('Your six-digit transaction PIN').fill('482731');
     await page.getByTestId('checkbox-access-controls-confirmed').check();
     await page.getByRole('button', { name: 'Save access controls' }).click();
     await expect.poll(() => submitted).toMatchObject({
       testingModeDisabled: true,
       transferAccessGranted: true,
-      reason: 'Approved transfer access for this customer.',
       transactionPin: '482731',
       confirmed: true,
     });
     await expect(page.getByRole('status')).toContainText('saved and recorded');
+
+    await page.getByTestId('select-admin-member-account-tier').selectOption('silver');
+    await page.getByTestId('input-admin-tier-pin').fill('482731');
+    await page.getByTestId('checkbox-admin-tier-confirmed').check();
+    await page.getByTestId('button-save-admin-account-tier').click();
+    await expect.poll(() => tierSubmitted).toMatchObject({
+      adminAccountTier: 'silver',
+      transactionPin: '482731',
+      confirmed: true,
+    });
+    await expect(page.getByTestId('member-account-tier-viewport-member')).toContainText('Silver🥈');
+    await expect(page.getByRole('status')).toContainText('Account tier updated');
   });
 });
 
@@ -845,13 +943,19 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       await expect(page.getByTestId('vault-full-page-shell')).toBeVisible();
       await expect(page.getByTestId('private-vault-panel')).toBeVisible();
       await expect(page.getByTestId('vault-unlock-gate')).toBeVisible();
+      await expect(page.getByTestId('vault-page-navigation')).toHaveCount(0);
       await expect(page.getByTestId('vault-subscription-card')).toHaveCount(0);
       await expect(page.getByTestId('vault-receipt-preferences')).toHaveCount(0);
       await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(0);
       await expectNoHorizontalOverflow(page, `Locked Vault page at ${width}px`);
+      const headerBottom = await page.getByTestId('vault-page-header').evaluate(element => element.getBoundingClientRect().bottom);
+      const gateTop = await page.getByTestId('vault-unlock-gate').evaluate(element => element.getBoundingClientRect().top);
+      expect(gateTop, `Unlock card should follow the header without a large blank gap at ${width}px`).toBeLessThanOrEqual(headerBottom + 24);
       await page.getByTestId('input-vault-unlock-passcode').fill('1234');
       await page.getByTestId('button-vault-unlock').click();
       await expect(page.getByTestId('vault-workspace-layout')).toBeVisible();
+      await expect(page.getByTestId('vault-page-navigation')).toBeVisible();
+      await expectVaultContentToScroll(page, width);
       await expect(page.getByTestId('vault-subscription-card')).toBeVisible();
       await expect(page.getByTestId('vault-overview-actions')).toBeVisible();
       await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(1);
@@ -861,6 +965,7 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
 
       await page.getByTestId('link-vault-page-subscription').click();
       await expect(page.getByTestId('vault-subscription-card')).toBeVisible();
+      await expectVaultContentToScroll(page, width);
       await expect(page.getByTestId('vault-overview-actions')).toBeHidden();
       await page.getByTestId('button-vault-subscription-primary').click();
       await expect(page.getByTestId('vault-subscription-plans')).toBeVisible();
@@ -868,10 +973,12 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       await page.getByTestId('link-vault-page-funding').click();
       await expect(page.getByTestId('vault-wallet-funding')).toBeVisible();
       await expect(page.getByTestId('vault-subscription-access')).toBeHidden();
+      await expectVaultContentToScroll(page, width);
 
       await page.getByTestId('link-vault-page-activity').click();
       await expect(page.getByTestId('vault-transaction-history')).toBeVisible();
       await expect(page.getByTestId('vault-wallet-funding')).toBeHidden();
+      await expectVaultContentToScroll(page, width);
 
       await page.getByTestId('link-vault-page-receipts').click();
       await expect(page.getByTestId('vault-receipt-preferences')).toBeVisible();
@@ -921,15 +1028,19 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       await page.getByTestId('link-vault-page-security').click();
       await expect(page.getByText('Vault settings are read-only')).toBeVisible();
       await expect(page.locator('#vault-workspace-wallets')).toBeHidden();
+      await expectVaultContentToScroll(page, width);
       await page.getByTestId('link-vault-page-alerts').click();
       await expect(page.getByTestId('vault-browser-alert-settings')).toBeVisible();
       await expect(page.getByText('Choose which account alerts can reach linked devices.')).toBeVisible();
+      await expectVaultContentToScroll(page, width);
       await page.getByTestId('link-vault-page-notes').click();
       await expect(page.getByTestId('vault-personal-transaction-notes')).toBeVisible();
       await expect(page.getByText('Personal transaction notes')).toBeVisible();
+      await expectVaultContentToScroll(page, width);
       await page.getByTestId('link-vault-page-email-preferences').click();
       await expect(page.getByTestId('vault-email-banner-settings')).toBeVisible();
       await expect(page.getByText('Choose whether to email recipients, then customize the banner and optional support footer link.')).toBeVisible();
+      await expectVaultContentToScroll(page, width);
       await page.getByTestId('link-vault-page-overview').click();
       await expect(page.getByTestId('vault-overview-actions')).toBeVisible();
       await expect(page.getByTestId('vault-wallet-funding')).toBeHidden();
@@ -944,6 +1055,7 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       await expect(page.getByRole('dialog')).toHaveCount(0);
       await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(0);
       await expect(page.getByTestId('button-vault-lock')).toHaveCount(0);
+      await expect(page.getByTestId('vault-page-navigation')).toHaveCount(0);
       await expectNoHorizontalOverflow(page, `Private Vault workspace at ${width}px`);
     });
   }
@@ -1123,11 +1235,9 @@ test.describe('admin pages and wide tables at phone widths', () => {
     await expect(page.getByTestId('admin-access-control-form')).toBeVisible();
     await expect(page.getByTestId('checkbox-testing-mode-disabled')).not.toBeChecked();
     await expect(page.getByTestId('checkbox-transfer-access-granted')).not.toBeChecked();
-    await expect(page.getByTestId('input-access-control-reason')).toHaveAttribute('required', '');
 
     await page.getByTestId('checkbox-testing-mode-disabled').check();
     await page.getByTestId('checkbox-transfer-access-granted').check();
-    await page.getByLabel('Reason for this change').fill('Approved transfer access for this customer.');
     await page.getByLabel('Your six-digit transaction PIN').fill('482731');
     await page.getByTestId('checkbox-access-controls-confirmed').check();
     await page.getByRole('button', { name: 'Save access controls' }).click();
@@ -1135,7 +1245,6 @@ test.describe('admin pages and wide tables at phone widths', () => {
     await expect.poll(() => savedPayload).toMatchObject({
       testingModeDisabled: true,
       transferAccessGranted: true,
-      reason: 'Approved transfer access for this customer.',
       transactionPin: '482731',
       confirmed: true,
     });

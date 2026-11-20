@@ -10,5 +10,5 @@
 - [Private Vault subscription renewal](private-vault-subscription-renewal.md) — Renewal is customer opt-in; expose it only after Paystack webhook processing is configured and tested.
 - [Verified signup and dashboard continuity](verified-signup-dashboard.md) — A verified Clerk session must reach the dashboard with a Customer ID despite missing or invalid optional profile details.
 - [Receipt preference snapshots](receipt-preference-snapshots.md) — Unlock before viewing Vault receipts; save with active access and snapshot the chosen layout on future customer transactions.
-- [Production-compatible account tiers](production-account-tier-compatibility.md) — Derive displayed tiers from active Vault plan fields; production does not persist account-tier assignments.
+- [Production-compatible account tiers](production-account-tier-compatibility.md) — Keep the admin-assigned base tier distinct from paid Vault access and unsupported tier catalog objects.
 - [Supabase migration ordering](supabase-migration-ordering.md) — Compare Drizzle journal timestamps with production history and detect foreign keys by relationship, not long names.

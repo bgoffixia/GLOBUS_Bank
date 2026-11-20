@@ -23,6 +23,8 @@ import type {
   AdminAccess,
   AdminAccount,
   AdminAccountPage,
+  AdminAccountTierAssignmentInput,
+  AdminAccountTierAssignmentResult,
   AdminAuditLogPage,
   AdminFundingInput,
   AdminFundingReviewInput,
@@ -6401,6 +6403,95 @@ export const useUpdateAdminUserAccessControls = <TError = ErrorType<BadRequestRe
         TContext
       > => {
       return useMutation(getUpdateAdminUserAccessControlsMutationOptions(options));
+    }
+
+export const getAssignAdminUserAccountTierUrl = (userId: string,) => {
+
+
+
+
+  return `/api/bank/admin/users/${userId}/account-tier`
+}
+
+/**
+ * @summary Assign or clear an administrator-managed base account tier
+ */
+export const assignAdminUserAccountTier = async (userId: string,
+    adminAccountTierAssignmentInput: AdminAccountTierAssignmentInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminAccountTierAssignmentResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<AdminAccountTierAssignmentResult>(getAssignAdminUserAccountTierUrl(userId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(adminAccountTierAssignmentInput)
+  }
+);}
+
+
+
+
+
+export const getAssignAdminUserAccountTierMutationKey = () => ['assignAdminUserAccountTier'] as const;
+
+export const getAssignAdminUserAccountTierMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignAdminUserAccountTier>>, TError,AssignAdminUserAccountTierMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof assignAdminUserAccountTier>>, TError,AssignAdminUserAccountTierMutationVariables, TContext> => {
+
+const mutationKey = getAssignAdminUserAccountTierMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof assignAdminUserAccountTier>>, AssignAdminUserAccountTierMutationVariables> = (props) => {
+          const {userId,data} = props ?? {};
+
+          return  assignAdminUserAccountTier(userId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AssignAdminUserAccountTierMutationResult = NonNullable<Awaited<ReturnType<typeof assignAdminUserAccountTier>>>
+    export type AssignAdminUserAccountTierMutationBody = BodyType<AdminAccountTierAssignmentInput>
+    export type AssignAdminUserAccountTierMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type AssignAdminUserAccountTierMutationVariables = {userId: string;data: BodyType<AdminAccountTierAssignmentInput>}
+
+    /**
+ * @summary Assign or clear an administrator-managed base account tier
+ */
+export const useAssignAdminUserAccountTier = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof assignAdminUserAccountTier>>, TError,AssignAdminUserAccountTierMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof assignAdminUserAccountTier>>,
+        TError,
+        AssignAdminUserAccountTierMutationVariables,
+        TContext
+      > => {
+      return useMutation(getAssignAdminUserAccountTierMutationOptions(options));
     }
 
 export const getUpdateAdminUserVaultSubscriptionUrl = (userId: string,) => {

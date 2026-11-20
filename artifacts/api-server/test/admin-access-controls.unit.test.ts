@@ -3,48 +3,24 @@ import { readFileSync } from "node:fs";
 import { createServer } from "node:http";
 import express from "express";
 import { test } from "node:test";
-import { UpdateAdminUserAccessControlsBody } from "@workspace/api-zod";
 import {
-  buildAdminAccessControlsAuditEntry,
-  buildAdminAccessControlsAuditReason,
-  normalizeAdminAccessReason,
-} from "../src/lib/admin-access-controls";
+  AssignAdminUserAccountTierBody,
+  UpdateAdminUserAccessControlsBody,
+} from "@workspace/api-zod";
 import { setPasswordResetCache } from "../src/lib/password-reset";
 import adminRouter from "../src/routes/bankAdmin";
 
-test("access-control contract requires valid flags, reason, PIN, and confirmation", () => {
+test("access-control contract requires valid flags, PIN, and confirmation without manual reason text", () => {
   const base = {
     testingModeDisabled: true,
     transferAccessGranted: false,
     transactionPin: "482731",
     confirmed: true,
   };
+  assert.equal(UpdateAdminUserAccessControlsBody.safeParse(base).success, true);
   assert.equal(
     UpdateAdminUserAccessControlsBody.safeParse({
       ...base,
-      reason: "Approved transfer access.",
-    }).success,
-    true,
-  );
-  assert.equal(UpdateAdminUserAccessControlsBody.safeParse(base).success, false);
-  assert.equal(
-    UpdateAdminUserAccessControlsBody.safeParse({
-      ...base,
-      reason: "Short",
-    }).success,
-    false,
-  );
-  assert.equal(
-    UpdateAdminUserAccessControlsBody.safeParse({
-      ...base,
-      reason: "A".repeat(501),
-    }).success,
-    false,
-  );
-  assert.equal(
-    UpdateAdminUserAccessControlsBody.safeParse({
-      ...base,
-      reason: "Approved transfer access.",
       transactionPin: "123",
     }).success,
     false,
@@ -52,44 +28,65 @@ test("access-control contract requires valid flags, reason, PIN, and confirmatio
   assert.equal(
     UpdateAdminUserAccessControlsBody.safeParse({
       ...base,
-      reason: "Approved transfer access.",
       confirmed: false,
     }).success,
     false,
   );
 });
 
-test("reasons are normalized and audit records retain actor, target, action, and settings", () => {
-  assert.equal(normalizeAdminAccessReason(" \t\n "), null);
-  assert.equal(normalizeAdminAccessReason(" short "), null);
+test("account-tier contract accepts only supported tiers and a confirmed six-digit PIN", () => {
+  const valid = {
+    adminAccountTier: "silver",
+    transactionPin: "482731",
+    confirmed: true,
+  };
+  assert.equal(AssignAdminUserAccountTierBody.safeParse(valid).success, true);
   assert.equal(
-    normalizeAdminAccessReason("  Approved transfer access.  "),
-    "Approved transfer access.",
+    AssignAdminUserAccountTierBody.safeParse({
+      ...valid,
+      adminAccountTier: "diamond",
+    }).success,
+    false,
   );
-  assert.deepEqual(
-    buildAdminAccessControlsAuditEntry({
-      actorUserId: "admin-1",
-      targetUserId: "member-1",
-      reason: "Approved transfer access.",
-      testingModeDisabled: true,
-      transferAccessGranted: false,
-    }),
-    {
-      actorUserId: "admin-1",
-      targetUserId: "member-1",
-      action: "update_customer_access_controls",
-      reason:
-        "Approved transfer access. Testing Mode disabled: true; separate transfer access granted: false. Neither setting grants Private Vault access.",
-    },
+  assert.equal(
+    AssignAdminUserAccountTierBody.safeParse({
+      ...valid,
+      transactionPin: "123",
+    }).success,
+    false,
   );
-  const auditReason = buildAdminAccessControlsAuditReason(
-    "Approved transfer access.",
-    { testingModeDisabled: true, transferAccessGranted: false },
+  assert.equal(
+    AssignAdminUserAccountTierBody.safeParse({
+      ...valid,
+      confirmed: false,
+    }).success,
+    false,
   );
-  assert.match(auditReason, /^Approved transfer access\./);
-  assert.match(auditReason, /Testing Mode disabled: true/);
-  assert.match(auditReason, /separate transfer access granted: false/);
-  assert.match(auditReason, /Neither setting grants Private Vault access/);
+});
+
+test("administrator tier migration only adds the constrained base-tier field", () => {
+  const migration = readFileSync(
+    new URL("../../../lib/db/migrations/20261120_admin_account_tier_override.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(migration, /ADD COLUMN IF NOT EXISTS admin_account_tier text/i);
+  assert.match(migration, /IF NOT EXISTS[\s\S]*?bank_users_admin_account_tier_check/i);
+  assert.match(migration, /standard.*silver.*gold.*bronze/is);
+  assert.doesNotMatch(migration, /bank_account_tiers|account_tier_id/i);
+});
+
+test("access-control audit reason is generated and captures actor, target, and both settings", () => {
+  const source = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /"testingModeDisabled",\s*"transferAccessGranted"/);
+  assert.match(
+    source,
+    /action:\s*"update_customer_access_controls",\s*reason:\s*`\$\{generatedAdminAuditReason\(req\)\}/,
+  );
+  assert.match(source, /actorUserId,\s*targetUserId:\s*updated\.id/);
+  assert.doesNotMatch(source, /parsed\.data\.reason/);
 });
 
 test("production-column migration is additive, idempotent, and limited to bank_users", () => {
@@ -163,10 +160,10 @@ test("access-control route denies anonymous and non-allowlisted users before dat
     const address = server.address();
     assert.ok(address && typeof address !== "string");
     const endpoint = `http://127.0.0.1:${address.port}/api/bank/admin/users/member-1/access-controls`;
+    const tierEndpoint = `http://127.0.0.1:${address.port}/api/bank/admin/users/member-1/account-tier`;
     const body = {
       testingModeDisabled: true,
       transferAccessGranted: true,
-      reason: "Approved transfer access.",
       transactionPin: "482731",
       confirmed: true,
     };
@@ -186,7 +183,32 @@ test("access-control route denies anonymous and non-allowlisted users before dat
       (
         await send(adminId, {
           ...body,
-          reason: "        ",
+          transactionPin: "123",
+        })
+      ).status,
+      400,
+    );
+    const sendTier = (userId: string | null, payload: Record<string, unknown>) =>
+      fetch(tierEndpoint, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          ...(userId ? { "x-test-user-id": userId } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+    const validTierBody = {
+      adminAccountTier: "gold",
+      transactionPin: "482731",
+      confirmed: true,
+    };
+    assert.equal((await sendTier(null, validTierBody)).status, 401);
+    assert.equal((await sendTier(ordinaryUserId, validTierBody)).status, 403);
+    assert.equal(
+      (
+        await sendTier(adminId, {
+          ...validTierBody,
+          adminAccountTier: "unsupported",
         })
       ).status,
       400,

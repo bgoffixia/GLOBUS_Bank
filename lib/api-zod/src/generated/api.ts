@@ -62,7 +62,7 @@ export const GetBankProfileResponse = zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'default'])
+  "source": zod.enum(['paystack_subscription', 'admin_assignment', 'default'])
 }),
   "createdAt": zod.coerce.date()
 })
@@ -797,14 +797,14 @@ export const GetBankDashboardResponse = zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'default'])
+  "source": zod.enum(['paystack_subscription', 'admin_assignment', 'default'])
 }),
   "createdAt": zod.coerce.date()
 }).and(zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'default'])
+  "source": zod.enum(['paystack_subscription', 'admin_assignment', 'default'])
 }),
   "testingMode": zod.boolean()
 })),
@@ -1019,7 +1019,7 @@ export const UpdateBankProfileResponse = zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'default'])
+  "source": zod.enum(['paystack_subscription', 'admin_assignment', 'default'])
 }),
   "createdAt": zod.coerce.date()
 })
@@ -1082,7 +1082,7 @@ export const SaveSignupProfileResponse = zod.object({
   "accountTier": zod.object({
   "id": zod.string(),
   "name": zod.string(),
-  "source": zod.enum(['paystack_subscription', 'default'])
+  "source": zod.enum(['paystack_subscription', 'admin_assignment', 'default'])
 }),
   "createdAt": zod.coerce.date()
 })
@@ -1927,6 +1927,8 @@ export const ListAdminUsersResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "accountTierName": zod.string(),
+  "accountTierSource": zod.enum(['paystack_subscription', 'admin_assignment', 'default']),
+  "adminAccountTier": zod.union([zod.literal('standard'),zod.literal('silver'),zod.literal('gold'),zod.literal('bronze'),zod.literal(null)]).nullable(),
   "customerId": zod.string().regex(listAdminUsersResponseItemsItemCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2079,6 +2081,8 @@ export const GetAdminUserDetailResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "accountTierName": zod.string(),
+  "accountTierSource": zod.enum(['paystack_subscription', 'admin_assignment', 'default']),
+  "adminAccountTier": zod.union([zod.literal('standard'),zod.literal('silver'),zod.literal('gold'),zod.literal('bronze'),zod.literal(null)]).nullable(),
   "customerId": zod.string().regex(getAdminUserDetailResponseUserCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2212,6 +2216,8 @@ export const UpdateAdminUserStatusResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "accountTierName": zod.string(),
+  "accountTierSource": zod.enum(['paystack_subscription', 'admin_assignment', 'default']),
+  "adminAccountTier": zod.union([zod.literal('standard'),zod.literal('silver'),zod.literal('gold'),zod.literal('bronze'),zod.literal(null)]).nullable(),
   "customerId": zod.string().regex(updateAdminUserStatusResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2280,6 +2286,8 @@ export const UpdateAdminUserProfileResponse = zod.object({
   "id": zod.string(),
   "email": zod.string(),
   "accountTierName": zod.string(),
+  "accountTierSource": zod.enum(['paystack_subscription', 'admin_assignment', 'default']),
+  "adminAccountTier": zod.union([zod.literal('standard'),zod.literal('silver'),zod.literal('gold'),zod.literal('bronze'),zod.literal(null)]).nullable(),
   "customerId": zod.string().regex(updateAdminUserProfileResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
@@ -2313,16 +2321,12 @@ export const UpdateAdminUserAccessControlsParams = zod.object({
   "userId": zod.coerce.string().min(1)
 })
 
-export const updateAdminUserAccessControlsBodyReasonMin = 8;
-export const updateAdminUserAccessControlsBodyReasonMax = 500;
-
 export const updateAdminUserAccessControlsBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
 
 
 export const UpdateAdminUserAccessControlsBody = zod.object({
   "testingModeDisabled": zod.boolean(),
   "transferAccessGranted": zod.boolean(),
-  "reason": zod.string().min(updateAdminUserAccessControlsBodyReasonMin).max(updateAdminUserAccessControlsBodyReasonMax),
   "transactionPin": zod.string().regex(updateAdminUserAccessControlsBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })
@@ -2331,6 +2335,33 @@ export const UpdateAdminUserAccessControlsResponse = zod.object({
   "userId": zod.string(),
   "testingModeDisabled": zod.boolean(),
   "transferAccessGranted": zod.boolean()
+})
+
+
+/**
+ * @summary Assign or clear an administrator-managed base account tier
+ */
+
+
+
+export const AssignAdminUserAccountTierParams = zod.object({
+  "userId": zod.coerce.string().min(1)
+})
+
+export const assignAdminUserAccountTierBodyTransactionPinRegExp = new RegExp('^[0-9]{6}$');
+
+
+export const AssignAdminUserAccountTierBody = zod.object({
+  "adminAccountTier": zod.union([zod.literal('standard'),zod.literal('silver'),zod.literal('gold'),zod.literal('bronze'),zod.literal(null)]).nullable(),
+  "transactionPin": zod.string().regex(assignAdminUserAccountTierBodyTransactionPinRegExp),
+  "confirmed": zod.literal(true)
+})
+
+export const AssignAdminUserAccountTierResponse = zod.object({
+  "userId": zod.string(),
+  "adminAccountTier": zod.union([zod.literal('standard'),zod.literal('silver'),zod.literal('gold'),zod.literal('bronze'),zod.literal(null)]).nullable(),
+  "accountTierName": zod.string(),
+  "accountTierSource": zod.enum(['paystack_subscription', 'admin_assignment', 'default'])
 })
 
 

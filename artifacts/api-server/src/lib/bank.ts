@@ -26,6 +26,55 @@ export type RestrictedBankOperation =
   | "admin_credit"
   | "admin_debit";
 
+export function bankRestrictionTypeError(
+  types: ReadonlySet<string>,
+  operation: RestrictedBankOperation,
+  bypassOutgoingTransferRestriction = false,
+): string | null {
+  if (
+    types.has("suspend_user") ||
+    types.has("under_review") ||
+    types.has("read_only")
+  ) {
+    return "This account is restricted from financial operations.";
+  }
+  if (
+    types.has("restrict_outgoing_transfers") &&
+    operation === "outgoing_transfer" &&
+    !bypassOutgoingTransferRestriction
+  ) {
+    return "Outgoing transfers are restricted for this account.";
+  }
+  if (
+    types.has("restrict_withdrawals") &&
+    (operation === "withdrawal" || operation === "admin_debit")
+  ) {
+    return "Withdrawals are restricted for this account.";
+  }
+  if (
+    types.has("restrict_deposits") &&
+    (operation === "deposit" || operation === "admin_credit")
+  ) {
+    return "Deposits are restricted for this account.";
+  }
+  if (
+    types.has("freeze_wallet") &&
+    (operation === "withdrawal" ||
+      operation === "outgoing_transfer" ||
+      operation === "admin_debit")
+  ) {
+    return "This wallet is frozen and cannot send funds.";
+  }
+  return null;
+}
+
+export function isOutgoingTransferEnabled(
+  transfersEnabled: boolean,
+  transferAccessGranted: boolean,
+): boolean {
+  return transfersEnabled || transferAccessGranted;
+}
+
 /**
  * Locks the member row before checking restrictions. Restriction creation and
  * removal take the same lock, so the rule cannot change between validation
@@ -37,6 +86,7 @@ export async function bankOperationRestrictionError(
     userId: string;
     walletId?: string | null;
     operation: RestrictedBankOperation;
+    bypassOutgoingTransferRestriction?: boolean;
   },
 ): Promise<string | null> {
   const [user] = await executor
@@ -85,40 +135,12 @@ export async function bankOperationRestrictionError(
     .for("update");
 
   const types = new Set(restrictions.map((restriction) => restriction.type));
-  if (
-    types.has("suspend_user") ||
-    types.has("under_review") ||
-    types.has("read_only")
-  ) {
-    return "This account is restricted from financial operations.";
-  }
-  if (
-    types.has("restrict_outgoing_transfers") &&
-    input.operation === "outgoing_transfer"
-  ) {
-    return "Outgoing transfers are restricted for this account.";
-  }
-  if (
-    types.has("restrict_withdrawals") &&
-    (input.operation === "withdrawal" || input.operation === "admin_debit")
-  ) {
-    return "Withdrawals are restricted for this account.";
-  }
-  if (
-    types.has("restrict_deposits") &&
-    (input.operation === "deposit" || input.operation === "admin_credit")
-  ) {
-    return "Deposits are restricted for this account.";
-  }
-  if (
-    types.has("freeze_wallet") &&
-    (input.operation === "withdrawal" ||
-      input.operation === "outgoing_transfer" ||
-      input.operation === "admin_debit")
-  ) {
-    return "This wallet is frozen and cannot send funds.";
-  }
-  return null;
+  return bankRestrictionTypeError(
+    types,
+    input.operation,
+    input.operation === "outgoing_transfer" &&
+      input.bypassOutgoingTransferRestriction === true,
+  );
 }
 
 export async function getBankOperationEligibility(

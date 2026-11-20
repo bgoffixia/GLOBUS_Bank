@@ -1630,6 +1630,28 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
+  /bank/admin/users/{userId}/account-tier:
+    patch:
+      operationId: assignAdminUserAccountTier
+      tags: [admin]
+      summary: Assign or clear an administrator-managed base account tier
+      parameters:
+        - { name: userId, in: path, required: true, schema: { type: string, minLength: 1 } }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/AdminAccountTierAssignmentInput" }
+      responses:
+        "200":
+          description: Updated effective account tier
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminAccountTierAssignmentResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /bank/admin/users/{userId}/vault-subscription:
     patch:
       operationId: updateAdminUserVaultSubscription
@@ -2417,7 +2439,7 @@ components:
       properties:
         id: { type: string }
         name: { type: string }
-        source: { type: string, enum: [paystack_subscription, default] }
+        source: { type: string, enum: [paystack_subscription, admin_assignment, default] }
       required: [id, name, source]
     BankDashboardProfile:
       allOf:
@@ -2580,6 +2602,8 @@ components:
         id: { type: string }
         email: { type: string }
         accountTierName: { type: string }
+        accountTierSource: { type: string, enum: [paystack_subscription, admin_assignment, default] }
+        adminAccountTier: { type: ["string", "null"], enum: [standard, silver, gold, bronze, null] }
         customerId: { type: ["string", "null"], pattern: "^[A-Z0-9]{7}$" }
         firstName: { type: ["string", "null"] }
         lastName: { type: ["string", "null"] }
@@ -2600,7 +2624,7 @@ components:
         vaultSubscriptionAutoRenew: { type: boolean }
         walletCount: { type: integer }
         createdAt: { type: string, format: date-time }
-      required: [id, email, accountTierName, customerId, firstName, lastName, country, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, profileSetupCompletedAt, testingModeDisabled, transferAccessGranted, walletCount, createdAt]
+      required: [id, email, accountTierName, accountTierSource, adminAccountTier, customerId, firstName, lastName, country, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, profileSetupCompletedAt, testingModeDisabled, transferAccessGranted, walletCount, createdAt]
     AdminUserPage:
       type: object
       properties:
@@ -2690,10 +2714,24 @@ components:
       properties:
         testingModeDisabled: { type: boolean }
         transferAccessGranted: { type: boolean }
-        reason: { type: string, minLength: 8, maxLength: 500 }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
         confirmed: { type: boolean, const: true }
-      required: [testingModeDisabled, transferAccessGranted, reason, transactionPin, confirmed]
+      required: [testingModeDisabled, transferAccessGranted, transactionPin, confirmed]
+    AdminAccountTierAssignmentInput:
+      type: object
+      properties:
+        adminAccountTier: { type: ["string", "null"], enum: [standard, silver, gold, bronze, null] }
+        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
+        confirmed: { type: boolean, const: true }
+      required: [adminAccountTier, transactionPin, confirmed]
+    AdminAccountTierAssignmentResult:
+      type: object
+      properties:
+        userId: { type: string }
+        adminAccountTier: { type: ["string", "null"], enum: [standard, silver, gold, bronze, null] }
+        accountTierName: { type: string }
+        accountTierSource: { type: string, enum: [paystack_subscription, admin_assignment, default] }
+      required: [userId, adminAccountTier, accountTierName, accountTierSource]
     AdminUserAccessControlsResult:
       type: object
       properties:

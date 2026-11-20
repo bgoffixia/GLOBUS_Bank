@@ -103,6 +103,9 @@ import {
   ResetAdminUserTransactionPinBody,
   ResetAdminUserTransactionPinParams,
   ResetAdminUserTransactionPinResponse,
+  AssignAdminUserAccountTierBody,
+  AssignAdminUserAccountTierParams,
+  AssignAdminUserAccountTierResponse,
 } from "@workspace/api-zod";
 import {
   bankAuditLogsTable,
@@ -147,10 +150,6 @@ import { getExchangeRate } from "../lib/exchange-rates";
 import { verifyTransactionPin } from "../lib/transaction-pin";
 import { isIsoCalendarDate } from "../lib/transaction-date";
 import {
-  buildAdminAccessControlsAuditEntry,
-  normalizeAdminAccessReason,
-} from "../lib/admin-access-controls";
-import {
   getEffectiveAccountTier,
   hasActiveVaultAccess,
   vaultSubscriptionStatus,
@@ -182,6 +181,7 @@ const adminAuditOperationLabels: Array<[string, string]> = [
   ["/bank/admin/users/:userId/status", "customer account status change"],
   ["/bank/admin/users/:userId/profile", "customer profile update"],
   ["/bank/admin/users/:userId/access-controls", "customer access controls update"],
+  ["/bank/admin/users/:userId/account-tier", "customer account tier assignment"],
   ["/bank/admin/users/:userId/vault-subscription", "Private Vault subscription access removal"],
   ["/bank/admin/users/:userId/funding", "customer wallet adjustment"],
   ["/bank/admin/transactions/:transactionId/process", "internal transfer processing"],
@@ -198,6 +198,7 @@ const adminAuditDetailFields = [
   "vaultPlanCode",
   "testingModeDisabled",
   "transferAccessGranted",
+  "adminAccountTier",
   "direction",
   "currency",
   "amount",
@@ -2228,6 +2229,7 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       profileSetupCompletedAt: bankUsersTable.profileSetupCompletedAt,
       testingModeDisabled: bankUsersTable.testingModeDisabled,
       transferAccessGranted: bankUsersTable.transferAccessGranted,
+      adminAccountTier: bankUsersTable.adminAccountTier,
       vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
       vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
       vaultSubscriptionPlan: bankUsersTable.vaultSubscriptionPlan,
@@ -2250,6 +2252,7 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       bankUsersTable.profileSetupCompletedAt,
       bankUsersTable.testingModeDisabled,
       bankUsersTable.transferAccessGranted,
+      bankUsersTable.adminAccountTier,
       bankUsersTable.vaultSubscriptionStatus,
       bankUsersTable.vaultSubscriptionExpiresAt,
       bankUsersTable.vaultSubscriptionPlan,
@@ -2289,6 +2292,7 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
         items: rows.map((row) => ({
           ...row,
           accountTierName: getEffectiveAccountTier(row, now).name,
+          accountTierSource: getEffectiveAccountTier(row, now).source,
           accountStatus:
             row.accountStatus === "suspended" ||
             restrictionsByUser.get(row.id)?.some((item) => item.type === "suspend_user")
@@ -2577,6 +2581,8 @@ router.get(
           id: user.id,
           email: user.email,
           accountTierName: effectiveAccountTier.name,
+        accountTierSource: effectiveAccountTier.source,
+        adminAccountTier: user.adminAccountTier,
           customerId: user.customerId,
           firstName: user.firstName,
           lastName: user.lastName,
@@ -2924,6 +2930,9 @@ router.patch(
       UpdateAdminUserStatusResponse.parse({
         id: result.id,
         email: result.email,
+        accountTierName: getEffectiveAccountTier(result).name,
+        accountTierSource: getEffectiveAccountTier(result).source,
+        adminAccountTier: result.adminAccountTier,
         customerId: result.customerId,
         firstName: result.firstName,
         lastName: result.lastName,
@@ -2932,6 +2941,22 @@ router.patch(
         accountRestrictionReason: result.accountRestrictionReason,
         accountRestrictionNotes: result.accountRestrictionNotes,
         accountRestrictedAt: result.accountRestrictedAt?.toISOString() ?? null,
+        profileSetupCompletedAt:
+          result.profileSetupCompletedAt?.toISOString() ?? null,
+        testingModeDisabled: result.testingModeDisabled,
+        transferAccessGranted: result.transferAccessGranted,
+        vaultSubscriptionStatus: vaultSubscriptionStatus(
+          result.vaultSubscriptionStatus,
+          result.vaultSubscriptionExpiresAt,
+        ),
+        vaultSubscriptionRequestedAt:
+          result.vaultSubscriptionRequestedAt?.toISOString() ?? null,
+        vaultSubscriptionExpiresAt:
+          result.vaultSubscriptionExpiresAt?.toISOString() ?? null,
+        vaultSubscriptionReason: result.vaultSubscriptionReason,
+        vaultSubscriptionPlan: result.vaultSubscriptionPlan,
+        vaultSubscriptionAmountMinor: result.vaultSubscriptionAmountMinor,
+        vaultSubscriptionAutoRenew: result.vaultSubscriptionAutoRenew,
         walletCount: walletCount?.value ?? 0,
         createdAt: result.createdAt.toISOString(),
       }),
@@ -3024,6 +3049,9 @@ router.patch(
       UpdateAdminUserProfileResponse.parse({
         id: updated.user.id,
         email: updated.user.email,
+        accountTierName: getEffectiveAccountTier(updated.user).name,
+        accountTierSource: getEffectiveAccountTier(updated.user).source,
+        adminAccountTier: updated.user.adminAccountTier,
         customerId: updated.user.customerId,
         firstName: updated.user.firstName,
         lastName: updated.user.lastName,
@@ -3033,8 +3061,94 @@ router.patch(
         accountRestrictionNotes: updated.user.accountRestrictionNotes,
         accountRestrictedAt:
           updated.user.accountRestrictedAt?.toISOString() ?? null,
+        profileSetupCompletedAt:
+          updated.user.profileSetupCompletedAt?.toISOString() ?? null,
+        testingModeDisabled: updated.user.testingModeDisabled,
+        transferAccessGranted: updated.user.transferAccessGranted,
+        vaultSubscriptionStatus: vaultSubscriptionStatus(
+          updated.user.vaultSubscriptionStatus,
+          updated.user.vaultSubscriptionExpiresAt,
+        ),
+        vaultSubscriptionRequestedAt:
+          updated.user.vaultSubscriptionRequestedAt?.toISOString() ?? null,
+        vaultSubscriptionExpiresAt:
+          updated.user.vaultSubscriptionExpiresAt?.toISOString() ?? null,
+        vaultSubscriptionReason: updated.user.vaultSubscriptionReason,
+        vaultSubscriptionPlan: updated.user.vaultSubscriptionPlan,
+        vaultSubscriptionAmountMinor: updated.user.vaultSubscriptionAmountMinor,
+        vaultSubscriptionAutoRenew: updated.user.vaultSubscriptionAutoRenew,
         walletCount: updated.walletCount,
         createdAt: updated.user.createdAt.toISOString(),
+      }),
+    );
+  },
+);
+
+router.patch(
+  "/bank/admin/users/:userId/account-tier",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = AssignAdminUserAccountTierParams.safeParse(req.params);
+    const parsed = AssignAdminUserAccountTierBody.safeParse(req.body);
+    if (!params.success || !parsed.success) {
+      res.status(400).json({
+        error: !params.success
+          ? params.error.message
+          : parsed.error?.message ?? "Invalid account-tier assignment.",
+      });
+      return;
+    }
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to access administrative controls." });
+      return;
+    }
+    const actor = await ensureBankUser(authUserId);
+    const pinResult = await verifyTransactionPin(
+      actor.id,
+      parsed.data.transactionPin,
+    );
+    if (pinResult !== "valid") {
+      respondWithTransactionPinError(res, pinResult);
+      return;
+    }
+
+    const reason = generatedAdminAuditReason(req);
+    const updated = await db.transaction(async (tx) => {
+      const [target] = await tx
+        .select({ id: bankUsersTable.id })
+        .from(bankUsersTable)
+        .where(eq(bankUsersTable.id, params.data.userId))
+        .for("update");
+      if (!target) return null;
+      const [user] = await tx
+        .update(bankUsersTable)
+        .set({
+          adminAccountTier: parsed.data.adminAccountTier,
+          updatedAt: new Date(),
+        })
+        .where(eq(bankUsersTable.id, target.id))
+        .returning();
+      if (!user) return null;
+      await tx.insert(bankAuditLogsTable).values({
+        actorUserId: actor.id,
+        targetUserId: user.id,
+        action: "assign_customer_account_tier",
+        reason,
+      });
+      return user;
+    });
+    if (!updated) {
+      res.status(404).json({ error: "User record not found." });
+      return;
+    }
+    const effectiveTier = getEffectiveAccountTier(updated);
+    res.json(
+      AssignAdminUserAccountTierResponse.parse({
+        userId: updated.id,
+        adminAccountTier: updated.adminAccountTier,
+        accountTierName: effectiveTier.name,
+        accountTierSource: effectiveTier.source,
       }),
     );
   },
@@ -3051,13 +3165,6 @@ router.patch(
         error: !params.success
           ? params.error.message
           : parsed.error?.message ?? "Invalid access-control request.",
-      });
-      return;
-    }
-    const reason = normalizeAdminAccessReason(parsed.data.reason);
-    if (!reason) {
-      res.status(400).json({
-        error: "Enter a reason between 8 and 500 non-space characters.",
       });
       return;
     }
@@ -3098,13 +3205,10 @@ router.patch(
         });
       if (!updated) return null;
       await tx.insert(bankAuditLogsTable).values({
-        ...buildAdminAccessControlsAuditEntry({
-          actorUserId,
-          targetUserId: updated.id,
-          reason,
-          testingModeDisabled: updated.testingModeDisabled,
-          transferAccessGranted: updated.transferAccessGranted,
-        }),
+        actorUserId,
+        targetUserId: updated.id,
+        action: "update_customer_access_controls",
+        reason: `${generatedAdminAuditReason(req)} Neither setting grants Private Vault access.`,
       });
       return updated;
     });

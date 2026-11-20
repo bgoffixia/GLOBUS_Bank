@@ -278,6 +278,7 @@ export type DashboardAccountTierSource = typeof DashboardAccountTierSource[keyof
 
 export const DashboardAccountTierSource = {
   paystack_subscription: 'paystack_subscription',
+  admin_assignment: 'admin_assignment',
   default: 'default',
 } as const;
 
@@ -1226,6 +1227,28 @@ export interface AdminSummary {
   recentActions: AdminAuditLog[];
 }
 
+export type AdminUserAccountTierSource = typeof AdminUserAccountTierSource[keyof typeof AdminUserAccountTierSource];
+
+
+export const AdminUserAccountTierSource = {
+  paystack_subscription: 'paystack_subscription',
+  admin_assignment: 'admin_assignment',
+  default: 'default',
+} as const;
+
+/**
+ * @nullable
+ */
+export type AdminUserAdminAccountTier = typeof AdminUserAdminAccountTier[keyof typeof AdminUserAdminAccountTier] | null;
+
+
+export const AdminUserAdminAccountTier = {
+  standard: 'standard',
+  silver: 'silver',
+  gold: 'gold',
+  bronze: 'bronze',
+} as const;
+
 export type AdminUserAccountStatus = typeof AdminUserAccountStatus[keyof typeof AdminUserAccountStatus];
 
 
@@ -1262,6 +1285,9 @@ export interface AdminUser {
   id: string;
   email: string;
   accountTierName: string;
+  accountTierSource: AdminUserAccountTierSource;
+  /** @nullable */
+  adminAccountTier: AdminUserAdminAccountTier;
   /**
      * @nullable
      * @pattern ^[A-Z0-9]{7}$
@@ -1444,14 +1470,60 @@ export interface AdminUserProfileInput {
 export interface AdminUserAccessControlsInput {
   testingModeDisabled: boolean;
   transferAccessGranted: boolean;
-  /**
-     * @minLength 8
-     * @maxLength 500
-     */
-  reason: string;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
+}
+
+/**
+ * @nullable
+ */
+export type AdminAccountTierAssignmentInputAdminAccountTier = typeof AdminAccountTierAssignmentInputAdminAccountTier[keyof typeof AdminAccountTierAssignmentInputAdminAccountTier] | null;
+
+
+export const AdminAccountTierAssignmentInputAdminAccountTier = {
+  standard: 'standard',
+  silver: 'silver',
+  gold: 'gold',
+  bronze: 'bronze',
+} as const;
+
+export interface AdminAccountTierAssignmentInput {
+  /** @nullable */
+  adminAccountTier: AdminAccountTierAssignmentInputAdminAccountTier;
+  /** @pattern ^[0-9]{6}$ */
+  transactionPin: string;
+  confirmed: true;
+}
+
+/**
+ * @nullable
+ */
+export type AdminAccountTierAssignmentResultAdminAccountTier = typeof AdminAccountTierAssignmentResultAdminAccountTier[keyof typeof AdminAccountTierAssignmentResultAdminAccountTier] | null;
+
+
+export const AdminAccountTierAssignmentResultAdminAccountTier = {
+  standard: 'standard',
+  silver: 'silver',
+  gold: 'gold',
+  bronze: 'bronze',
+} as const;
+
+export type AdminAccountTierAssignmentResultAccountTierSource = typeof AdminAccountTierAssignmentResultAccountTierSource[keyof typeof AdminAccountTierAssignmentResultAccountTierSource];
+
+
+export const AdminAccountTierAssignmentResultAccountTierSource = {
+  paystack_subscription: 'paystack_subscription',
+  admin_assignment: 'admin_assignment',
+  default: 'default',
+} as const;
+
+export interface AdminAccountTierAssignmentResult {
+  userId: string;
+  /** @nullable */
+  adminAccountTier: AdminAccountTierAssignmentResultAdminAccountTier;
+  accountTierName: string;
+  accountTierSource: AdminAccountTierAssignmentResultAccountTierSource;
 }
 
 export interface AdminUserAccessControlsResult {
