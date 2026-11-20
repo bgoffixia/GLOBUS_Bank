@@ -9,6 +9,7 @@ import {
   LockKeyhole,
   Menu,
   ShieldCheck,
+  UserRound,
   WalletCards,
   X,
 } from 'lucide-react';
@@ -33,6 +34,7 @@ const dashboardTools = [
   { href: '/wallets', label: 'Wallets', ariaLabel: 'Manage wallets', icon: WalletCards },
   { href: '/transactions', label: 'Activity', ariaLabel: 'Transaction activity', icon: ArrowLeftRight },
   { href: '/calculator', label: 'Convert', ariaLabel: 'Currency converter', icon: Calculator },
+  { href: '/profile', label: 'Profile', ariaLabel: 'View your profile', icon: UserRound },
 ];
 
 const moneyLinks = [

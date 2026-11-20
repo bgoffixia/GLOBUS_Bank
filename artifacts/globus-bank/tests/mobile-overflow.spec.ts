@@ -626,6 +626,8 @@ test.describe('signed-in member pages at phone widths', () => {
           const toolbar = page.getByTestId('dashboard-bottom-toolbar');
           const quickActions = page.getByTestId('dashboard-action-toolbar');
           await expect(toolbar).toBeVisible();
+          await expect(toolbar.locator('[data-testid^="dashboard-tool-"]')).toHaveCount(5);
+          await expect(toolbar.getByTestId('dashboard-tool-profile')).toHaveAttribute('href', '/profile');
           await expect(page.getByText('Your details, in order')).toHaveCount(0);
           await expect(quickActions.locator('[data-testid^="dashboard-quick-"]')).toHaveCount(5);
           await expect(quickActions.getByTestId('dashboard-quick-profile')).toHaveAttribute('href', '/profile');
