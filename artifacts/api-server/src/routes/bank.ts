@@ -41,6 +41,8 @@ import {
   GetBankVaultBillingResponse,
   GetBankVaultEmailPreferencesHeader,
   GetBankVaultEmailPreferencesResponse,
+  GetBankVaultReceiptPreferenceHeader,
+  GetBankVaultReceiptPreferenceResponse,
   ClearBankNotificationsResponse,
   InitializeBankVaultPasscodeBody,
   InitializeBankVaultPasscodeResponse,
@@ -67,6 +69,9 @@ import {
   UpdateBankVaultEmailPreferencesBody,
   UpdateBankVaultEmailPreferencesHeader,
   UpdateBankVaultEmailPreferencesResponse,
+  UpdateBankVaultReceiptPreferenceBody,
+  UpdateBankVaultReceiptPreferenceHeader,
+  UpdateBankVaultReceiptPreferenceResponse,
   UpdateBankVaultTransactionNoteBody,
   UpdateBankVaultTransactionNoteHeader,
   UpdateBankVaultTransactionNoteParams,
@@ -529,6 +534,7 @@ function internationalTransferRequestResponse(
     id: transaction.id,
     reference: transaction.reference,
     status: transaction.status,
+    receiptTemplate: transaction.receiptTemplate,
     transferType: request.transferType as "local_routing" | "international_wire",
     destinationCountry: request.destinationCountry,
     recipientBank: request.recipientBank,
@@ -1570,6 +1576,7 @@ router.post(
         currency: parsed.data.sourceCurrency,
         amountMinor,
         feeMinor: 0n,
+        receiptTemplate: lockedSender.preferredReceiptTemplate,
         counterparty: `${parsed.data.recipientAccountName.trim()} · ${parsed.data.recipientBank.trim()} · ****${accountNumber.slice(-4)} · ${parsed.data.destinationCountry.trim()}${routingCode ? ` · Routing ${routingCode}` : ""}${swiftBic ? ` · SWIFT/BIC ${swiftBic}` : ""}`,
         description: `${parsed.data.transferType === "local_routing" ? "Local routing" : "International wire"} transfer${parsed.data.remark?.trim() ? ` · ${parsed.data.remark.trim()}` : ""} · ${conversionSummary}`,
         mode: "internal_ledger",
@@ -3497,6 +3504,108 @@ router.patch(
         await bankVaultEmailPreferencesPayload(result.user),
       ),
     );
+  },
+);
+
+router.get(
+  "/bank/vault/receipt-preference",
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to access your Globus account." });
+      return;
+    }
+    const sessionToken = req.get("X-Globus-Vault-Session") ?? "";
+    const parsedHeader = GetBankVaultReceiptPreferenceHeader.safeParse({
+      "X-Globus-Vault-Session": sessionToken,
+    });
+    if (!parsedHeader.success) {
+      res.status(403).json({ error: "Unlock your private vault to view receipt preferences." });
+      return;
+    }
+    const user = await getOrCreateBankUser(authUserId);
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
+      res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
+      return;
+    }
+    res.json(
+      GetBankVaultReceiptPreferenceResponse.parse({
+        preferredReceiptTemplate: user.preferredReceiptTemplate,
+      }),
+    );
+  },
+);
+
+router.patch(
+  "/bank/vault/receipt-preference",
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to access your Globus account." });
+      return;
+    }
+    const sessionToken = req.get("X-Globus-Vault-Session") ?? "";
+    const parsedHeader = UpdateBankVaultReceiptPreferenceHeader.safeParse({
+      "X-Globus-Vault-Session": sessionToken,
+    });
+    const parsed = UpdateBankVaultReceiptPreferenceBody.safeParse(req.body);
+    if (!parsedHeader.success || !parsed.success) {
+      res.status(400).json({
+        error: !parsedHeader.success
+          ? parsedHeader.error.message
+          : parsed.error?.message ?? "Choose a supported receipt layout.",
+      });
+      return;
+    }
+    const user = await getOrCreateBankUser(authUserId);
+    if (!(await isVaultSessionActive(user.id, sessionToken))) {
+      res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
+      return;
+    }
+    const result = await db.transaction(async (tx) => {
+      const [lockedUser] = await tx
+        .select()
+        .from(bankUsersTable)
+        .where(eq(bankUsersTable.id, user.id))
+        .for("update");
+      if (!lockedUser) return { missing: true as const };
+      if (!(await isVaultSessionActive(user.id, sessionToken))) {
+        return { expired: true as const };
+      }
+      if (!(await hasActiveVaultAccess(lockedUser, tx))) {
+        return { noAccess: true as const };
+      }
+      const [updated] = await tx
+        .update(bankUsersTable)
+        .set({
+          preferredReceiptTemplate: parsed.data.preferredReceiptTemplate,
+          updatedAt: new Date(),
+        })
+        .where(eq(bankUsersTable.id, user.id))
+        .returning({
+          preferredReceiptTemplate: bankUsersTable.preferredReceiptTemplate,
+        });
+      await tx.insert(bankAuditLogsTable).values({
+        actorUserId: user.id,
+        targetUserId: user.id,
+        action: "update_transfer_receipt_preference",
+        reason: "Member selected a receipt layout for future transfers.",
+      });
+      return { preference: updated };
+    });
+    if ("missing" in result) {
+      res.status(404).json({ error: "The Globus account could not be found." });
+      return;
+    }
+    if ("expired" in result) {
+      res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
+      return;
+    }
+    if ("noAccess" in result) {
+      res.status(403).json({ error: "Active Private Vault access is required to change receipt preferences." });
+      return;
+    }
+    res.json(UpdateBankVaultReceiptPreferenceResponse.parse(result.preference));
   },
 );
 

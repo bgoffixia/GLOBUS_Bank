@@ -586,6 +586,17 @@ test.describe('signed-in member pages at phone widths', () => {
             await expect(page.getByTestId('input-funding-description')).toBeVisible();
             await expect(page.getByTestId('input-funding-amount')).not.toHaveAttribute('max');
           }
+          const workspaceMenu = page.getByTestId('button-vault-workspace-menu');
+          if (await workspaceMenu.isVisible()) {
+            await workspaceMenu.click();
+            const drawer = page.getByTestId('vault-workspace-drawer');
+            await expect(drawer).toBeVisible();
+            await expect(drawer.getByRole('navigation', { name: 'Vault workspace sections' })).toBeVisible();
+            await expectNoHorizontalOverflow(page, `Vault workspace drawer at ${width}px`);
+            await drawer.getByRole('link', { name: 'Wallet policies' }).click();
+            await expect(page.locator('#vault-workspace-wallets')).toBeInViewport();
+            await expect(drawer).toHaveCount(0);
+          }
         }
         if (path === '/withdraw') {
           await expect(page.getByTestId('withdrawal-workflow')).toBeVisible();

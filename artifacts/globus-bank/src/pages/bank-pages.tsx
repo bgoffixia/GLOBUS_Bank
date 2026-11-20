@@ -1220,10 +1220,11 @@ export function ProfilePage() {
 
 export function PrivateVaultPage() {
   return (
-    <div className="mx-auto min-w-0 max-w-[1040px] space-y-4" data-testid="private-vault-page">
+    <div className="mx-auto min-w-0 max-w-[1280px] space-y-4" data-testid="private-vault-page">
       <PageHeading
-        eyebrow="Private account controls"
+        eyebrow="Private account workspace"
         title="Private Vault"
+        subtitle="Manage wallet access, account security, alerts, and payment preferences."
         titleClassName="text-[24px] leading-tight sm:text-[28px]"
       />
       <PrivateVaultPanel />

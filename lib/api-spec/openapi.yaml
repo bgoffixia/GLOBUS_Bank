@@ -339,6 +339,48 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "409": { $ref: "#/components/responses/Conflict" }
+  /bank/vault/receipt-preference:
+    get:
+      operationId: getBankVaultReceiptPreference
+      tags: [bank]
+      summary: Get the customer's preferred future transfer receipt layout
+      parameters:
+        - name: X-Globus-Vault-Session
+          in: header
+          required: true
+          schema: { type: string, minLength: 32, maxLength: 128 }
+      responses:
+        "200":
+          description: Saved receipt layout preference
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankVaultReceiptPreference" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+    patch:
+      operationId: updateBankVaultReceiptPreference
+      tags: [bank]
+      summary: Save the customer's preferred layout for future transfer receipts
+      parameters:
+        - name: X-Globus-Vault-Session
+          in: header
+          required: true
+          schema: { type: string, minLength: 32, maxLength: 128 }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BankVaultReceiptPreferenceInput" }
+      responses:
+        "200":
+          description: Updated future receipt layout preference
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankVaultReceiptPreference" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /bank/vault/unlock:
     post:
       operationId: unlockBankVault
@@ -2038,6 +2080,7 @@ components:
         id: { type: string }
         reference: { type: string }
         status: { $ref: "#/components/schemas/TransactionStatus" }
+        receiptTemplate: { $ref: "#/components/schemas/ReceiptTemplate" }
         destinationCountry: { type: string }
         recipientBank: { type: string }
         transferType: { type: string, enum: [local_routing, international_wire] }
@@ -2057,7 +2100,7 @@ components:
         rateUpdatedAt: { type: string, format: date-time }
         remark: { type: string }
         createdAt: { type: string, format: date-time }
-      required: [id, reference, status, transferType, destinationCountry, recipientBank, routingCode, swiftBic, senderName, sourceWalletLast4, recipientAccountName, recipientEmail, recipientEmailNotificationSkipped, recipientAccountLast4, sourceCurrency, sourceAmount, destinationCurrency, destinationAmount, exchangeRate, rateUpdatedAt, remark, createdAt]
+      required: [id, reference, status, receiptTemplate, transferType, destinationCountry, recipientBank, routingCode, swiftBic, senderName, sourceWalletLast4, recipientAccountName, recipientEmail, recipientEmailNotificationSkipped, recipientAccountLast4, sourceCurrency, sourceAmount, destinationCurrency, destinationAmount, exchangeRate, rateUpdatedAt, remark, createdAt]
     TransactionStatus:
       type: string
       enum: [completed, pending, failed, rejected, reversed]
@@ -2195,6 +2238,19 @@ components:
         supportLabel: { type: string, minLength: 1, maxLength: 40 }
         senderLocalPart: { type: ["string", "null"], minLength: 1, maxLength: 64, pattern: "^[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?$" }
       minProperties: 1
+    ReceiptTemplate:
+      type: string
+      enum: [standard, bank_grade, journey, ledger, statement]
+    BankVaultReceiptPreference:
+      type: object
+      properties:
+        preferredReceiptTemplate: { $ref: "#/components/schemas/ReceiptTemplate" }
+      required: [preferredReceiptTemplate]
+    BankVaultReceiptPreferenceInput:
+      type: object
+      properties:
+        preferredReceiptTemplate: { $ref: "#/components/schemas/ReceiptTemplate" }
+      required: [preferredReceiptTemplate]
     BankVaultTransactionNote:
       type: object
       properties:
@@ -2379,6 +2435,7 @@ components:
         reference: { type: string }
         type: { $ref: "#/components/schemas/TransactionType" }
         status: { $ref: "#/components/schemas/TransactionStatus" }
+        receiptTemplate: { $ref: "#/components/schemas/ReceiptTemplate" }
         currency: { $ref: "#/components/schemas/CurrencyCode" }
         amount: { type: string }
         fee: { type: string }
@@ -2386,7 +2443,7 @@ components:
         description: { type: string }
         mode: { type: string, enum: [internal_ledger] }
         createdAt: { type: string, format: date-time }
-      required: [id, reference, type, status, currency, amount, fee, counterparty, description, mode, createdAt]
+      required: [id, reference, type, status, receiptTemplate, currency, amount, fee, counterparty, description, mode, createdAt]
     BankDashboard:
       type: object
       properties:

@@ -455,6 +455,44 @@ export const UpdateBankVaultEmailPreferencesResponse = zod.object({
 
 
 /**
+ * @summary Get the customer's preferred future transfer receipt layout
+ */
+export const getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin = 32;
+export const getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax = 128;
+
+
+
+export const GetBankVaultReceiptPreferenceHeader = zod.object({
+  "X-Globus-Vault-Session": zod.string().min(getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin).max(getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax)
+})
+
+export const GetBankVaultReceiptPreferenceResponse = zod.object({
+  "preferredReceiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement'])
+})
+
+
+/**
+ * @summary Save the customer's preferred layout for future transfer receipts
+ */
+export const updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin = 32;
+export const updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax = 128;
+
+
+
+export const UpdateBankVaultReceiptPreferenceHeader = zod.object({
+  "X-Globus-Vault-Session": zod.string().min(updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin).max(updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax)
+})
+
+export const UpdateBankVaultReceiptPreferenceBody = zod.object({
+  "preferredReceiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement'])
+})
+
+export const UpdateBankVaultReceiptPreferenceResponse = zod.object({
+  "preferredReceiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement'])
+})
+
+
+/**
  * @summary Authenticate to the private customer vault
  */
 export const unlockBankVaultBodyPasscodeRegExp = new RegExp('^[0-9]{4}$');
@@ -766,6 +804,7 @@ export const GetBankDashboardResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -888,6 +927,7 @@ export const ListBankTransactionsResponseItem = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -1162,6 +1202,7 @@ export const ListInternationalTransferRequestsResponseItem = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "destinationCountry": zod.string(),
   "recipientBank": zod.string(),
   "transferType": zod.enum(['local_routing', 'international_wire']),
@@ -1249,6 +1290,7 @@ export const CreateInternationalTransferRequestResponse = zod.object({
   "id": zod.string(),
   "reference": zod.string(),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "destinationCountry": zod.string(),
   "recipientBank": zod.string(),
   "transferType": zod.enum(['local_routing', 'international_wire']),
@@ -2208,6 +2250,7 @@ export const GetAdminUserDetailResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2484,6 +2527,7 @@ export const CreateAdminFundingResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2512,6 +2556,7 @@ export const ListAdminLedgerResponseItem = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2584,6 +2629,7 @@ export const ListAdminTransactionsResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2611,6 +2657,7 @@ export const GetAdminTransactionDetailResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2680,6 +2727,7 @@ export const CreateAdminTransactionCorrectionResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2711,6 +2759,7 @@ export const UpdateAdminTransactionStatusResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2741,6 +2790,7 @@ export const ProcessAdminInternalTransferResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),
@@ -2771,6 +2821,7 @@ export const ReviewAdminFundingResponse = zod.object({
   "reference": zod.string(),
   "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_debit', 'admin_adjustment', 'reversal', 'transfer_in', 'transfer_out', 'external_transfer', 'external_transfer_in', 'deposit_request', 'withdrawal_request', 'exchange_request']),
   "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "receiptTemplate": zod.enum(['standard', 'bank_grade', 'journey', 'ledger', 'statement']),
   "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
   "amount": zod.string(),
   "fee": zod.string(),

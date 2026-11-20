@@ -89,6 +89,9 @@ export const bankAccountTiersTable = pgTable(
 export const bankUsersTable = pgTable("bank_users", {
   id: text("id").primaryKey(),
   email: text("email").notNull().unique(),
+  preferredReceiptTemplate: text("preferred_receipt_template")
+    .notNull()
+    .default("standard"),
   accountTierId: text("account_tier_id")
     .notNull()
     .default("standard")
@@ -327,6 +330,7 @@ export const bankTransactionsTable = pgTable(
     reversalOfTransactionId: uuid("reversal_of_transaction_id"),
     correctionReason: text("correction_reason"),
     mode: text("mode").notNull().default("simulation"),
+    receiptTemplate: text("receipt_template").notNull().default("standard"),
     createdAt: timestamp("created_at", { withTimezone: true })
       .notNull()
       .defaultNow(),

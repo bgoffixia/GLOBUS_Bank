@@ -76,6 +76,7 @@ export function receiptFromRequest(r: InternationalTransferRequest): ReceiptTran
     reference: r.reference,
     type: 'external_transfer',
     status: r.status,
+    receiptTemplate: r.receiptTemplate,
     currency: r.sourceCurrency,
     amount: r.sourceAmount,
     fee: '0.00',
@@ -116,6 +117,15 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
   const pending = transaction.status === 'pending';
   const isTransfer = transaction.type === 'external_transfer';
   const heading = title ?? (isTransfer ? 'Routed transfer' : humanizeStatus(transaction.type));
+  const template = transaction.receiptTemplate ?? 'standard';
+  const templateTitle = {
+    standard: 'Payment receipt',
+    bank_grade: 'Bank transaction record',
+    journey: 'Transfer journey',
+    ledger: 'Transfer ledger',
+    statement: 'Transaction statement',
+  }[template];
+  const darkMasthead = template === 'journey' || template === 'ledger' || template === 'statement';
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -153,6 +163,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
 
   const exportData = () => ({
     reference: transaction.reference,
+    receiptTemplate: template,
     amount: formatAmount(transaction.amount, transaction.currency),
     status: humanizeStatus(transaction.status),
     date: formatDateTime(transaction.createdAt),
@@ -211,61 +222,106 @@ export function TransferReceiptModal({ transaction, onClose, title, notice }: { 
     <div className="receipt-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#dce5eb]/85 p-2 backdrop-blur-sm sm:p-3" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
       <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" data-testid="dialog-transfer-receipt" className="receipt-dialog relative flex w-full max-w-[460px] flex-col overflow-hidden rounded-[20px] border border-[#d9e2e7] bg-[#fffefa] shadow-[0_22px_65px_rgba(14,40,61,.22)]">
         <div data-testid="receipt-document-frame" className="receipt-document-frame w-full shrink-0" style={{ height: `${receiptFit.height}px` }}>
-          <article ref={printRef} className="receipt-print w-full bg-[#fffefa] text-[#203a54]" style={{ transform: `scale(${receiptFit.scale})`, transformOrigin: 'top center' }}>
-            <header className="px-5 pb-4 pt-4 sm:px-6">
-              <div className="flex items-center justify-between border-b border-[#e8ecee] pb-3">
-                <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className="h-auto w-[104px]" />
-                <button ref={closeRef} type="button" aria-label="Close receipt" data-testid="button-close-receipt" onClick={onClose} className="receipt-screen-only grid h-8 w-8 place-items-center rounded-full border border-[#e1e8eb] text-[#607589] transition hover:bg-[#f1f6f7]"><X size={15} /></button>
+          <article
+            ref={printRef}
+            data-testid="receipt-document"
+            data-receipt-template={template}
+            className={`receipt-print w-full text-[#203a54] ${template === 'statement' ? 'bg-[#fcfcf7]' : 'bg-[#fffefa]'}`}
+            style={{ transform: `scale(${receiptFit.scale})`, transformOrigin: 'top center' }}
+          >
+            <header className={`px-5 pb-4 pt-4 sm:px-6 ${darkMasthead ? `text-white ${template === 'ledger' ? 'bg-[#173c4b]' : 'bg-[#173951]'}` : 'text-[#203a54]'}`}>
+              <div className={`flex items-center justify-between border-b pb-3 ${darkMasthead ? 'border-white/15' : 'border-[#e8ecee]'}`}>
+                <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className={`h-auto w-[104px] ${darkMasthead ? 'brightness-0 invert' : ''}`} />
+                <button ref={closeRef} type="button" aria-label="Close receipt" data-testid="button-close-receipt" onClick={onClose} className={`receipt-screen-only grid h-8 w-8 place-items-center rounded-full border transition ${darkMasthead ? 'border-white/20 text-white/80 hover:bg-white/10' : 'border-[#e1e8eb] text-[#607589] hover:bg-[#f1f6f7]'}`}><X size={15} /></button>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
-                <div>
-                  <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#478783]">Globus Bank · transaction record</p>
-                  <h2 id="receipt-title" className="bank-display mt-1 text-[19px] font-bold tracking-[-.045em] text-[#183450]">Payment receipt</h2>
-                  <p className="mt-0.5 text-[10px] text-[#7d8d9b]">{heading}</p>
+                <div className="min-w-0">
+                  <p className={`text-[9px] font-bold uppercase tracking-[.18em] ${darkMasthead ? 'text-[#a9c7bd]' : 'text-[#478783]'}`}>
+                    {template === 'statement' ? 'Payments & settlements · official Globus record' : template === 'journey' ? 'Transfer record · Globus ledger' : template === 'ledger' ? 'Globus ledger · transfer record' : 'Globus Bank · transaction record'}
+                  </p>
+                  <h2 id="receipt-title" className={`bank-display mt-1 text-[19px] font-bold tracking-[-.045em] ${darkMasthead ? 'text-white' : 'text-[#183450]'}`}>{templateTitle}</h2>
+                  <p className={`mt-0.5 text-[10px] ${darkMasthead ? 'text-white/70' : 'text-[#7d8d9b]'}`}>{heading}</p>
                 </div>
                 <span data-testid="text-receipt-status" className={`mb-0.5 inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold ${completed ? 'border-[#d5e7dc] bg-[#eff7f2] text-[#47755f]' : pending ? 'border-[#eadfbf] bg-[#fbf7eb] text-[#8b7440]' : 'border-[#f1d8d5] bg-[#fbefed] text-[#9c4d46]'}`}>
                   {completed ? <BadgeCheck size={11} /> : <Clock3 size={11} />}
-                  {completed ? 'RECORDED' : pending ? 'PENDING REVIEW' : humanizeStatus(transaction.status).toUpperCase()}
+                  {completed ? 'RECORDED IN GLOBUS' : pending ? 'PENDING REVIEW' : humanizeStatus(transaction.status).toUpperCase()}
                 </span>
               </div>
-              <div className="relative mt-3 overflow-hidden rounded-[15px] bg-[#173858] p-4 text-white">
-                <div className="absolute -right-8 -top-12 h-32 w-32 rounded-full border border-white/[.09]" />
-                <div className="absolute -right-3 -top-7 h-20 w-20 rounded-full border border-[#d6bb70]/30" />
-                <p className="relative text-[9px] font-bold uppercase tracking-[.16em] text-[#a9d6d3]">Transaction amount</p>
-                <p data-testid="text-receipt-amount" className="bank-display relative mt-1 text-[25px] font-bold tracking-[-.04em]">{formatAmount(transaction.amount, transaction.currency)}</p>
-                {conversion && <div className="relative mt-3 grid grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-white/15 pt-3">
-                  <div className="min-w-0"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#a9c0d1]">Source amount</p><p data-testid="text-receipt-source-amount" className="mt-0.5 truncate text-[11px] font-semibold">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)}</p></div>
-                  <ArrowLeftRight size={13} className="text-[#d4bc76]" />
-                  <div className="min-w-0 text-right"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#a9c0d1]">{completed ? 'Converted total' : 'Expected converted'}</p><p data-testid="text-receipt-converted-total" className="mt-0.5 truncate text-[11px] font-semibold">{formatAmount(conversion.destinationAmount, conversion.destinationCurrency)}</p></div>
-                </div>}
-                {conversion && <p data-testid="text-receipt-exchange-rate" className="relative mt-2 text-[9px] text-[#c2d2dd]">Rate: 1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p>}
-              </div>
+              {template === 'statement' && <p className="mt-2 text-right font-mono text-[8px] uppercase tracking-[.08em] text-white/65">Statement date · {formatDateTime(transaction.createdAt)}</p>}
             </header>
-            <div className="px-5 pb-3 sm:px-6">
-              <section className="rounded-xl border border-[#e4e9eb] bg-white px-3">
-              <div className="flex items-center gap-1.5 border-b border-[#e9edf0] py-2 text-[8px] font-bold uppercase tracking-[.14em] text-[#718599]"><Hash size={11} className="text-[#528c89]" />Transaction details</div>
-              <dl>
-                <Row label="Reference" value={transaction.reference} testId="text-receipt-reference" strong />
-                {transaction.sender && <>
-                  <Row label="Sender" value={transaction.sender.name} />
-                  <Row label="Source wallet" value={`••••••${transaction.sender.walletLast4}`} mono />
-                </>}
-                {transaction.recipient ? <>
-                  <Row label="Destination bank" value={transaction.recipient.bank} />
-                  <Row label="Country" value={transaction.recipient.country} />
-                  <Row label="Recipient account / IBAN" value={transaction.recipient.account} mono />
-                  <Row label="Recipient name" value={transaction.recipient.name} />
-                  {transaction.recipient.transferType === 'local_routing' && transaction.recipient.routingCode && <Row label="Routing number" value={transaction.recipient.routingCode} mono />}
-                  {transaction.recipient.transferType === 'international_wire' && transaction.recipient.swiftBic && <Row label="SWIFT / BIC" value={transaction.recipient.swiftBic} mono />}
-                  <Row label="Remark / description" value={transaction.recipient.remark || transaction.description || heading} />
-                </> : <Row label="Counterparty" value={transaction.counterparty || 'Globus account'} />}
-                <Row label="Date / time" value={formatDateTime(transaction.createdAt)} />
-                {!transaction.recipient && <Row label="Fee" value={formatAmount(transaction.fee, transaction.currency)} />}
-              </dl>
+            <div className="space-y-3 px-5 pb-3 pt-3 sm:px-6">
+              <section className={`rounded-[15px] border p-4 ${template === 'statement' ? 'border-[#dce5dc] bg-[#f1f5ef]' : template === 'journey' ? 'border-[#dce8e4] bg-[#f5f8f4]' : template === 'bank_grade' ? 'border-[#dce5e8] bg-[#173858] text-white' : template === 'ledger' ? 'border-[#d9e5dd] bg-[#eff4ed]' : 'border-[#dce5e8] bg-[#173858] text-white'}`} aria-label="Transfer amount summary">
+                <p className={`text-[8px] font-bold uppercase tracking-[.16em] ${template === 'standard' || template === 'bank_grade' ? 'text-[#a9d6d3]' : 'text-[#718b81]'}`}>
+                  {template === 'statement' ? 'Settlement particulars' : template === 'ledger' ? 'Ledger amount summary' : 'Transaction amount · internal record'}
+                </p>
+                {template === 'journey' && conversion ? <div className="mt-2 grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2">
+                  <div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.1em] text-[#819293]">Source</p><p data-testid="text-receipt-amount" className="bank-display mt-1 break-words text-[17px] font-bold">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)}</p><p data-testid="text-receipt-source-amount" className="sr-only">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)}</p></div>
+                  <ArrowLeftRight size={13} className="text-[#548f80]" />
+                  <div className="min-w-0 text-right"><p className="text-[7px] font-bold uppercase tracking-[.1em] text-[#819293]">Calculated destination</p><p data-testid="text-receipt-converted-total" className="bank-display mt-1 break-words text-[17px] font-bold text-[#347c78]">{formatAmount(conversion.destinationAmount, conversion.destinationCurrency)}</p></div>
+                </div> : <p data-testid="text-receipt-amount" className="bank-display mt-1 break-words text-[25px] font-bold tracking-[-.04em]">{formatAmount(transaction.amount, transaction.currency)}</p>}
+                {template !== 'journey' && conversion && <div className={`mt-3 grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t pt-3 ${template === 'standard' || template === 'bank_grade' ? 'border-white/15' : 'border-[#dbe5df]'}`}>
+                  <div className="min-w-0"><p className={`text-[7px] font-bold uppercase tracking-[.1em] ${template === 'standard' || template === 'bank_grade' ? 'text-[#a9c0d1]' : 'text-[#82928e]'}`}>Source amount</p><p data-testid="text-receipt-source-amount" className="mt-0.5 break-words text-[10px] font-semibold">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)}</p></div>
+                  <ArrowLeftRight size={13} className="text-[#d4bc76]" />
+                  <div className="min-w-0 text-right"><p className={`text-[7px] font-bold uppercase tracking-[.1em] ${template === 'standard' || template === 'bank_grade' ? 'text-[#a9c0d1]' : 'text-[#82928e]'}`}>Calculated destination</p><p data-testid="text-receipt-converted-total" className="mt-0.5 break-words text-[10px] font-semibold">{formatAmount(conversion.destinationAmount, conversion.destinationCurrency)}</p></div>
+                </div>}
+                {conversion && <p data-testid="text-receipt-exchange-rate" className={`mt-2 break-words text-[8px] ${template === 'standard' || template === 'bank_grade' ? 'text-[#c2d2dd]' : 'text-[#71868a]'}`}>Rate recorded: 1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p>}
               </section>
-              <div className="mt-3 flex items-center gap-2 border-t border-dashed border-[#dfe6e9] pt-3">
+
+              {template === 'bank_grade' && transaction.recipient && <section className="rounded-xl border border-[#e4e9eb] bg-white p-3" aria-label="Transfer recipient">
+                <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#8291a0]">Recipient details on record</p>
+                <div className="mt-2 flex min-w-0 items-center gap-2.5">
+                  <div className="grid h-8 w-8 shrink-0 place-items-center rounded-lg bg-[#eef5f5] text-[#397b7b]"><ShieldCheck size={15} /></div>
+                  <div className="min-w-0 flex-1"><p className="break-words text-[10px] font-bold text-[#263f58]">{transaction.recipient.name}</p><p className="mt-0.5 break-words text-[8px] text-[#7b8b9b]">{transaction.recipient.bank} · {transaction.recipient.country}</p></div>
+                  <p className="shrink-0 font-mono text-[8px] font-semibold text-[#526a80]">{transaction.recipient.account}</p>
+                </div>
+              </section>}
+
+              {template === 'journey' && <section className="rounded-xl border border-[#dce8e4] bg-white px-3 py-2.5" aria-label="Transfer journey">
+                <h3 className="mb-2 text-[8px] font-bold uppercase tracking-[.13em] text-[#718599]">Transfer journey</h3>
+                <div className="space-y-2">
+                  <div className="flex items-start gap-2"><span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-[#e8f1eb] text-[8px] text-[#397b72]">1</span><div className="min-w-0 flex-1"><p className="text-[9px] font-bold text-[#344e5c]">Request recorded</p><p className="text-[8px] text-[#89999c]">{formatDateTime(transaction.createdAt)}</p></div><span className="max-w-[46%] break-words text-right text-[8px] font-semibold text-[#52697e]">{transaction.sender?.name || 'Globus account'}</span></div>
+                  <div className="flex items-start gap-2"><span className="mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full bg-[#e8f1eb] text-[8px] text-[#397b72]">2</span><div className="min-w-0 flex-1"><p className="text-[9px] font-bold text-[#344e5c]">Destination details recorded</p><p className="text-[8px] text-[#89999c]">{transaction.recipient?.route || 'Transfer route'}</p></div><span className="max-w-[46%] break-words text-right text-[8px] font-semibold text-[#52697e]">{transaction.recipient?.name || transaction.counterparty || 'Globus account'}</span></div>
+                  <div className="flex items-start gap-2"><span className={`mt-0.5 grid h-4 w-4 shrink-0 place-items-center rounded-full text-[8px] ${completed ? 'bg-[#347c78] text-white' : 'bg-[#fbf7eb] text-[#8b7440]'}`}>3</span><div className="min-w-0 flex-1"><p className="text-[9px] font-bold text-[#344e5c]">Globus status</p><p className="text-[8px] text-[#89999c]">{completed ? 'Recorded in Globus ledger' : pending ? 'Awaiting administrator review' : 'No wallet balance change'}</p></div><span className="max-w-[46%] break-words text-right text-[8px] font-semibold text-[#52697e]">{humanizeStatus(transaction.status)}</span></div>
+                </div>
+              </section>}
+
+              {template === 'ledger' && <section className="rounded-xl border border-[#dce6df] bg-white px-3 py-2.5" aria-label="Ledger record">
+                <div className="flex items-center justify-between gap-2 border-b border-[#e4ebe5] pb-2"><h3 className="text-[8px] font-bold uppercase tracking-[.13em] text-[#718599]">Ledger entries</h3><span className="text-[7px] font-semibold text-[#83928c]">GLOBUS RECORD</span></div>
+                <div className="divide-y divide-[#e9eeeb]">
+                  <div className="flex items-start justify-between gap-3 py-2"><div><p className="text-[9px] font-bold text-[#344e5c]">Transfer request</p><p className="mt-0.5 text-[8px] text-[#89999c]">{transaction.sender ? `Source wallet · ••••${transaction.sender.walletLast4}` : 'Internal Globus account'}</p></div><strong className="shrink-0 font-mono text-[8px] text-[#52697e]">{formatAmount(transaction.amount, transaction.currency)}</strong></div>
+                  {conversion && <div className="flex items-start justify-between gap-3 py-2"><div><p className="text-[9px] font-bold text-[#344e5c]">Conversion reference</p><p className="mt-0.5 break-words text-[8px] text-[#89999c]">1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p></div><strong className="shrink-0 font-mono text-[8px] text-[#52697e]">{formatAmount(conversion.destinationAmount, conversion.destinationCurrency)}</strong></div>}
+                  <div className="flex items-start justify-between gap-3 py-2"><div><p className="text-[9px] font-bold text-[#344e5c]">Posting status</p><p className="mt-0.5 text-[8px] text-[#89999c]">{completed ? 'Ledger posting recorded' : pending ? 'No balance change while review is pending' : 'No wallet balance change'}</p></div><strong className="shrink-0 text-[8px] text-[#52697e]">{humanizeStatus(transaction.status)}</strong></div>
+                </div>
+              </section>}
+
+              {template === 'statement' && <div className="flex items-center justify-between border-y border-[#dce5dc] py-2 text-[8px]"><span className="font-bold uppercase tracking-[.12em] text-[#718b81]">01 · Transaction status</span><span className="font-semibold text-[#38545a]">{completed ? 'Recorded in Globus' : pending ? 'Pending review' : 'Not posted'}</span></div>}
+
+              <section className={`rounded-xl border px-3 ${template === 'statement' ? 'border-[#dce5dc] bg-white' : 'border-[#e4e9eb] bg-white'}`}>
+                <div className={`flex items-center gap-1.5 border-b border-[#e9edf0] py-2 text-[8px] font-bold uppercase tracking-[.14em] text-[#718599] ${template === 'statement' ? 'justify-between' : ''}`}>
+                  {template === 'statement' && <span className="font-mono text-[#779387]">02</span>}<span className="inline-flex items-center gap-1.5"><Hash size={11} className="text-[#528c89]" />{template === 'statement' ? 'Record details' : 'Transaction details'}</span>
+                </div>
+                <dl>
+                  <Row label="Reference" value={transaction.reference} testId="text-receipt-reference" strong mono />
+                  {transaction.sender && <>
+                    <Row label="Sender" value={transaction.sender.name} />
+                    <Row label="Source wallet" value={`••••••${transaction.sender.walletLast4}`} mono />
+                  </>}
+                  {transaction.recipient ? <>
+                    <Row label="Destination bank" value={transaction.recipient.bank} />
+                    <Row label="Country" value={transaction.recipient.country} />
+                    <Row label="Recipient account / IBAN" value={transaction.recipient.account} mono />
+                    <Row label="Recipient name" value={transaction.recipient.name} />
+                    {transaction.recipient.transferType === 'local_routing' && transaction.recipient.routingCode && <Row label="Routing number" value={transaction.recipient.routingCode} mono />}
+                    {transaction.recipient.transferType === 'international_wire' && transaction.recipient.swiftBic && <Row label="SWIFT / BIC" value={transaction.recipient.swiftBic} mono />}
+                    <Row label="Remark / description" value={transaction.recipient.remark || transaction.description || heading} />
+                  </> : <Row label="Counterparty" value={transaction.counterparty || 'Globus account'} />}
+                  <Row label="Date / time" value={formatDateTime(transaction.createdAt)} />
+                  {!transaction.recipient && <Row label="Fee" value={formatAmount(transaction.fee, transaction.currency)} />}
+                </dl>
+              </section>
+              <div className="flex items-center gap-2 border-t border-dashed border-[#dfe6e9] pt-2">
                 <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#edf5f1] text-[#4a826d]"><ShieldCheck size={13} /></div>
-                <p className="text-[9px] leading-4 text-[#7d8c98]">Recorded by Globus Bank <span className="mx-1 text-[#c1cbd0]">·</span> Keep this receipt for your records</p>
+                <p className="min-w-0 text-[8px] leading-4 text-[#7d8c98]">{template === 'statement' ? 'This statement is a Globus internal ledger record. It does not confirm settlement by an outside bank or payment service.' : 'Recorded by Globus Bank · This receipt does not confirm settlement through an outside bank or payment service.'}</p>
                 <CalendarDays size={12} className="ml-auto shrink-0 text-[#8da0ab]" />
               </div>
             </div>

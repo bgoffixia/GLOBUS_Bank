@@ -656,6 +656,7 @@ export function toBankTransaction(
     reference: transaction.reference,
     type,
     status: transaction.status,
+    receiptTemplate: transaction.receiptTemplate,
     currency: transaction.currency as BankCurrency,
     amount: formatMinorAmount(transaction.amountMinor),
     fee: formatMinorAmount(transaction.feeMinor),

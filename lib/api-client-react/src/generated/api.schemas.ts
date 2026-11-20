@@ -158,10 +158,22 @@ export const TransactionStatus = {
   reversed: 'reversed',
 } as const;
 
+export type ReceiptTemplate = typeof ReceiptTemplate[keyof typeof ReceiptTemplate];
+
+
+export const ReceiptTemplate = {
+  standard: 'standard',
+  bank_grade: 'bank_grade',
+  journey: 'journey',
+  ledger: 'ledger',
+  statement: 'statement',
+} as const;
+
 export interface InternationalTransferRequest {
   id: string;
   reference: string;
   status: TransactionStatus;
+  receiptTemplate: ReceiptTemplate;
   destinationCountry: string;
   recipientBank: string;
   transferType: InternationalTransferRequestTransferType;
@@ -568,6 +580,14 @@ export interface BankVaultEmailPreferencesInput {
   senderLocalPart?: string | null;
 }
 
+export interface BankVaultReceiptPreference {
+  preferredReceiptTemplate: ReceiptTemplate;
+}
+
+export interface BankVaultReceiptPreferenceInput {
+  preferredReceiptTemplate: ReceiptTemplate;
+}
+
 export interface BankVaultTransactionNote {
   id: string;
   transactionId: string;
@@ -833,6 +853,7 @@ export interface BankTransaction {
   reference: string;
   type: TransactionType;
   status: TransactionStatus;
+  receiptTemplate: ReceiptTemplate;
   currency: CurrencyCode;
   amount: string;
   fee: string;

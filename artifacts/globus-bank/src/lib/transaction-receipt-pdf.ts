@@ -1,5 +1,8 @@
+import type { ReceiptTemplate } from '@workspace/api-client-react';
+
 export interface TransactionReceiptPdfData {
   reference: string;
+  receiptTemplate?: ReceiptTemplate;
   amount: string;
   status: string;
   date: string;
@@ -141,14 +144,17 @@ function createPdfFromJpeg(imageBytes: Uint8Array) {
 }
 
 function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, receipt: TransactionReceiptPdfData) {
+  const template = receipt.receiptTemplate ?? 'standard';
   const left = PAGE_MARGIN;
   const right = PAGE_WIDTH - PAGE_MARGIN;
   const contentWidth = right - left;
-  context.fillStyle = '#f3f6f7';
+  const pageBackground = template === 'journey' ? '#e8f0ec' : template === 'ledger' ? '#e9efea' : '#f3f6f7';
+  const paperBackground = template === 'statement' ? '#fcfcf7' : template === 'ledger' ? '#fbfcf7' : '#fffefa';
+  context.fillStyle = pageBackground;
   context.fillRect(0, 0, PAGE_WIDTH, PAGE_HEIGHT);
 
-  drawRoundedRect(context, left - 22, 52, contentWidth + 44, PAGE_HEIGHT - 104, 26);
-  context.fillStyle = '#fffefa';
+  drawRoundedRect(context, left - 22, 52, contentWidth + 44, PAGE_HEIGHT - 104, template === 'statement' ? 2 : 26);
+  context.fillStyle = paperBackground;
   context.fill();
   context.strokeStyle = '#dce5e8';
   context.lineWidth = 2;
@@ -179,10 +185,27 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
 
   context.fillStyle = '#478783';
   context.font = '700 19px Arial, sans-serif';
-  context.fillText('GLOBUS BANK · TRANSACTION RECORD', left, 232);
+  context.fillText(
+    template === 'statement'
+      ? 'PAYMENTS & SETTLEMENTS · INTERNAL RECORD'
+      : template === 'journey'
+        ? 'TRANSFER JOURNEY · GLOBUS LEDGER'
+        : template === 'ledger'
+          ? 'GLOBUS LEDGER · TRANSFER RECORD'
+          : 'GLOBUS BANK · TRANSACTION RECORD',
+    left,
+    232,
+  );
   context.fillStyle = '#183450';
   context.font = '700 48px Arial, sans-serif';
-  context.fillText('Payment receipt', left, 292);
+  const title = {
+    standard: 'Payment receipt',
+    bank_grade: 'Bank transaction record',
+    journey: 'Transfer journey',
+    ledger: 'Transfer ledger',
+    statement: 'Transaction statement',
+  }[template];
+  context.fillText(title, left, 292);
   context.fillStyle = '#7d8d9b';
   context.font = '400 23px Arial, sans-serif';
   const activityLines = wrapText(context, receipt.activity, contentWidth);
@@ -191,29 +214,30 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   const heroY = 370 + (Math.min(activityLines.length, 2) - 1) * 30;
   const heroHeight = receipt.sourceAmount && receipt.convertedAmount ? 310 : 215;
   drawRoundedRect(context, left, heroY, contentWidth, heroHeight, 24);
-  context.fillStyle = '#173858';
+  const darkHero = template === 'standard' || template === 'bank_grade';
+  context.fillStyle = darkHero ? '#173858' : template === 'journey' ? '#f5f8f4' : template === 'ledger' ? '#eff4ed' : '#f1f5ef';
   context.fill();
 
-  context.fillStyle = '#a9d6d3';
+  context.fillStyle = darkHero ? '#a9d6d3' : '#718b81';
   context.font = '700 18px Arial, sans-serif';
   context.fillText('TRANSACTION AMOUNT', left + 34, heroY + 48);
-  context.fillStyle = '#ffffff';
+  context.fillStyle = darkHero ? '#ffffff' : '#203f49';
   context.font = '700 58px Arial, sans-serif';
   context.fillText(receipt.amount, left + 34, heroY + 116);
 
   if (receipt.sourceAmount && receipt.convertedAmount) {
-    context.strokeStyle = 'rgba(255,255,255,.18)';
+    context.strokeStyle = darkHero ? 'rgba(255,255,255,.18)' : '#dbe5df';
     context.beginPath();
     context.moveTo(left + 34, heroY + 144);
     context.lineTo(right - 34, heroY + 144);
     context.stroke();
 
     const halfWidth = (contentWidth - 96) / 2;
-    context.fillStyle = '#a9c0d1';
+    context.fillStyle = darkHero ? '#a9c0d1' : '#82928e';
     context.font = '700 16px Arial, sans-serif';
     context.fillText('SOURCE AMOUNT', left + 34, heroY + 180);
     context.fillText('CONVERTED TOTAL', left + 34 + halfWidth + 28, heroY + 180);
-    context.fillStyle = '#ffffff';
+    context.fillStyle = darkHero ? '#ffffff' : '#203f49';
     context.font = '600 25px Arial, sans-serif';
     context.fillText(receipt.sourceAmount, left + 34, heroY + 218);
     context.textAlign = 'right';
@@ -221,13 +245,92 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
     context.textAlign = 'left';
 
     if (receipt.exchangeRate) {
-      context.fillStyle = '#c2d2dd';
+      context.fillStyle = darkHero ? '#c2d2dd' : '#71868a';
       context.font = '400 18px Arial, sans-serif';
       context.fillText(`Rate: ${receipt.exchangeRate}`, left + 34, heroY + 270);
     }
   }
 
   let y = heroY + heroHeight + 40;
+
+  if (template === 'journey') {
+    context.fillStyle = '#718599';
+    context.font = '700 18px Arial, sans-serif';
+    context.fillText('TRANSFER JOURNEY', left, y);
+    y += 24;
+    const journeySteps = [
+      ['Request recorded', receipt.date],
+      ['Destination details recorded', receipt.recipientBank ? `${receipt.recipientBank}${receipt.recipientCountry ? ` · ${receipt.recipientCountry}` : ''}` : receipt.counterparty],
+      ['Globus status', completed ? 'Recorded in Globus ledger' : receipt.status.toLowerCase() === 'pending' ? 'Awaiting administrator review' : 'No wallet balance change'],
+    ];
+    journeySteps.forEach(([label, value], index) => {
+      context.fillStyle = index === 2 && completed ? '#e7f1e8' : '#f1f5f0';
+      drawRoundedRect(context, left, y, contentWidth, 64, 12);
+      context.fill();
+      context.fillStyle = '#397b72';
+      context.beginPath();
+      context.arc(left + 28, y + 32, 13, 0, Math.PI * 2);
+      context.fill();
+      context.fillStyle = '#ffffff';
+      context.font = '700 14px Arial, sans-serif';
+      context.fillText(String(index + 1), left + 23, y + 37);
+      context.fillStyle = '#344e5c';
+      context.font = '700 16px Arial, sans-serif';
+      context.fillText(label, left + 54, y + 27);
+      context.fillStyle = '#71868a';
+      context.font = '400 14px Arial, sans-serif';
+      wrapText(context, value || 'Not available', contentWidth - 80).slice(0, 1).forEach(line => context.fillText(line, left + 54, y + 48));
+      y += 76;
+    });
+    y += 4;
+  } else if (template === 'ledger') {
+    context.fillStyle = '#718599';
+    context.font = '700 18px Arial, sans-serif';
+    context.fillText('LEDGER ENTRIES', left, y);
+    y += 28;
+    const entries = [
+      ['Transfer request', receipt.amount],
+      ...(receipt.convertedAmount ? [['Conversion reference', receipt.convertedAmount]] : []),
+      ['Posting status', completed ? 'Recorded in Globus ledger' : receipt.status.toLowerCase() === 'pending' ? 'No balance change while review is pending' : 'No wallet balance change'],
+    ];
+    entries.forEach(([label, value]) => {
+      context.strokeStyle = '#dce6df';
+      context.beginPath();
+      context.moveTo(left, y);
+      context.lineTo(right, y);
+      context.stroke();
+      y += 30;
+      context.fillStyle = '#38545a';
+      context.font = '700 16px Arial, sans-serif';
+      context.fillText(label, left, y);
+      context.textAlign = 'right';
+      context.font = '600 15px Arial, sans-serif';
+      context.fillText(value, right, y);
+      context.textAlign = 'left';
+      y += 24;
+    });
+    y += 8;
+  } else if (template === 'bank_grade' && receipt.recipient) {
+    context.fillStyle = '#718599';
+    context.font = '700 18px Arial, sans-serif';
+    context.fillText('RECIPIENT DETAILS ON RECORD', left, y);
+    y += 26;
+    drawRoundedRect(context, left, y, contentWidth, 86, 14);
+    context.fillStyle = '#f5f8f7';
+    context.fill();
+    context.fillStyle = '#28444c';
+    context.font = '700 19px Arial, sans-serif';
+    context.fillText(receipt.recipient, left + 20, y + 32);
+    context.fillStyle = '#71868a';
+    context.font = '400 15px Arial, sans-serif';
+    context.fillText([receipt.recipientBank, receipt.recipientCountry].filter(Boolean).join(' · '), left + 20, y + 58);
+    y += 110;
+  } else if (template === 'statement') {
+    context.fillStyle = '#718b81';
+    context.font = '700 16px Arial, sans-serif';
+    context.fillText(`01  RECORD STATUS · ${completed ? 'RECORDED IN GLOBUS' : receipt.status.toUpperCase()}`, left, y);
+    y += 35;
+  }
 
   context.fillStyle = '#718599';
   context.font = '700 18px Arial, sans-serif';
@@ -288,7 +391,11 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   context.fillStyle = '#7d8c98';
   context.font = '400 17px Arial, sans-serif';
   context.textAlign = 'right';
-  context.fillText('Keep this receipt for your records', right, footerY + 5);
+  context.fillText(
+    'Internal Globus ledger record · no outside bank settlement confirmed',
+    right,
+    footerY + 5,
+  );
   context.textAlign = 'left';
 }
 

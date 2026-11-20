@@ -36,6 +36,13 @@
       "when": 1795123034316,
       "tag": "0004_aberrant_shaman",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795138157529,
+      "tag": "0005_optimal_professor_monster",
+      "breakpoints": true
     }
   ]
 }
