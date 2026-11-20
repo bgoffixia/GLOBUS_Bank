@@ -545,7 +545,6 @@ test.describe('signed-in member pages at phone widths', () => {
     '/withdraw',
     '/profile',
     '/settings',
-    '/private-vault',
   ];
 
   for (const width of memberViewportWidths) {
@@ -587,12 +586,13 @@ test.describe('signed-in member pages at phone widths', () => {
         }
         if (path === '/private-vault') {
           await expect(page.getByTestId('private-vault-panel')).toBeVisible();
+          await expect(page.getByTestId('vault-subscription-card')).toBeVisible();
           const fundingForm = page.getByTestId('vault-wallet-funding');
           if (await fundingForm.isVisible()) {
             await expect(page.getByTestId('input-funding-description')).toBeVisible();
             await expect(page.getByTestId('input-funding-amount')).not.toHaveAttribute('max');
           }
-          const workspaceMenu = page.getByTestId('button-vault-workspace-menu');
+          const workspaceMenu = page.getByTestId('button-vault-navigation');
           if (await workspaceMenu.isVisible()) {
             await workspaceMenu.click();
             const drawer = page.getByTestId('vault-workspace-drawer');
@@ -803,8 +803,39 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       await page.goto('/private-vault', { waitUntil: 'domcontentloaded' });
       await expect(page.locator('.app-shell')).toBeVisible();
       await expect(page.getByTestId('private-vault-panel')).toBeVisible();
+      await expect(page.getByTestId('vault-subscription-card')).toBeVisible();
       await expect(page.getByTestId('vault-receipt-preferences')).toBeVisible();
       await expect(page.locator('[data-testid^="button-receipt-layout-"]')).toHaveCount(5);
+      await expect(page.getByTestId('button-preview-selected-receipt')).toBeEnabled();
+      await expect(page.getByTestId('button-save-receipt-preference')).toBeDisabled();
+      await page.getByTestId('button-preview-selected-receipt').click();
+      const preview = page.getByRole('dialog');
+      await expect(preview).toBeVisible();
+      await expect(preview.getByText('Illustrative preview only. This sample is not a real transaction; exports and printing are disabled.')).toBeVisible();
+      for (const testId of ['button-save-receipt-png', 'button-download-receipt-pdf', 'button-print-receipt']) {
+        await expect(preview.getByTestId(testId)).toBeDisabled();
+      }
+      await expectNoHorizontalOverflow(page, `Vault receipt preview at ${width}px`);
+      const previewBounds = await preview.boundingBox();
+      expect(previewBounds, `Receipt preview should be measurable at ${width}px`).not.toBeNull();
+      expect(previewBounds!.x).toBeGreaterThanOrEqual(0);
+      expect(previewBounds!.x + previewBounds!.width).toBeLessThanOrEqual(width + 1);
+      const actionBounds = await preview.locator('.receipt-actions button').evaluateAll((buttons) =>
+        buttons.map((button) => {
+          const { x, y, width: buttonWidth, height } = button.getBoundingClientRect();
+          return { x, y, width: buttonWidth, height };
+        }),
+      );
+      for (let first = 0; first < actionBounds.length; first += 1) {
+        for (let second = first + 1; second < actionBounds.length; second += 1) {
+          const a = actionBounds[first];
+          const b = actionBounds[second];
+          const overlaps = a.x < b.x + b.width && a.x + a.width > b.x &&
+            a.y < b.y + b.height && a.y + a.height > b.y;
+          expect(overlaps, `Receipt action buttons overlap at ${width}px`).toBe(false);
+        }
+      }
+      await preview.getByRole('button', { name: 'Close receipt' }).click();
 
       if (width < 1024) {
         await page.getByTestId('button-vault-navigation').click();

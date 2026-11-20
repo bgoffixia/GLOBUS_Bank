@@ -43,6 +43,7 @@ import { TransferReceiptModal, type ReceiptTransaction } from './transfer/transf
 import { canLoadVaultPrivateData, isVaultSessionRejected } from '../lib/vault-error-state';
 import { VaultFundingForm } from './vault-funding-form';
 import { ReceiptTemplateMiniPreview } from '../lib/receipt-template';
+import { buildReceiptLayoutPreview, canSaveReceiptPreference, shouldClearSavedReceiptSelection } from '../lib/vault-receipt-preview';
 
 const fieldClass = 'h-9 w-full rounded-lg border border-[#dfe6eb] bg-white px-3 text-[11px] text-[#344b64] outline-none focus:border-[#77aeb0] focus:ring-2 focus:ring-[#77aeb0]/15';
 type VaultPlanCode = '1m' | '3m' | '1y';
@@ -92,10 +93,20 @@ export function PrivateVaultPanel() {
   const [subscriptionStep, setSubscriptionStep] = useState<SubscriptionStep>('closed');
   const [isVerifyingPayment, setIsVerifyingPayment] = useState(false);
   const [receiptPreview, setReceiptPreview] = useState<ReceiptTransaction | null>(null);
+  const [receiptPreviewIsIllustrative, setReceiptPreviewIsIllustrative] = useState(false);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
   const [activeNavigation, setActiveNavigation] = useState('vault-overview');
   const paymentCallbackHandled = useRef('');
   const lastSubscriptionStatus = useRef<string | undefined>(undefined);
+  const receiptPreferenceWasAuthorized = useRef(false);
+  const openSelectedReceiptPreview = () => {
+    const preview = buildReceiptLayoutPreview(
+      privateVaultDataEnabled ? transactions.data?.[0] : undefined,
+      preferredReceiptTemplate,
+    );
+    setReceiptPreview(preview.transaction);
+    setReceiptPreviewIsIllustrative(preview.illustrativeOnly);
+  };
   const vaultNavigation = [
     { id: 'vault-overview', label: 'Overview', icon: LayoutDashboard, requiresUnlock: false },
     { id: 'vault-activity', label: 'Activity & receipts', icon: FileText, requiresUnlock: true },
@@ -244,6 +255,17 @@ export function PrivateVaultPanel() {
     if (!receiptPreference.data) return;
     setPreferredReceiptTemplate(receiptPreference.data.preferredReceiptTemplate);
   }, [receiptPreference.data]);
+  useEffect(() => {
+    const hasPreferenceAccess = canSaveReceiptPreference(sessionToken, !!status.data?.accessActive);
+    if (shouldClearSavedReceiptSelection(
+      receiptPreferenceWasAuthorized.current,
+      sessionToken,
+      !!status.data?.accessActive,
+    )) {
+      setPreferredReceiptTemplate('standard');
+    }
+    receiptPreferenceWasAuthorized.current = hasPreferenceAccess;
+  }, [sessionToken, status.data?.accessActive]);
   useEffect(() => {
     if (!selectedTransactionId && transactions.data?.length) {
       setSelectedTransactionId(transactions.data[0].id);
@@ -510,7 +532,7 @@ export function PrivateVaultPanel() {
   const submitReceiptPreference = async () => {
     setError('');
     setMessage('');
-    if (!sessionToken || !status.data?.accessActive) {
+    if (!canSaveReceiptPreference(sessionToken, !!status.data?.accessActive)) {
       setError('Active Private Vault access is required to save a receipt layout.');
       return;
     }
@@ -680,6 +702,44 @@ export function PrivateVaultPanel() {
           </div>
         </aside>
         <div className="min-w-0 space-y-3 p-3 sm:p-4">
+      <section className="overflow-hidden rounded-xl border border-[#dce5e8] bg-[#fffefa] shadow-[0_8px_24px_rgba(21,48,71,.05)]" data-testid="vault-subscription-card">
+        <div className="flex flex-col gap-3 border-l-[3px] border-[#b99a58] bg-[linear-gradient(115deg,#fffefa,#f5f8f6)] p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
+          <div className="min-w-0">
+            <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#8a784c]">Private Vault access</p>
+            <h3 className="mt-1 text-[15px] font-bold tracking-[-.025em] text-[#233c54]">
+              {status.isLoading ? 'Checking your access' : vaultAccessActive ? 'Your Vault is protected and ready' : 'A private space for your account'}
+            </h3>
+            <p className="mt-1 max-w-2xl text-[10px] leading-5 text-[#708195]">
+              {status.isLoading ? 'Loading subscription details…' : status.isError ? 'Subscription details are temporarily unavailable.' :
+                status.data?.accessSource === 'admin_grant' ? 'Access is provided by a Globus administrator grant.' :
+                  status.data?.subscriptionActive ? `${status.data.planCode ?? 'Vault'} plan active${status.data.expiresAt ? ` · renews or ends ${new Date(status.data.expiresAt).toLocaleDateString()}` : ''}.` :
+                    checkoutPending ? 'Payment is awaiting Paystack verification. Unlock your Vault to confirm payment.' :
+                      'Manage your plan, renewals, and secure account tools from one workspace.'}
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {status.data?.autoRenew && sessionToken && <button type="button" disabled={!status.data.renewalManagementReady || billingBusy} onClick={() => void requestRenewalManagementLink()} className="h-9 rounded-lg border border-[#d8e2df] bg-white px-3 text-[9px] font-bold text-[#456b6b] disabled:opacity-50" data-testid="button-vault-renewal-management">
+              {emailRenewalManagementLink.isPending ? 'Sending link…' : 'Manage renewal'}
+            </button>}
+            {!vaultAccessActive && <button type="button" disabled={status.isLoading || status.isError} onClick={() => {
+              if (!sessionToken) {
+                setMessage('Unlock your Vault first to choose or manage a subscription.');
+                navigateToSection('vault-overview');
+              } else if (checkoutPending) {
+                void checkPaystackPayment();
+              } else {
+                setError('');
+                setMessage('');
+                setSubscriptionStep('plans');
+                document.getElementById('vault-overview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              }
+            }} data-testid="button-vault-subscription-primary" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[9px] font-bold text-white transition hover:bg-[#214b70] disabled:opacity-50">
+              {sessionToken ? checkoutPending ? 'Verify payment' : 'Choose a plan' : 'Unlock to manage'} <ArrowRight size={13} />
+            </button>}
+            {vaultAccessActive && <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7e7dc] bg-[#f1f8f2] px-3 py-2 text-[9px] font-bold text-[#49765f]"><ShieldCheck size={13} /> Access active</span>}
+          </div>
+        </div>
+      </section>
       <div id="vault-overview" className="scroll-mt-24">
       {status.isLoading ? <div className="h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
         status.isError ? <div className="mt-4 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[10px] text-[#a24940]"><span>Vault status is unavailable.</span><button type="button" data-testid="button-retry-vault-status" onClick={() => void status.refetch()} className="font-bold underline">Try again</button></div> :
@@ -722,7 +782,7 @@ export function PrivateVaultPanel() {
                 </button>
               </div>}
 
-              {!paidSubscriptionActive && <section className="mt-3 rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4" data-testid="vault-subscription-access">
+              {!paidSubscriptionActive && subscriptionStep !== 'closed' && <section className="mt-3 rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4" data-testid="vault-subscription-access">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#8a784c]">Vault subscription · {status.data?.subscriptionStatus || 'inactive'}</p>
@@ -738,9 +798,6 @@ export function PrivateVaultPanel() {
                             : 'Choose a plan and complete checkout. Vault access unlocks after payment is verified.'}
                     </p>
                   </div>
-                  {!checkoutPending && subscriptionStep === 'closed' && <button type="button" onClick={() => { setError(''); setMessage(''); setSubscriptionStep('plans'); }} data-testid="button-vault-subscribe" className="inline-flex h-9 shrink-0 items-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white hover:bg-[#214b70]">
-                    Subscribe <ArrowRight size={13} />
-                  </button>}
                 </div>
 
                 {checkoutPending && <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#e8dfc5] bg-white/75 p-3">
@@ -950,24 +1007,25 @@ export function PrivateVaultPanel() {
       </section>
       <section id="vault-receipts" className="scroll-mt-24 rounded-xl border border-[#dce6e8] bg-white p-3 sm:p-4" data-testid="vault-receipt-preferences">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Receipt preferences</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Choose your transaction receipt</h3><p className="mt-1 max-w-xl text-[9px] leading-4 text-[#77889a]">Select one of five layouts for future transfers. Existing receipts keep their recorded design; transaction facts always come from your account records.</p></div>
+          <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Receipt preferences</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Choose your transaction receipt</h3><p className="mt-1 max-w-xl text-[9px] leading-4 text-[#77889a]">Compare all five layouts before you decide. Your choice is a local preview until saved; existing receipts keep their recorded design.</p></div>
           <span className="rounded-full bg-[#eef6f6] px-2.5 py-1 text-[8px] font-bold text-[#4a7c7e]">All customer receipts</span>
         </div>
+        {!transactions.data?.length && <p role="note" data-testid="status-receipt-illustrative-notice" className="mt-3 rounded-lg border border-[#dfe8e5] bg-[#f5f8f5] px-3 py-2 text-[9px] leading-4 text-[#60786e]">Illustrative sample data is shown in previews until a transaction can be safely loaded from your unlocked Vault. It is not saved or used for account activity.</p>}
         {!vaultAccessActive && <p role="status" className="mt-3 rounded-lg border border-[#e8e1cc] bg-[#fbf8ef] px-3 py-2 text-[9px] text-[#806f43]">Active Private Vault access is required to update your preferred receipt design.</p>}
         {receiptPreference.isLoading && <div className="mt-3 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" />}
         {receiptPreference.isError && <div role="alert" className="mt-3 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[9px] text-[#a24940]"><span>Receipt preferences could not be loaded.</span><button type="button" onClick={() => void receiptPreference.refetch()} className="font-bold underline">Try again</button></div>}
         <div role="radiogroup" aria-label="Preferred transaction receipt layout" className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {RECEIPT_LAYOUTS.map(layout => <button key={layout.id} type="button" role="radio" disabled={!vaultAccessActive} aria-checked={preferredReceiptTemplate === layout.id} aria-pressed={preferredReceiptTemplate === layout.id} onClick={() => setPreferredReceiptTemplate(layout.id)} className={`min-w-0 rounded-lg border p-2.5 text-left transition disabled:cursor-not-allowed disabled:opacity-55 ${preferredReceiptTemplate === layout.id ? 'border-[#4d8b8d] bg-[#f2f8f7] ring-1 ring-[#4d8b8d]/15' : 'border-[#e2e9ec] bg-[#fbfcfd] hover:border-[#b7d1d2]'}`} data-testid={`button-receipt-layout-${layout.id}`}>
+          {RECEIPT_LAYOUTS.map(layout => <button key={layout.id} type="button" role="radio" aria-checked={preferredReceiptTemplate === layout.id} aria-pressed={preferredReceiptTemplate === layout.id} onClick={() => setPreferredReceiptTemplate(layout.id)} className={`min-w-0 rounded-lg border p-2.5 text-left transition ${preferredReceiptTemplate === layout.id ? 'border-[#4d8b8d] bg-[#f2f8f7] ring-1 ring-[#4d8b8d]/15' : 'border-[#e2e9ec] bg-[#fbfcfd] hover:border-[#b7d1d2]'}`} data-testid={`button-receipt-layout-${layout.id}`}>
             <ReceiptTemplateMiniPreview template={layout.id} />
             <span className="mt-2 block text-[9px] font-bold text-[#354c63]">{layout.label}</span>
             <span className="mt-0.5 block text-[8px] leading-4 text-[#8090a0]">{layout.summary}</span>
           </button>)}
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf0f2] pt-3">
-          <p className="text-[8px] text-[#8391a0]">{receiptPreference.data ? `Saved layout: ${RECEIPT_LAYOUTS.find(layout => layout.id === receiptPreference.data?.preferredReceiptTemplate)?.label ?? 'Classic receipt'}` : 'Unlock your Vault to load and save a layout.'}</p>
+          <p className="text-[8px] text-[#8391a0]">{privateVaultDataEnabled && receiptPreference.data ? `Saved layout: ${RECEIPT_LAYOUTS.find(layout => layout.id === receiptPreference.data?.preferredReceiptTemplate)?.label ?? 'Classic receipt'}` : 'Your selection is a local preview until saved with active Vault access.'}</p>
           <div className="flex flex-wrap gap-2">
-            {sessionToken && transactions.data?.[0] && <button type="button" onClick={() => setReceiptPreview(transactions.data![0])} className="h-8 rounded-lg border border-[#dfe7eb] bg-white px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]">Open latest receipt</button>}
-            <button type="button" disabled={!vaultAccessActive || saveReceiptPreference.isPending || receiptPreference.isLoading || preferredReceiptTemplate === receiptPreference.data?.preferredReceiptTemplate} onClick={() => void submitReceiptPreference()} className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-save-receipt-preference">{saveReceiptPreference.isPending ? 'Saving…' : 'Save preferred layout'}</button>
+            <button type="button" onClick={openSelectedReceiptPreview} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dfe7eb] bg-white px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]" data-testid="button-preview-selected-receipt"><ReceiptText size={12} /> Preview selected layout</button>
+            <button type="button" disabled={!canSaveReceiptPreference(sessionToken, vaultAccessActive) || saveReceiptPreference.isPending || receiptPreference.isLoading || preferredReceiptTemplate === receiptPreference.data?.preferredReceiptTemplate} onClick={() => void submitReceiptPreference()} className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-save-receipt-preference">{saveReceiptPreference.isPending ? 'Saving…' : 'Save preferred layout'}</button>
           </div>
         </div>
       </section>
@@ -990,7 +1048,7 @@ export function PrivateVaultPanel() {
         </aside>
       </div>}
     </section>
-    {receiptPreview && <TransferReceiptModal transaction={receiptPreview} onClose={() => setReceiptPreview(null)} title={receiptPreview.type.replaceAll('_', ' ')} />}
+    {receiptPreview && <TransferReceiptModal transaction={receiptPreview} onClose={() => { setReceiptPreview(null); setReceiptPreviewIsIllustrative(false); }} title={receiptPreviewIsIllustrative ? 'Illustrative sample · layout preview' : receiptPreview.type.replaceAll('_', ' ')} notice={receiptPreviewIsIllustrative ? 'Illustrative preview only. This sample is not a real transaction; exports and printing are disabled.' : undefined} illustrativeOnly={receiptPreviewIsIllustrative} />}
     </>
   );
 }
