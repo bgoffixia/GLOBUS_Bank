@@ -159,6 +159,7 @@ import {
 import {
   minorAmountToDecimal,
 } from "../lib/vault-subscription";
+import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
 
 const router: IRouter = Router();
 
@@ -1208,6 +1209,7 @@ router.post(
           id: bankUsersTable.id,
           customerId: bankUsersTable.customerId,
           accountStatus: bankUsersTable.accountStatus,
+          preferredReceiptTemplate: bankUsersTable.preferredReceiptTemplate,
         })
         .from(bankUsersTable)
         .where(inArray(bankUsersTable.id, userIds));
@@ -1333,7 +1335,7 @@ router.post(
         const description = `Legacy ${item.source.currency} balance converted to USD. Rate ${item.rate.rate} from ${item.rate.provider}, quoted ${item.rate.checkedAt.toISOString()}. ${generatedAdminAuditReason(req)}`;
         const [transaction] = await tx
           .insert(bankTransactionsTable)
-          .values({
+          .values(withCustomerReceiptTemplate({
             reference,
             idempotencyKey: `legacy-currency-to-usd:${item.source.id}`,
             initiatedByUserId: actor.id,
@@ -1351,7 +1353,7 @@ router.post(
             adminReference: "Legacy wallet conversion to USD",
             adminNotes: null,
             mode: "internal_ledger",
-          })
+          }, item.owner.preferredReceiptTemplate))
           .returning();
         await tx.insert(bankLedgerEntriesTable).values([
           {
@@ -3377,7 +3379,7 @@ router.post(
 
       const [transaction] = await tx
         .insert(bankTransactionsTable)
-        .values({
+        .values(withCustomerReceiptTemplate({
           reference: createReference(),
           idempotencyKey: parsed.data.idempotencyKey,
           initiatedByUserId: actorUserId,
@@ -3395,7 +3397,7 @@ router.post(
           adminReference: parsed.data.internalReference?.trim() || null,
           adminNotes: null,
           mode: "internal_ledger",
-        })
+        }, target.preferredReceiptTemplate))
         .returning();
 
       if (!requiresSecondApproval) {
@@ -4180,7 +4182,7 @@ router.post(
         }
         const [reversal] = await tx
           .insert(bankTransactionsTable)
-          .values({
+          .values(withCustomerReceiptTemplate({
             reference: createReference(),
             idempotencyKey: parsed.data.idempotencyKey,
             initiatedByUserId: actorUserId,
@@ -4199,7 +4201,7 @@ router.post(
             reversalOfTransactionId: original.id,
             correctionReason: reason,
             mode: "internal_ledger",
-          })
+          }, original.receiptTemplate))
           .returning();
         await tx.insert(bankLedgerEntriesTable).values(
           originalEntries.map((entry) => ({
@@ -4287,7 +4289,7 @@ router.post(
       const isCredit = parsed.data.direction === "credit";
       const [adjustment] = await tx
         .insert(bankTransactionsTable)
-        .values({
+        .values(withCustomerReceiptTemplate({
           reference: createReference(),
           idempotencyKey: parsed.data.idempotencyKey,
           initiatedByUserId: actorUserId,
@@ -4305,7 +4307,7 @@ router.post(
           correctionOfTransactionId: original.id,
           correctionReason: reason,
           mode: "internal_ledger",
-        })
+        }, target.preferredReceiptTemplate))
         .returning();
       if (!requiresSecondApproval) {
         await tx.insert(bankLedgerEntriesTable).values([

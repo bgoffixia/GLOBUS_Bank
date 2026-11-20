@@ -165,6 +165,7 @@ import {
   type TransactionPinResult,
 } from "../lib/transaction-pin";
 import { createVaultSubscriberTopUp } from "../lib/vault-subscriber-deposit";
+import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
 import {
   BankDetailsEncryptionUnavailableError,
   encryptBankAccountNumber,
@@ -1617,7 +1618,7 @@ router.post(
     const conversionSummary = `${formatMinorAmount(amountMinor)} ${parsed.data.sourceCurrency} converted to ${formatMinorAmount(destinationAmountMinor, parsed.data.destinationCurrency)} ${parsed.data.destinationCurrency} at ${rate}`;
     const [transaction] = await tx
       .insert(bankTransactionsTable)
-      .values({
+      .values(withCustomerReceiptTemplate({
         reference,
         idempotencyKey: parsed.data.idempotencyKey,
         initiatedByUserId: sender.id,
@@ -1628,11 +1629,10 @@ router.post(
         currency: parsed.data.sourceCurrency,
         amountMinor,
         feeMinor: 0n,
-        receiptTemplate: lockedSender.preferredReceiptTemplate,
         counterparty: `${parsed.data.recipientAccountName.trim()} · ${parsed.data.recipientBank.trim()} · ****${accountNumber.slice(-4)} · ${parsed.data.destinationCountry.trim()}${routingCode ? ` · Routing ${routingCode}` : ""}${swiftBic ? ` · SWIFT/BIC ${swiftBic}` : ""}`,
         description: `${parsed.data.transferType === "local_routing" ? "Local routing" : "International wire"} transfer${parsed.data.remark?.trim() ? ` · ${parsed.data.remark.trim()}` : ""} · ${conversionSummary}`,
         mode: "internal_ledger",
-      })
+      }, lockedSender.preferredReceiptTemplate))
       .returning();
     const [request] = await tx
       .insert(bankInternationalTransferRequestsTable)
@@ -1844,7 +1844,7 @@ router.post("/bank/external-transfers", async (req, res): Promise<void> => {
 
     const [transaction] = await tx
       .insert(bankTransactionsTable)
-      .values({
+      .values(withCustomerReceiptTemplate({
         reference: createReference(),
         idempotencyKey: parsed.data.idempotencyKey,
         initiatedByUserId: userId,
@@ -1858,7 +1858,7 @@ router.post("/bank/external-transfers", async (req, res): Promise<void> => {
         counterparty: `${recipientName} · ${bankName} · ****${accountNumberLast4} · ${destinationCountry}`,
         description: parsed.data.description?.trim() || "Simulated external transfer",
         mode: "internal_ledger",
-      })
+      }, sender.preferredReceiptTemplate))
       .returning();
 
     await tx.insert(bankLedgerEntriesTable).values([
@@ -1968,7 +1968,7 @@ router.post("/bank/incoming-external-transfers", async (req, res): Promise<void>
 
     const [transaction] = await tx
       .insert(bankTransactionsTable)
-      .values({
+      .values(withCustomerReceiptTemplate({
         reference: createReference(),
         idempotencyKey: parsed.data.idempotencyKey,
         initiatedByUserId: userId,
@@ -1982,7 +1982,7 @@ router.post("/bank/incoming-external-transfers", async (req, res): Promise<void>
         counterparty: `${sourceName} · ${sourceCountry} (simulated source)`,
         description: parsed.data.description?.trim() || "Simulated incoming external transfer",
         mode: "internal_ledger",
-      })
+      }, user.preferredReceiptTemplate))
       .returning();
 
     await tx.insert(bankLedgerEntriesTable).values([
@@ -2274,7 +2274,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
     }
     const [transaction] = await tx
       .insert(bankTransactionsTable)
-      .values({
+      .values(withCustomerReceiptTemplate({
         reference,
         idempotencyKey: parsed.data.idempotencyKey,
         initiatedByUserId: userId,
@@ -2290,7 +2290,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
           parsed.data.description?.trim() ||
           "Withdrawal request awaiting administrator review",
         mode: "internal_ledger",
-      })
+      }, user.preferredReceiptTemplate))
       .returning();
 
     const [sandboxRequest] = await tx

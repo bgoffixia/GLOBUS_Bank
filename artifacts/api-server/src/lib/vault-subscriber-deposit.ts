@@ -17,6 +17,7 @@ import {
 } from "./bank";
 import { hasActiveVaultAccess } from "./bank-vault";
 import { storeNotification } from "./transfer-notifications";
+import { withCustomerReceiptTemplate } from "./customer-receipt-template";
 
 type BankTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 
@@ -45,6 +46,7 @@ export async function createVaultSubscriberTopUp(
       id: bankUsersTable.id,
       vaultSubscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
       vaultSubscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
+      preferredReceiptTemplate: bankUsersTable.preferredReceiptTemplate,
     })
     .from(bankUsersTable)
     .where(eq(bankUsersTable.id, input.userId))
@@ -132,7 +134,7 @@ export async function createVaultSubscriberTopUp(
   const reference = createReference();
   const [transaction] = await tx
     .insert(bankTransactionsTable)
-    .values({
+    .values(withCustomerReceiptTemplate({
       reference,
       idempotencyKey: input.idempotencyKey,
       initiatedByUserId: input.userId,
@@ -145,7 +147,7 @@ export async function createVaultSubscriberTopUp(
       counterparty: null,
       description: normalizeVaultTopUpDescription(input.description),
       mode: "internal_ledger",
-    })
+    }, user.preferredReceiptTemplate))
     .returning();
   await tx.insert(bankLedgerEntriesTable).values([
     {
