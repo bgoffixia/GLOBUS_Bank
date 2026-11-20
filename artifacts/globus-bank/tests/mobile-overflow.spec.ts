@@ -559,18 +559,22 @@ test.describe('signed-in member pages at phone widths', () => {
         await page.goto(path, { waitUntil: 'domcontentloaded' });
         if (path === '/home') {
           await expect(page.locator('.public-viewport-scroll')).toBeVisible();
+        } else if (path === '/private-vault' || path === '/add-money') {
+          await expect(page.getByTestId('vault-full-page-shell')).toBeVisible();
         } else {
           await expect(page.locator('.app-shell')).toBeVisible();
         }
         await expectNoHorizontalOverflow(page, `Signed-in member page at ${width}px (${path})`);
-        const documentHeight = await page.evaluate(() => ({
-          viewport: window.innerHeight,
-          document: document.documentElement.scrollHeight,
-        }));
-        expect(
-          documentHeight.document,
-          `Member page at ${width}px (${path}) should keep scrolling inside its content panel`,
-        ).toBeLessThanOrEqual(documentHeight.viewport + 1);
+        if (path !== '/private-vault' && path !== '/add-money') {
+          const documentHeight = await page.evaluate(() => ({
+            viewport: window.innerHeight,
+            document: document.documentElement.scrollHeight,
+          }));
+          expect(
+            documentHeight.document,
+            `Member page at ${width}px (${path}) should keep scrolling inside its content panel`,
+          ).toBeLessThanOrEqual(documentHeight.viewport + 1);
+        }
         if (path === '/add-money') {
           await expect(page).toHaveURL(/\/private-vault$/);
           await expect(page.getByTestId('private-vault-panel')).toBeVisible();
@@ -586,23 +590,11 @@ test.describe('signed-in member pages at phone widths', () => {
         }
         if (path === '/private-vault') {
           await expect(page.getByTestId('private-vault-panel')).toBeVisible();
-          await expect(page.getByTestId('vault-subscription-card')).toBeVisible();
-          const fundingForm = page.getByTestId('vault-wallet-funding');
-          if (await fundingForm.isVisible()) {
-            await expect(page.getByTestId('input-funding-description')).toBeVisible();
-            await expect(page.getByTestId('input-funding-amount')).not.toHaveAttribute('max');
-          }
-          const workspaceMenu = page.getByTestId('button-vault-navigation');
-          if (await workspaceMenu.isVisible()) {
-            await workspaceMenu.click();
-            const drawer = page.getByTestId('vault-workspace-drawer');
-            await expect(drawer).toBeVisible();
-            await expect(drawer.getByRole('navigation', { name: 'Vault workspace sections' })).toBeVisible();
-            await expectNoHorizontalOverflow(page, `Vault workspace drawer at ${width}px`);
-            await drawer.getByRole('link', { name: 'Wallet policies' }).click();
-            await expect(page.locator('#vault-workspace-wallets')).toBeInViewport();
-            await expect(drawer).toHaveCount(0);
-          }
+          await expect(page.getByTestId('vault-unlock-gate')).toBeVisible();
+          await expect(page.getByTestId('vault-subscription-card')).toHaveCount(0);
+          await expect(page.getByTestId('vault-receipt-preferences')).toHaveCount(0);
+          await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(0);
+          await expect(page.getByTestId('button-vault-lock')).toHaveCount(0);
         }
         if (path === '/withdraw') {
           await expect(page.getByTestId('withdrawal-workflow')).toBeVisible();
@@ -801,11 +793,59 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
 
   for (const width of [320, 360, 390, 768, 1280]) {
     test(`Vault navigation and receipt preferences fit at ${width}px`, async ({ page }) => {
+      const vaultStatus = {
+        configured: true,
+        subscriptionStatus: 'inactive',
+        subscriptionActive: false,
+        adminGrantActive: false,
+        accessActive: false,
+        accessSource: 'none',
+        requestedAt: null,
+        expiresAt: null,
+        planCode: null,
+        amountMinor: null,
+        paymentStatus: 'none',
+        paymentReference: null,
+        autoRenew: false,
+        renewalManagementReady: false,
+      };
+      await page.route('**/api/bank/vault/status', route => route.fulfill({ json: vaultStatus }));
+      await page.route('**/api/bank/vault/unlock', route => route.fulfill({
+        json: {
+          sessionToken: 'viewport-test-vault-session-token-123456789',
+          expiresAt: new Date(Date.now() + 5 * 60_000).toISOString(),
+        },
+      }));
+      await page.route('**/api/bank/vault/billing', route => route.fulfill({
+        json: {
+          configured: false,
+          provider: 'unavailable',
+          adminGrantActive: false,
+          accessActive: false,
+          accessSource: 'none',
+          recurringEnabled: false,
+          plans: [],
+        },
+      }));
+      await page.route('**/api/bank/push/preferences', route => route.fulfill({
+        json: { transferEnabled: false, walletEnabled: false, securityEnabled: false },
+      }));
       await page.setViewportSize({ width, height: 850 });
       await page.goto('/private-vault', { waitUntil: 'domcontentloaded' });
-      await expect(page.locator('.app-shell')).toBeVisible();
+      await expect(page.getByTestId('vault-full-page-shell')).toBeVisible();
       await expect(page.getByTestId('private-vault-panel')).toBeVisible();
+      await expect(page.getByTestId('vault-unlock-gate')).toBeVisible();
+      await expect(page.getByTestId('vault-subscription-card')).toHaveCount(0);
+      await expect(page.getByTestId('vault-receipt-preferences')).toHaveCount(0);
+      await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(0);
+      await expectNoHorizontalOverflow(page, `Locked Vault page at ${width}px`);
+      await page.getByTestId('input-vault-unlock-passcode').fill('1234');
+      await page.getByTestId('button-vault-unlock').click();
+      await expect(page.getByTestId('vault-workspace-layout')).toBeVisible();
       await expect(page.getByTestId('vault-subscription-card')).toBeVisible();
+      await expect(page.getByTestId('vault-overview-actions')).toBeVisible();
+      await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(1);
+      await expect(page.getByTestId('button-vault-lock')).toHaveCount(1);
       await expect(page.getByTestId('vault-receipt-preferences')).toBeVisible();
       await expect(page.locator('[data-testid^="button-receipt-layout-"]')).toHaveCount(5);
       await expect(page.getByTestId('button-preview-selected-receipt')).toBeEnabled();
@@ -848,6 +888,15 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
         await expect(page.getByRole('navigation', { name: 'Vault workspace navigation' }).first()).toBeVisible();
       }
 
+      await page.getByTestId('button-preview-selected-receipt').click();
+      await expect(page.getByRole('dialog')).toBeVisible();
+      await page.getByTestId('button-vault-lock').click();
+      await expect(page.getByTestId('vault-unlock-gate')).toBeVisible();
+      await expect(page.getByTestId('vault-workspace-layout')).toHaveCount(0);
+      await expect(page.getByTestId('vault-subscription-card')).toHaveCount(0);
+      await expect(page.getByRole('dialog')).toHaveCount(0);
+      await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(0);
+      await expect(page.getByTestId('button-vault-lock')).toHaveCount(0);
       await expectNoHorizontalOverflow(page, `Private Vault workspace at ${width}px`);
     });
   }

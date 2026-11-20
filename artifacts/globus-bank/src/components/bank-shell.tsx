@@ -48,6 +48,7 @@ export function BankShell({ children }: { children: ReactNode }) {
   const { user } = useUser();
   const { signOut } = useClerk();
   const isDashboard = location === '/dashboard';
+  const isPrivateVault = location === '/private-vault';
   const dashboardProfile = useGetBankProfile({
     query: {
       queryKey: getGetBankProfileQueryKey(),
@@ -60,6 +61,10 @@ export function BankShell({ children }: { children: ReactNode }) {
     query: { queryKey: getGetAdminAccessQueryKey(), retry: false },
   });
   const initials = (user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'G').toUpperCase();
+
+  if (isPrivateVault) {
+    return <div className="min-h-dvh w-full bg-[#edf3f6]" data-testid="vault-full-page-shell">{children}</div>;
+  }
 
   return (
     <div className="app-shell">

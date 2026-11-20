@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Bell, FileText, LayoutDashboard, LockKeyhole, Menu, ReceiptText, ShieldCheck, WalletCards, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bell, FileText, LayoutDashboard, LockKeyhole, Menu, ReceiptText, ShieldCheck, UserRound, WalletCards, X } from 'lucide-react';
+import { Link } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/react';
 import {
@@ -40,7 +41,7 @@ import type { BankTransaction, BankVaultEmailPreferences, BankVaultWalletControl
 import { fetchWebpushrSubscriberId, loadWebpushr } from '../lib/webpushr-client';
 import { RECEIPT_LAYOUTS, type ReceiptTemplateId } from '../lib/receipt-layouts';
 import { TransferReceiptModal, type ReceiptTransaction } from './transfer/transfer-receipt';
-import { canLoadVaultPrivateData, isVaultSessionRejected } from '../lib/vault-error-state';
+import { canLoadVaultPrivateData, isVaultSessionActive, isVaultSessionRejected } from '../lib/vault-error-state';
 import { VaultFundingForm } from './vault-funding-form';
 import { ReceiptTemplateMiniPreview } from '../lib/receipt-template';
 import { buildReceiptLayoutPreview, canSaveReceiptPreference, shouldClearSavedReceiptSelection } from '../lib/vault-receipt-preview';
@@ -116,17 +117,18 @@ export function PrivateVaultPanel() {
     { id: 'vault-personal-notes', label: 'Personal notes', icon: FileText, requiresUnlock: true },
     { id: 'vault-email-preferences', label: 'Email preferences', icon: ReceiptText, requiresUnlock: true },
   ] as const;
-  const privateVaultDataEnabled = canLoadVaultPrivateData(
+  const vaultSessionActive = isVaultSessionActive(sessionToken, expiresAt);
+  const privateVaultDataEnabled = vaultSessionActive && canLoadVaultPrivateData(
     sessionToken,
     status.data?.accessActive,
   );
   const billing = useGetBankVaultBilling({
     query: {
       queryKey: getGetBankVaultBillingQueryKey(),
-      enabled: !!sessionToken,
+      enabled: vaultSessionActive,
       retry: false,
     },
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: vaultSessionActive ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
   });
   const initializePaystackPayment = useInitializeBankVaultPaystackPayment({
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
@@ -143,7 +145,7 @@ export function PrivateVaultPanel() {
   const browserPushPreferences = useGetBankPushPreferences({
     query: {
       queryKey: getGetBankPushPreferencesQueryKey(),
-      enabled: !!sessionToken,
+      enabled: vaultSessionActive,
       retry: false,
     },
   });
@@ -292,8 +294,14 @@ export function PrivateVaultPanel() {
       queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+      queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
+      queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
       setSessionToken('');
       setExpiresAt('');
+      setReceiptPreview(null);
+      setReceiptPreviewIsIllustrative(false);
+      setSelectedTransactionId('');
+      setPrivateNoteDraft('');
       setSubscriptionStep('closed');
       return;
     }
@@ -302,12 +310,21 @@ export function PrivateVaultPanel() {
       void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
       void queryClient.cancelQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       void queryClient.cancelQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+      void queryClient.cancelQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
+      void queryClient.cancelQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
       queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+      queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
+      queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
       setSessionToken('');
       setExpiresAt('');
+      setReceiptPreview(null);
+      setReceiptPreviewIsIllustrative(false);
+      setSelectedTransactionId('');
+      setPrivateNoteDraft('');
+      setMobileNavigationOpen(false);
       setSubscriptionStep('closed');
     }, remaining);
     return () => window.clearTimeout(timeout);
@@ -324,8 +341,12 @@ export function PrivateVaultPanel() {
       void queryClient.cancelQueries({ queryKey });
       queryClient.removeQueries({ queryKey });
     }
+    void queryClient.cancelQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
+    queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
     setSelectedTransactionId('');
     setPrivateNoteDraft('');
+    setReceiptPreview(null);
+    setReceiptPreviewIsIllustrative(false);
   }, [queryClient, status.data?.accessActive]);
 
   const submitPasscode = async (event: FormEvent<HTMLFormElement>) => {
@@ -377,6 +398,12 @@ export function PrivateVaultPanel() {
       queryClient.removeQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
+      queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
+      queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
+      setReceiptPreview(null);
+      setReceiptPreviewIsIllustrative(false);
+      setSelectedTransactionId('');
+      setPrivateNoteDraft('');
       setMessage('Vault passcode updated.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Vault passcode could not be updated.');
@@ -393,10 +420,16 @@ export function PrivateVaultPanel() {
     queryClient.removeQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
     queryClient.removeQueries({ queryKey: getGetBankVaultBillingQueryKey() });
     queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
+    queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
     setSessionToken('');
     setExpiresAt('');
     setPasscode('');
     setNewPasscode('');
+    setSelectedTransactionId('');
+    setPrivateNoteDraft('');
+    setReceiptPreview(null);
+    setReceiptPreviewIsIllustrative(false);
+    setMobileNavigationOpen(false);
     setSubscriptionStep('closed');
   };
   useEffect(() => {
@@ -424,6 +457,11 @@ export function PrivateVaultPanel() {
     setSessionToken('');
     setExpiresAt('');
     setSubscriptionStep('closed');
+    setReceiptPreview(null);
+    setReceiptPreviewIsIllustrative(false);
+    setSelectedTransactionId('');
+    setPrivateNoteDraft('');
+    setMobileNavigationOpen(false);
     setMessage('');
     setError('Your Vault session expired or access changed. Unlock it again to continue.');
     void queryClient.invalidateQueries({ queryKey: getGetBankVaultStatusQueryKey() });
@@ -671,24 +709,77 @@ export function PrivateVaultPanel() {
   const vaultAccessActive = !!status.data?.accessActive;
   const paidSubscriptionActive = !!status.data?.subscriptionActive;
   const checkoutPending = status.data?.paymentStatus === 'pending';
+  const vaultHeader = (
+    <header className="sticky top-0 z-30 flex min-h-[68px] items-center justify-between gap-2 border-b border-[#e1e8eb] bg-white/95 px-3 py-3 backdrop-blur sm:px-5">
+      <div className="flex min-w-0 items-center gap-3">
+        {vaultSessionActive && <button type="button" aria-label="Open Vault workspace navigation" aria-expanded={mobileNavigationOpen} aria-controls="vault-workspace-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dfe7eb] bg-white text-[#29465d] hover:bg-[#f4f8f9] lg:hidden" data-testid="button-vault-navigation"><Menu size={17} /></button>}
+        <div className="min-w-0">
+          <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#56878a]">Globus Bank · Customer workspace</p>
+          <h1 className="truncate text-[14px] font-bold text-[#233c54] sm:text-[16px]">Private Vault</h1>
+        </div>
+      </div>
+      <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
+        <span className="hidden max-w-[180px] truncate pr-1 text-right text-[9px] font-medium text-[#708397] sm:block">{user?.firstName ? `Welcome, ${user.firstName}` : 'Secure account workspace'}</span>
+        <Link href="/dashboard" aria-label="Return to dashboard" data-testid="link-vault-dashboard" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#377d83] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
+          <LayoutDashboard size={14} /><span className="hidden sm:inline">Dashboard</span>
+        </Link>
+        <Link href="/profile" aria-label="Open profile" data-testid="link-vault-profile" className="grid h-9 w-9 place-items-center rounded-lg border border-[#d6e8e9] bg-white text-[#377d83] hover:bg-[#eff8f8]">
+          <UserRound size={15} />
+        </Link>
+      </div>
+    </header>
+  );
+
+  if (!vaultSessionActive) {
+    return (
+      <section className="min-h-dvh min-w-0 bg-[#f5f8fa]" data-testid="private-vault-panel">
+        {vaultHeader}
+        <main className="mx-auto flex min-h-[calc(100dvh-68px)] w-full max-w-[760px] items-center justify-center px-4 py-8 sm:px-6">
+          <section className="w-full rounded-[20px] border border-[#dce5e8] bg-white p-5 shadow-[0_14px_40px_rgba(21,48,71,.08)] sm:p-8" data-testid="vault-unlock-gate">
+            <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#eef6f6] text-[#43888e]"><LockKeyhole size={20} /></span>
+            <h2 className="mt-4 text-[18px] font-bold tracking-[-.02em] text-[#233c54] sm:text-[20px]">
+              {status.data?.configured ? 'Unlock your Private Vault' : 'Set up your Private Vault'}
+            </h2>
+            <p className="mt-2 text-[11px] leading-5 text-[#708195]">
+              Enter your four-digit Vault passcode to view your workspace, transactions, receipts, and account controls.
+            </p>
+            {status.isLoading && <div className="mt-5 h-12 animate-pulse rounded-lg bg-[#f0f4f6]" aria-label="Checking Vault passcode setup" />}
+            {status.isError && (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-3 text-[10px] text-[#a24940]" role="alert">
+                <span>Vault status is unavailable.</span>
+                <button type="button" data-testid="button-retry-vault-status" onClick={() => void status.refetch()} className="font-bold underline">Try again</button>
+              </div>
+            )}
+            {!status.isLoading && !status.isError && status.data?.configured === false && (
+              <form onSubmit={submitPasscode} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" data-testid="form-vault-setup">
+                <label className="min-w-0 flex-1 text-[10px] font-bold text-[#5c7085]">Create a four-digit Vault passcode
+                  <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="new-password" maxLength={4} value={passcode} onChange={event => setPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-passcode" />
+                </label>
+                <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-setup" className="h-9 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50">{initialize.isPending ? 'Setting up…' : 'Set up Vault'}</button>
+              </form>
+            )}
+            {!status.isLoading && !status.isError && status.data?.configured === true && (
+              <form onSubmit={submitPasscode} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" data-testid="form-vault-unlock">
+                <label className="min-w-0 flex-1 text-[10px] font-bold text-[#5c7085]">Four-digit Vault passcode
+                  <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="current-password" maxLength={4} value={passcode} onChange={event => setPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-unlock-passcode" />
+                </label>
+                <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-unlock" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50"><LockKeyhole size={13} />{unlock.isPending ? 'Unlocking…' : 'Unlock Vault'}</button>
+              </form>
+            )}
+            {error && <p role="alert" data-testid="status-vault-unlock-error" className="mt-3 rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{error}</p>}
+            {message && <p role="status" className="mt-3 rounded-lg bg-[#eef7f1] px-3 py-2 text-[10px] text-[#41755f]">{message}</p>}
+          </section>
+        </main>
+      </section>
+    );
+  }
+
   return (
     <>
-    <section className="overflow-hidden rounded-[20px] border border-[#dce5e8] bg-[#f5f8fa] shadow-[0_14px_40px_rgba(21,48,71,.08)]" data-testid="private-vault-panel">
-      <header className="sticky top-0 z-20 flex min-h-[68px] items-center justify-between gap-3 border-b border-[#e1e8eb] bg-white/95 px-3 py-3 backdrop-blur sm:px-5">
-        <div className="flex min-w-0 items-center gap-3">
-          <button type="button" aria-label="Open Vault workspace navigation" aria-expanded={mobileNavigationOpen} aria-controls="vault-workspace-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dfe7eb] bg-white text-[#29465d] hover:bg-[#f4f8f9] lg:hidden" data-testid="button-vault-navigation"><Menu size={17} /></button>
-          <div className="min-w-0">
-            <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#56878a]">Globus Bank · Customer workspace</p>
-            <h2 className="truncate text-[14px] font-bold text-[#233c54] sm:text-[16px]">Private Vault</h2>
-          </div>
-        </div>
-        <div className="flex shrink-0 items-center gap-2">
-          <span className="hidden max-w-[180px] truncate text-right text-[9px] font-medium text-[#708397] sm:block">{user?.firstName ? `Welcome, ${user.firstName}` : 'Secure account workspace'}</span>
-          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eef6f6] text-[#43888e]"><ShieldCheck size={17} /></span>
-        </div>
-      </header>
-      <div className="grid min-w-0 lg:grid-cols-[204px_minmax(0,1fr)]">
-        <aside className="sticky top-[68px] hidden h-[calc(100dvh-140px)] min-h-[440px] flex-col bg-[#173b4b] px-3 py-4 text-white lg:flex">
+    <section className="min-h-dvh min-w-0 w-full bg-[#f5f8fa]" data-testid="private-vault-panel">
+      {vaultHeader}
+      <div className="grid min-h-[calc(100dvh-68px)] min-w-0 lg:grid-cols-[204px_minmax(0,1fr)]">
+        <aside className="sticky top-[68px] hidden h-[calc(100dvh-68px)] min-h-[440px] flex-col bg-[#173b4b] px-3 py-4 text-white lg:flex">
           <p className="px-2 pb-3 text-[8px] font-bold uppercase tracking-[.16em] text-[#a9c8c0]">Vault workspace</p>
           <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto" aria-label="Vault workspace navigation">
             {vaultNavigation.map(item => {
@@ -771,6 +862,18 @@ export function PrivateVaultPanel() {
                   {status.data?.subscriptionActive && status.data?.expiresAt ? ` · plan ends ${new Date(status.data.expiresAt).toLocaleDateString()}` : ''}
                 </p>
                 <button type="button" disabled={updatePasscode.isPending || updateControl.isPending || billingBusy} data-testid="button-vault-lock" onClick={lockVault} className="rounded-md border border-[#d4e1e4] bg-white px-3 py-1.5 text-[9px] font-bold text-[#466577] disabled:opacity-50">Lock vault</button>
+              </div>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="vault-overview-actions" aria-label="Vault overview actions">
+                {([
+                  ['vault-workspace-funding', 'Add funds', WalletCards],
+                  ['vault-activity', 'Activity', FileText],
+                  ['vault-receipts', 'Receipt style', ReceiptText],
+                  ['vault-workspace-wallets', 'Wallet controls', ShieldCheck],
+                ] as const).map(([target, label, Icon]) => (
+                  <button key={target} type="button" onClick={() => navigateToSection(target)} data-testid={`button-vault-overview-${target}`} className="inline-flex min-w-0 items-center justify-center gap-1.5 rounded-lg border border-[#d9e4e7] bg-white px-2 py-2 text-[9px] font-bold text-[#42687a] transition hover:border-[#a9c8c9] hover:bg-[#f4f9f9] sm:text-[10px]">
+                    <Icon size={13} className="shrink-0" /><span className="truncate">{label}</span>
+                  </button>
+                ))}
               </div>
               <div id="vault-workspace-funding" className="scroll-mt-4">
                 <VaultFundingForm vaultAccessActive={!!status.data?.accessActive} />
