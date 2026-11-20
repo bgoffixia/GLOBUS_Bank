@@ -4013,7 +4013,7 @@ export const getCreateInternationalTransferRequestUrl = () => {
 }
 
 /**
- * Verified users complete an internal ledger transfer; unverified users create a pending request for administrator review. No outside account is paid.
+ * Eligible transfers post to the internal ledger when account, wallet, Vault entitlement or separate transfer access, and policy checks allow. Otherwise, a request may be sent for administrator review. No outside account is paid.
  * @summary Record or complete an internal routed transfer
  */
 export const createInternationalTransferRequest = async (internationalTransferRequestInput: InternationalTransferRequestInput, options?: Parameters<typeof customFetch>[1]): Promise<InternationalTransferRequest> => {

@@ -275,6 +275,15 @@ function ClerkRoutes() {
         <Route path="/receive"><Redirect to="/profile" /></Route>
         <Route path="/profile"><ProtectedPage><ProfilePage /></ProtectedPage></Route>
         <Route path="/private-vault"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/subscription"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/funding"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/activity"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/receipts"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/wallet-controls"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/security"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/alerts"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/notes"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/email-preferences"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/settings"><Redirect to="/profile" /></Route>
         <Route path="/admin/vault-acces"><Redirect to="/admin/vault-access" /></Route>
         <Route path="/admin/vault-access"><ProtectedAdminPage /></Route>

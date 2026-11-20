@@ -48,7 +48,7 @@ export function BankShell({ children }: { children: ReactNode }) {
   const { user } = useUser();
   const { signOut } = useClerk();
   const isDashboard = location === '/dashboard';
-  const isPrivateVault = location === '/private-vault';
+  const isPrivateVault = location.startsWith('/private-vault');
   const dashboardProfile = useGetBankProfile({
     query: {
       queryKey: getGetBankProfileQueryKey(),

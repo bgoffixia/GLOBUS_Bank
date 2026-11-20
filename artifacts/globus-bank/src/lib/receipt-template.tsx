@@ -1,15 +1,15 @@
 import React from 'react';
-import type { ReceiptTemplate } from '@workspace/api-client-react';
+import type { ReceiptTemplateId } from './receipt-layouts';
 
-export const receiptTemplateOptions = [
+const baseReceiptTemplateOptions = [
   {
     value: 'standard',
-    label: 'Standard',
+    label: 'Standard receipt',
     description: 'The current Globus receipt layout',
   },
   {
     value: 'bank_payment',
-    label: 'Bank grade',
+    label: 'Bank payment record',
     description: 'A formal payment record with a clear amount summary',
   },
   {
@@ -19,21 +19,63 @@ export const receiptTemplateOptions = [
   },
   {
     value: 'transfer_ledger',
-    label: 'Posting ledger',
+    label: 'Transfer ledger',
     description: 'A compact summary of Globus ledger activity',
   },
   {
     value: 'settlement_statement',
-    label: 'Archival statement',
+    label: 'Settlement statement',
     description: 'A print-friendly record with document number and status',
   },
 ] as const satisfies readonly {
-  value: ReceiptTemplate;
+  value: ReceiptTemplateId;
   label: string;
   description: string;
 }[];
 
-export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemplate }) {
+const expandedReceiptTemplateOptions = [
+  {
+    value: 'editorial_ledger',
+    label: 'Editorial ledger',
+    description: 'A typographic, annotated account record',
+  },
+  {
+    value: 'transfer_ledger_columnar',
+    label: 'Columnar ledger',
+    description: 'A columnar ledger statement',
+  },
+  {
+    value: 'settlement_ledger',
+    label: 'Settlement ledger',
+    description: 'A structured settlement ledger copy',
+  },
+  {
+    value: 'reconciliation_statement',
+    label: 'Reconciliation statement',
+    description: 'A reconciliation-first transaction record',
+  },
+  {
+    value: 'settlement_timeline',
+    label: 'Settlement timeline',
+    description: 'A time-led record of recorded activity',
+  },
+  {
+    value: 'archival_statement',
+    label: 'Archival statement',
+    description: 'A formal archival copy of the transaction record',
+  },
+] as const satisfies readonly {
+  value: ReceiptTemplateId;
+  label: string;
+  description: string;
+}[];
+
+export const receiptTemplateOptions = [
+  ...baseReceiptTemplateOptions,
+  ...expandedReceiptTemplateOptions,
+] as const;
+
+export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemplateId }) {
   return (
     <div
       aria-hidden="true"
@@ -124,6 +166,31 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
             <span className="text-right"><small className="block text-[#879691]">Amount</small><b className="mt-0.5 block text-[#47645d]">₦184,500.00</b></span>
           </div>
           <p className="mt-1.5 text-center text-[4px] font-bold uppercase tracking-[.12em] text-[#8a9992]">Illustrative · not an external payment confirmation</p>
+        </div>
+      </>}
+      {([
+        'editorial_ledger',
+        'transfer_ledger_columnar',
+        'settlement_ledger',
+        'reconciliation_statement',
+        'settlement_timeline',
+        'archival_statement',
+      ] as ReceiptTemplateId[]).includes(template) && <>
+        <div className={`px-2.5 py-2 text-white ${template === 'editorial_ledger' ? 'bg-[#344d5a]' : template === 'settlement_timeline' ? 'bg-[#315b57]' : 'bg-[#173b4b]'}`}>
+          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">GLOBUS BANK</span><span className="text-[4px] font-bold uppercase tracking-[.1em] text-[#d5c78f]">{template.replaceAll('_', ' ')}</span></div>
+          <p className="mt-2 font-serif text-[12px] font-semibold">Transaction record</p>
+          <div className="mt-1 flex items-center justify-between gap-2 text-[4px] text-white/75"><span>Amount on record</span><span>Current status</span></div>
+        </div>
+        <div className={`px-2.5 py-2 ${template === 'transfer_ledger_columnar' ? 'grid grid-cols-2 gap-1.5' : 'space-y-1.5'}`}>
+          {(template === 'settlement_timeline'
+            ? ['Activity recorded', 'Current Globus status']
+            : template === 'reconciliation_statement'
+              ? ['Reference', 'Amount', 'Counterparty', 'Recorded status']
+              : ['Transaction detail', 'Recorded amount', 'Counterparty', 'Reference']
+          ).map((label, index) => <div key={label} className="flex items-center justify-between gap-2 border-b border-[#e6ece8] py-1 text-[4px]">
+            <span className="text-[#81918e]">{label}</span><span className="max-w-[56%] truncate font-semibold text-[#405b61]">{index === 0 ? 'Current account record' : 'Recorded in Globus'}</span>
+          </div>)}
+          <p className="pt-1 text-right text-[4px] font-bold uppercase tracking-[.1em] text-[#66857d]">Full record preview</p>
         </div>
       </>}
     </div>

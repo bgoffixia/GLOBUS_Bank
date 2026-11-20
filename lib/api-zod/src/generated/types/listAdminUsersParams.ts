@@ -7,7 +7,6 @@
  */
 import type { ListAdminUsersAccountStatus } from './listAdminUsersAccountStatus';
 import type { ListAdminUsersVaultSubscriptionStatus } from './listAdminUsersVaultSubscriptionStatus';
-import type { ListAdminUsersVerificationStatus } from './listAdminUsersVerificationStatus';
 
 export type ListAdminUsersParams = {
 /**
@@ -24,6 +23,5 @@ limit?: number;
  */
 page?: number;
 accountStatus?: ListAdminUsersAccountStatus;
-verificationStatus?: ListAdminUsersVerificationStatus;
 vaultSubscriptionStatus?: ListAdminUsersVaultSubscriptionStatus;
 };

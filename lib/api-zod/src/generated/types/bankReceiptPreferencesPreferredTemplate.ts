@@ -15,4 +15,10 @@ export const BankReceiptPreferencesPreferredTemplate = {
   transfer_journey: 'transfer_journey',
   transfer_ledger: 'transfer_ledger',
   settlement_statement: 'settlement_statement',
+  editorial_ledger: 'editorial_ledger',
+  transfer_ledger_columnar: 'transfer_ledger_columnar',
+  settlement_ledger: 'settlement_ledger',
+  reconciliation_statement: 'reconciliation_statement',
+  settlement_timeline: 'settlement_timeline',
+  archival_statement: 'archival_statement',
 } as const;

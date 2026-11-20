@@ -211,7 +211,7 @@ export const bankUsersTable = pgTable("bank_users", {
 }, (table) => [
   check(
     "bank_users_preferred_receipt_template_check",
-    sql`${table.preferredReceiptTemplate} in ('standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement')`,
+    sql`${table.preferredReceiptTemplate} in ('standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement', 'editorial_ledger', 'transfer_ledger_columnar', 'settlement_ledger', 'reconciliation_statement', 'settlement_timeline', 'archival_statement')`,
   ),
   uniqueIndex("bank_users_vault_email_sender_local_part_unique").on(
     table.vaultEmailSenderLocalPart,

@@ -155,6 +155,12 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
     transfer_journey: { canvas: '#e8f0ec', ink: '#173951', accent: '#347c78', kicker: 'INTERNAL PAYMENT RECORD' },
     transfer_ledger: { canvas: '#e9efea', ink: '#173c4b', accent: '#39786d', kicker: 'GLOBUS · LEDGER RECORD' },
     settlement_statement: { canvas: '#e8eeea', ink: '#173b4b', accent: '#39786d', kicker: 'INTERNAL TRANSACTION STATEMENT' },
+    editorial_ledger: { canvas: '#e9e5da', ink: '#344d5a', accent: '#907b4b', kicker: 'EDITORIAL LEDGER · GLOBUS BANK' },
+    transfer_ledger_columnar: { canvas: '#e8efea', ink: '#173c4b', accent: '#4b796b', kicker: 'COLUMNAR TRANSFER LEDGER' },
+    settlement_ledger: { canvas: '#e7efea', ink: '#315b57', accent: '#4b8875', kicker: 'SETTLEMENT LEDGER · INTERNAL COPY' },
+    reconciliation_statement: { canvas: '#eeeae0', ink: '#34495a', accent: '#917f52', kicker: 'TRANSFER RECONCILIATION STATEMENT' },
+    settlement_timeline: { canvas: '#e6efea', ink: '#315b57', accent: '#578b77', kicker: 'SETTLEMENT TIMELINE · GLOBUS BANK' },
+    archival_statement: { canvas: '#efede4', ink: '#283e4c', accent: '#897c58', kicker: 'ARCHIVAL STATEMENT · GLOBUS BANK' },
   }[template];
   const paperBackground = template === 'settlement_statement' ? '#fcfcf7' : template === 'transfer_ledger' ? '#fbfcf7' : '#fffefa';
   context.fillStyle = theme.canvas;

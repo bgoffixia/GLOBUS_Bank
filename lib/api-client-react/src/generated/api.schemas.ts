@@ -167,6 +167,12 @@ export const ReceiptTemplate = {
   transfer_journey: 'transfer_journey',
   transfer_ledger: 'transfer_ledger',
   settlement_statement: 'settlement_statement',
+  editorial_ledger: 'editorial_ledger',
+  transfer_ledger_columnar: 'transfer_ledger_columnar',
+  settlement_ledger: 'settlement_ledger',
+  reconciliation_statement: 'reconciliation_statement',
+  settlement_timeline: 'settlement_timeline',
+  archival_statement: 'archival_statement',
 } as const;
 
 export interface InternationalTransferRequest {
@@ -249,17 +255,6 @@ export interface Wallet {
   status: WalletStatus;
 }
 
-export type BankProfileVerificationStatus = typeof BankProfileVerificationStatus[keyof typeof BankProfileVerificationStatus];
-
-
-export const BankProfileVerificationStatus = {
-  not_started: 'not_started',
-  pending: 'pending',
-  approved: 'approved',
-  rejected: 'rejected',
-  additional_information_required: 'additional_information_required',
-} as const;
-
 export type BankProfileAccountStatus = typeof BankProfileAccountStatus[keyof typeof BankProfileAccountStatus];
 
 
@@ -317,9 +312,6 @@ export interface BankProfile {
   profileSetupComplete: boolean;
   transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
-  verificationStatus: BankProfileVerificationStatus;
-  /** @nullable */
-  verificationNote: string | null;
   accountStatus: BankProfileAccountStatus;
   vaultSubscriptionActive: boolean;
   vaultAccessActive: boolean;
@@ -589,6 +581,12 @@ export const BankReceiptPreferencesPreferredTemplate = {
   transfer_journey: 'transfer_journey',
   transfer_ledger: 'transfer_ledger',
   settlement_statement: 'settlement_statement',
+  editorial_ledger: 'editorial_ledger',
+  transfer_ledger_columnar: 'transfer_ledger_columnar',
+  settlement_ledger: 'settlement_ledger',
+  reconciliation_statement: 'reconciliation_statement',
+  settlement_timeline: 'settlement_timeline',
+  archival_statement: 'archival_statement',
 } as const;
 
 export interface BankReceiptPreferences {
@@ -604,6 +602,12 @@ export const BankReceiptPreferencesInputPreferredTemplate = {
   transfer_journey: 'transfer_journey',
   transfer_ledger: 'transfer_ledger',
   settlement_statement: 'settlement_statement',
+  editorial_ledger: 'editorial_ledger',
+  transfer_ledger_columnar: 'transfer_ledger_columnar',
+  settlement_ledger: 'settlement_ledger',
+  reconciliation_statement: 'reconciliation_statement',
+  settlement_timeline: 'settlement_timeline',
+  archival_statement: 'archival_statement',
 } as const;
 
 export interface BankReceiptPreferencesInput {
@@ -1222,17 +1226,6 @@ export interface AdminSummary {
   recentActions: AdminAuditLog[];
 }
 
-export type AdminUserVerificationStatus = typeof AdminUserVerificationStatus[keyof typeof AdminUserVerificationStatus];
-
-
-export const AdminUserVerificationStatus = {
-  not_started: 'not_started',
-  pending: 'pending',
-  approved: 'approved',
-  rejected: 'rejected',
-  additional_information_required: 'additional_information_required',
-} as const;
-
 export type AdminUserAccountStatus = typeof AdminUserAccountStatus[keyof typeof AdminUserAccountStatus];
 
 
@@ -1280,9 +1273,6 @@ export interface AdminUser {
   lastName: string | null;
   /** @nullable */
   country: string | null;
-  verificationStatus: AdminUserVerificationStatus;
-  /** @nullable */
-  verificationNote: string | null;
   accountStatus: AdminUserAccountStatus;
   /** @nullable */
   accountRestrictionReason: string | null;
@@ -2108,7 +2098,6 @@ limit?: number;
  */
 page?: number;
 accountStatus?: ListAdminUsersAccountStatus;
-verificationStatus?: ListAdminUsersVerificationStatus;
 vaultSubscriptionStatus?: ListAdminUsersVaultSubscriptionStatus;
 };
 
@@ -2119,17 +2108,6 @@ export const ListAdminUsersAccountStatus = {
   active: 'active',
   restricted: 'restricted',
   suspended: 'suspended',
-} as const;
-
-export type ListAdminUsersVerificationStatus = typeof ListAdminUsersVerificationStatus[keyof typeof ListAdminUsersVerificationStatus];
-
-
-export const ListAdminUsersVerificationStatus = {
-  not_started: 'not_started',
-  pending: 'pending',
-  approved: 'approved',
-  rejected: 'rejected',
-  additional_information_required: 'additional_information_required',
 } as const;
 
 export type ListAdminUsersVaultSubscriptionStatus = typeof ListAdminUsersVaultSubscriptionStatus[keyof typeof ListAdminUsersVaultSubscriptionStatus];

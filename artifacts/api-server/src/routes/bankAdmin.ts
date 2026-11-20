@@ -229,13 +229,6 @@ function generatedAdminAuditReason(req: Request): string {
     .slice(0, 500);
 }
 
-const removedIdentityWorkflow: RequestHandler = (_req, res): void => {
-  res.status(410).json({ error: "Identity review workflows are no longer available." });
-};
-router.use("/bank/admin/users/:userId/verification-documents", removedIdentityWorkflow);
-router.use("/bank/admin/identity-documents", removedIdentityWorkflow);
-router.all("/bank/admin/users/:userId/verification", removedIdentityWorkflow);
-
 function configuredAdminIds(): Set<string> {
   return new Set(
     (process.env.GLOBUS_ADMIN_CLERK_IDS ?? "")
@@ -2192,11 +2185,6 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       );
     }
   }
-  if (parsed.data.verificationStatus) {
-    filters.push(
-      eq(bankUsersTable.verificationStatus, parsed.data.verificationStatus),
-    );
-  }
   if (parsed.data.vaultSubscriptionStatus === "expired") {
     filters.push(
       and(
@@ -2233,8 +2221,6 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       firstName: bankUsersTable.firstName,
       lastName: bankUsersTable.lastName,
       country: bankUsersTable.country,
-      verificationStatus: bankUsersTable.verificationStatus,
-      verificationNote: bankUsersTable.verificationNote,
       accountStatus: bankUsersTable.accountStatus,
       accountRestrictionReason: bankUsersTable.accountRestrictionReason,
       accountRestrictionNotes: bankUsersTable.accountRestrictionNotes,
@@ -2257,8 +2243,6 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
       bankUsersTable.firstName,
       bankUsersTable.lastName,
       bankUsersTable.country,
-      bankUsersTable.verificationStatus,
-      bankUsersTable.verificationNote,
       bankUsersTable.accountStatus,
       bankUsersTable.accountRestrictionReason,
       bankUsersTable.accountRestrictionNotes,
@@ -2305,12 +2289,6 @@ router.get("/bank/admin/users", requireAdmin, async (req, res): Promise<void> =>
         items: rows.map((row) => ({
           ...row,
           accountTierName: getEffectiveAccountTier(row, now).name,
-          verificationStatus: row.verificationStatus as
-            | "not_started"
-            | "pending"
-            | "approved"
-            | "rejected"
-            | "additional_information_required",
           accountStatus:
             row.accountStatus === "suspended" ||
             restrictionsByUser.get(row.id)?.some((item) => item.type === "suspend_user")
@@ -2603,8 +2581,6 @@ router.get(
           firstName: user.firstName,
           lastName: user.lastName,
           country: user.country,
-          verificationStatus: user.verificationStatus,
-          verificationNote: user.verificationNote,
           accountStatus: effectiveAccountStatus,
           accountRestrictionReason:
             user.accountRestrictionReason ?? primaryRestriction?.reason ?? null,
@@ -2952,8 +2928,6 @@ router.patch(
         firstName: result.firstName,
         lastName: result.lastName,
         country: result.country,
-        verificationStatus: result.verificationStatus,
-        verificationNote: result.verificationNote,
         accountStatus: result.accountStatus,
         accountRestrictionReason: result.accountRestrictionReason,
         accountRestrictionNotes: result.accountRestrictionNotes,
@@ -3054,8 +3028,6 @@ router.patch(
         firstName: updated.user.firstName,
         lastName: updated.user.lastName,
         country: updated.user.country,
-        verificationStatus: updated.user.verificationStatus,
-        verificationNote: updated.user.verificationNote,
         accountStatus: updated.user.accountStatus,
         accountRestrictionReason: updated.user.accountRestrictionReason,
         accountRestrictionNotes: updated.user.accountRestrictionNotes,

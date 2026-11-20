@@ -8,7 +8,6 @@
 import type { AdminUserAccountStatus } from './adminUserAccountStatus';
 import type { AdminUserVaultSubscriptionPlan } from './adminUserVaultSubscriptionPlan';
 import type { AdminUserVaultSubscriptionStatus } from './adminUserVaultSubscriptionStatus';
-import type { AdminUserVerificationStatus } from './adminUserVerificationStatus';
 
 export interface AdminUser {
   id: string;
@@ -25,9 +24,6 @@ export interface AdminUser {
   lastName: string | null;
   /** @nullable */
   country: string | null;
-  verificationStatus: AdminUserVerificationStatus;
-  /** @nullable */
-  verificationNote: string | null;
   accountStatus: AdminUserAccountStatus;
   /** @nullable */
   accountRestrictionReason: string | null;

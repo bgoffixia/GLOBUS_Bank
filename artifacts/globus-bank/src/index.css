@@ -359,6 +359,81 @@ img, svg, video, canvas {
   flex: none;
 }
 
+.vault-page-navigation {
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+  touch-action: pan-x;
+  overscroll-behavior-x: contain;
+}
+
+.vault-page-navigation::-webkit-scrollbar,
+.vault-receipt-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.vault-page-content > [data-vault-view] {
+  display: none;
+}
+
+.vault-page-content[data-vault-page="private-vault"] > [data-vault-view="subscription"],
+.vault-page-content[data-vault-page="private-vault"] > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="subscription"] > [data-vault-view="subscription"],
+.vault-page-content[data-vault-page="subscription"] > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="funding"] > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="wallet-controls"] > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="security"] > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="alerts"] > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="notes"] > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="email-preferences"] > [data-vault-view="overview"],
+.vault-page-content[data-vault-page="activity"] > [data-vault-view="activity"],
+.vault-page-content[data-vault-page="receipts"] > [data-vault-view="receipts"] {
+  display: block;
+}
+
+.vault-page-content[data-vault-page="funding"] #vault-workspace-overview > :not(:has(#vault-workspace-funding)),
+.vault-page-content[data-vault-page="wallet-controls"] #vault-workspace-overview,
+.vault-page-content[data-vault-page="security"] #vault-workspace-overview,
+.vault-page-content[data-vault-page="alerts"] #vault-workspace-overview,
+.vault-page-content[data-vault-page="notes"] #vault-workspace-overview,
+.vault-page-content[data-vault-page="email-preferences"] #vault-workspace-overview {
+  display: none;
+}
+
+.vault-page-content[data-vault-page="wallet-controls"] #vault-account-controls,
+.vault-page-content[data-vault-page="security"] #vault-account-controls,
+.vault-page-content[data-vault-page="alerts"] #vault-browser-alerts,
+.vault-page-content[data-vault-page="notes"] #vault-personal-notes,
+.vault-page-content[data-vault-page="email-preferences"] #vault-email-preferences {
+  display: block;
+}
+
+.vault-page-content[data-vault-page="security"] #vault-account-controls > :not([data-vault-view="security"]) {
+  display: none;
+}
+
+.vault-page-content[data-vault-page="subscription"] #vault-workspace-layout > :not(#vault-workspace-overview),
+.vault-page-content[data-vault-page="subscription"] #vault-workspace-overview > :not(:has([data-testid="vault-subscription-access"])),
+.vault-page-content[data-vault-page="funding"] #vault-workspace-layout > :not(#vault-workspace-overview),
+.vault-page-content[data-vault-page="wallet-controls"] #vault-workspace-layout > :not(#vault-account-controls),
+.vault-page-content[data-vault-page="security"] #vault-workspace-layout > :not(#vault-account-controls),
+.vault-page-content[data-vault-page="alerts"] #vault-workspace-layout > :not(#vault-browser-alerts),
+.vault-page-content[data-vault-page="notes"] #vault-workspace-layout > :not(#vault-personal-notes),
+.vault-page-content[data-vault-page="email-preferences"] #vault-workspace-layout > :not(#vault-email-preferences) {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .page-enter {
+    animation: none;
+  }
+
+  .vault-page-navigation *,
+  .vault-page-content button {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
 @media print {
   @page {
     margin: 16mm;

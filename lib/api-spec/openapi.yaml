@@ -955,7 +955,7 @@ paths:
       operationId: createInternationalTransferRequest
       tags: [bank]
       summary: Record or complete an internal routed transfer
-      description: Verified users complete an internal ledger transfer; unverified users create a pending request for administrator review. No outside account is paid.
+      description: Eligible transfers post to the internal ledger when account, wallet, Vault entitlement or separate transfer access, and policy checks allow. Otherwise, a request may be sent for administrator review. No outside account is paid.
       requestBody:
         required: true
         content:
@@ -1353,10 +1353,6 @@ paths:
           in: query
           required: false
           schema: { type: string, enum: [active, restricted, suspended] }
-        - name: verificationStatus
-          in: query
-          required: false
-          schema: { type: string, enum: [not_started, pending, approved, rejected, additional_information_required] }
         - name: vaultSubscriptionStatus
           in: query
           required: false
@@ -2082,8 +2078,6 @@ components:
         profileSetupComplete: { type: boolean }
         transferAccessGranted: { type: boolean }
         transactionPinConfigured: { type: boolean }
-        verificationStatus: { type: string, enum: [not_started, pending, approved, rejected, additional_information_required] }
-        verificationNote: { type: ["string", "null"] }
         accountStatus: { type: string, enum: [active, restricted, suspended] }
         vaultSubscriptionActive: { type: boolean }
         vaultAccessActive: { type: boolean }
@@ -2092,7 +2086,7 @@ components:
         withdrawalAllowed: { type: boolean }
         accountTier: { $ref: "#/components/schemas/DashboardAccountTier" }
         createdAt: { type: string, format: date-time }
-      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, profileSetupComplete, transferAccessGranted, transactionPinConfigured, verificationStatus, verificationNote, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, accountTier, createdAt]
+      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, profileSetupComplete, transferAccessGranted, transactionPinConfigured, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, accountTier, createdAt]
     BankVaultStatus:
       type: object
       properties:
@@ -2189,18 +2183,18 @@ components:
       properties:
         preferredTemplate:
           type: string
-          enum: [standard, bank_payment, transfer_journey, transfer_ledger, settlement_statement]
+          enum: [standard, bank_payment, transfer_journey, transfer_ledger, settlement_statement, editorial_ledger, transfer_ledger_columnar, settlement_ledger, reconciliation_statement, settlement_timeline, archival_statement]
       required: [preferredTemplate]
     BankReceiptPreferencesInput:
       type: object
       properties:
         preferredTemplate:
           type: string
-          enum: [standard, bank_payment, transfer_journey, transfer_ledger, settlement_statement]
+          enum: [standard, bank_payment, transfer_journey, transfer_ledger, settlement_statement, editorial_ledger, transfer_ledger_columnar, settlement_ledger, reconciliation_statement, settlement_timeline, archival_statement]
       required: [preferredTemplate]
     ReceiptTemplate:
       type: string
-      enum: [standard, bank_payment, transfer_journey, transfer_ledger, settlement_statement]
+      enum: [standard, bank_payment, transfer_journey, transfer_ledger, settlement_statement, editorial_ledger, transfer_ledger_columnar, settlement_ledger, reconciliation_statement, settlement_timeline, archival_statement]
     BankVaultReceiptPreference:
       type: object
       properties:
@@ -2590,8 +2584,6 @@ components:
         firstName: { type: ["string", "null"] }
         lastName: { type: ["string", "null"] }
         country: { type: ["string", "null"] }
-        verificationStatus: { type: string, enum: [not_started, pending, approved, rejected, additional_information_required] }
-        verificationNote: { type: ["string", "null"] }
         accountStatus: { type: string, enum: [active, restricted, suspended] }
         accountRestrictionReason: { type: ["string", "null"] }
         accountRestrictionNotes: { type: ["string", "null"] }
@@ -2608,7 +2600,7 @@ components:
         vaultSubscriptionAutoRenew: { type: boolean }
         walletCount: { type: integer }
         createdAt: { type: string, format: date-time }
-      required: [id, email, accountTierName, customerId, firstName, lastName, country, verificationStatus, verificationNote, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, profileSetupCompletedAt, testingModeDisabled, transferAccessGranted, walletCount, createdAt]
+      required: [id, email, accountTierName, customerId, firstName, lastName, country, accountStatus, accountRestrictionReason, accountRestrictionNotes, accountRestrictedAt, profileSetupCompletedAt, testingModeDisabled, transferAccessGranted, walletCount, createdAt]
     AdminUserPage:
       type: object
       properties:

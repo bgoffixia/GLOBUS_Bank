@@ -36,6 +36,13 @@
       "when": 1795192026471,
       "tag": "20261120_bank_transaction_effective_date",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1795204786000,
+      "tag": "20261120_receipt_layout_catalog",
+      "breakpoints": true
     }
   ]
 }

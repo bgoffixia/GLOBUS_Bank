@@ -339,7 +339,6 @@ export function DashboardPage() {
             <ActionTile href={currencyActionHref('/transfer', actionCurrency)} icon={<ArrowLeftRight size={16} />} label="Transfer" testId="dashboard-quick-transfer" />
             <ActionTile href="/calculator" icon={<Calculator size={16} />} label="Convert" testId="dashboard-quick-converter" />
             <ActionTile href="/transactions" icon={<History size={16} />} label="Activity" testId="dashboard-quick-activity" />
-            <ActionTile href="/profile" icon={<UserRound size={16} />} label="Profile" testId="dashboard-quick-profile" />
           </nav>
         </section>
 

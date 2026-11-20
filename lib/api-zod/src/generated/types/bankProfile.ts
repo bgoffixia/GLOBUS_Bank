@@ -7,7 +7,6 @@
  */
 import type { BankProfileAccountStatus } from './bankProfileAccountStatus';
 import type { BankProfileVaultAccessSource } from './bankProfileVaultAccessSource';
-import type { BankProfileVerificationStatus } from './bankProfileVerificationStatus';
 import type { DashboardAccountTier } from './dashboardAccountTier';
 
 export interface BankProfile {
@@ -35,9 +34,6 @@ export interface BankProfile {
   profileSetupComplete: boolean;
   transferAccessGranted: boolean;
   transactionPinConfigured: boolean;
-  verificationStatus: BankProfileVerificationStatus;
-  /** @nullable */
-  verificationNote: string | null;
   accountStatus: BankProfileAccountStatus;
   vaultSubscriptionActive: boolean;
   vaultAccessActive: boolean;

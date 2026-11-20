@@ -541,6 +541,15 @@ test.describe('signed-in member pages at phone widths', () => {
     '/receive',
     '/add-money',
     '/private-vault',
+    '/private-vault/subscription',
+    '/private-vault/funding',
+    '/private-vault/activity',
+    '/private-vault/receipts',
+    '/private-vault/wallet-controls',
+    '/private-vault/security',
+    '/private-vault/alerts',
+    '/private-vault/notes',
+    '/private-vault/email-preferences',
     '/calculator',
     '/withdraw',
     '/profile',
@@ -559,13 +568,13 @@ test.describe('signed-in member pages at phone widths', () => {
         await page.goto(path, { waitUntil: 'domcontentloaded' });
         if (path === '/home') {
           await expect(page.locator('.public-viewport-scroll')).toBeVisible();
-        } else if (path === '/private-vault' || path === '/add-money') {
+        } else if (path.startsWith('/private-vault') || path === '/add-money') {
           await expect(page.getByTestId('vault-full-page-shell')).toBeVisible();
         } else {
           await expect(page.locator('.app-shell')).toBeVisible();
         }
         await expectNoHorizontalOverflow(page, `Signed-in member page at ${width}px (${path})`);
-        if (path !== '/private-vault' && path !== '/add-money') {
+        if (!path.startsWith('/private-vault') && path !== '/add-money') {
           const documentHeight = await page.evaluate(() => ({
             viewport: window.innerHeight,
             document: document.documentElement.scrollHeight,
@@ -588,9 +597,10 @@ test.describe('signed-in member pages at phone widths', () => {
           await expect(page.getByText('Member since', { exact: true })).toHaveCount(0);
           await expect(page.getByTestId('profile-account-tier-badge')).toBeVisible();
         }
-        if (path === '/private-vault') {
+        if (path.startsWith('/private-vault')) {
           await expect(page.getByTestId('private-vault-panel')).toBeVisible();
           await expect(page.getByTestId('vault-unlock-gate')).toBeVisible();
+          await expect(page.getByTestId('vault-page-navigation')).toBeVisible();
           await expect(page.getByTestId('vault-subscription-card')).toHaveCount(0);
           await expect(page.getByTestId('vault-receipt-preferences')).toHaveCount(0);
           await expect(page.getByTestId('status-vault-unlocked')).toHaveCount(0);

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { ArrowLeft, ArrowRight, Bell, FileText, LayoutDashboard, LockKeyhole, Menu, ReceiptText, ShieldCheck, UserRound, WalletCards, X } from 'lucide-react';
-import { Link } from 'wouter';
+import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/react';
 import {
@@ -37,19 +37,45 @@ import {
   useUpdateBankVaultWalletControl,
   useVerifyBankVaultPaystackPayment,
 } from '@workspace/api-client-react';
-import type { BankTransaction, BankVaultEmailPreferences, BankVaultWalletControl } from '@workspace/api-client-react';
+import type { BankTransaction, BankVaultEmailPreferences, BankVaultReceiptPreference, BankVaultWalletControl } from '@workspace/api-client-react';
 import { fetchWebpushrSubscriberId, loadWebpushr } from '../lib/webpushr-client';
 import { RECEIPT_LAYOUTS, type ReceiptTemplateId } from '../lib/receipt-layouts';
 import { customerTransactionDate } from '../lib/transaction-date';
-import { TransferReceiptModal, type ReceiptTransaction } from './transfer/transfer-receipt';
+import { TransferReceiptModal, TransferReceiptPreview, type ReceiptTransaction } from './transfer/transfer-receipt';
 import { canLoadVaultPrivateData, isVaultSessionActive, isVaultSessionRejected } from '../lib/vault-error-state';
 import { VaultFundingForm } from './vault-funding-form';
-import { ReceiptTemplateMiniPreview } from '../lib/receipt-template';
 import { buildReceiptLayoutPreview, canSaveReceiptPreference, shouldClearSavedReceiptSelection } from '../lib/vault-receipt-preview';
 
 const fieldClass = 'h-9 w-full rounded-lg border border-[#dfe6eb] bg-white px-3 text-[11px] text-[#344b64] outline-none focus:border-[#77aeb0] focus:ring-2 focus:ring-[#77aeb0]/15';
 type VaultPlanCode = '1m' | '3m' | '1y';
 type SubscriptionStep = 'closed' | 'plans' | 'payment';
+const vaultPathBySectionId: Record<string, string> = {
+  'vault-overview': '/private-vault',
+  'vault-subscription-card': '/private-vault/subscription',
+  'vault-subscription-access': '/private-vault/subscription',
+  'vault-workspace-funding': '/private-vault/funding',
+  'vault-activity': '/private-vault/activity',
+  'vault-receipts': '/private-vault/receipts',
+  'vault-workspace-wallets': '/private-vault/wallet-controls',
+  'vault-account-controls': '/private-vault/wallet-controls',
+  'vault-security': '/private-vault/security',
+  'vault-browser-alerts': '/private-vault/alerts',
+  'vault-personal-notes': '/private-vault/notes',
+  'vault-email-preferences': '/private-vault/email-preferences',
+};
+const vaultNavigationIdByPath: Record<string, string> = {
+  '/private-vault': 'vault-overview',
+  '/private-vault/subscription': 'vault-subscription-card',
+  '/private-vault/funding': 'vault-workspace-funding',
+  '/private-vault/activity': 'vault-activity',
+  '/private-vault/receipts': 'vault-receipts',
+  '/private-vault/wallet-controls': 'vault-account-controls',
+  '/private-vault/security': 'vault-security',
+  '/private-vault/alerts': 'vault-browser-alerts',
+  '/private-vault/notes': 'vault-personal-notes',
+  '/private-vault/email-preferences': 'vault-email-preferences',
+};
+
 function ngnMinor(value: string) {
   return new Intl.NumberFormat('en-NG', { style: 'currency', currency: 'NGN', maximumFractionDigits: 0 }).format(Number(value) / 100);
 }
@@ -62,6 +88,7 @@ function bannerForeground(hex: string) {
 }
 
 export function PrivateVaultPanel() {
+  const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { user } = useUser();
   const status = useGetBankVaultStatus({ query: { queryKey: getGetBankVaultStatusQueryKey(), retry: false, refetchInterval: 60_000 } });
@@ -97,7 +124,7 @@ export function PrivateVaultPanel() {
   const [receiptPreview, setReceiptPreview] = useState<ReceiptTransaction | null>(null);
   const [receiptPreviewIsIllustrative, setReceiptPreviewIsIllustrative] = useState(false);
   const [mobileNavigationOpen, setMobileNavigationOpen] = useState(false);
-  const [activeNavigation, setActiveNavigation] = useState('vault-overview');
+  const activeNavigation = vaultNavigationIdByPath[location] ?? 'vault-overview';
   const paymentCallbackHandled = useRef('');
   const lastSubscriptionStatus = useRef<string | undefined>(undefined);
   const receiptPreferenceWasAuthorized = useRef(false);
@@ -111,9 +138,12 @@ export function PrivateVaultPanel() {
   };
   const vaultNavigation = [
     { id: 'vault-overview', label: 'Overview', icon: LayoutDashboard, requiresUnlock: false },
-    { id: 'vault-activity', label: 'Activity & receipts', icon: FileText, requiresUnlock: true },
+    { id: 'vault-subscription-card', label: 'Subscription', icon: ShieldCheck, requiresUnlock: true },
+    { id: 'vault-workspace-funding', label: 'Funding', icon: WalletCards, requiresUnlock: true },
+    { id: 'vault-activity', label: 'Activity', icon: FileText, requiresUnlock: true },
     { id: 'vault-receipts', label: 'Receipt style', icon: ReceiptText, requiresUnlock: false },
     { id: 'vault-account-controls', label: 'Wallet controls', icon: WalletCards, requiresUnlock: true },
+    { id: 'vault-security', label: 'Security', icon: LockKeyhole, requiresUnlock: true },
     { id: 'vault-browser-alerts', label: 'Browser alerts', icon: Bell, requiresUnlock: true },
     { id: 'vault-personal-notes', label: 'Personal notes', icon: FileText, requiresUnlock: true },
     { id: 'vault-email-preferences', label: 'Email preferences', icon: ReceiptText, requiresUnlock: true },
@@ -375,11 +405,10 @@ export function PrivateVaultPanel() {
     }
   };
   const navigateToSection = (sectionId: string) => {
-    const section = document.getElementById(sectionId);
-    if (!section) return;
-    setActiveNavigation(sectionId);
+    const path = vaultPathBySectionId[sectionId];
+    if (!path) return;
+    setLocation(path);
     setMobileNavigationOpen(false);
-    section.scrollIntoView({ behavior: 'smooth', block: 'start' });
   };
   const changeVaultPasscode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -577,7 +606,7 @@ export function PrivateVaultPanel() {
     }
     try {
       const saved = await saveReceiptPreference.mutateAsync({
-        data: { preferredReceiptTemplate },
+        data: { preferredReceiptTemplate: preferredReceiptTemplate as BankVaultReceiptPreference['preferredReceiptTemplate'] },
       });
       queryClient.setQueryData(getGetBankVaultReceiptPreferenceQueryKey(), saved);
       setMessage('Receipt layout saved for future transfers. Existing receipts keep their saved design.');
@@ -730,20 +759,39 @@ export function PrivateVaultPanel() {
       </div>
     </header>
   );
+  const servicePages = [
+    { path: '/private-vault', label: 'Overview', page: 'private-vault' },
+    { path: '/private-vault/subscription', label: 'Subscription', page: 'subscription' },
+    { path: '/private-vault/funding', label: 'Funding', page: 'funding' },
+    { path: '/private-vault/activity', label: 'Activity', page: 'activity' },
+    { path: '/private-vault/receipts', label: 'Receipts', page: 'receipts' },
+    { path: '/private-vault/wallet-controls', label: 'Wallet controls', page: 'wallet-controls' },
+    { path: '/private-vault/security', label: 'Security', page: 'security' },
+    { path: '/private-vault/alerts', label: 'Alerts', page: 'alerts' },
+    { path: '/private-vault/notes', label: 'Notes', page: 'notes' },
+    { path: '/private-vault/email-preferences', label: 'Email preferences', page: 'email-preferences' },
+  ];
+  const serviceNavigation = (
+    <nav aria-label="Private Vault pages" data-testid="vault-page-navigation" className="vault-page-navigation flex min-w-0 gap-1 overflow-x-auto border-b border-[#e1e8eb] bg-[#f8faf9] px-3 py-2 sm:px-5">
+      {servicePages.map(page => (
+        <Link key={page.path} href={page.path} aria-current={location === page.path ? 'page' : undefined} data-testid={`link-vault-page-${page.page}`} className={`shrink-0 rounded-full border px-3 py-2 text-[9px] font-bold transition ${location === page.path ? 'border-[#54898b] bg-[#eaf4f2] text-[#315f63]' : 'border-transparent text-[#708397] hover:border-[#dce6e7] hover:bg-white hover:text-[#35536a]'}`}>
+          {page.label}
+        </Link>
+      ))}
+    </nav>
+  );
 
   if (!vaultSessionActive) {
     return (
       <section className="min-h-dvh min-w-0 bg-[#f5f8fa]" data-testid="private-vault-panel">
         {vaultHeader}
+        {serviceNavigation}
         <main className="mx-auto flex min-h-[calc(100dvh-68px)] w-full max-w-[760px] items-center justify-center px-4 py-8 sm:px-6">
           <section className="w-full rounded-[20px] border border-[#dce5e8] bg-white p-5 shadow-[0_14px_40px_rgba(21,48,71,.08)] sm:p-8" data-testid="vault-unlock-gate">
             <span className="grid h-11 w-11 place-items-center rounded-xl bg-[#eef6f6] text-[#43888e]"><LockKeyhole size={20} /></span>
             <h2 className="mt-4 text-[18px] font-bold tracking-[-.02em] text-[#233c54] sm:text-[20px]">
               {status.data?.configured ? 'Unlock your Private Vault' : 'Set up your Private Vault'}
             </h2>
-            <p className="mt-2 text-[11px] leading-5 text-[#708195]">
-              Enter your four-digit Vault passcode to view your workspace, transactions, receipts, and account controls.
-            </p>
             {status.isLoading && <div className="mt-5 h-12 animate-pulse rounded-lg bg-[#f0f4f6]" aria-label="Checking Vault passcode setup" />}
             {status.isError && (
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-3 text-[10px] text-[#a24940]" role="alert">
@@ -753,7 +801,7 @@ export function PrivateVaultPanel() {
             )}
             {!status.isLoading && !status.isError && status.data?.configured === false && (
               <form onSubmit={submitPasscode} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" data-testid="form-vault-setup">
-                <label className="min-w-0 flex-1 text-[10px] font-bold text-[#5c7085]">Create a four-digit Vault passcode
+                <label className="min-w-0 flex-1 text-[10px] font-bold text-[#5c7085]">Create your Vault passcode
                   <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="new-password" maxLength={4} value={passcode} onChange={event => setPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-passcode" />
                 </label>
                 <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-setup" className="h-9 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50">{initialize.isPending ? 'Setting up…' : 'Set up Vault'}</button>
@@ -761,7 +809,7 @@ export function PrivateVaultPanel() {
             )}
             {!status.isLoading && !status.isError && status.data?.configured === true && (
               <form onSubmit={submitPasscode} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" data-testid="form-vault-unlock">
-                <label className="min-w-0 flex-1 text-[10px] font-bold text-[#5c7085]">Four-digit Vault passcode
+                <label className="min-w-0 flex-1 text-[10px] font-bold text-[#5c7085]">
                   <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="current-password" maxLength={4} value={passcode} onChange={event => setPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-unlock-passcode" />
                 </label>
                 <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-unlock" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50"><LockKeyhole size={13} />{unlock.isPending ? 'Unlocking…' : 'Unlock Vault'}</button>
@@ -779,6 +827,7 @@ export function PrivateVaultPanel() {
     <>
     <section className="min-h-dvh min-w-0 w-full bg-[#f5f8fa]" data-testid="private-vault-panel">
       {vaultHeader}
+      {serviceNavigation}
       <div className="grid min-h-[calc(100dvh-68px)] min-w-0 lg:grid-cols-[204px_minmax(0,1fr)]">
         <aside className="sticky top-[68px] hidden h-[calc(100dvh-68px)] min-h-[440px] flex-col bg-[#173b4b] px-3 py-4 text-white lg:flex">
           <p className="px-2 pb-3 text-[8px] font-bold uppercase tracking-[.16em] text-[#a9c8c0]">Vault workspace</p>
@@ -793,8 +842,8 @@ export function PrivateVaultPanel() {
             Wallet policies apply to future requests. Existing ledger activity and receipt details remain unchanged.
           </div>
         </aside>
-        <div className="min-w-0 space-y-3 p-3 sm:p-4">
-      <section className="overflow-hidden rounded-xl border border-[#dce5e8] bg-[#fffefa] shadow-[0_8px_24px_rgba(21,48,71,.05)]" data-testid="vault-subscription-card">
+        <div className="min-w-0 space-y-3 p-3 sm:p-4 vault-page-content" data-vault-page={location.split('/').filter(Boolean).at(-1) ?? 'private-vault'}>
+      <section data-vault-view="subscription" className="overflow-hidden rounded-xl border border-[#dce5e8] bg-[#fffefa] shadow-[0_8px_24px_rgba(21,48,71,.05)]" data-testid="vault-subscription-card">
         <div className="flex flex-col gap-3 border-l-[3px] border-[#b99a58] bg-[linear-gradient(115deg,#fffefa,#f5f8f6)] p-4 sm:flex-row sm:items-center sm:justify-between sm:px-5">
           <div className="min-w-0">
             <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#8a784c]">Private Vault access</p>
@@ -823,7 +872,7 @@ export function PrivateVaultPanel() {
                 setError('');
                 setMessage('');
                 setSubscriptionStep('plans');
-                document.getElementById('vault-overview')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                  setLocation('/private-vault/subscription');
               }
             }} data-testid="button-vault-subscription-primary" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[9px] font-bold text-white transition hover:bg-[#214b70] disabled:opacity-50">
               {sessionToken ? checkoutPending ? 'Verify payment' : 'Choose a plan' : 'Unlock to manage'} <ArrowRight size={13} />
@@ -832,27 +881,27 @@ export function PrivateVaultPanel() {
           </div>
         </div>
       </section>
-      <div id="vault-overview" className="scroll-mt-24">
+      <div id="vault-overview" data-vault-view="overview" className="scroll-mt-24">
       {status.isLoading ? <div className="h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
         status.isError ? <div className="mt-4 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[10px] text-[#a24940]"><span>Vault status is unavailable.</span><button type="button" data-testid="button-retry-vault-status" onClick={() => void status.refetch()} className="font-bold underline">Try again</button></div> :
           !status.data?.configured ? (
             <form onSubmit={submitPasscode} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end" data-testid="form-vault-setup">
-              <label className="min-w-0 flex-1 text-[9px] font-bold text-[#5c7085]">Create a four-digit vault passcode
+              <label className="min-w-0 flex-1 text-[9px] font-bold text-[#5c7085]">Create your Vault passcode
                 <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="new-password" maxLength={4} value={passcode} onChange={event => setPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-passcode" />
               </label>
               <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-setup" className="h-9 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50">{initialize.isPending ? 'Setting up…' : 'Set up vault'}</button>
             </form>
           ) : !sessionToken ? (
             <form onSubmit={submitPasscode} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end" data-testid="form-vault-unlock">
-              <label className="min-w-0 flex-1 text-[9px] font-bold text-[#5c7085]">Four-digit vault passcode
+                <label className="min-w-0 flex-1 text-[9px] font-bold text-[#5c7085]">
                 <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="current-password" maxLength={4} value={passcode} onChange={event => setPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-unlock-passcode" />
               </label>
               <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-unlock" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50"><LockKeyhole size={13} />{unlock.isPending ? 'Unlocking…' : 'Unlock vault'}</button>
             </form>
           ) : (
-            <div className="mt-4 min-w-0 space-y-3" data-testid="vault-workspace-layout">
-              <section id="vault-workspace-overview" className="scroll-mt-4 space-y-3">
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d9e8e9] bg-[#f3f8f8] px-3 py-2">
+            <div id="vault-workspace-layout" className="mt-4 min-w-0 space-y-3" data-testid="vault-workspace-layout">
+      <section id="vault-workspace-overview" data-vault-view="overview" className="scroll-mt-4 space-y-3">
+              <div data-vault-view="overview" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d9e8e9] bg-[#f3f8f8] px-3 py-2">
                 <p className="text-[10px] font-semibold text-[#426e70]" data-testid="status-vault-unlocked">
                   {status.data?.accessSource === 'admin_grant'
                     ? 'Vault unlocked · Admin-granted access'
@@ -864,7 +913,7 @@ export function PrivateVaultPanel() {
                 </p>
                 <button type="button" disabled={updatePasscode.isPending || updateControl.isPending || billingBusy} data-testid="button-vault-lock" onClick={lockVault} className="rounded-md border border-[#d4e1e4] bg-white px-3 py-1.5 text-[9px] font-bold text-[#466577] disabled:opacity-50">Lock vault</button>
               </div>
-              <div className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="vault-overview-actions" aria-label="Vault overview actions">
+              <div data-vault-view="overview" className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="vault-overview-actions" aria-label="Vault overview actions">
                 {([
                   ['vault-workspace-funding', 'Add funds', WalletCards],
                   ['vault-activity', 'Activity', FileText],
@@ -876,17 +925,17 @@ export function PrivateVaultPanel() {
                   </button>
                 ))}
               </div>
-              <div id="vault-workspace-funding" className="scroll-mt-4">
+              <div id="vault-workspace-funding" data-vault-view="funding" className="scroll-mt-4">
                 <VaultFundingForm vaultAccessActive={!!status.data?.accessActive} />
               </div>
-              {status.data?.autoRenew && <div className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d9e8e9] bg-white px-3 py-2" data-testid="vault-auto-renew-status">
+              {status.data?.autoRenew && <div data-vault-view="subscription" className="mt-2 flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#d9e8e9] bg-white px-3 py-2" data-testid="vault-auto-renew-status">
                 <p className="text-[9px] leading-4 text-[#426e70]">Paystack automatic renewal is on. You can request a management link to update or cancel it.</p>
                 <button type="button" disabled={!status.data.renewalManagementReady || billingBusy} onClick={() => void requestRenewalManagementLink()} className="h-8 rounded-lg border border-[#b9d2d0] px-3 text-[9px] font-bold text-[#397b80] disabled:opacity-50">
                   {emailRenewalManagementLink.isPending ? 'Sending…' : 'Email management link'}
                 </button>
               </div>}
 
-              {!paidSubscriptionActive && subscriptionStep !== 'closed' && <section className="mt-3 rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4" data-testid="vault-subscription-access">
+              {!paidSubscriptionActive && subscriptionStep !== 'closed' && <section data-vault-view="subscription" className="mt-3 rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4" data-testid="vault-subscription-access">
                 <div className="flex flex-wrap items-start justify-between gap-3">
                   <div>
                     <p className="text-[10px] font-bold uppercase tracking-[.12em] text-[#8a784c]">Vault subscription · {status.data?.subscriptionStatus || 'inactive'}</p>
@@ -953,15 +1002,15 @@ export function PrivateVaultPanel() {
               </section>}
               </section>
 
-              <div id="vault-account-controls" className="mt-3 scroll-mt-24 grid gap-3 lg:grid-cols-[.75fr_1.25fr]">
-                {vaultAccessActive ? <form onSubmit={changeVaultPasscode} className="rounded-xl border border-[#e7ecef] p-3" data-testid="form-vault-change-passcode">
+              <div id="vault-account-controls" data-vault-view="wallet-controls" className="mt-3 scroll-mt-24 grid gap-3 lg:grid-cols-[.75fr_1.25fr]">
+                {vaultAccessActive ? <form onSubmit={changeVaultPasscode} data-vault-view="security" className="rounded-xl border border-[#e7ecef] p-3" data-testid="form-vault-change-passcode">
                   <h3 className="text-[10px] font-bold text-[#344b64]">Change passcode</h3>
                   <label className="mt-2 block text-[9px] font-semibold text-[#667a8d]">New four-digit passcode
                     <input required pattern="[0-9]{4}" inputMode="numeric" autoComplete="new-password" maxLength={4} value={newPasscode} onChange={event => setNewPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-new-passcode" />
                   </label>
                   <button type="submit" disabled={loading || newPasscode.length !== 4} data-testid="button-vault-change-passcode" className="mt-2 h-8 rounded-lg border border-[#dfe6eb] px-3 text-[9px] font-bold text-[#405a73] disabled:opacity-50">{updatePasscode.isPending ? 'Updating…' : 'Update passcode'}</button>
-                </form> : <div className="rounded-xl border border-[#e7ecef] bg-[#f8fafb] p-3"><h3 className="text-[10px] font-bold text-[#344b64]">Vault settings are read-only</h3><p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Active Private Vault access is required to change the passcode or wallet and email settings.</p></div>}
-                <div id="vault-workspace-wallets" className="scroll-mt-4 rounded-xl border border-[#e7ecef] p-3">
+                </form> : <div data-vault-view="security" className="rounded-xl border border-[#e7ecef] bg-[#f8fafb] p-3"><h3 className="text-[10px] font-bold text-[#344b64]">Vault settings are read-only</h3><p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Active Private Vault access is required to change the passcode or wallet and email settings.</p></div>}
+                <div id="vault-workspace-wallets" data-vault-view="wallet-policies" className="scroll-mt-4 rounded-xl border border-[#e7ecef] p-3">
                   <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold text-[#344b64]">Wallet policies</h3><button type="button" disabled={!vaultAccessActive} onClick={() => void controls.refetch()} data-testid="button-refresh-wallet-controls" className="text-[9px] font-bold text-[#397b80] disabled:cursor-not-allowed disabled:opacity-50">Refresh</button></div>
                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Policy choices apply to future requests only. Existing transactions keep their recorded status.</p>
                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Add funds above; withdrawal requests remain on their dedicated page. Subscription, wallet, and account restrictions still apply.</p>
@@ -975,7 +1024,7 @@ export function PrivateVaultPanel() {
                       </div>
                       <label className="mt-2 flex items-center gap-2 text-[8px] font-semibold text-[#64798d]">Future transfer requests
                         <select value={control.futureTransferMode} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { futureTransferMode: event.target.value as BankVaultWalletControl['futureTransferMode'] })} className="h-7 flex-1 rounded-md border border-[#dfe6eb] bg-white px-2 text-[9px]" data-testid={`select-vault-future-transfer-mode-${control.walletId}`}>
-                          <option value="successful">Successful after ledger posting</option><option value="pending">Pending administrator review</option><option value="failed">Fail without posting</option>
+                          <option value="successful">Successful</option><option value="pending">Pending</option><option value="failed">Failed</option>
                         </select>
                       </label>
                       {busyWallet === control.walletId && <p role="status" className="mt-1 text-[8px] text-[#55868b]">Saving wallet policy…</p>}
@@ -983,7 +1032,7 @@ export function PrivateVaultPanel() {
                   ) : <p className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] text-[#8492a1]">No wallet controls are available.</p>}
                 </div>
               </div>
-              <details id="vault-browser-alerts" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-browser-alert-settings">
+              <details id="vault-browser-alerts" data-vault-view="alerts" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-browser-alert-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Browser alerts</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose which account alerts can reach linked devices. In-app notifications remain available in the notification center.</p>
                 {browserPushConfig.isError && <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Browser alert setup is unavailable. Try again later.</p>}
@@ -1010,7 +1059,7 @@ export function PrivateVaultPanel() {
                 {browserPushError && <p role="alert" data-testid="status-vault-browser-push-error" className="mt-2 rounded-md bg-[#fff1ef] px-2 py-1.5 text-[8px] text-[#a24940]">{browserPushError}</p>}
                 {browserPushMessage && <p role="status" data-testid="status-vault-browser-push-message" className="mt-2 rounded-md bg-[#eef7f1] px-2 py-1.5 text-[8px] text-[#41755f]">{browserPushMessage}</p>}
               </details>
-              <details id="vault-personal-notes" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
+              <details id="vault-personal-notes" data-vault-view="notes" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Personal transaction notes</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">These notes are private to your Vault. They never change balances, official transaction details, receipts, or notifications.</p>
                 {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Activate Private Vault access to load personal notes.</p>}
@@ -1037,7 +1086,7 @@ export function PrivateVaultPanel() {
                         </>}
                       </div>}
               </details>
-              <details id="vault-email-preferences" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-email-banner-settings">
+              <details id="vault-email-preferences" data-vault-view="email-preferences" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-email-banner-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Transaction email banner</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose whether to email recipients, then customize the banner and optional support footer link.</p>
                 {!vaultAccessActive ? <p role="status" className="mt-2 text-[9px] font-semibold text-[#8a784c]">Activate Private Vault access to load these settings.</p> :
@@ -1093,7 +1142,7 @@ export function PrivateVaultPanel() {
             </div>
           )}
       </div>
-      <section id="vault-activity" className="scroll-mt-24 rounded-xl border border-[#e1e8ee] bg-white p-3 sm:p-4" data-testid="vault-transaction-history">
+      <section id="vault-activity" data-vault-view="activity" className="scroll-mt-24 rounded-xl border border-[#e1e8ee] bg-white p-3 sm:p-4" data-testid="vault-transaction-history">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Account activity</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Transactions & receipts</h3><p className="mt-1 text-[9px] text-[#77889a]">Open a customer receipt using your saved layout.</p></div>
           {sessionToken && transactions.data?.[0] && <button type="button" onClick={() => setReceiptPreview(transactions.data![0])} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]" data-testid="button-preview-latest-receipt"><ReceiptText size={13} /> Latest receipt</button>}
@@ -1109,7 +1158,7 @@ export function PrivateVaultPanel() {
                   </div>)}
                 </div>}
       </section>
-      <section id="vault-receipts" className="scroll-mt-24 rounded-xl border border-[#dce6e8] bg-white p-3 sm:p-4" data-testid="vault-receipt-preferences">
+      <section id="vault-receipts" data-vault-view="receipts" className="scroll-mt-24 rounded-xl border border-[#dce6e8] bg-white p-3 sm:p-4" data-testid="vault-receipt-preferences">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Receipt preferences</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Choose your transaction receipt</h3><p className="mt-1 max-w-xl text-[9px] leading-4 text-[#77889a]">Compare all five layouts before you decide. Your choice is a local preview until saved; existing receipts keep their recorded design.</p></div>
           <span className="rounded-full bg-[#eef6f6] px-2.5 py-1 text-[8px] font-bold text-[#4a7c7e]">All customer receipts</span>
@@ -1118,12 +1167,25 @@ export function PrivateVaultPanel() {
         {!vaultAccessActive && <p role="status" className="mt-3 rounded-lg border border-[#e8e1cc] bg-[#fbf8ef] px-3 py-2 text-[9px] text-[#806f43]">Active Private Vault access is required to update your preferred receipt design.</p>}
         {receiptPreference.isLoading && <div className="mt-3 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" />}
         {receiptPreference.isError && <div role="alert" className="mt-3 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[9px] text-[#a24940]"><span>Receipt preferences could not be loaded.</span><button type="button" onClick={() => void receiptPreference.refetch()} className="font-bold underline">Try again</button></div>}
-        <div role="radiogroup" aria-label="Preferred transaction receipt layout" className="mt-3 grid min-w-0 gap-2 sm:grid-cols-2 xl:grid-cols-3">
-          {RECEIPT_LAYOUTS.map(layout => <button key={layout.id} type="button" role="radio" aria-checked={preferredReceiptTemplate === layout.id} aria-pressed={preferredReceiptTemplate === layout.id} onClick={() => setPreferredReceiptTemplate(layout.id)} className={`min-w-0 rounded-lg border p-2.5 text-left transition ${preferredReceiptTemplate === layout.id ? 'border-[#4d8b8d] bg-[#f2f8f7] ring-1 ring-[#4d8b8d]/15' : 'border-[#e2e9ec] bg-[#fbfcfd] hover:border-[#b7d1d2]'}`} data-testid={`button-receipt-layout-${layout.id}`}>
-            <ReceiptTemplateMiniPreview template={layout.id} />
-            <span className="mt-2 block text-[9px] font-bold text-[#354c63]">{layout.label}</span>
-            <span className="mt-0.5 block text-[8px] leading-4 text-[#8090a0]">{layout.summary}</span>
-          </button>)}
+        <div role="radiogroup" aria-label="Preferred transaction receipt layout" className="vault-receipt-carousel mt-3 flex min-w-0 snap-x snap-mandatory gap-3 overflow-x-auto pb-2">
+          {RECEIPT_LAYOUTS.map(layout => <article key={layout.id} className={`w-[min(88vw,430px)] shrink-0 snap-start rounded-xl border p-3 ${preferredReceiptTemplate === layout.id ? 'border-[#4d8b8d] bg-[#f2f8f7] ring-1 ring-[#4d8b8d]/15' : 'border-[#e2e9ec] bg-[#fbfcfd]'}`}>
+            <div className="mb-3 flex items-start justify-between gap-3">
+              <div className="min-w-0"><p className="text-[10px] font-bold text-[#354c63]">{layout.label}</p><p className="mt-0.5 text-[9px] leading-4 text-[#8090a0]">{layout.summary}</p></div>
+              <button type="button" role="radio" aria-label={`Select ${layout.label}`} aria-checked={preferredReceiptTemplate === layout.id} aria-pressed={preferredReceiptTemplate === layout.id} onClick={() => setPreferredReceiptTemplate(layout.id)} className={`shrink-0 rounded-full border px-2.5 py-1.5 text-[8px] font-bold ${preferredReceiptTemplate === layout.id ? 'border-[#4d8b8d] bg-[#e3f0ed] text-[#315f63]' : 'border-[#dfe7e9] bg-white text-[#698091]'}`} data-testid={`button-receipt-layout-${layout.id}`}>{preferredReceiptTemplate === layout.id ? 'Selected' : 'Select'}</button>
+            </div>
+            <TransferReceiptPreview transaction={buildReceiptLayoutPreview(privateVaultDataEnabled ? transactions.data?.[0] : undefined, layout.id).transaction} />
+            <button type="button" onClick={() => {
+              setPreferredReceiptTemplate(layout.id);
+              const preview = buildReceiptLayoutPreview(
+                privateVaultDataEnabled ? transactions.data?.[0] : undefined,
+                layout.id,
+              );
+              setReceiptPreview(preview.transaction);
+              setReceiptPreviewIsIllustrative(preview.illustrativeOnly);
+            }} data-testid={`button-open-full-receipt-${layout.id}`} className="mt-3 inline-flex min-h-9 w-full items-center justify-center gap-2 rounded-lg border border-[#d8e4e6] bg-white px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]">
+              <ReceiptText size={13} /> Open full receipt
+            </button>
+          </article>)}
         </div>
         <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-[#edf0f2] pt-3">
           <p className="text-[8px] text-[#8391a0]">{privateVaultDataEnabled && receiptPreference.data ? `Saved layout: ${RECEIPT_LAYOUTS.find(layout => layout.id === receiptPreference.data?.preferredReceiptTemplate)?.label ?? 'Classic receipt'}` : 'Your selection is a local preview until saved with active Vault access.'}</p>

@@ -11,10 +11,22 @@ import {
 import { calculateReceiptFit } from '../src/lib/receipt-fit';
 import { saveReceiptFileToDevice } from '../src/lib/receipt-file-delivery';
 
-test('the Vault offers five distinct receipt presets with a rendered preview', () => {
+test('the Vault offers all eleven receipt presets with a rendered preview', () => {
   assert.deepEqual(
     receiptTemplateOptions.map((option) => option.value),
-    ['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'],
+    [
+      'standard',
+      'bank_payment',
+      'transfer_journey',
+      'transfer_ledger',
+      'settlement_statement',
+      'editorial_ledger',
+      'transfer_ledger_columnar',
+      'settlement_ledger',
+      'reconciliation_statement',
+      'settlement_timeline',
+      'archival_statement',
+    ],
   );
 
   for (const option of receiptTemplateOptions) {
@@ -23,8 +35,12 @@ test('the Vault offers five distinct receipt presets with a rendered preview', (
     );
     assert.match(html, new RegExp(`data-testid="receipt-template-preview-${option.value}"`));
     assert.match(html, /GLOBUS BANK/);
-    assert.match(html, /GBX-20261120-8Q4K2P/);
-    assert.match(html, /184,500\.00/);
+    if (['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'].includes(option.value)) {
+      assert.match(html, /GBX-20261120-8Q4K2P/);
+      assert.match(html, /184,500\.00/);
+    } else {
+      assert.match(html, /Full record preview/);
+    }
     assert.ok(option.label.length > 0);
     assert.ok(option.description.length > 0);
   }

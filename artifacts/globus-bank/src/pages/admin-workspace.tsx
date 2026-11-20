@@ -243,27 +243,19 @@ function UsersPage() {
   const [page, setPage] = useState(1);
   const [status, setStatus] = useState('');
   const [vaultStatus, setVaultStatus] = useState(() => new URLSearchParams(window.location.search).get('vault') || '');
-  const [verificationStatus, setVerificationStatus] = useState<ListAdminUsersParams['verificationStatus'] | ''>('');
   const params: ListAdminUsersParams = useMemo(() => ({
     ...(search.trim() ? { search: search.trim() } : {}),
     ...(status ? { accountStatus: status as ListAdminUsersParams['accountStatus'] } : {}),
     ...(vaultStatus ? { vaultSubscriptionStatus: vaultStatus as ListAdminUsersParams['vaultSubscriptionStatus'] } : {}),
-    ...(verificationStatus ? { verificationStatus } : {}),
     page,
     limit: 25,
-  }), [search, page, status, vaultStatus, verificationStatus]);
+  }), [search, page, status, vaultStatus]);
   const users = useListAdminUsers(params, { query: { queryKey: getListAdminUsersQueryKey(params) } });
   const summary = useGetAdminSummary({ query: { queryKey: getGetAdminSummaryQueryKey(), retry: false } });
   const recentParams: ListAdminTransactionsParams = { page: 1, pageSize: 4 };
   const recentTransactions = useListAdminTransactions(recentParams, {
     query: { queryKey: getListAdminTransactionsQueryKey(recentParams) },
   });
-  const verificationTabs: Array<{ label: string; value: ListAdminUsersParams['verificationStatus'] | '' }> = [
-    { label: 'All members', value: '' },
-    { label: 'Pending', value: 'pending' },
-    { label: 'Needs details', value: 'additional_information_required' },
-    { label: 'Verified', value: 'approved' },
-  ];
   const metrics = [
     { label: 'Total members', value: summary.data?.registeredUsers ?? users.data?.total, note: 'Registered member records', icon: Users },
     { label: 'Pending operations', value: summary.data?.pendingOperations, note: 'Waiting for review', icon: FileClock },
@@ -309,17 +301,11 @@ function UsersPage() {
             <option value="">All Vault access</option><option value="pending">Legacy pending requests</option><option value="active">Active Vault access</option><option value="expired">Expired Vault access</option><option value="rejected">Declined legacy requests</option><option value="inactive">No subscription</option>
           </select>
         </div>
-        <div role="tablist" aria-label="Filter members by identity status" className="flex gap-4 overflow-x-auto border-b border-[#edf1ed] px-4 sm:px-5">
-          {verificationTabs.map(tab => <button key={tab.label} type="button" role="tab" aria-selected={verificationStatus === tab.value} data-testid={`tab-admin-members-${tab.label.toLowerCase().replaceAll(' ', '-')}`} onClick={() => { setVerificationStatus(tab.value); setPage(1); }} className={`relative shrink-0 py-2.5 text-[10px] font-semibold transition ${verificationStatus === tab.value ? 'text-[#2f675f]' : 'text-[#899693] hover:text-[#526b69]'}`}>
-            {tab.label}{tab.value === 'pending' && <span className="ml-1.5 rounded-full bg-[#f7efdc] px-1.5 py-0.5 text-[8px] text-[#907b49]">Review</span>}
-            {verificationStatus === tab.value && <span className="absolute inset-x-0 bottom-0 h-[2px] rounded-full bg-[#52928a]" />}
-          </button>)}
-        </div>
         {users.isLoading ? <Skeleton /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <>
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[1120px] text-left">
+            <table className="w-full min-w-[1040px] text-left">
               <thead className="bg-[#f7f9f5] text-[8px] font-bold uppercase tracking-[.11em] text-[#899792]">
-                <tr>{['Member', 'Identity', 'Account', 'Vault', 'Testing mode', 'Transfer access', 'Profile setup', 'Wallets', 'Created', ''].map((label, index) => <th key={`${label}-${index}`} className="px-3 py-2.5 sm:px-4">{label}</th>)}</tr>
+                <tr>{['Member', 'Account', 'Vault', 'Testing mode', 'Transfer access', 'Profile setup', 'Wallets', 'Created', ''].map((label, index) => <th key={`${label}-${index}`} className="px-3 py-2.5 sm:px-4">{label}</th>)}</tr>
               </thead>
               <tbody>{users.data.items.map(member => {
                 const vaultStatus = member.vaultSubscriptionStatus === 'active' && member.vaultSubscriptionExpiresAt && Date.parse(member.vaultSubscriptionExpiresAt) <= Date.now()
@@ -327,7 +313,6 @@ function UsersPage() {
                   : member.vaultSubscriptionStatus || 'inactive';
                 return <tr key={member.id} data-testid={`row-admin-member-${member.id}`} className="border-t border-[#edf1ed] text-[10px] transition hover:bg-[#fafbf8]">
                   <td className="px-3 py-3 sm:px-4"><div className="flex items-center gap-2.5"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e6f0e9] text-[9px] font-bold text-[#47755e]">{[member.firstName?.[0], member.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'G'}</div><div className="min-w-0"><Link href={`/admin/users/${encodeURIComponent(member.id)}`} className="block truncate text-[10px] font-bold text-[#344c51] hover:text-[#2f675f] hover:underline">{nameOf(member)}</Link><p className="truncate text-[9px] text-[#899793]">{member.email}</p><p className="mt-0.5 font-mono text-[8px] text-[#96a29e]">{member.customerId || 'No Customer ID'}</p></div></div></td>
-                  <td className="px-3 py-3"><StatusPill status={member.verificationStatus} /></td>
                   <td className="px-3 py-3"><StatusPill status={member.accountStatus} /></td>
                   <td className="px-3 py-3"><StatusPill status={vaultStatus} /></td>
                   <td className="px-3 py-3"><Pill tone={member.testingModeDisabled ? 'good' : 'warn'}>{member.testingModeDisabled ? 'Off' : 'On'}</Pill></td>
@@ -470,7 +455,7 @@ function MemberDetail({ userId }: { userId: string }) {
      <div role="tabpanel" className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
        {activeTab === 'overview' && <div className="space-y-3 pb-3">
          <div className="grid items-start gap-3 xl:grid-cols-[1.25fr_.75fr]">
-            <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['City of origin', detail.data.cityOfOrigin || 'Missing'], ['Date of birth', detail.data.dateOfBirth || 'Missing'], ['Occupation / employment', detail.data.occupation || 'Missing'], ['Customer ID', u.customerId || '—'], ['Verification status', human(u.verificationStatus)], ['Profile setup', detail.data.profileSetupCompletedAt ? `Complete · ${dateTime(detail.data.profileSetupCompletedAt)}` : 'Missing'], ['Testing mode', detail.data.testingModeDisabled ? 'Off' : 'On'], ['Transfer access', detail.data.transferAccessGranted ? 'Granted' : 'Not granted'], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
+            <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['City of origin', detail.data.cityOfOrigin || 'Missing'], ['Date of birth', detail.data.dateOfBirth || 'Missing'], ['Occupation / employment', detail.data.occupation || 'Missing'], ['Customer ID', u.customerId || '—'], ['Profile setup', detail.data.profileSetupCompletedAt ? `Complete · ${dateTime(detail.data.profileSetupCompletedAt)}` : 'Missing'], ['Testing mode', detail.data.testingModeDisabled ? 'Off' : 'On'], ['Transfer access', detail.data.transferAccessGranted ? 'Granted' : 'Not granted'], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
          </div>
           <Panel title="Customer access controls" eyebrow="Independent from Private Vault">
             <form data-testid="admin-access-control-form" onSubmit={saveAccessControls} className="grid gap-3 p-4 sm:p-5">

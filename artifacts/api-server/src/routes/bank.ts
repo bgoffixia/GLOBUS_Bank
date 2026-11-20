@@ -594,10 +594,6 @@ router.post(
 );
 
 router.use("/bank", requireSignedIn);
-router.use("/bank/verification", (_req, res): void => {
-  res.status(410).json({ error: "Identity verification workflows are no longer available." });
-});
-
 router.post("/bank/me/password-reset/complete", passwordResetLimiter, async (req, res): Promise<void> => {
   const userId = getAuth(req).userId;
   if (!userId) {
@@ -676,8 +672,6 @@ router.get("/bank/me", async (req, res): Promise<void> => {
       dateOfBirth: user.dateOfBirth,
       occupation: user.occupation,
       transactionPinConfigured: !!user.transactionPinHash,
-      verificationStatus: user.verificationStatus,
-      verificationNote: user.verificationNote,
       accountStatus,
       ...operationEligibility,
       accountTier,
@@ -765,8 +759,6 @@ router.put("/bank/signup-profile", async (req, res): Promise<void> => {
       dateOfBirth: user.dateOfBirth,
       occupation: user.occupation,
       transactionPinConfigured: !!user.transactionPinHash,
-      verificationStatus: user.verificationStatus,
-      verificationNote: user.verificationNote,
       accountStatus,
       ...operationEligibility,
       accountTier,
@@ -865,8 +857,6 @@ router.get("/bank/dashboard", async (req, res): Promise<void> => {
         dateOfBirth: profile.dateOfBirth,
         occupation: profile.occupation,
         transactionPinConfigured: !!profile.transactionPinHash,
-        verificationStatus: profile.verificationStatus,
-        verificationNote: profile.verificationNote,
         accountStatus,
         ...operationEligibility,
         accountTier: effectiveAccountTier,
@@ -1225,8 +1215,6 @@ router.put("/bank/profile", async (req, res): Promise<void> => {
       dateOfBirth: user.dateOfBirth,
       occupation: user.occupation,
       transactionPinConfigured: !!user.transactionPinHash,
-      verificationStatus: user.verificationStatus,
-      verificationNote: user.verificationNote,
       accountStatus,
       ...operationEligibility,
       createdAt: user.createdAt.toISOString(),

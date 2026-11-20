@@ -66,13 +66,19 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
   const heading = title ?? (isTransfer ? 'Routed transfer' : humanizeStatus(transaction.type));
   const template: ReceiptTemplateId = transaction.receiptTemplate ?? 'standard';
   const templateTitle = {
-    standard: 'Payment receipt',
-    bank_payment: 'Bank transaction record',
+    standard: 'Standard receipt',
+    bank_payment: 'Bank payment record',
     transfer_journey: 'Transfer journey',
-    transfer_ledger: 'Posting ledger',
-    settlement_statement: 'Archival statement',
+    transfer_ledger: 'Transfer ledger',
+    settlement_statement: 'Settlement statement',
+    editorial_ledger: 'Editorial ledger',
+    transfer_ledger_columnar: 'Columnar ledger',
+    settlement_ledger: 'Settlement ledger',
+    reconciliation_statement: 'Reconciliation statement',
+    settlement_timeline: 'Settlement timeline',
+    archival_statement: 'Archival statement',
   }[template];
-  const darkMasthead = template === 'transfer_journey' || template === 'transfer_ledger' || template === 'settlement_statement';
+  const darkMasthead = template !== 'standard' && template !== 'bank_payment';
 
   useEffect(() => {
     const prev = document.activeElement as HTMLElement | null;
@@ -167,7 +173,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
 
   return (
     <div className="receipt-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#dce5eb]/85 p-2 backdrop-blur-sm sm:p-3" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-      <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" data-testid="dialog-transfer-receipt" data-receipt-template={template} className={`receipt-dialog relative flex w-full ${template === 'settlement_statement' ? 'max-w-[720px]' : 'max-w-[460px]'} flex-col overflow-hidden rounded-[20px] border border-[#d9e2e7] bg-[#fffefa] shadow-[0_22px_65px_rgba(14,40,61,.22)]`}>
+        <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" data-testid="dialog-transfer-receipt" data-receipt-template={template} className={`receipt-dialog relative flex w-full ${['settlement_statement', 'editorial_ledger', 'transfer_ledger_columnar', 'settlement_ledger', 'reconciliation_statement', 'settlement_timeline', 'archival_statement'].includes(template) ? 'max-w-[720px]' : 'max-w-[460px]'} flex-col overflow-hidden rounded-[20px] border border-[#d9e2e7] bg-[#fffefa] shadow-[0_22px_65px_rgba(14,40,61,.22)]`}>
         <div data-testid="receipt-document-frame" className="receipt-document-frame w-full shrink-0" style={{ height: `${receiptFit.height}px` }}>
           <article ref={printRef} data-testid="receipt-document" data-receipt-template={template} className="receipt-print w-full bg-[#fffefa] text-[#203a54]" style={{ transform: `scale(${receiptFit.scale})`, transformOrigin: 'top center' }}>
             {template !== 'bank_payment' && <ReceiptDocument template={template} transaction={transaction} conversion={conversion} heading={heading} completed={completed} pending={pending} closeRef={closeRef} onClose={onClose} />}
@@ -259,6 +265,55 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
   );
 }
 
+export function TransferReceiptPreview({ transaction }: { transaction: ReceiptTransaction }) {
+  const closeRef = useRef<HTMLButtonElement>(null);
+  const conversion = parseReceiptConversion(transaction);
+  const heading = transaction.type === 'external_transfer' ? 'Routed transfer' : humanizeStatus(transaction.type);
+  const completed = transaction.status === 'completed';
+  const pending = transaction.status === 'pending';
+  if (transaction.receiptTemplate === 'bank_payment') {
+    const counterparty = transaction.recipient?.name || transaction.counterparty || 'Globus account';
+    return (
+      <article data-testid={`receipt-full-preview-${transaction.receiptTemplate}`} className="overflow-hidden rounded-[18px] bg-[#fffefa] text-[#203a54]">
+        <header className="border-b border-[#e5ebed] px-5 py-5">
+          <div className="flex items-center justify-between gap-3"><img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className="h-auto w-[116px]" /><span data-testid="text-receipt-status" className={`rounded-full border px-2.5 py-1 text-[8px] font-bold ${completed ? 'border-[#d5e7dc] bg-[#eff7f2] text-[#47755f]' : pending ? 'border-[#eadfbf] bg-[#fbf7eb] text-[#8b7440]' : 'border-[#f1d8d5] bg-[#fbefed] text-[#9c4d46]'}`}>{humanizeStatus(transaction.status)}</span></div>
+          <p className="mt-6 text-[8px] font-bold uppercase tracking-[.16em] text-[#548783]">Bank transaction record</p>
+          <h3 className="bank-display mt-1 text-[22px] font-semibold">{heading}</h3>
+          <p className="mt-5 text-[8px] font-bold uppercase tracking-[.14em] text-[#81919a]">Amount recorded</p>
+          <p data-testid="text-receipt-amount" className="bank-display mt-1 break-words text-[27px] font-semibold">{formatAmount(transaction.amount, transaction.currency)}</p>
+        </header>
+        <section className="px-5 py-4">
+          <dl className="divide-y divide-[#e6ebec]">
+            <ReceiptDataRow label="Counterparty" value={counterparty} />
+            {transaction.recipient && <ReceiptDataRow label="Destination bank" value={transaction.recipient.bank} />}
+            <ReceiptDataRow label="Reference" value={transaction.reference} strong mono testId="text-receipt-reference" />
+            <ReceiptDataRow label="Date and time" value={formatDateTime(transaction.createdAt)} />
+            <ReceiptDataRow label="Globus status" value={humanizeStatus(transaction.status)} />
+            <ReceiptDataRow label="Description" value={transaction.description || heading} />
+            <ReceiptDataRow label="Fee" value={formatAmount(transaction.fee, transaction.currency)} />
+          </dl>
+        </section>
+        <p className="border-t border-dashed border-[#dfe6e9] px-5 py-4 text-[8px] leading-4 text-[#7d8c98]">Recorded by Globus Bank. This receipt does not confirm settlement through an outside bank or payment service.</p>
+      </article>
+    );
+  }
+  return (
+    <article data-testid={`receipt-full-preview-${transaction.receiptTemplate}`} className="overflow-hidden rounded-[18px]">
+      <ReceiptDocument
+        template={transaction.receiptTemplate}
+        transaction={transaction}
+        conversion={conversion}
+        heading={heading}
+        completed={completed}
+        pending={pending}
+        closeRef={closeRef}
+        onClose={() => undefined}
+        showClose={false}
+      />
+    </article>
+  );
+}
+
 function ReceiptDocument({
   template,
   transaction,
@@ -268,6 +323,7 @@ function ReceiptDocument({
   pending,
   closeRef,
   onClose,
+  showClose = true,
 }: {
   template: ReceiptTemplateId;
   transaction: ReceiptTransaction;
@@ -277,6 +333,7 @@ function ReceiptDocument({
   pending: boolean;
   closeRef: RefObject<HTMLButtonElement | null>;
   onClose: () => void;
+  showClose?: boolean;
 }) {
   const [journeyView, setJourneyView] = useState<'journey' | 'details'>('journey');
   const statusLabel = completed
@@ -292,7 +349,7 @@ function ReceiptDocument({
       className="h-auto w-[104px] brightness-0 invert"
     />
   );
-  const closeButton = (
+  const closeButton = showClose ? (
     <button
       ref={closeRef}
       type="button"
@@ -303,7 +360,7 @@ function ReceiptDocument({
     >
       <X size={15} />
     </button>
-  );
+  ) : null;
   const amount = formatAmount(transaction.amount, transaction.currency);
   const convertedAmount = conversion
     ? formatAmount(conversion.destinationAmount, conversion.destinationCurrency)
@@ -453,6 +510,140 @@ function ReceiptDocument({
         <div className="border-t border-[#e5ebe4] px-5 py-3 text-[8px] text-[#83938e] sm:px-6">Reference · <span className="font-mono" data-testid="text-receipt-reference">{transaction.reference}</span></div>
         {disclaimer}
       </div>
+    );
+  }
+
+  if ([
+    'editorial_ledger',
+    'transfer_ledger_columnar',
+    'settlement_ledger',
+    'reconciliation_statement',
+    'settlement_timeline',
+    'archival_statement',
+  ].includes(template)) {
+    const counterparty = transaction.recipient?.name || transaction.counterparty || 'Globus account';
+    const variants = {
+      editorial_ledger: {
+        eyebrow: 'An account record',
+        title: 'Recorded, with clarity.',
+        shell: 'bg-[#f4f0e6] text-[#354b53]',
+        masthead: 'bg-[#344d5a]',
+      },
+      transfer_ledger_columnar: {
+        eyebrow: 'Transaction ledger',
+        title: 'Posting detail',
+        shell: 'bg-[#f4f7f3] text-[#29434a]',
+        masthead: 'bg-[#173c4b]',
+      },
+      settlement_ledger: {
+        eyebrow: 'Globus account record',
+        title: 'Settlement ledger',
+        shell: 'bg-[#f7f8f3] text-[#29444d]',
+        masthead: 'bg-[#315b57]',
+      },
+      reconciliation_statement: {
+        eyebrow: 'Internal reconciliation copy',
+        title: 'Record comparison',
+        shell: 'bg-[#f8f6ef] text-[#354753]',
+        masthead: 'bg-[#34495a]',
+      },
+      settlement_timeline: {
+        eyebrow: 'Activity chronology',
+        title: 'Recorded timeline',
+        shell: 'bg-[#f3f7f4] text-[#294b49]',
+        masthead: 'bg-[#315b57]',
+      },
+      archival_statement: {
+        eyebrow: 'Globus Bank · Archive',
+        title: 'Account statement',
+        shell: 'bg-[#faf8f0] text-[#31434c]',
+        masthead: 'bg-[#283e4c]',
+      },
+    };
+    const variant = variants[template as keyof typeof variants]!;
+    const dataRows = [
+      ['Reference', transaction.reference],
+      ['Counterparty', counterparty],
+      ['Transaction date', occurredAt],
+      ['Globus status', humanizeStatus(transaction.status)],
+      ['Description', transaction.description || heading],
+    ];
+    return (
+      <article className={`overflow-hidden ${variant.shell}`}>
+        <header className={`${variant.masthead} px-5 py-5 text-white sm:px-8`}>
+          <div className="flex items-center justify-between gap-3">
+            <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className="h-auto w-[104px] brightness-0 invert" />
+            {closeButton}
+          </div>
+          <p className="mt-6 text-[8px] font-bold uppercase tracking-[.2em] text-[#c3d5cb]">{variant.eyebrow}</p>
+          <h2 id="receipt-title" className="bank-display mt-2 text-[25px] font-semibold tracking-[-.045em] sm:text-[30px]">{variant.title}</h2>
+          <div className="mt-4 flex flex-wrap items-end justify-between gap-3 border-t border-white/15 pt-4">
+            <div>
+              <p className="text-[8px] font-bold uppercase tracking-[.14em] text-white/65">Amount recorded</p>
+              <p data-testid="text-receipt-amount" className="bank-display mt-1 break-words text-[24px] font-semibold tracking-[-.04em] sm:text-[30px]">{amount}</p>
+            </div>
+            <span data-testid="text-receipt-status" className="rounded-full border border-white/25 px-3 py-1.5 text-[9px] font-bold">{statusLabel}</span>
+          </div>
+        </header>
+        {template === 'editorial_ledger' && <section className="grid gap-5 px-5 py-6 sm:grid-cols-[.8fr_1.2fr] sm:px-8">
+          <div className="border-l-2 border-[#b79d61] pl-4">
+            <p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#73877e]">Record note</p>
+            <p className="mt-2 font-serif text-[19px] leading-tight">A clear account of what was recorded.</p>
+            <p className="mt-2 text-[9px] leading-5 text-[#728287]">This document reflects Globus account activity at the time shown.</p>
+          </div>
+          <dl className="divide-y divide-[#dfe4dc]">
+            {dataRows.map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} strong={label === 'Reference'} mono={label === 'Reference'} testId={label === 'Reference' ? 'text-receipt-reference' : undefined} />)}
+          </dl>
+        </section>}
+        {template === 'transfer_ledger_columnar' && <section className="px-5 py-5 sm:px-8">
+          <div className="grid grid-cols-[minmax(0,1fr)_auto] border-b border-[#dbe3de] pb-2 text-[8px] font-bold uppercase tracking-[.12em] text-[#788b86] sm:grid-cols-[1.2fr_1.5fr_1fr]">
+            <span>Ledger field</span><span className="text-right sm:text-left">Recorded value</span><span className="hidden text-right sm:block">Entry</span>
+          </div>
+          {[
+            ['Amount', amount],
+            ['Counterparty', counterparty],
+            ['Date', occurredAt],
+            ['Reference', transaction.reference],
+            ['Status', humanizeStatus(transaction.status)],
+          ].map(([label, value], index) => <div key={label} className={`grid grid-cols-[minmax(0,1fr)_auto] gap-2 border-b border-[#e4e9e4] py-3 text-[9px] sm:grid-cols-[1.2fr_1.5fr_1fr] ${index % 2 ? 'bg-white/35' : ''}`}>
+            <span className="font-semibold text-[#6c807d]">{label}</span><span className={`max-w-[55vw] break-all text-right font-semibold text-[#344e54] sm:max-w-none sm:text-left ${label === 'Reference' ? 'font-mono' : ''}`} data-testid={label === 'Reference' ? 'text-receipt-reference' : label === 'Amount' ? 'text-receipt-ledger-amount' : undefined}>{value}</span><span className="hidden text-right font-mono text-[#82928c] sm:block">{String(index + 1).padStart(2, '0')}</span>
+          </div>)}
+        </section>}
+        {template === 'settlement_ledger' && <section className="px-5 py-5 sm:px-8">
+          <div className="rounded-xl border border-[#d7e3da] bg-white/65 p-4">
+            <div className="flex items-center justify-between gap-3 border-b border-[#dfe7e0] pb-3"><strong className="text-[10px]">Globus posting record</strong><span className="text-[8px] font-bold uppercase tracking-[.12em] text-[#648078]">{humanizeStatus(transaction.status)}</span></div>
+            <div className="mt-3 grid gap-4 sm:grid-cols-2"><div><p className="text-[8px] uppercase tracking-[.12em] text-[#83938d]">Debit / credit amount</p><p className="mt-1 text-[14px] font-semibold">{amount}</p></div><div><p className="text-[8px] uppercase tracking-[.12em] text-[#83938d]">Beneficiary / source</p><p className="mt-1 break-words text-[11px] font-semibold">{counterparty}</p></div></div>
+          </div>
+          <dl className="mt-3 divide-y divide-[#dfe6df]">{dataRows.filter(([label]) => label !== 'Counterparty').map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} strong={label === 'Reference'} mono={label === 'Reference'} testId={label === 'Reference' ? 'text-receipt-reference' : undefined} />)}</dl>
+        </section>}
+        {template === 'reconciliation_statement' && <section className="px-5 py-5 sm:px-8">
+          <div className="grid gap-3 sm:grid-cols-2">
+            {[['Transaction side', heading], ['Account side', 'Globus internal ledger']].map(([label, value]) => <div key={label} className="rounded-lg border border-[#e1e5dc] bg-white/70 p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#80908a]">{label}</p><p className="mt-2 break-words text-[10px] font-semibold">{value}</p><p className="mt-1 text-[8px] text-[#7e8e88]">Recorded amount · {amount}</p></div>)}
+          </div>
+          <dl className="mt-4 divide-y divide-[#e1e5dc]">{dataRows.map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} strong={label === 'Reference'} mono={label === 'Reference'} testId={label === 'Reference' ? 'text-receipt-reference' : undefined} />)}</dl>
+        </section>}
+        {template === 'settlement_timeline' && <section className="px-5 py-6 sm:px-8">
+          <ol className="relative ml-2 space-y-5 border-l border-[#bfd2c7] pl-5">
+            <li className="relative"><span className="absolute -left-[26px] top-0.5 h-3 w-3 rounded-full border-2 border-[#f3f7f4] bg-[#4e8877]" /><p className="text-[10px] font-bold">Activity recorded in Globus</p><p className="mt-1 text-[9px] text-[#778b82]">{occurredAt} · {amount}</p></li>
+            <li className="relative"><span className="absolute -left-[26px] top-0.5 h-3 w-3 rounded-full border-2 border-[#f3f7f4] bg-[#ba9c5d]" /><p className="text-[10px] font-bold">Current Globus status</p><p data-testid="text-receipt-status" className="mt-1 text-[9px] text-[#778b82]">{statusLabel}</p></li>
+          </ol>
+          <dl className="mt-5 divide-y divide-[#dfe7e1]">{dataRows.map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} strong={label === 'Reference'} mono={label === 'Reference'} testId={label === 'Reference' ? 'text-receipt-reference' : undefined} />)}</dl>
+        </section>}
+        {template === 'archival_statement' && <section className="px-5 py-6 sm:px-8">
+          <div className="border-y border-[#c8d1c8] py-4 text-center">
+            <p className="text-[8px] font-bold uppercase tracking-[.2em] text-[#71847d]">Account archive · Globus internal record</p>
+            <p className="bank-display mt-2 text-[23px] font-semibold">{amount}</p>
+            <p className="mt-1 font-mono text-[9px] text-[#657b7d]" data-testid="text-receipt-reference">{transaction.reference}</p>
+          </div>
+          <div className="mt-4 grid gap-x-8 sm:grid-cols-2"><dl className="divide-y divide-[#e3e6dd]">{dataRows.slice(0, 3).map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} />)}</dl><dl className="divide-y divide-[#e3e6dd]">{dataRows.slice(3).map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} />)}</dl></div>
+        </section>}
+        {conversion && <section className="mx-5 mb-5 rounded-lg border border-[#dce7e1] bg-white/65 p-3 sm:mx-8">
+          <p className="text-[8px] font-bold uppercase tracking-[.13em] text-[#71877e]">Recorded conversion</p>
+          <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-[10px] font-semibold"><span data-testid="text-receipt-source-amount">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)}</span><ArrowLeftRight size={13} /><span data-testid="text-receipt-converted-total">{convertedAmount}</span></div>
+          <p data-testid="text-receipt-exchange-rate" className="mt-2 font-mono text-[8px] text-[#70827d]">1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p>
+        </section>}
+        {disclaimer}
+      </article>
     );
   }
 
