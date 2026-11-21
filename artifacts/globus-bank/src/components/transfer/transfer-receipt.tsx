@@ -1,11 +1,12 @@
 import { useEffect, useLayoutEffect, useRef, useState, type RefObject } from 'react';
-import { ArrowLeftRight, BadgeCheck, CalendarDays, Clock3, Download, Hash, ImageDown, Printer, ShieldCheck, X } from 'lucide-react';
+import { ArrowLeftRight, BadgeCheck, CalendarDays, Clock3, Download, Hash, ImageDown, Printer, Share2, ShieldCheck, X } from 'lucide-react';
 import { destinationCurrencyDigits } from '@/lib/destination-currency';
-import { downloadTransactionReceiptPdf, saveTransactionReceiptPng } from '@/lib/transaction-receipt-pdf';
+import { downloadTransactionReceiptPdf, saveTransactionReceiptPng, shareTransactionReceiptPng } from '@/lib/transaction-receipt-pdf';
 import type { ReceiptConversion, ReceiptTransaction } from '@/lib/transfer-receipt-data';
 import { calculateReceiptFit } from '@/lib/receipt-fit';
 import type { ReceiptTemplateId } from '@/lib/receipt-layouts';
 import { canExportReceipt, canPrintReceipt } from '@/lib/vault-receipt-preview';
+import { toast } from '@/hooks/use-toast';
 export type { ReceiptConversion, ReceiptTransaction } from '@/lib/transfer-receipt-data';
 
 export function digitsFor(currency: string): number {
@@ -51,8 +52,7 @@ export function parseReceiptConversion(t: ReceiptTransaction): ReceiptConversion
 }
 
 export function TransferReceiptModal({ transaction, onClose, title, notice, illustrativeOnly = false }: { transaction: ReceiptTransaction; onClose: () => void; title?: string; notice?: string; illustrativeOnly?: boolean }) {
-  const [exporting, setExporting] = useState<'pdf' | 'png' | null>(null);
-  const [downloadError, setDownloadError] = useState('');
+  const [exporting, setExporting] = useState<'pdf' | 'png' | 'share' | null>(null);
   const closeRef = useRef<HTMLButtonElement>(null);
   const printRef = useRef<HTMLElement>(null);
   const actionsRef = useRef<HTMLDivElement>(null);
@@ -112,7 +112,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
       window.removeEventListener('resize', measure);
       window.visualViewport?.removeEventListener('resize', measure);
     };
-  }, [downloadError, template]);
+  }, [template]);
 
   const exportData = () => ({
     reference: transaction.reference,
@@ -139,26 +139,52 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
   });
 
   const downloadPdf = async () => {
-    setDownloadError('');
     setExporting('pdf');
     try {
       if (!completed) throw new Error('PDF receipts are available for completed transactions only.');
       await downloadTransactionReceiptPdf(exportData(), `${import.meta.env.BASE_URL}globus-wordmark-transparent.png`);
     } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : 'The PDF receipt could not be downloaded.');
+      toast({
+        title: 'Receipt PDF could not be downloaded',
+        description: error instanceof Error && error.message.trim() ? error.message : 'Try again in a moment.',
+        variant: 'destructive',
+        duration: 5000,
+      });
     } finally {
       setExporting(null);
     }
   };
 
   const downloadPng = async () => {
-    setDownloadError('');
     setExporting('png');
     try {
       if (!completed) throw new Error('PNG receipts are available for completed transactions only.');
       await saveTransactionReceiptPng(exportData(), `${import.meta.env.BASE_URL}globus-wordmark-transparent.png`);
     } catch (error) {
-      setDownloadError(error instanceof Error ? error.message : 'The PNG receipt could not be saved.');
+      toast({
+        title: 'Receipt PNG could not be saved',
+        description: error instanceof Error && error.message.trim() ? error.message : 'Try again in a moment.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+    } finally {
+      setExporting(null);
+    }
+  };
+
+  const sharePng = async () => {
+    setExporting('share');
+    try {
+      if (!completed) throw new Error('PNG receipts are available for completed transactions only.');
+      await shareTransactionReceiptPng(exportData(), `${import.meta.env.BASE_URL}globus-wordmark-transparent.png`);
+    } catch (error) {
+      if (error instanceof Error && error.name === 'AbortError') return;
+      toast({
+        title: 'Receipt could not be shared',
+        description: error instanceof Error && error.message.trim() ? error.message : 'Try saving the PNG instead.',
+        variant: 'destructive',
+        duration: 5000,
+      });
     } finally {
       setExporting(null);
     }
@@ -172,8 +198,8 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
   );
 
   return (
-    <div className="receipt-backdrop fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-[#dce5eb]/85 p-2 backdrop-blur-sm sm:p-3" onMouseDown={e => { if (e.target === e.currentTarget) onClose(); }}>
-        <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" data-testid="dialog-transfer-receipt" data-receipt-template={template} className={`receipt-dialog relative flex w-full ${['settlement_statement', 'editorial_ledger', 'transfer_ledger_columnar', 'settlement_ledger', 'reconciliation_statement', 'settlement_timeline', 'archival_statement'].includes(template) ? 'max-w-[720px]' : 'max-w-[460px]'} flex-col overflow-hidden rounded-[20px] border border-[#d9e2e7] bg-[#fffefa] shadow-[0_22px_65px_rgba(14,40,61,.22)]`}>
+    <div className="receipt-backdrop fixed inset-0 z-50 overflow-hidden bg-[#fffefa]">
+        <section role="dialog" aria-modal="true" aria-labelledby="receipt-title" data-testid="dialog-transfer-receipt" data-receipt-template={template} className="receipt-dialog relative flex w-full max-w-none flex-col overflow-x-hidden overflow-y-auto bg-[#fffefa]">
         <div data-testid="receipt-document-frame" className="receipt-document-frame w-full shrink-0" style={{ height: `${receiptFit.height}px` }}>
           <article ref={printRef} data-testid="receipt-document" data-receipt-template={template} className="receipt-print w-full bg-[#fffefa] text-[#203a54]" style={{ transform: `scale(${receiptFit.scale})`, transformOrigin: 'top center' }}>
             {template !== 'bank_payment' && <ReceiptDocument template={template} transaction={transaction} conversion={conversion} heading={heading} completed={completed} pending={pending} closeRef={closeRef} onClose={onClose} />}
@@ -252,12 +278,12 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
         </div>
         <div ref={actionsRef} className="receipt-actions shrink-0 border-t border-[#e7ecee] bg-[#fafbf9] px-3 py-2.5 sm:px-5">
           {notice && <p role="status" data-testid="status-recipient-email-notice" className="mb-2 rounded-lg border border-[#eadfbf] bg-[#fbf7eb] px-3 py-2 text-left text-[10px] leading-4 text-[#806b3d]">{notice}</p>}
-          <div className="flex flex-wrap items-center justify-end gap-2">
-          <button type="button" data-testid="button-save-receipt-png" aria-label="Save receipt PNG to device or gallery" disabled={exporting !== null || !canExportReceipt(illustrativeOnly, completed)} onClick={downloadPng} className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe4e8] bg-white px-2.5 py-2 text-[9px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><ImageDown size={13} />{exporting === 'png' ? 'Preparing image…' : 'Save PNG'}</button>
-            <button type="button" data-testid="button-download-receipt-pdf" disabled={exporting !== null || !canExportReceipt(illustrativeOnly, completed)} onClick={downloadPdf} className="inline-flex items-center gap-1.5 rounded-lg border border-[#dbe4e8] bg-white px-2.5 py-2 text-[9px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><Download size={13} />{exporting === 'pdf' ? 'Preparing PDF…' : 'Download PDF'}</button>
-            <button type="button" data-testid="button-print-receipt" disabled={!canPrintReceipt(illustrativeOnly)} onClick={() => window.print()} className="inline-flex items-center gap-1.5 rounded-lg bg-[#173858] px-3 py-2 text-[9px] font-bold text-white hover:bg-[#21496c] disabled:cursor-not-allowed disabled:opacity-50"><Printer size={13} /> Print</button>
+          <div className="flex flex-wrap items-center justify-end gap-1.5">
+            <button type="button" data-testid="button-save-receipt-png" aria-label="Save receipt PNG to device or gallery" disabled={exporting !== null || !canExportReceipt(illustrativeOnly, completed)} onClick={downloadPng} className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dbe4e8] bg-white px-2 text-[8px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><ImageDown size={11} />{exporting === 'png' ? 'Saving…' : 'Save PNG'}</button>
+            {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && <button type="button" data-testid="button-share-receipt" disabled={exporting !== null || !canExportReceipt(illustrativeOnly, completed)} onClick={() => void sharePng()} className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dbe4e8] bg-white px-2 text-[8px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><Share2 size={11} />{exporting === 'share' ? 'Sharing…' : 'Share'}</button>}
+            <button type="button" data-testid="button-download-receipt-pdf" disabled={exporting !== null || !canExportReceipt(illustrativeOnly, completed)} onClick={downloadPdf} className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dbe4e8] bg-white px-2 text-[8px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><Download size={11} />{exporting === 'pdf' ? 'Preparing…' : 'PDF'}</button>
+            <button type="button" data-testid="button-print-receipt" disabled={!canPrintReceipt(illustrativeOnly)} onClick={() => window.print()} className="inline-flex h-7 items-center gap-1 rounded-md bg-[#173858] px-2 text-[8px] font-bold text-white hover:bg-[#21496c] disabled:cursor-not-allowed disabled:opacity-50"><Printer size={11} /> Print</button>
           </div>
-          {downloadError && <p role="alert" data-testid="status-receipt-download-error" className="mt-1 text-right text-[9px] text-[#a24940]">{downloadError}</p>}
           <p className="mt-1 text-right text-[8px] text-[#8794a2]">On supported phones, choose “Save Image” in the device share sheet to add the PNG to Photos or Gallery. Other browsers download the file.</p>
         </div>
       </section>

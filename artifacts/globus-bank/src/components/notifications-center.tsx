@@ -3,6 +3,7 @@ import { Bell, CheckCheck, ShieldCheck, WalletCards, ArrowLeftRight } from 'luci
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation } from 'wouter';
 import { useUser } from '@clerk/react';
+import { toast } from '@/hooks/use-toast';
 import {
   getGetBankPushConfigQueryKey,
   getListBankNotificationsQueryKey,
@@ -28,7 +29,10 @@ export function NotificationsCenter() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelTop, setPanelTop] = useState(56);
-  const [notificationError, setNotificationError] = useState('');
+  const seenNotificationsRef = useRef<{ userId: string | null; ids: Set<string> }>({
+    userId: null,
+    ids: new Set(),
+  });
   const subscriptionStorageKey = user?.id ? `globus-push-subscription-id:${user.id}` : '';
   useEffect(() => {
     if (location === '/notifications') setOpen(true);
@@ -55,7 +59,12 @@ export function NotificationsCenter() {
     };
   }, [open]);
   const notifications = useListBankNotifications({
-    query: { queryKey: getListBankNotificationsQueryKey(), refetchOnWindowFocus: true, refetchInterval: 60_000 },
+    query: {
+      queryKey: getListBankNotificationsQueryKey(),
+      refetchOnWindowFocus: true,
+      refetchInterval: 15_000,
+      refetchIntervalInBackground: false,
+    },
   });
   const push = useGetBankPushConfig({ query: { queryKey: getGetBankPushConfigQueryKey(), retry: false } });
   const markRead = useMarkBankNotificationRead();
@@ -64,6 +73,29 @@ export function NotificationsCenter() {
   const saveSubscriber = saveSubscription.mutateAsync;
   const unreadCount = notifications.data?.filter(item => !item.readAt).length ?? 0;
   const supported = typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
+
+  useEffect(() => {
+    if (!user?.id || notifications.isLoading || notifications.isError || !notifications.data) return;
+    const seen = seenNotificationsRef.current;
+    if (seen.userId !== user.id) {
+      seenNotificationsRef.current = {
+        userId: user.id,
+        ids: new Set(notifications.data.map(item => item.id)),
+      };
+      return;
+    }
+    const additions = notifications.data.filter(item => !seen.ids.has(item.id));
+    if (!additions.length) return;
+    additions.forEach(item => seen.ids.add(item.id));
+    const newest = additions[0];
+    toast({
+      title: newest.title,
+      description: additions.length > 1
+        ? `${newest.body} · ${additions.length - 1} more new update${additions.length === 2 ? '' : 's'} in Notifications.`
+        : newest.body,
+      duration: 5000,
+    });
+  }, [notifications.data, notifications.isError, notifications.isLoading, user?.id]);
 
   useEffect((): (() => void) | undefined => {
     if (!user?.id || !push.data?.configured || !push.data.siteKey || !supported) return undefined;
@@ -97,23 +129,36 @@ export function NotificationsCenter() {
   ]);
 
   const readOne = async (id: string) => {
-    setNotificationError('');
     try {
       await markRead.mutateAsync({ notificationId: id });
       await queryClient.invalidateQueries({ queryKey: getListBankNotificationsQueryKey() });
-    } catch {
-      setNotificationError('This notification could not be marked as read. Try again.');
+    } catch (error) {
+      toast({
+        title: 'Could not update notification',
+        description: error instanceof Error && error.message.trim()
+          ? error.message
+          : 'This notification could not be marked as read. Try again.',
+        variant: 'destructive',
+        duration: 5000,
+      });
     }
   };
   const clearAll = async () => {
     if (!notifications.data?.length) return;
     if (!window.confirm('Delete all notifications from this account? This cannot be undone.')) return;
-    setNotificationError('');
     try {
       await clearNotifications.mutateAsync();
       await queryClient.invalidateQueries({ queryKey: getListBankNotificationsQueryKey() });
-    } catch {
-      setNotificationError('Notifications could not be cleared. Try again.');
+      toast({ title: 'Notifications cleared', duration: 5000 });
+    } catch (error) {
+      toast({
+        title: 'Could not clear notifications',
+        description: error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Notifications could not be cleared. Try again.',
+        variant: 'destructive',
+        duration: 5000,
+      });
     }
   };
 
@@ -132,7 +177,6 @@ export function NotificationsCenter() {
           </div>
         </div>
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-          {notificationError && <p role="alert" data-testid="status-notification-error" className="mx-4 mt-3 rounded-md bg-[#fff1ef] px-2 py-1.5 text-[8px] text-[#a24940]">{notificationError}</p>}
           {notifications.isLoading ? <div className="space-y-2 p-4" aria-label="Loading notifications" data-testid="notifications-loading">{[0, 1, 2].map(item => <div key={item} className="h-14 animate-pulse rounded-lg bg-[#f1f4f6]" />)}</div> :
             notifications.isError ? <div className="p-4 text-center"><p className="text-[10px] text-[#8d5b51]">Notifications could not be loaded.</p><button type="button" onClick={() => void notifications.refetch()} data-testid="button-retry-notifications" className="mt-2 text-[9px] font-bold text-[#397b80] underline">Try again</button></div> :
               notifications.data?.length ? <ul className="divide-y divide-[#edf0f2]">{notifications.data.map(item => {

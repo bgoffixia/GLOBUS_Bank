@@ -48,6 +48,7 @@ export function BankShell({ children }: { children: ReactNode }) {
   const { user } = useUser();
   const { signOut } = useClerk();
   const isDashboard = location === '/dashboard';
+  const isTransfer = location === '/transfer' || location === '/international-transfer';
   const isPrivateVault = location.startsWith('/private-vault');
   const dashboardProfile = useGetBankProfile({
     query: {
@@ -141,7 +142,7 @@ export function BankShell({ children }: { children: ReactNode }) {
             </Link>
           </div>
         </header>
-        <main className={`page-enter mx-auto min-w-0 w-full max-w-[1440px] px-4 lg:px-10 ${isSingleViewportPage ? `h-[calc(100dvh-64px)] ${isProfile ? 'overflow-hidden' : 'overflow-y-auto'} overscroll-contain py-3 sm:h-[calc(100dvh-72px)] sm:px-8 sm:py-4` : isDashboard ? 'pb-24 pt-3 sm:px-8 sm:pb-24 sm:pt-4' : 'py-4 sm:px-8 sm:py-6'} ${isProfile ? 'profile-viewport-fixed' : ''}`}>{children}</main>
+        <main className={`page-enter mx-auto min-w-0 w-full ${isDashboard || isTransfer ? 'max-w-none px-3 sm:px-6' : 'max-w-[1440px] px-4 lg:px-10'} ${isSingleViewportPage ? `h-[calc(100dvh-64px)] ${isProfile ? 'overflow-hidden' : 'overflow-y-auto'} overscroll-contain py-3 sm:h-[calc(100dvh-72px)] sm:px-8 sm:py-4` : isDashboard ? 'min-h-full pb-24 pt-3 sm:px-8 sm:pb-24 sm:pt-4' : 'py-4 sm:px-8 sm:py-6'} ${isProfile ? 'profile-viewport-fixed' : ''}`}>{children}</main>
       </div>
       {isDashboard && (
         <nav aria-label="Dashboard tools" data-testid="dashboard-bottom-toolbar" className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-[#dfe7ed] bg-white/95 px-1 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+.35rem)] shadow-[0_-8px_20px_rgba(20,47,81,.06)] backdrop-blur-md lg:left-[252px] lg:px-4">

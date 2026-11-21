@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
 import { AlertTriangle, ArrowLeft, ArrowRight, Delete, Globe2, Landmark, LockKeyhole, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
+import { toast } from '@/hooks/use-toast';
 import {
   getGetBankDashboardQueryKey,
   getGetBankExchangeRateQuoteQueryKey,
@@ -82,9 +83,7 @@ export function InternationalTransferPage() {
   const [confirmationFingerprint, setConfirmationFingerprint] = useState<string | null>(null);
   const [rateSnapshot, setRateSnapshot] = useState<string | null>(null);
   const [pin, setPin] = useState('');
-  const [error, setError] = useState('');
   const [receipt, setReceipt] = useState<ReceiptTransaction | null>(null);
-  const [receiptNotice, setReceiptNotice] = useState('');
   const keyRef = useRef<{ fp: string; key: string } | null>(null);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
@@ -170,7 +169,7 @@ export function InternationalTransferPage() {
     pin.length === 6 && !rateChanged && !rateLost && pinConfigured,
   ];
 
-  const go = (n: number) => { if (!pending) { setError(''); if (n < 2) setPin(''); setStep(n); } };
+  const go = (n: number) => { if (!pending) { if (n < 2) setPin(''); setStep(n); } };
   const next = () => {
     if (!stepValid[step]) return;
     if (step === 0) {
@@ -189,7 +188,6 @@ export function InternationalTransferPage() {
     setTransferType(t);
     setStep(0);
     setPin('');
-    setError('');
   };
   const selectCountry = (name: string) => {
     setDestinationCountry(name);
@@ -206,7 +204,6 @@ export function InternationalTransferPage() {
 
   const submit = () => {
     if (pending || !stepValid[2] || !rateSnapshot) return;
-    setError('');
     createRequest.mutate({
       data: {
         transferType,
@@ -230,9 +227,13 @@ export function InternationalTransferPage() {
       onSuccess: request => {
         setPin('');
         setReceipt(receiptFromRequest(request));
-        setReceiptNotice(request.recipientEmailNotificationSkipped
-          ? 'The transfer was recorded, but no recipient email notification was sent.'
-          : '');
+        if (request.recipientEmailNotificationSkipped) {
+          toast({
+            title: 'Transfer recorded',
+            description: 'No recipient email alert was sent. The Globus transfer record is available in Activity.',
+            duration: 5000,
+          });
+        }
         resetAll();
         void Promise.all([
           queryClient.invalidateQueries({ queryKey: getListInternationalTransferRequestsQueryKey() }),
@@ -244,16 +245,23 @@ export function InternationalTransferPage() {
       },
       onError: err => {
         setPin('');
-        setError(err instanceof Error ? err.message : 'The transfer could not be recorded. Your details are kept; please try again.');
+        toast({
+          title: 'Transfer result could not be confirmed',
+          description: err instanceof Error && err.message.trim()
+            ? err.message
+            : 'Check Activity before retrying. Your entered details are still available.',
+          variant: 'destructive',
+          duration: 5000,
+        });
       },
     });
   };
 
   if (wallets.isLoading || profile.isLoading) {
-    return <div className="mx-auto mt-6 max-w-[560px] animate-pulse rounded-[24px] border border-[#e1e8ee] bg-white p-6"><div className="h-10 rounded-xl bg-[#eef2f5]" /><div className="mt-5 h-3 w-2/3 rounded bg-[#eef2f5]" />{[0, 1, 2, 3].map(i => <div key={i} className="mt-4 h-11 rounded-xl bg-[#f1f4f6]" />)}</div>;
+    return <div className="min-h-full w-full animate-pulse rounded-[20px] border border-[#e1e8ee] bg-white p-4 sm:p-6"><div className="h-10 rounded-xl bg-[#eef2f5]" /><div className="mt-5 h-3 w-2/3 rounded bg-[#eef2f5]" />{[0, 1, 2, 3].map(i => <div key={i} className="mt-4 h-11 rounded-xl bg-[#f1f4f6]" />)}</div>;
   }
   if (wallets.isError || profile.isError) {
-    return <div className="mx-auto mt-6 max-w-[560px] rounded-[24px] border border-[#eadfda] bg-white p-8 text-center"><p className="text-[13px] font-bold text-[#3c4d5e]">Your account details could not be loaded.</p><button type="button" onClick={() => { void wallets.refetch(); void profile.refetch(); }} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#dfe6ea] px-4 py-2.5 text-[10px] font-bold text-[#435b72]"><RefreshCw size={13} /> Try again</button></div>;
+    return <div className="flex min-h-full w-full flex-col items-center justify-center rounded-[20px] border border-[#eadfda] bg-white p-6 text-center"><p className="text-[13px] font-bold text-[#3c4d5e]">Your account details could not be loaded.</p><button type="button" onClick={() => { void wallets.refetch(); void profile.refetch(); }} className="mt-4 inline-flex items-center gap-2 rounded-lg border border-[#dfe6ea] px-4 py-2.5 text-[10px] font-bold text-[#435b72]"><RefreshCw size={13} /> Try again</button></div>;
   }
 
   const routeLabel = transferType === 'local_routing' ? 'Local routing' : 'International wire';
@@ -262,9 +270,9 @@ export function InternationalTransferPage() {
   const reviewTotal = snapshotConverted ?? liveConverted;
 
   return (
-    <div className="transfer-page">
-      <div className="mx-auto flex min-h-[calc(100dvh-9rem)] w-full max-w-[680px] flex-col justify-center py-3">
-        <section data-testid="transfer-wizard" aria-labelledby="transfer-step-title" className="flex min-w-0 flex-col overflow-visible rounded-[20px] border border-[#dfe7ec] bg-white shadow-[0_20px_52px_rgba(22,48,78,.075)]">
+    <div className="transfer-page flex min-h-full w-full flex-col">
+      <div className="mx-auto flex min-h-full w-full flex-1 flex-col py-0">
+        <section data-testid="transfer-wizard" aria-labelledby="transfer-step-title" className="flex min-h-full min-w-0 flex-1 flex-col overflow-visible rounded-[20px] border border-[#dfe7ec] bg-white shadow-[0_20px_52px_rgba(22,48,78,.075)]">
           <div className="rounded-t-[20px] border-b border-[#edf1f3] px-3.5 pt-3.5 sm:px-5 sm:pt-4">
             <div role="tablist" aria-label="Transfer route" className="grid grid-cols-2 gap-1 rounded-lg bg-[#f0f3f5] p-1">
               {(['local_routing', 'international_wire'] as const).map(t => (
@@ -283,7 +291,7 @@ export function InternationalTransferPage() {
             </ol>
           </div>
 
-          <div className="px-3.5 py-3.5 sm:px-5 sm:py-4">
+          <div className="flex-1 px-3.5 py-3.5 sm:px-5 sm:py-4">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#4f8b90]">Step {step + 1} of 3 · {routeLabel}</p>
             <h1 id="transfer-step-title" ref={headingRef} tabIndex={-1} className="bank-display mt-0.5 text-[20px] font-semibold tracking-[-.03em] text-[#18324f] outline-none">{['Recipient & destination', 'Amount & review', 'Authorise with PIN'][step]}</h1>
             <p data-testid="text-transfer-guide" className="mt-0.5 text-[10px] leading-4 text-[#6d7f92]">{GUIDE[step]}</p>
@@ -366,7 +374,6 @@ export function InternationalTransferPage() {
               </>}
             </div>
 
-            {error && <p data-testid="status-transfer-error" role="alert" className="mt-4 rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] leading-5 text-[#a24940]">{error}</p>}
           </div>
 
           <div className="mt-auto flex items-center gap-2 rounded-b-[20px] border-t border-[#edf1f3] bg-[#fafbfc] px-3.5 py-2.5 sm:px-5">
@@ -377,7 +384,7 @@ export function InternationalTransferPage() {
           </div>
         </section>
       </div>
-      {receipt && <TransferReceiptModal transaction={receipt} onClose={() => { setReceipt(null); setReceiptNotice(''); }} notice={receiptNotice || undefined} title={receipt.status === 'completed' ? 'Transfer completed' : 'Transfer request submitted'} />}
+      {receipt && <TransferReceiptModal transaction={receipt} onClose={() => setReceipt(null)} title={receipt.status === 'completed' ? 'Transfer completed' : 'Transfer request submitted'} />}
     </div>
   );
 }

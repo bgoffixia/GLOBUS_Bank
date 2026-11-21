@@ -3,6 +3,7 @@ import { ArrowLeft, ArrowRight, Bell, FileText, LayoutDashboard, LockKeyhole, Me
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/react';
+import { toast } from '@/hooks/use-toast';
 import {
   getGetBankVaultBillingQueryKey,
   getGetBankVaultEmailPreferencesQueryKey,
@@ -110,8 +111,6 @@ export function PrivateVaultPanel() {
   const [senderLocalPart, setSenderLocalPart] = useState('');
   const [transactionEmailAlertsEnabled, setTransactionEmailAlertsEnabled] = useState(false);
   const [preferredReceiptTemplate, setPreferredReceiptTemplate] = useState<ReceiptTemplateId>('standard');
-  const [browserPushMessage, setBrowserPushMessage] = useState('');
-  const [browserPushError, setBrowserPushError] = useState('');
   const subscriptionStorageKey = user?.id ? `globus-push-subscription-id:${user.id}` : '';
   const [savedPushSubscriptionId, setSavedPushSubscriptionId] = useState('');
   const browserPushSupported = typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
@@ -648,27 +647,25 @@ export function PrivateVaultPanel() {
     }
   };
   const enableBrowserAlerts = async () => {
-    setBrowserPushError('');
-    setBrowserPushMessage('');
     if (!browserPushSupported) {
-      setBrowserPushError('Browser notifications are not supported on this device.');
+      toast({ title: 'Browser alerts unavailable', description: 'Notifications are not supported on this device.', variant: 'destructive', duration: 5000 });
       return;
     }
     if (!browserPushConfig.data?.configured || !browserPushConfig.data.siteKey) {
-      setBrowserPushError('Browser alerts are not available right now.');
+      toast({ title: 'Browser alerts unavailable', description: 'Alert setup is not available right now. Try again later.', variant: 'destructive', duration: 5000 });
       return;
     }
     try {
       let permission = Notification.permission;
       if (permission === 'default') permission = await Notification.requestPermission();
       if (permission !== 'granted') {
-        setBrowserPushError('Allow notifications in your browser settings, then try again.');
+        toast({ title: 'Permission needed', description: 'Allow notifications in your browser settings, then try again.', variant: 'destructive', duration: 5000 });
         return;
       }
       const api = await loadWebpushr(browserPushConfig.data.siteKey);
       const subscriberId = await fetchWebpushrSubscriberId(api);
       if (!subscriberId) {
-        setBrowserPushMessage('Finish the browser permission prompt, then select Enable alerts again.');
+        toast({ title: 'Finish browser setup', description: 'Complete the browser permission prompt, then select Enable alerts again.', duration: 5000 });
         return;
       }
       const result = await savePushSubscription.mutateAsync({ data: { subscriberId } });
@@ -676,37 +673,43 @@ export function PrivateVaultPanel() {
       if (result.id && subscriptionStorageKey) {
         localStorage.setItem(subscriptionStorageKey, result.id);
       }
-      setBrowserPushMessage('Browser alerts are enabled on this device.');
+      toast({ title: 'Browser alerts enabled', description: 'This device is linked to your account activity alerts.', duration: 5000 });
       await queryClient.invalidateQueries({ queryKey: getGetBankPushConfigQueryKey() });
     } catch (err) {
-      setBrowserPushError(err instanceof Error ? err.message : 'Browser alerts could not be enabled.');
+      toast({
+        title: 'Browser alerts could not be enabled',
+        description: err instanceof Error && err.message.trim() ? err.message : 'Try again from this device.',
+        variant: 'destructive',
+        duration: 5000,
+      });
     }
   };
   const disableBrowserAlerts = async () => {
-    setBrowserPushError('');
-    setBrowserPushMessage('');
     if (!savedPushSubscriptionId) {
-      setBrowserPushError('This device alert link could not be found. Enable alerts on this device first.');
+      toast({ title: 'Device alert link not found', description: 'Enable alerts on this device before disconnecting it.', variant: 'destructive', duration: 5000 });
       return;
     }
     try {
       await deletePushSubscription.mutateAsync({ subscriptionId: savedPushSubscriptionId });
       setSavedPushSubscriptionId('');
       if (subscriptionStorageKey) localStorage.removeItem(subscriptionStorageKey);
-      setBrowserPushMessage('Globus alerts are disconnected for this device.');
+      toast({ title: 'Browser alerts disconnected', description: 'This device will no longer receive Globus push alerts.', duration: 5000 });
       await queryClient.invalidateQueries({ queryKey: getGetBankPushConfigQueryKey() });
     } catch (err) {
-      setBrowserPushError(err instanceof Error ? err.message : 'Browser alerts could not be disabled.');
+      toast({
+        title: 'Browser alerts could not be disabled',
+        description: err instanceof Error && err.message.trim() ? err.message : 'Try again in a moment.',
+        variant: 'destructive',
+        duration: 5000,
+      });
     }
   };
   const updateBrowserAlertCategory = async (
     key: 'transferEnabled' | 'walletEnabled' | 'securityEnabled',
     enabled: boolean,
   ) => {
-    setBrowserPushError('');
-    setBrowserPushMessage('');
     if (!vaultAccessActive) {
-      setBrowserPushError('Active Private Vault access is required to change alert settings.');
+      toast({ title: 'Vault access required', description: 'Unlock an active Private Vault session to change alert settings.', variant: 'destructive', duration: 5000 });
       return;
     }
     try {
@@ -714,9 +717,14 @@ export function PrivateVaultPanel() {
         data: { [key]: enabled },
       });
       queryClient.setQueryData(getGetBankPushPreferencesQueryKey(), preferences);
-      setBrowserPushMessage('Alert choices saved for all linked devices.');
+      toast({ title: 'Alert preferences saved', description: 'Your choices apply to all linked devices.', duration: 5000 });
     } catch (err) {
-      setBrowserPushError(err instanceof Error ? err.message : 'Alert choices could not be saved.');
+      toast({
+        title: 'Alert preferences could not be saved',
+        description: err instanceof Error && err.message.trim() ? err.message : 'Try again in a moment.',
+        variant: 'destructive',
+        duration: 5000,
+      });
     }
   };
   const changeControl = async (control: BankVaultWalletControl, input: Partial<BankVaultWalletControl>) => {
@@ -1055,8 +1063,6 @@ export function PrivateVaultPanel() {
                   {savedPushSubscriptionId ? <button type="button" disabled={!vaultAccessActive || deletePushSubscription.isPending} onClick={() => void disableBrowserAlerts()} data-testid="button-vault-disable-browser-push" className="h-8 rounded-lg border border-[#dfe6eb] bg-white px-3 text-[9px] font-bold text-[#52697e] disabled:opacity-50">{deletePushSubscription.isPending ? 'Disabling…' : 'Disable alerts on this device'}</button> :
                     <button type="button" disabled={!vaultAccessActive || !browserPushSupported || !browserPushConfig.data?.configured || savePushSubscription.isPending} onClick={() => void enableBrowserAlerts()} data-testid="button-vault-enable-browser-push" className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45">{savePushSubscription.isPending ? 'Linking…' : 'Enable alerts on this device'}</button>}
                 </div>
-                {browserPushError && <p role="alert" data-testid="status-vault-browser-push-error" className="mt-2 rounded-md bg-[#fff1ef] px-2 py-1.5 text-[8px] text-[#a24940]">{browserPushError}</p>}
-                {browserPushMessage && <p role="status" data-testid="status-vault-browser-push-message" className="mt-2 rounded-md bg-[#eef7f1] px-2 py-1.5 text-[8px] text-[#41755f]">{browserPushMessage}</p>}
               </details>
               <details id="vault-personal-notes" open={location === '/private-vault/notes'} data-vault-view="notes" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Personal transaction notes</summary>

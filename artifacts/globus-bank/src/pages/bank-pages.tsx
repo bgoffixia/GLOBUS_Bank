@@ -277,12 +277,12 @@ export function DashboardPage() {
   if (query.isLoading) return <PageSkeleton />;
   if (query.isError) return <Failure title="Your overview isn’t available" retry={() => query.refetch()} />;
   return (
-    <>
+    <div data-testid="dashboard-workspace" className="flex min-h-full w-full flex-col">
       {dash?.profile.testingMode && <div role="status" data-testid="dashboard-testing-mode-warning" className="mt-3 flex items-start gap-2 rounded-xl border border-[#ead9a8] bg-[#fff9e9] px-3.5 py-2.5 text-[10px] leading-4 text-[#765e2d]">
         <ShieldCheck size={14} className="mt-0.5 shrink-0" />
         <p><strong className="font-bold">Testing Mode</strong> · Private Vault is not active for this account.</p>
       </div>}
-      <div className="mt-3 grid min-w-0 gap-2.5 xl:grid-cols-[1.15fr_.85fr]">
+      <div className="mt-3 grid min-w-0 flex-1 content-start gap-2.5 xl:grid-cols-[1.15fr_.85fr]">
         <section className="balance-panel relative min-w-0 overflow-hidden rounded-[18px] p-3.5 text-white sm:p-4 xl:col-start-1 xl:row-start-1">
           <div className="absolute -right-10 -top-12 h-48 w-48 rounded-full border border-white/[.08]" />
           <div className="absolute -right-2 -top-5 h-32 w-32 rounded-full border border-white/[.08]" />
@@ -342,17 +342,17 @@ export function DashboardPage() {
           </nav>
         </section>
 
-        <section className="min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white xl:col-start-2 xl:row-start-1">
+        <section className="min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:h-full">
           <div className="flex items-center justify-between gap-2 border-b border-[#edf0f3] px-3.5 py-2.5">
             <div><h2 className="text-[12px] font-bold text-[#203851]">Recent activity{selectedWallet ? ` · ${selectedWallet.currency}` : ''}</h2><p className="mt-0.5 text-[9px] text-[#8592a1]">Latest wallet entries</p></div>
             <Link href={currencyActionHref('/transactions', actionCurrency)} aria-label="View all activity" className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#397d83]">View all <ChevronRight size={12} /></Link>
           </div>
-          <div className="max-h-[190px] overflow-y-auto">
+          <div className="min-w-0">
             {recentTransactions.length ? <TransactionList transactions={recentTransactions.slice(0, 3)} /> : <EmptyState title="Nothing recorded yet" text="Your latest activity will appear here." />}
           </div>
         </section>
       </div>
-    </>
+    </div>
   );
 }
 

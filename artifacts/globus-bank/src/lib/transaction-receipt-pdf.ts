@@ -378,15 +378,7 @@ export async function saveTransactionReceiptPng(
   receipt: TransactionReceiptPdfData,
   logoUrl: string,
 ) {
-  const canvas = await renderReceiptCanvas(receipt, logoUrl);
-  const png = await new Promise<Blob>((resolve, reject) => {
-    canvas.toBlob(
-      blob => blob ? resolve(blob) : reject(new Error('The PNG receipt could not be created.')),
-      'image/png',
-    );
-  });
-  const safeReference = receipt.reference.replace(/[^a-z0-9_-]+/gi, '-');
-  const file = new File([png], `globus-receipt-${safeReference}.png`, { type: 'image/png' });
+  const file = await createReceiptPngFile(receipt, logoUrl);
   await saveReceiptFileToDevice(
     file,
     typeof navigator.share === 'function' ? navigator.share.bind(navigator) : undefined,
@@ -395,6 +387,39 @@ export async function saveTransactionReceiptPng(
       : undefined,
     (sharedFile) => downloadBlob(sharedFile, receipt.reference, 'png'),
   );
+}
+
+export async function shareTransactionReceiptPng(
+  receipt: TransactionReceiptPdfData,
+  logoUrl: string,
+) {
+  const file = await createReceiptPngFile(receipt, logoUrl);
+  if (typeof navigator.share !== 'function') {
+    throw new Error('Sharing is not supported on this device. Save the PNG instead.');
+  }
+  const shareData: ShareData = {
+    files: [file],
+    title: 'Globus transaction receipt',
+  };
+  if (typeof navigator.canShare === 'function' && !navigator.canShare(shareData)) {
+    throw new Error('This device cannot share receipt images. Save the PNG instead.');
+  }
+  await navigator.share(shareData);
+}
+
+async function createReceiptPngFile(
+  receipt: TransactionReceiptPdfData,
+  logoUrl: string,
+) {
+  const canvas = await renderReceiptCanvas(receipt, logoUrl);
+  const png = await new Promise<Blob>((resolve, reject) => {
+    canvas.toBlob(
+      blob => blob ? resolve(blob) : reject(new Error('The PNG receipt could not be created.')),
+      'image/png',
+    );
+  });
+  const safeReference = receipt.reference.replace(/[^a-z0-9_-]+/gi, '-');
+  return new File([png], `globus-receipt-${safeReference}.png`, { type: 'image/png' });
 }
 
 async function renderReceiptCanvas(receipt: TransactionReceiptPdfData, logoUrl: string) {
