@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Link } from 'wouter';
-import { AlertTriangle, ArrowLeft, ArrowRight, Delete, Globe2, Landmark, LockKeyhole, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
+import { AlertTriangle, ArrowLeft, ArrowRight, Delete, Globe2, Landmark, LockKeyhole, RefreshCw, UserRound } from 'lucide-react';
 import { useQueryClient } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import {
@@ -322,7 +322,6 @@ export function InternationalTransferPage() {
                   {recipientEmailAlertsEnabled && <F label="Recipient email (optional)" hint="Status emails are sent only when provided."><input type="email" data-testid="input-recipient-email" maxLength={254} autoComplete="email" value={recipientEmail} onChange={e => setRecipientEmail(e.target.value)} placeholder="name@example.com" className={inputCls} /></F>}
                   <F label="Reference (optional)"><input data-testid="input-transfer-remark" maxLength={140} value={remark} onChange={e => setRemark(e.target.value)} placeholder="Add a note" className={inputCls} /></F>
                 </div>
-                <p className="flex items-start gap-2 rounded-lg bg-[#f5f8f8] px-3 py-2 text-[9px] leading-4 text-[#738596]"><ShieldCheck size={13} className="mt-0.5 shrink-0 text-[#528589]" />Transfer details are recorded on the Globus ledger. No outside bank receives funds.</p>
               </>}
 
               {step === 1 && <>

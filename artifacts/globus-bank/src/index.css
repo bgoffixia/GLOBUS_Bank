@@ -169,6 +169,14 @@
   padding-bottom: env(safe-area-inset-bottom);
 }
 
+.dashboard-ledger-scroll {
+  min-height: 0;
+  max-height: min(44dvh, 20rem);
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+}
+
 .public-viewport-scroll {
   width: 100%;
   height: 100vh;

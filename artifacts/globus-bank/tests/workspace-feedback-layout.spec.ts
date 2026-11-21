@@ -7,7 +7,9 @@ const source = (relativePath: string) =>
 
 const shell = source('../src/components/bank-shell.tsx');
 const dashboard = source('../src/pages/bank-pages.tsx');
+const financeWidget = source('../src/pages/personal-finance/personal-finance.tsx');
 const transfer = source('../src/components/transfer/transfer-wizard.tsx');
+const appStyles = source('../src/index.css');
 const receipt = source('../src/components/transfer/transfer-receipt.tsx');
 const receiptFit = source('../src/lib/receipt-fit.ts');
 const toastHook = source('../src/hooks/use-toast.ts');
@@ -24,11 +26,20 @@ test('transfer workspace uses the available width and allows the page to scroll 
   expect(source('../src/index.css')).toContain('overflow-y: auto');
 });
 
-test('dashboard content fills available space without nested activity clipping', () => {
+test('dashboard keeps the balance card sticky and scrolls long ledger sections internally', () => {
   expect(dashboard).toContain('data-testid="dashboard-workspace" className="flex min-h-full w-full flex-col"');
-  expect(dashboard).toContain('xl:row-span-2 xl:h-full');
-  expect(dashboard).not.toContain('max-h-[190px] overflow-y-auto');
+  expect(dashboard).toContain('data-testid="dashboard-sticky-balance" className="balance-panel sticky top-0');
+  expect(dashboard).toContain('data-testid="dashboard-content-grid" className="mt-2 grid min-h-0 min-w-0 flex-1');
+  expect(financeWidget).toContain('data-testid="dashboard-ledger-scroll"');
+  expect(appStyles).toContain('.dashboard-ledger-scroll');
+  expect(appStyles).toContain('overflow-y: auto');
+  expect(appStyles).toContain('max-height: min(44dvh, 20rem)');
   expect(shell).toContain('isDashboard ? \'min-h-full pb-24');
+});
+
+test('transfer page omits the screenshot-matched ledger disclaimer banner', () => {
+  expect(transfer).not.toContain('Transfer details are recorded on the Globus ledger. No outside bank receives funds.');
+  expect(transfer).not.toContain('<ShieldCheck');
 });
 
 test('receipt is a borderless full-page view with compact save and share controls', () => {

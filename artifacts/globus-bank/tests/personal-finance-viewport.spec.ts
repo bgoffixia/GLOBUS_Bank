@@ -80,6 +80,13 @@ const financeReport = {
   billSummaries: [],
   loanSummaries: [],
 };
+financeReport.ledgerSummaries.push(...Array.from({ length: 12 }, (_, index) => ({
+  walletId: `9b51bdb0-80a9-44eb-a2d9-73d923968${String(9000 + index)}`,
+  currency: (["USD", "EUR", "GBP", "CAD"] as const)[index % 4],
+  inflowMinor: String(1000 + index),
+  outflowMinor: String(500 + index),
+  netMinor: String(500 + index),
+})));
 
 const dashboard = {
   profile: {
@@ -229,6 +236,9 @@ test.describe("personal finance responsive workspace", () => {
         }
       }
       const workspaceScroller = page.locator("#root main");
+      const balanceCard = page.getByTestId("dashboard-sticky-balance");
+      await expect(balanceCard).toHaveCSS("position", "sticky");
+      await expect(balanceCard).toHaveCSS("top", "0px");
       const scrollState = await workspaceScroller.evaluate((element) => ({
         overflowY: getComputedStyle(element).overflowY,
         clientHeight: element.clientHeight,
@@ -237,10 +247,37 @@ test.describe("personal finance responsive workspace", () => {
       expect(scrollState.overflowY).toBe("auto");
       expect(scrollState.scrollHeight).toBeGreaterThan(scrollState.clientHeight);
       const scrollTop = await workspaceScroller.evaluate((element) => {
-        element.scrollTop = element.scrollHeight;
+        element.scrollTop = 120;
         return element.scrollTop;
       });
       expect(scrollTop).toBeGreaterThan(0);
+      const [mainBox, stickyBalanceBox] = await Promise.all([
+        workspaceScroller.boundingBox(),
+        balanceCard.boundingBox(),
+      ]);
+      expect(mainBox).not.toBeNull();
+      expect(stickyBalanceBox).not.toBeNull();
+      expect(stickyBalanceBox!.y).toBeGreaterThanOrEqual(mainBox!.y - 1);
+      expect(stickyBalanceBox!.y).toBeLessThanOrEqual(mainBox!.y + 24);
+
+      const ledgerScroller = page.getByTestId("dashboard-ledger-scroll");
+      const ledgerState = await ledgerScroller.evaluate((element) => ({
+        overflowY: getComputedStyle(element).overflowY,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+      }));
+      expect(ledgerState.overflowY).toBe("auto");
+      if (viewport.width === 320) {
+        expect(ledgerState.scrollHeight).toBeGreaterThan(ledgerState.clientHeight);
+        await ledgerScroller.evaluate((element) => {
+          element.scrollTop = element.scrollHeight;
+        });
+        const lastSummary = await page.getByTestId("dashboard-workspace").getByTestId("dashboard-ledger-CAD-9011").boundingBox();
+        const ledgerBox = await ledgerScroller.boundingBox();
+        expect(lastSummary).not.toBeNull();
+        expect(ledgerBox).not.toBeNull();
+        expect(lastSummary!.bottom).toBeLessThanOrEqual(ledgerBox!.bottom + 1);
+      }
 
       const record = page.locator(".pf-record-card").first();
       const children = await record.evaluate((element) =>

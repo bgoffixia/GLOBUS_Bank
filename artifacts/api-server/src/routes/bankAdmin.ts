@@ -1,5 +1,6 @@
 import { Router, type IRouter, type Request, type RequestHandler } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
+import { rateLimit } from "express-rate-limit";
 import {
   and,
   asc,
@@ -106,6 +107,15 @@ import {
   AssignAdminUserAccountTierBody,
   AssignAdminUserAccountTierParams,
   AssignAdminUserAccountTierResponse,
+  ListAdminSupportConversationsQueryParams,
+  ListAdminSupportConversationsResponse,
+  ListAdminSupportMessagesParams,
+  ListAdminSupportMessagesResponse,
+  ReplyAdminSupportMessageParams,
+  ReplyAdminSupportMessageBody,
+  ReplyAdminSupportMessageResponse,
+  MarkAdminSupportConversationReadParams,
+  MarkAdminSupportConversationReadResponse,
 } from "@workspace/api-zod";
 import {
   bankAuditLogsTable,
@@ -119,6 +129,8 @@ import {
   bankUsersTable,
   bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
+  bankSupportConversationsTable,
+  bankSupportMessagesTable,
   bankWalletsTable,
   db,
 } from "@workspace/db";
@@ -166,6 +178,13 @@ import {
 import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
 
 const router: IRouter = Router();
+const supportMessageLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many support replies. Try again in a few minutes." },
+});
 
 const adminAuditOperationLabels: Array<[string, string]> = [
   ["/bank/admin/exchange-rates", "exchange rate update"],
@@ -5077,6 +5096,222 @@ router.patch(
         ),
       ),
     );
+  },
+);
+
+router.get(
+  "/bank/admin/support/conversations",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const parsed = ListAdminSupportConversationsQueryParams.safeParse(req.query);
+    if (!parsed.success) {
+      res.status(400).json({ error: "Choose a valid support inbox filter." });
+      return;
+    }
+    const filters = [];
+    if (parsed.data.status) {
+      filters.push(eq(bankSupportConversationsTable.status, parsed.data.status));
+    }
+    if (parsed.data.search?.trim()) {
+      const needle = `%${parsed.data.search.trim()}%`;
+      filters.push(
+        or(
+          ilike(bankSupportConversationsTable.subject, needle),
+          sql`${bankSupportConversationsTable.userId} in (
+            select id from bank_users
+            where email ilike ${needle}
+              or first_name ilike ${needle}
+              or last_name ilike ${needle}
+              or customer_id ilike ${needle}
+          )`,
+        )!,
+      );
+    }
+    const conversations = await db
+      .select({
+        id: bankSupportConversationsTable.id,
+        userId: bankSupportConversationsTable.userId,
+        firstName: bankUsersTable.firstName,
+        lastName: bankUsersTable.lastName,
+        customerEmail: bankUsersTable.email,
+        subject: bankSupportConversationsTable.subject,
+        status: bankSupportConversationsTable.status,
+        adminUnread: bankSupportConversationsTable.adminUnread,
+        lastMessagePreview: sql<string | null>`(
+          select left(body, 160)
+          from bank_support_messages
+          where conversation_id = ${bankSupportConversationsTable.id}
+          order by created_at desc
+          limit 1
+        )`,
+        lastMessageAt: bankSupportConversationsTable.lastMessageAt,
+        createdAt: bankSupportConversationsTable.createdAt,
+        updatedAt: bankSupportConversationsTable.updatedAt,
+      })
+      .from(bankSupportConversationsTable)
+      .innerJoin(
+        bankUsersTable,
+        eq(bankUsersTable.id, bankSupportConversationsTable.userId),
+      )
+      .where(filters.length ? and(...filters) : undefined)
+      .orderBy(desc(bankSupportConversationsTable.lastMessageAt))
+      .limit(100);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(
+      ListAdminSupportConversationsResponse.parse({
+        conversations: conversations.map((conversation) => ({
+          id: conversation.id,
+          userId: conversation.userId,
+          customerName:
+            [conversation.firstName, conversation.lastName].filter(Boolean).join(" ") ||
+            "Globus member",
+          customerEmail: conversation.customerEmail,
+          subject: conversation.subject,
+          status: conversation.status as "open" | "closed",
+          adminUnread: conversation.adminUnread,
+          lastMessagePreview: conversation.lastMessagePreview,
+          lastMessageAt: conversation.lastMessageAt.toISOString(),
+          createdAt: conversation.createdAt.toISOString(),
+          updatedAt: conversation.updatedAt.toISOString(),
+        })),
+      }),
+    );
+  },
+);
+
+router.get(
+  "/bank/admin/support/conversations/:conversationId/messages",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = ListAdminSupportMessagesParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "The conversation link is invalid." });
+      return;
+    }
+    const [conversation] = await db
+      .select({ id: bankSupportConversationsTable.id })
+      .from(bankSupportConversationsTable)
+      .where(eq(bankSupportConversationsTable.id, params.data.conversationId))
+      .limit(1);
+    if (!conversation) {
+      res.status(404).json({ error: "That support conversation was not found." });
+      return;
+    }
+    const messages = await db
+      .select()
+      .from(bankSupportMessagesTable)
+      .where(eq(bankSupportMessagesTable.conversationId, conversation.id))
+      .orderBy(asc(bankSupportMessagesTable.createdAt))
+      .limit(500);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(
+      ListAdminSupportMessagesResponse.parse({
+        messages: messages.map((message) => ({
+          id: message.id,
+          conversationId: message.conversationId,
+          senderRole: message.senderRole as "customer" | "admin",
+          senderName: message.senderRole === "admin" ? "You" : "Customer",
+          body: message.body,
+          createdAt: message.createdAt.toISOString(),
+        })),
+      }),
+    );
+  },
+);
+
+router.post(
+  "/bank/admin/support/conversations/:conversationId/messages",
+  requireAdmin,
+  supportMessageLimiter,
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    const params = ReplyAdminSupportMessageParams.safeParse(req.params);
+    const parsed = ReplyAdminSupportMessageBody.safeParse({
+      body: typeof req.body?.body === "string" ? req.body.body.trim() : req.body?.body,
+    });
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to reply to support conversations." });
+      return;
+    }
+    if (!params.success || !parsed.success) {
+      res.status(400).json({ error: "Enter a message of 1 to 4,000 characters." });
+      return;
+    }
+    const actor = await ensureBankUser(authUserId);
+    const now = new Date();
+    const created = await db.transaction(async (tx) => {
+      const [conversation] = await tx
+        .select({ id: bankSupportConversationsTable.id, userId: bankSupportConversationsTable.userId })
+        .from(bankSupportConversationsTable)
+        .where(eq(bankSupportConversationsTable.id, params.data.conversationId))
+        .for("update");
+      if (!conversation) return null;
+      const [message] = await tx
+        .insert(bankSupportMessagesTable)
+        .values({
+          conversationId: conversation.id,
+          senderUserId: actor.id,
+          senderRole: "admin",
+          body: parsed.data.body,
+          createdAt: now,
+        })
+        .returning();
+      await tx
+        .update(bankSupportConversationsTable)
+        .set({
+          status: "open",
+          customerUnread: true,
+          adminUnread: false,
+          lastMessageAt: now,
+          updatedAt: now,
+        })
+        .where(eq(bankSupportConversationsTable.id, conversation.id));
+      await tx.insert(bankAuditLogsTable).values({
+        actorUserId: actor.id,
+        targetUserId: conversation.userId,
+        action: "support_reply",
+        reason: "Authorized administrator replied to a customer support conversation.",
+      });
+      return message;
+    });
+    if (!created) {
+      res.status(404).json({ error: "That support conversation was not found." });
+      return;
+    }
+    res.status(201).json(
+      ReplyAdminSupportMessageResponse.parse({
+        message: {
+          id: created.id,
+          conversationId: created.conversationId,
+          senderRole: "admin",
+          senderName: "You",
+          body: created.body,
+          createdAt: created.createdAt.toISOString(),
+        },
+      }),
+    );
+  },
+);
+
+router.post(
+  "/bank/admin/support/conversations/:conversationId/read",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const params = MarkAdminSupportConversationReadParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "The conversation link is invalid." });
+      return;
+    }
+    const [conversation] = await db
+      .update(bankSupportConversationsTable)
+      .set({ adminUnread: false, updatedAt: new Date() })
+      .where(eq(bankSupportConversationsTable.id, params.data.conversationId))
+      .returning({ id: bankSupportConversationsTable.id });
+    if (!conversation) {
+      res.status(404).json({ error: "That support conversation was not found." });
+      return;
+    }
+    res.json(MarkAdminSupportConversationReadResponse.parse({ markedRead: true }));
   },
 );
 

@@ -274,8 +274,7 @@ export function DashboardPage() {
         <ShieldCheck size={14} className="mt-0.5 shrink-0" />
         <p><strong className="font-bold">{t('Testing Mode')}</strong> · {t('Private Vault is not active for this account.')}</p>
       </div>}
-      <div data-testid="dashboard-content-grid" className="mt-2 grid min-w-0 flex-1 content-start gap-2 xl:grid-cols-[1.15fr_.85fr]">
-        <section className="balance-panel relative min-w-0 overflow-hidden rounded-[16px] p-3 text-white sm:p-3.5 xl:col-start-1 xl:row-start-1">
+      <section data-testid="dashboard-sticky-balance" className="balance-panel sticky top-0 z-10 min-w-0 self-start overflow-hidden rounded-[16px] p-3 text-white sm:p-3.5">
           <div className="absolute -right-10 -top-12 h-48 w-48 rounded-full border border-white/[.08]" />
           <div className="absolute -right-2 -top-5 h-32 w-32 rounded-full border border-white/[.08]" />
           <div className="relative flex items-start justify-between gap-4">
@@ -316,9 +315,10 @@ export function DashboardPage() {
           {dash?.profile.accountStatus === 'suspended' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2d8d1]">{t('Your account is suspended. Financial actions are unavailable.')}</p>}
           {dash?.profile.accountStatus === 'restricted' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2e7c9]">{t('Some account operations are restricted.')}</p>}
           {selectedWallet?.status === 'restricted' && dash?.profile.accountStatus === 'active' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2e7c9]">{t('This wallet is frozen. Outgoing transfers and withdrawals are unavailable.')}</p>}
-        </section>
+      </section>
 
-        <section data-testid="dashboard-action-toolbar" aria-label={t('Dashboard quick actions')} className="min-w-0 rounded-[16px] border border-[#e2e9ef] bg-white p-3 xl:col-start-1 xl:row-start-2">
+      <div data-testid="dashboard-content-grid" className="mt-2 grid min-h-0 min-w-0 flex-1 content-start gap-2 xl:grid-cols-[.75fr_1.25fr]">
+        <section data-testid="dashboard-action-toolbar" aria-label={t('Dashboard quick actions')} className="min-w-0 rounded-[16px] border border-[#e2e9ef] bg-white p-3">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div>
               <p className="text-[9px] font-bold uppercase tracking-[.15em] text-[#589198]">{t('Quick actions')}</p>
@@ -334,7 +334,7 @@ export function DashboardPage() {
           </nav>
         </section>
 
-        <section className="min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:h-full">
+        <section className="min-h-0 min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white">
           <div className="flex items-center justify-between gap-2 border-b border-[#edf0f3] px-3.5 py-2.5">
             <div><h2 className="text-[12px] font-bold text-[#203851]">{selectedWallet ? t('Recent activity · {currency}', { currency: selectedWallet.currency }) : t('Recent activity')}</h2><p className="mt-0.5 text-[9px] text-[#8592a1]">{t('Latest wallet entries')}</p></div>
             <Link href={currencyActionHref('/transactions', actionCurrency)} aria-label={t('View all activity')} className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#397d83]">{t('View all')} <ChevronRight size={12} /></Link>
@@ -1750,7 +1750,7 @@ export function AdminUserManagementPage() {
 
 const disclosureCopy: Record<string, { eyebrow: string; title: string; intro: string; sections: [string, string][] }> = {
   '/fees': { eyebrow: 'Fees and rates', title: 'Understand transfer requests and rates.', intro: 'Globus does not process external deposits, payouts, or card payments.', sections: [['Rate quotes', 'Globus uses Frankfurter reference rates, with Grey as a fallback source. Availability depends on currency-pair support; quotes can change and are not confirmation of a payment.'], ['Fees', 'Globus records account requests and does not charge an outside transaction fee through a payment provider.'], ['Currency balances', 'Currency wallets are recorded separately. The rate and converted amount shown on a transfer receipt match the quote used when Globus recorded that request.']] },
-  '/contact': { eyebrow: 'Contact', title: 'Contact information is not configured yet.', intro: 'A verified support channel has not been configured for Globus.', sections: [['Account help', 'Do not include passwords, verification codes or sensitive payment details in support requests.'], ['Recorded activity', 'Include the transaction reference when asking about an account record.'], ['Operational disclosure', 'Globus support cannot complete, trace or reverse an external payment through this product.']] },
+  '/contact': { eyebrow: 'Contact', title: 'Contact Globus support securely.', intro: 'Sign in to open a private support conversation about your Globus account. Never send passwords, verification codes, or full payment credentials.', sections: [['Account help', 'Use the private support inbox for account questions and include a transaction reference when asking about a recorded Globus activity.'], ['Private conversations', 'Messages are visible only to you and authorized Globus support administrators.'], ['External payment limits', 'Globus support cannot complete, trace, or reverse payments made outside this product.']] },
 };
 
 export function DisclosurePage({ path }: { path: string }) {
@@ -1764,6 +1764,7 @@ export function DisclosurePage({ path }: { path: string }) {
          <p className="text-[10px] font-bold uppercase tracking-[.17em] text-[#4b8b90]">{t(data.eyebrow)}</p>
          <h1 className="bank-display mt-4 max-w-[760px] text-[clamp(2.6rem,7vw,5.2rem)] font-semibold leading-[1.02] text-[#16304f]">{t(data.title)}</h1>
          <p className="mt-6 max-w-[670px] text-[15px] leading-7 text-[#66788c]">{t(data.intro)}</p>
+         {path === '/contact' && <Link href="/support" className="mt-6 inline-flex min-h-10 items-center justify-center rounded-lg bg-[#173b62] px-4 text-[11px] font-bold text-white hover:bg-[#245472]">{t('Open secure support inbox')}</Link>}
         <div className="mt-12 grid gap-4 md:grid-cols-2">
           {data.sections.map(([title, copy], index) => <article key={title} className="rounded-[20px] border border-[#e0e8ed] bg-white p-6 sm:p-7"><span className="font-mono text-[10px] font-bold tracking-[.14em] text-[#70a0a1]">0{index + 1}</span><h2 className="mt-4 text-[17px] font-bold text-[#27405a]">{t(title)}</h2><p className="mt-3 text-[12px] leading-6 text-[#76869a]">{t(copy)}</p></article>)}
         </div>

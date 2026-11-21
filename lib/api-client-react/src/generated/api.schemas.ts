@@ -13,6 +13,111 @@ export interface ErrorResponse {
   error: string;
 }
 
+export type BankSupportConversationStatus = typeof BankSupportConversationStatus[keyof typeof BankSupportConversationStatus];
+
+
+export const BankSupportConversationStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export interface BankSupportConversation {
+  id: string;
+  subject: string;
+  status: BankSupportConversationStatus;
+  customerUnread: boolean;
+  /** @nullable */
+  lastMessagePreview: string | null;
+  lastMessageAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type AdminSupportConversationStatus = typeof AdminSupportConversationStatus[keyof typeof AdminSupportConversationStatus];
+
+
+export const AdminSupportConversationStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
+
+export interface AdminSupportConversation {
+  id: string;
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+  subject: string;
+  status: AdminSupportConversationStatus;
+  adminUnread: boolean;
+  /** @nullable */
+  lastMessagePreview: string | null;
+  lastMessageAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type BankSupportMessageSenderRole = typeof BankSupportMessageSenderRole[keyof typeof BankSupportMessageSenderRole];
+
+
+export const BankSupportMessageSenderRole = {
+  customer: 'customer',
+  admin: 'admin',
+} as const;
+
+export interface BankSupportMessage {
+  id: string;
+  conversationId: string;
+  senderRole: BankSupportMessageSenderRole;
+  senderName: string;
+  body: string;
+  createdAt: string;
+}
+
+export interface BankSupportConversationInput {
+  /**
+     * @minLength 1
+     * @maxLength 120
+     */
+  subject: string;
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  message: string;
+}
+
+export interface BankSupportMessageInput {
+  /**
+     * @minLength 1
+     * @maxLength 4000
+     */
+  body: string;
+}
+
+export interface BankSupportConversationList {
+  conversations: BankSupportConversation[];
+}
+
+export interface AdminSupportConversationList {
+  conversations: AdminSupportConversation[];
+}
+
+export interface BankSupportConversationResult {
+  conversation: BankSupportConversation;
+}
+
+export interface BankSupportMessageList {
+  messages: BankSupportMessage[];
+}
+
+export interface BankSupportMessageResult {
+  message: BankSupportMessage;
+}
+
+export interface BankSupportReadResult {
+  markedRead: boolean;
+}
+
 export type CurrencyCode = typeof CurrencyCode[keyof typeof CurrencyCode];
 
 
@@ -2546,6 +2651,22 @@ export type EmailBankVaultPaystackRenewalManagementLink200 = {
 export type ReceiveBankVaultPaystackWebhook200 = {
   received: boolean;
 };
+
+export type ListAdminSupportConversationsParams = {
+status?: ListAdminSupportConversationsStatus;
+/**
+ * @maxLength 100
+ */
+search?: string;
+};
+
+export type ListAdminSupportConversationsStatus = typeof ListAdminSupportConversationsStatus[keyof typeof ListAdminSupportConversationsStatus];
+
+
+export const ListAdminSupportConversationsStatus = {
+  open: 'open',
+  closed: 'closed',
+} as const;
 
 export type ListBankPersonalFinanceRecordsParams = {
 kind?: PersonalFinanceKind;

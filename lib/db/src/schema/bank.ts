@@ -437,6 +437,79 @@ export const bankAuditLogsTable = pgTable(
   ],
 );
 
+export const bankSupportConversationsTable = pgTable(
+  "bank_support_conversations",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => bankUsersTable.id, { onDelete: "cascade" }),
+    subject: text("subject").notNull(),
+    status: text("status").notNull().default("open"),
+    customerUnread: boolean("customer_unread").notNull().default(false),
+    adminUnread: boolean("admin_unread").notNull().default(false),
+    lastMessageAt: timestamp("last_message_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("bank_support_conversation_user_recent_idx").on(
+      table.userId,
+      table.lastMessageAt,
+    ),
+    index("bank_support_conversation_admin_queue_idx").on(
+      table.status,
+      table.lastMessageAt,
+    ),
+    check(
+      "bank_support_conversation_status_check",
+      sql`${table.status} in ('open', 'closed')`,
+    ),
+    check(
+      "bank_support_conversation_subject_length_check",
+      sql`length(trim(${table.subject})) between 1 and 120`,
+    ),
+  ],
+);
+
+export const bankSupportMessagesTable = pgTable(
+  "bank_support_messages",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => bankSupportConversationsTable.id, {
+        onDelete: "cascade",
+      }),
+    senderUserId: text("sender_user_id").notNull(),
+    senderRole: text("sender_role").notNull(),
+    body: text("body").notNull(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("bank_support_message_conversation_created_idx").on(
+      table.conversationId,
+      table.createdAt,
+    ),
+    check(
+      "bank_support_message_sender_role_check",
+      sql`${table.senderRole} in ('customer', 'admin')`,
+    ),
+    check(
+      "bank_support_message_body_length_check",
+      sql`length(trim(${table.body})) between 1 and 4000`,
+    ),
+  ],
+);
+
 export const bankRestrictionsTable = pgTable(
   "bank_restrictions",
   {

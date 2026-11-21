@@ -44,3 +44,7 @@ export function classifyIncompleteVaultAttempt(
 
   return "none";
 }
+
+export function isTerminalUnpaidPaystackStatus(status: string): boolean {
+  return status === "failed" || status === "abandoned";
+}

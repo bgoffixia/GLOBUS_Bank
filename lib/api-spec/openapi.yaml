@@ -706,6 +706,188 @@ paths:
           $ref: "#/components/responses/Unauthorized"
         "404":
           $ref: "#/components/responses/NotFound"
+  /bank/support/conversations:
+    get:
+      operationId: listBankSupportConversations
+      tags: [bank]
+      summary: List conversations owned by the authenticated customer
+      responses:
+        "200":
+          description: Customer support conversations
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankSupportConversationList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: createBankSupportConversation
+      tags: [bank]
+      summary: Open a customer support conversation with its first message
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BankSupportConversationInput" }
+      responses:
+        "201":
+          description: Conversation created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankSupportConversationResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /bank/support/conversations/{conversationId}/messages:
+    get:
+      operationId: listBankSupportMessages
+      tags: [bank]
+      summary: List messages in an owned conversation and mark them read
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Conversation message history
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankSupportMessageList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: sendBankSupportMessage
+      tags: [bank]
+      summary: Send a customer message in an owned conversation
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BankSupportMessageInput" }
+      responses:
+        "201":
+          description: Message created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankSupportMessageResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /bank/support/conversations/{conversationId}/read:
+    post:
+      operationId: markBankSupportConversationRead
+      tags: [bank]
+      summary: Mark an owned conversation read by the customer
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Customer unread state cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankSupportReadResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /bank/admin/support/conversations:
+    get:
+      operationId: listAdminSupportConversations
+      tags: [admin]
+      summary: List support conversations for an allowlisted administrator
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema: { type: string, enum: [open, closed] }
+        - name: search
+          in: query
+          required: false
+          schema: { type: string, maxLength: 100 }
+      responses:
+        "200":
+          description: Administrator support inbox
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/AdminSupportConversationList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /bank/admin/support/conversations/{conversationId}/messages:
+    get:
+      operationId: listAdminSupportMessages
+      tags: [admin]
+      summary: List messages in a support conversation for an allowlisted administrator
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Support conversation message history
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankSupportMessageList" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: replyAdminSupportMessage
+      tags: [admin]
+      summary: Reply to a customer support conversation
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/BankSupportMessageInput" }
+      responses:
+        "201":
+          description: Administrator reply created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankSupportMessageResult" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "429": { $ref: "#/components/responses/TooManyRequests" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+  /bank/admin/support/conversations/{conversationId}/read:
+    post:
+      operationId: markAdminSupportConversationRead
+      tags: [admin]
+      summary: Mark a support conversation read by an allowlisted administrator
+      parameters:
+        - name: conversationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Administrator unread state cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankSupportReadResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /bank/dashboard:
     get:
       operationId: getBankDashboard
@@ -2270,6 +2452,90 @@ components:
         error:
           type: string
       required: [error]
+    BankSupportConversation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        subject: { type: string }
+        status: { type: string, enum: [open, closed] }
+        customerUnread: { type: boolean }
+        lastMessagePreview: { type: ["string", "null"] }
+        lastMessageAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, subject, status, customerUnread, lastMessagePreview, lastMessageAt, createdAt, updatedAt]
+    AdminSupportConversation:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        userId: { type: string }
+        customerName: { type: string }
+        customerEmail: { type: string, format: email }
+        subject: { type: string }
+        status: { type: string, enum: [open, closed] }
+        adminUnread: { type: boolean }
+        lastMessagePreview: { type: ["string", "null"] }
+        lastMessageAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, userId, customerName, customerEmail, subject, status, adminUnread, lastMessagePreview, lastMessageAt, createdAt, updatedAt]
+    BankSupportMessage:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        conversationId: { type: string, format: uuid }
+        senderRole: { type: string, enum: [customer, admin] }
+        senderName: { type: string }
+        body: { type: string }
+        createdAt: { type: string, format: date-time }
+      required: [id, conversationId, senderRole, senderName, body, createdAt]
+    BankSupportConversationInput:
+      type: object
+      properties:
+        subject: { type: string, minLength: 1, maxLength: 120 }
+        message: { type: string, minLength: 1, maxLength: 4000 }
+      required: [subject, message]
+    BankSupportMessageInput:
+      type: object
+      properties:
+        body: { type: string, minLength: 1, maxLength: 4000 }
+      required: [body]
+    BankSupportConversationList:
+      type: object
+      properties:
+        conversations:
+          type: array
+          items: { $ref: "#/components/schemas/BankSupportConversation" }
+      required: [conversations]
+    AdminSupportConversationList:
+      type: object
+      properties:
+        conversations:
+          type: array
+          items: { $ref: "#/components/schemas/AdminSupportConversation" }
+      required: [conversations]
+    BankSupportConversationResult:
+      type: object
+      properties:
+        conversation: { $ref: "#/components/schemas/BankSupportConversation" }
+      required: [conversation]
+    BankSupportMessageList:
+      type: object
+      properties:
+        messages:
+          type: array
+          items: { $ref: "#/components/schemas/BankSupportMessage" }
+      required: [messages]
+    BankSupportMessageResult:
+      type: object
+      properties:
+        message: { $ref: "#/components/schemas/BankSupportMessage" }
+      required: [message]
+    BankSupportReadResult:
+      type: object
+      properties:
+        markedRead: { type: boolean }
+      required: [markedRead]
     CurrencyCode:
       type: string
       enum: [USD, EUR, GBP, NGN, CAD, AUD]

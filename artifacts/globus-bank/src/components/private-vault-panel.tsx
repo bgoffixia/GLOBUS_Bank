@@ -99,13 +99,16 @@ export function PrivateVaultPanel() {
   const queryClient = useQueryClient();
   const { user } = useUser();
   const { t } = useLanguage();
+  const vaultSessionQueryKey = [...getGetBankVaultSessionQueryKey(), user?.id] as const;
   const status = useGetBankVaultStatus({ query: { queryKey: getGetBankVaultStatusQueryKey(), retry: false, refetchInterval: 60_000 } });
   const rememberedSession = useGetBankVaultSession({
     query: {
-      queryKey: getGetBankVaultSessionQueryKey(),
+      queryKey: vaultSessionQueryKey,
       retry: false,
       refetchOnWindowFocus: true,
+      refetchOnMount: 'always',
       staleTime: 0,
+      enabled: !!user?.id,
     },
   });
   const initialize = useInitializeBankVaultPasscode();
@@ -363,7 +366,7 @@ export function PrivateVaultPanel() {
       setSessionToken('');
       setRememberedDeviceSession(false);
       setExpiresAt('');
-      queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
+      queryClient.setQueryData(vaultSessionQueryKey, { active: false, expiresAt: null });
       setReceiptPreview(null);
       setReceiptPreviewIsIllustrative(false);
       setSelectedTransactionId('');
@@ -387,7 +390,7 @@ export function PrivateVaultPanel() {
       setSessionToken('');
         setRememberedDeviceSession(false);
       setExpiresAt('');
-        queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
+        queryClient.setQueryData(vaultSessionQueryKey, { active: false, expiresAt: null });
       setReceiptPreview(null);
       setReceiptPreviewIsIllustrative(false);
       setSelectedTransactionId('');
@@ -433,7 +436,7 @@ export function PrivateVaultPanel() {
         setRememberedDeviceSession(result.rememberedDevice);
         setExpiresAt(result.expiresAt);
         setRememberDevice(false);
-        queryClient.setQueryData(getGetBankVaultSessionQueryKey(), {
+        queryClient.setQueryData(vaultSessionQueryKey, {
           active: result.rememberedDevice,
           expiresAt: result.rememberedDevice ? result.expiresAt : null,
         });
@@ -463,7 +466,7 @@ export function PrivateVaultPanel() {
       setSessionToken('');
       setRememberedDeviceSession(false);
       setExpiresAt('');
-      queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
+      queryClient.setQueryData(vaultSessionQueryKey, { active: false, expiresAt: null });
       setSubscriptionStep('closed');
       void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
       void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
@@ -506,7 +509,7 @@ export function PrivateVaultPanel() {
     setSessionToken('');
     setRememberedDeviceSession(false);
     setExpiresAt('');
-    queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
+    queryClient.setQueryData(vaultSessionQueryKey, { active: false, expiresAt: null });
     setPasscode('');
     setNewPasscode('');
     setSelectedTransactionId('');
@@ -558,7 +561,7 @@ export function PrivateVaultPanel() {
     setSessionToken('');
     setRememberedDeviceSession(false);
     setExpiresAt('');
-    queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
+    queryClient.setQueryData(vaultSessionQueryKey, { active: false, expiresAt: null });
     setSubscriptionStep('closed');
     setReceiptPreview(null);
     setReceiptPreviewIsIllustrative(false);
@@ -568,7 +571,7 @@ export function PrivateVaultPanel() {
     setMessage('');
     setError('Your Vault session expired or access changed. Unlock it again to continue.');
     void queryClient.invalidateQueries({ queryKey: getGetBankVaultStatusQueryKey() });
-    void queryClient.invalidateQueries({ queryKey: getGetBankVaultSessionQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: vaultSessionQueryKey });
   }, [
     controls.error,
     emailPreferences.error,
@@ -1237,9 +1240,9 @@ export function PrivateVaultPanel() {
       <section id="vault-activity" data-vault-view="activity" className="scroll-mt-24 rounded-xl border border-[#e1e8ee] bg-white p-3 sm:p-4" data-testid="vault-transaction-history">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div><p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#56878a]">Account activity</p><h3 className="mt-1 text-[12px] font-bold text-[#29425c]">Transactions & receipts</h3><p className="mt-1 text-[9px] text-[#77889a]">Open a customer receipt using your saved layout.</p></div>
-          {sessionToken && transactions.data?.[0] && <button type="button" onClick={() => setReceiptPreview(transactions.data![0])} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]" data-testid="button-preview-latest-receipt"><ReceiptText size={13} /> Latest receipt</button>}
+          {vaultSessionActive && transactions.data?.[0] && <button type="button" onClick={() => setReceiptPreview(transactions.data![0])} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]" data-testid="button-preview-latest-receipt"><ReceiptText size={13} /> Latest receipt</button>}
         </div>
-        {!sessionToken ? <div className="mt-3 rounded-lg border border-dashed border-[#dfe6eb] bg-[#f8fafb] px-3 py-4 text-center text-[9px] text-[#7c8c9b]"><LockKeyhole size={15} className="mx-auto mb-1 text-[#6a8a91]" />Unlock your Vault to view private transaction history.</div> :
+        {!vaultSessionActive ? <div className="mt-3 rounded-lg border border-dashed border-[#dfe6eb] bg-[#f8fafb] px-3 py-4 text-center text-[9px] text-[#7c8c9b]"><LockKeyhole size={15} className="mx-auto mb-1 text-[#6a8a91]" />Unlock your Vault to view private transaction history.</div> :
           transactions.isLoading ? <div className="mt-3 h-12 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
             transactions.isError ? <div className="mt-3 flex items-center justify-between rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-2 text-[9px] text-[#a24940]"><span>Transaction history could not be loaded.</span><button type="button" onClick={() => void transactions.refetch()} className="font-bold underline">Try again</button></div> :
               !transactions.data?.length ? <p className="mt-3 rounded-lg border border-dashed border-[#dfe6eb] p-4 text-center text-[9px] text-[#8492a1]">Your transactions will appear here when available.</p> :
@@ -1283,7 +1286,7 @@ export function PrivateVaultPanel() {
           <p className="text-[8px] text-[#8391a0]">{privateVaultDataEnabled && receiptPreference.data ? `Saved layout: ${RECEIPT_LAYOUTS.find(layout => layout.id === receiptPreference.data?.preferredReceiptTemplate)?.label ?? 'Classic receipt'}` : 'Your selection is a local preview until saved with active Vault access.'}</p>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={openSelectedReceiptPreview} className="inline-flex h-8 items-center gap-1.5 rounded-lg border border-[#dfe7eb] bg-white px-3 text-[9px] font-bold text-[#42687a] hover:bg-[#f5f8f9]" data-testid="button-preview-selected-receipt"><ReceiptText size={12} /> Preview selected layout</button>
-            <button type="button" disabled={!canSaveReceiptPreference(sessionToken, vaultAccessActive) || saveReceiptPreference.isPending || receiptPreference.isLoading || preferredReceiptTemplate === receiptPreference.data?.preferredReceiptTemplate} onClick={() => void submitReceiptPreference()} className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-save-receipt-preference">{saveReceiptPreference.isPending ? 'Saving…' : 'Save preferred layout'}</button>
+            <button type="button" disabled={!canSaveReceiptPreference(vaultSessionActive, vaultAccessActive) || saveReceiptPreference.isPending || receiptPreference.isLoading || preferredReceiptTemplate === receiptPreference.data?.preferredReceiptTemplate} onClick={() => void submitReceiptPreference()} className="h-8 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:cursor-not-allowed disabled:opacity-45" data-testid="button-save-receipt-preference">{saveReceiptPreference.isPending ? 'Saving…' : 'Save preferred layout'}</button>
           </div>
         </div>
       </section>
@@ -1298,7 +1301,7 @@ export function PrivateVaultPanel() {
           <nav className="mt-4 min-h-0 space-y-1 overflow-y-auto overscroll-contain" aria-label="Vault workspace navigation">
             {vaultNavigation.map(item => {
               const Icon = item.icon;
-              const disabled = !sessionToken && item.requiresUnlock;
+              const disabled = !vaultSessionActive && item.requiresUnlock;
               return <button key={item.id} type="button" disabled={disabled} aria-current={activeNavigation === item.id ? 'page' : undefined} onClick={() => navigateToSection(item.id)} className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[10px] font-semibold ${activeNavigation === item.id ? 'bg-white/12 text-[#f1dc98]' : 'text-[#d5e2e1] hover:bg-white/[.07]'} disabled:cursor-not-allowed disabled:opacity-45`}><Icon size={15} />{item.label}{disabled && <LockKeyhole size={11} className="ml-auto" />}</button>;
             })}
           </nav>

@@ -814,6 +814,196 @@ export const CompleteRequiredPasswordResetResponse = zod.object({
 
 
 /**
+ * @summary List conversations owned by the authenticated customer
+ */
+export const ListBankSupportConversationsResponse = zod.object({
+  "conversations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "subject": zod.string(),
+  "status": zod.enum(['open', 'closed']),
+  "customerUnread": zod.boolean(),
+  "lastMessagePreview": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Open a customer support conversation with its first message
+ */
+export const createBankSupportConversationBodySubjectMax = 120;
+
+export const createBankSupportConversationBodyMessageMax = 4000;
+
+
+
+export const CreateBankSupportConversationBody = zod.object({
+  "subject": zod.string().min(1).max(createBankSupportConversationBodySubjectMax),
+  "message": zod.string().min(1).max(createBankSupportConversationBodyMessageMax)
+})
+
+export const CreateBankSupportConversationResponse = zod.object({
+  "conversation": zod.object({
+  "id": zod.string().uuid(),
+  "subject": zod.string(),
+  "status": zod.enum(['open', 'closed']),
+  "customerUnread": zod.boolean(),
+  "lastMessagePreview": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary List messages in an owned conversation and mark them read
+ */
+export const ListBankSupportMessagesParams = zod.object({
+  "conversationId": zod.coerce.string().uuid()
+})
+
+export const ListBankSupportMessagesResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "conversationId": zod.string().uuid(),
+  "senderRole": zod.enum(['customer', 'admin']),
+  "senderName": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Send a customer message in an owned conversation
+ */
+export const SendBankSupportMessageParams = zod.object({
+  "conversationId": zod.coerce.string().uuid()
+})
+
+export const sendBankSupportMessageBodyBodyMax = 4000;
+
+
+
+export const SendBankSupportMessageBody = zod.object({
+  "body": zod.string().min(1).max(sendBankSupportMessageBodyBodyMax)
+})
+
+export const SendBankSupportMessageResponse = zod.object({
+  "message": zod.object({
+  "id": zod.string().uuid(),
+  "conversationId": zod.string().uuid(),
+  "senderRole": zod.enum(['customer', 'admin']),
+  "senderName": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Mark an owned conversation read by the customer
+ */
+export const MarkBankSupportConversationReadParams = zod.object({
+  "conversationId": zod.coerce.string().uuid()
+})
+
+export const MarkBankSupportConversationReadResponse = zod.object({
+  "markedRead": zod.boolean()
+})
+
+
+/**
+ * @summary List support conversations for an allowlisted administrator
+ */
+export const listAdminSupportConversationsQuerySearchMax = 100;
+
+
+
+export const ListAdminSupportConversationsQueryParams = zod.object({
+  "status": zod.enum(['open', 'closed']).optional(),
+  "search": zod.coerce.string().max(listAdminSupportConversationsQuerySearchMax).optional()
+})
+
+export const ListAdminSupportConversationsResponse = zod.object({
+  "conversations": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "userId": zod.string(),
+  "customerName": zod.string(),
+  "customerEmail": zod.string().email(),
+  "subject": zod.string(),
+  "status": zod.enum(['open', 'closed']),
+  "adminUnread": zod.boolean(),
+  "lastMessagePreview": zod.string().nullable(),
+  "lastMessageAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary List messages in a support conversation for an allowlisted administrator
+ */
+export const ListAdminSupportMessagesParams = zod.object({
+  "conversationId": zod.coerce.string().uuid()
+})
+
+export const ListAdminSupportMessagesResponse = zod.object({
+  "messages": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "conversationId": zod.string().uuid(),
+  "senderRole": zod.enum(['customer', 'admin']),
+  "senderName": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Reply to a customer support conversation
+ */
+export const ReplyAdminSupportMessageParams = zod.object({
+  "conversationId": zod.coerce.string().uuid()
+})
+
+export const replyAdminSupportMessageBodyBodyMax = 4000;
+
+
+
+export const ReplyAdminSupportMessageBody = zod.object({
+  "body": zod.string().min(1).max(replyAdminSupportMessageBodyBodyMax)
+})
+
+export const ReplyAdminSupportMessageResponse = zod.object({
+  "message": zod.object({
+  "id": zod.string().uuid(),
+  "conversationId": zod.string().uuid(),
+  "senderRole": zod.enum(['customer', 'admin']),
+  "senderName": zod.string(),
+  "body": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+})
+
+
+/**
+ * @summary Mark a support conversation read by an allowlisted administrator
+ */
+export const MarkAdminSupportConversationReadParams = zod.object({
+  "conversationId": zod.coerce.string().uuid()
+})
+
+export const MarkAdminSupportConversationReadResponse = zod.object({
+  "markedRead": zod.boolean()
+})
+
+
+/**
  * @summary Get the user's simulated balances and recent activity
  */
 export const getBankDashboardResponseProfileOneCustomerIdRegExp = new RegExp('^[A-Z0-9]{7}$');

@@ -37,6 +37,7 @@ import type {
   AdminSettings,
   AdminSettingsInput,
   AdminSummary,
+  AdminSupportConversationList,
   AdminTransactionCorrectionInput,
   AdminTransactionDateInput,
   AdminTransactionDetail,
@@ -87,6 +88,13 @@ import type {
   BankPushSubscriptionResult,
   BankReceiptPreferences,
   BankReceiptPreferencesInput,
+  BankSupportConversationInput,
+  BankSupportConversationList,
+  BankSupportConversationResult,
+  BankSupportMessageInput,
+  BankSupportMessageList,
+  BankSupportMessageResult,
+  BankSupportReadResult,
   BankTransaction,
   BankVaultBilling,
   BankVaultEmailPreferences,
@@ -139,6 +147,7 @@ import type {
   ListAdminLedgerParams,
   ListAdminLedgerRequestsParams,
   ListAdminRestrictionsParams,
+  ListAdminSupportConversationsParams,
   ListAdminTransactionsParams,
   ListAdminUsersParams,
   ListAdminVaultAccessParams,
@@ -3090,6 +3099,735 @@ export const useCompleteRequiredPasswordReset = <TError = ErrorType<BadRequestRe
         TContext
       > => {
       return useMutation(getCompleteRequiredPasswordResetMutationOptions(options));
+    }
+
+export const getListBankSupportConversationsUrl = () => {
+
+
+
+
+  return `/api/bank/support/conversations`
+}
+
+/**
+ * @summary List conversations owned by the authenticated customer
+ */
+export const listBankSupportConversations = async ( options?: Parameters<typeof customFetch>[1]): Promise<BankSupportConversationList> => {
+
+  return customFetch<BankSupportConversationList>(getListBankSupportConversationsUrl(),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankSupportConversationsQueryKey = () => {
+    return [
+    `/api/bank/support/conversations`
+    ] as const;
+    }
+
+
+export const getListBankSupportConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listBankSupportConversations>>, TError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>>( options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankSupportConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankSupportConversationsQueryKey();
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankSupportConversations>>> = ({ signal }) => listBankSupportConversations({ signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankSupportConversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBankSupportConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listBankSupportConversations>>>
+export type ListBankSupportConversationsQueryError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List conversations owned by the authenticated customer
+ */
+
+export function useListBankSupportConversations<TData = Awaited<ReturnType<typeof listBankSupportConversations>>, TError = ErrorType<UnauthorizedResponse | ServiceUnavailableResponse>>(
+  options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankSupportConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBankSupportConversationsQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBankSupportConversationUrl = () => {
+
+
+
+
+  return `/api/bank/support/conversations`
+}
+
+/**
+ * @summary Open a customer support conversation with its first message
+ */
+export const createBankSupportConversation = async (bankSupportConversationInput: BankSupportConversationInput, options?: Parameters<typeof customFetch>[1]): Promise<BankSupportConversationResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BankSupportConversationResult>(getCreateBankSupportConversationUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankSupportConversationInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBankSupportConversationMutationKey = () => ['createBankSupportConversation'] as const;
+
+export const getCreateBankSupportConversationMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | TooManyRequestsResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankSupportConversation>>, TError,CreateBankSupportConversationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBankSupportConversation>>, TError,CreateBankSupportConversationMutationVariables, TContext> => {
+
+const mutationKey = getCreateBankSupportConversationMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBankSupportConversation>>, CreateBankSupportConversationMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBankSupportConversation(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBankSupportConversationMutationResult = NonNullable<Awaited<ReturnType<typeof createBankSupportConversation>>>
+    export type CreateBankSupportConversationMutationBody = BodyType<BankSupportConversationInput>
+    export type CreateBankSupportConversationMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | TooManyRequestsResponse | ServiceUnavailableResponse>
+    export type CreateBankSupportConversationMutationVariables = {data: BodyType<BankSupportConversationInput>}
+
+    /**
+ * @summary Open a customer support conversation with its first message
+ */
+export const useCreateBankSupportConversation = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | TooManyRequestsResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankSupportConversation>>, TError,CreateBankSupportConversationMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBankSupportConversation>>,
+        TError,
+        CreateBankSupportConversationMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateBankSupportConversationMutationOptions(options));
+    }
+
+export const getListBankSupportMessagesUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/bank/support/conversations/${conversationId}/messages`
+}
+
+/**
+ * @summary List messages in an owned conversation and mark them read
+ */
+export const listBankSupportMessages = async (conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<BankSupportMessageList> => {
+
+  return customFetch<BankSupportMessageList>(getListBankSupportMessagesUrl(conversationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankSupportMessagesQueryKey = (conversationId: string,) => {
+    return [
+    `/api/bank/support/conversations/${conversationId}/messages`
+    ] as const;
+    }
+
+
+export const getListBankSupportMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listBankSupportMessages>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>>(conversationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankSupportMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankSupportMessagesQueryKey(conversationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankSupportMessages>>> = ({ signal }) => listBankSupportMessages(conversationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: conversationId !== null && conversationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankSupportMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBankSupportMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listBankSupportMessages>>>
+export type ListBankSupportMessagesQueryError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List messages in an owned conversation and mark them read
+ */
+
+export function useListBankSupportMessages<TData = Awaited<ReturnType<typeof listBankSupportMessages>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>>(
+ conversationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankSupportMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBankSupportMessagesQueryOptions(conversationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getSendBankSupportMessageUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/bank/support/conversations/${conversationId}/messages`
+}
+
+/**
+ * @summary Send a customer message in an owned conversation
+ */
+export const sendBankSupportMessage = async (conversationId: string,
+    bankSupportMessageInput: BankSupportMessageInput, options?: Parameters<typeof customFetch>[1]): Promise<BankSupportMessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BankSupportMessageResult>(getSendBankSupportMessageUrl(conversationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankSupportMessageInput)
+  }
+);}
+
+
+
+
+
+export const getSendBankSupportMessageMutationKey = () => ['sendBankSupportMessage'] as const;
+
+export const getSendBankSupportMessageMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | TooManyRequestsResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendBankSupportMessage>>, TError,SendBankSupportMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof sendBankSupportMessage>>, TError,SendBankSupportMessageMutationVariables, TContext> => {
+
+const mutationKey = getSendBankSupportMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof sendBankSupportMessage>>, SendBankSupportMessageMutationVariables> = (props) => {
+          const {conversationId,data} = props ?? {};
+
+          return  sendBankSupportMessage(conversationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type SendBankSupportMessageMutationResult = NonNullable<Awaited<ReturnType<typeof sendBankSupportMessage>>>
+    export type SendBankSupportMessageMutationBody = BodyType<BankSupportMessageInput>
+    export type SendBankSupportMessageMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | TooManyRequestsResponse | ServiceUnavailableResponse>
+    export type SendBankSupportMessageMutationVariables = {conversationId: string;data: BodyType<BankSupportMessageInput>}
+
+    /**
+ * @summary Send a customer message in an owned conversation
+ */
+export const useSendBankSupportMessage = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse | TooManyRequestsResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof sendBankSupportMessage>>, TError,SendBankSupportMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof sendBankSupportMessage>>,
+        TError,
+        SendBankSupportMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getSendBankSupportMessageMutationOptions(options));
+    }
+
+export const getMarkBankSupportConversationReadUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/bank/support/conversations/${conversationId}/read`
+}
+
+/**
+ * @summary Mark an owned conversation read by the customer
+ */
+export const markBankSupportConversationRead = async (conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<BankSupportReadResult> => {
+
+  return customFetch<BankSupportReadResult>(getMarkBankSupportConversationReadUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkBankSupportConversationReadMutationKey = () => ['markBankSupportConversationRead'] as const;
+
+export const getMarkBankSupportConversationReadMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markBankSupportConversationRead>>, TError,MarkBankSupportConversationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markBankSupportConversationRead>>, TError,MarkBankSupportConversationReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkBankSupportConversationReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markBankSupportConversationRead>>, MarkBankSupportConversationReadMutationVariables> = (props) => {
+          const {conversationId} = props ?? {};
+
+          return  markBankSupportConversationRead(conversationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkBankSupportConversationReadMutationResult = NonNullable<Awaited<ReturnType<typeof markBankSupportConversationRead>>>
+
+    export type MarkBankSupportConversationReadMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type MarkBankSupportConversationReadMutationVariables = {conversationId: string}
+
+    /**
+ * @summary Mark an owned conversation read by the customer
+ */
+export const useMarkBankSupportConversationRead = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markBankSupportConversationRead>>, TError,MarkBankSupportConversationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markBankSupportConversationRead>>,
+        TError,
+        MarkBankSupportConversationReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkBankSupportConversationReadMutationOptions(options));
+    }
+
+export const getListAdminSupportConversationsUrl = (params?: ListAdminSupportConversationsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bank/admin/support/conversations?${stringifiedParams}` : `/api/bank/admin/support/conversations`
+}
+
+/**
+ * @summary List support conversations for an allowlisted administrator
+ */
+export const listAdminSupportConversations = async (params?: ListAdminSupportConversationsParams, options?: Parameters<typeof customFetch>[1]): Promise<AdminSupportConversationList> => {
+
+  return customFetch<AdminSupportConversationList>(getListAdminSupportConversationsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminSupportConversationsQueryKey = (params?: ListAdminSupportConversationsParams,) => {
+    return [
+    `/api/bank/admin/support/conversations`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListAdminSupportConversationsQueryOptions = <TData = Awaited<ReturnType<typeof listAdminSupportConversations>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(params?: ListAdminSupportConversationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminSupportConversationsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminSupportConversations>>> = ({ signal }) => listAdminSupportConversations(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportConversations>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminSupportConversationsQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminSupportConversations>>>
+export type ListAdminSupportConversationsQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List support conversations for an allowlisted administrator
+ */
+
+export function useListAdminSupportConversations<TData = Awaited<ReturnType<typeof listAdminSupportConversations>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | ServiceUnavailableResponse>>(
+ params?: ListAdminSupportConversationsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportConversations>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminSupportConversationsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListAdminSupportMessagesUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/bank/admin/support/conversations/${conversationId}/messages`
+}
+
+/**
+ * @summary List messages in a support conversation for an allowlisted administrator
+ */
+export const listAdminSupportMessages = async (conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<BankSupportMessageList> => {
+
+  return customFetch<BankSupportMessageList>(getListAdminSupportMessagesUrl(conversationId),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListAdminSupportMessagesQueryKey = (conversationId: string,) => {
+    return [
+    `/api/bank/admin/support/conversations/${conversationId}/messages`
+    ] as const;
+    }
+
+
+export const getListAdminSupportMessagesQueryOptions = <TData = Awaited<ReturnType<typeof listAdminSupportMessages>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(conversationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListAdminSupportMessagesQueryKey(conversationId);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listAdminSupportMessages>>> = ({ signal }) => listAdminSupportMessages(conversationId, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: conversationId !== null && conversationId !== undefined, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportMessages>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListAdminSupportMessagesQueryResult = NonNullable<Awaited<ReturnType<typeof listAdminSupportMessages>>>
+export type ListAdminSupportMessagesQueryError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>
+
+
+/**
+ * @summary List messages in a support conversation for an allowlisted administrator
+ */
+
+export function useListAdminSupportMessages<TData = Awaited<ReturnType<typeof listAdminSupportMessages>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ServiceUnavailableResponse>>(
+ conversationId: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listAdminSupportMessages>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListAdminSupportMessagesQueryOptions(conversationId,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getReplyAdminSupportMessageUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/bank/admin/support/conversations/${conversationId}/messages`
+}
+
+/**
+ * @summary Reply to a customer support conversation
+ */
+export const replyAdminSupportMessage = async (conversationId: string,
+    bankSupportMessageInput: BankSupportMessageInput, options?: Parameters<typeof customFetch>[1]): Promise<BankSupportMessageResult> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BankSupportMessageResult>(getReplyAdminSupportMessageUrl(conversationId),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(bankSupportMessageInput)
+  }
+);}
+
+
+
+
+
+export const getReplyAdminSupportMessageMutationKey = () => ['replyAdminSupportMessage'] as const;
+
+export const getReplyAdminSupportMessageMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | TooManyRequestsResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replyAdminSupportMessage>>, TError,ReplyAdminSupportMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof replyAdminSupportMessage>>, TError,ReplyAdminSupportMessageMutationVariables, TContext> => {
+
+const mutationKey = getReplyAdminSupportMessageMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof replyAdminSupportMessage>>, ReplyAdminSupportMessageMutationVariables> = (props) => {
+          const {conversationId,data} = props ?? {};
+
+          return  replyAdminSupportMessage(conversationId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type ReplyAdminSupportMessageMutationResult = NonNullable<Awaited<ReturnType<typeof replyAdminSupportMessage>>>
+    export type ReplyAdminSupportMessageMutationBody = BodyType<BankSupportMessageInput>
+    export type ReplyAdminSupportMessageMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | TooManyRequestsResponse | ServiceUnavailableResponse>
+    export type ReplyAdminSupportMessageMutationVariables = {conversationId: string;data: BodyType<BankSupportMessageInput>}
+
+    /**
+ * @summary Reply to a customer support conversation
+ */
+export const useReplyAdminSupportMessage = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | TooManyRequestsResponse | ServiceUnavailableResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof replyAdminSupportMessage>>, TError,ReplyAdminSupportMessageMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof replyAdminSupportMessage>>,
+        TError,
+        ReplyAdminSupportMessageMutationVariables,
+        TContext
+      > => {
+      return useMutation(getReplyAdminSupportMessageMutationOptions(options));
+    }
+
+export const getMarkAdminSupportConversationReadUrl = (conversationId: string,) => {
+
+
+
+
+  return `/api/bank/admin/support/conversations/${conversationId}/read`
+}
+
+/**
+ * @summary Mark a support conversation read by an allowlisted administrator
+ */
+export const markAdminSupportConversationRead = async (conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<BankSupportReadResult> => {
+
+  return customFetch<BankSupportReadResult>(getMarkAdminSupportConversationReadUrl(conversationId),
+  {
+    ...options,
+    method: 'POST'
+
+
+  }
+);}
+
+
+
+
+
+export const getMarkAdminSupportConversationReadMutationKey = () => ['markAdminSupportConversationRead'] as const;
+
+export const getMarkAdminSupportConversationReadMutationOptions = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markAdminSupportConversationRead>>, TError,MarkAdminSupportConversationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof markAdminSupportConversationRead>>, TError,MarkAdminSupportConversationReadMutationVariables, TContext> => {
+
+const mutationKey = getMarkAdminSupportConversationReadMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof markAdminSupportConversationRead>>, MarkAdminSupportConversationReadMutationVariables> = (props) => {
+          const {conversationId} = props ?? {};
+
+          return  markAdminSupportConversationRead(conversationId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type MarkAdminSupportConversationReadMutationResult = NonNullable<Awaited<ReturnType<typeof markAdminSupportConversationRead>>>
+
+    export type MarkAdminSupportConversationReadMutationError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>
+    export type MarkAdminSupportConversationReadMutationVariables = {conversationId: string}
+
+    /**
+ * @summary Mark a support conversation read by an allowlisted administrator
+ */
+export const useMarkAdminSupportConversationRead = <TError = ErrorType<UnauthorizedResponse | ForbiddenResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof markAdminSupportConversationRead>>, TError,MarkAdminSupportConversationReadMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof markAdminSupportConversationRead>>,
+        TError,
+        MarkAdminSupportConversationReadMutationVariables,
+        TContext
+      > => {
+      return useMutation(getMarkAdminSupportConversationReadMutationOptions(options));
     }
 
 export const getGetBankDashboardUrl = () => {

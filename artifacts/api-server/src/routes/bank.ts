@@ -91,6 +91,16 @@ import {
   UnlockBankVaultResponse,
   LockBankVaultSessionResponse,
   ClearIncompleteBankVaultSubscriptionResponse,
+  ListBankSupportConversationsResponse,
+  CreateBankSupportConversationBody,
+  CreateBankSupportConversationResponse,
+  ListBankSupportMessagesParams,
+  ListBankSupportMessagesResponse,
+  SendBankSupportMessageParams,
+  SendBankSupportMessageBody,
+  SendBankSupportMessageResponse,
+  MarkBankSupportConversationReadParams,
+  MarkBankSupportConversationReadResponse,
   MarkBankNotificationReadParams,
   MarkBankNotificationReadResponse,
   SaveBankPushSubscriptionBody,
@@ -110,6 +120,8 @@ import {
   bankTransactionsTable,
   bankUsersTable,
   bankSavedPaymentMethodsTable,
+  bankSupportConversationsTable,
+  bankSupportMessagesTable,
   bankVaultPaystackEventsTable,
   bankVaultPaystackPlansTable,
   bankWalletsTable,
@@ -199,6 +211,7 @@ import {
 } from "../lib/bank-vault";
 import {
   classifyIncompleteVaultAttempt,
+  isTerminalUnpaidPaystackStatus,
   VAULT_DEVICE_COOKIE_NAME,
   VAULT_DEVICE_COOKIE_PATH,
   VAULT_REMEMBERED_SESSION_DURATION_MS,
@@ -239,6 +252,13 @@ const customerIdLookupLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Unable to verify those details. Try again later." },
+});
+const supportMessageLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 30,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many support messages. Try again in a few minutes." },
 });
 const exchangeRateQuoteLimiter = rateLimit({
   windowMs: 60_000,
@@ -540,6 +560,22 @@ async function getOrCreateBankUser(clerkUserId: string) {
   return ensureBankUser(clerkUserId);
 }
 
+function bankSupportMessageResponse(
+  message: typeof bankSupportMessagesTable.$inferSelect,
+  viewerRole: "customer" | "admin",
+) {
+  return {
+    id: message.id,
+    conversationId: message.conversationId,
+    senderRole: message.senderRole as "customer" | "admin",
+    senderName: message.senderRole === viewerRole
+      ? "You"
+      : message.senderRole === "admin" ? "Globus support" : "Customer",
+    body: message.body,
+    createdAt: message.createdAt.toISOString(),
+  };
+}
+
 function internationalTransferRequestResponse(
   request: typeof bankInternationalTransferRequestsTable.$inferSelect,
   transaction: typeof bankTransactionsTable.$inferSelect,
@@ -622,7 +658,251 @@ router.use("/bank", (req, _res, next): void => {
   next();
 });
 
+router.get("/bank/support/conversations", async (req, res): Promise<void> => {
+  const authUserId = getAuth(req).userId;
+  if (!authUserId) {
+    res.status(401).json({ error: "Sign in to contact Globus support." });
+    return;
+  }
+  const user = await getOrCreateBankUser(authUserId);
+  const conversations = await db
+    .select({
+      id: bankSupportConversationsTable.id,
+      subject: bankSupportConversationsTable.subject,
+      status: bankSupportConversationsTable.status,
+      customerUnread: bankSupportConversationsTable.customerUnread,
+      lastMessagePreview: sql<string | null>`(
+        select left(body, 160)
+        from bank_support_messages
+        where conversation_id = ${bankSupportConversationsTable.id}
+        order by created_at desc
+        limit 1
+      )`,
+      lastMessageAt: bankSupportConversationsTable.lastMessageAt,
+      createdAt: bankSupportConversationsTable.createdAt,
+      updatedAt: bankSupportConversationsTable.updatedAt,
+    })
+    .from(bankSupportConversationsTable)
+    .where(eq(bankSupportConversationsTable.userId, user.id))
+    .orderBy(desc(bankSupportConversationsTable.lastMessageAt))
+    .limit(100);
+  res.setHeader("Cache-Control", "no-store");
+  res.json(
+    ListBankSupportConversationsResponse.parse({
+      conversations: conversations.map((conversation) => ({
+        ...conversation,
+        status: conversation.status as "open" | "closed",
+        lastMessageAt: conversation.lastMessageAt.toISOString(),
+        createdAt: conversation.createdAt.toISOString(),
+        updatedAt: conversation.updatedAt.toISOString(),
+      })),
+    }),
+  );
+});
+
+router.post(
+  "/bank/support/conversations",
+  supportMessageLimiter,
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to contact Globus support." });
+      return;
+    }
+    const parsed = CreateBankSupportConversationBody.safeParse({
+      subject: typeof req.body?.subject === "string" ? req.body.subject.trim() : req.body?.subject,
+      message: typeof req.body?.message === "string" ? req.body.message.trim() : req.body?.message,
+    });
+    if (!parsed.success) {
+      res.status(400).json({ error: "Enter a subject and message within the stated limits." });
+      return;
+    }
+    const user = await getOrCreateBankUser(authUserId);
+    const now = new Date();
+    const created = await db.transaction(async (tx) => {
+      const [conversation] = await tx
+        .insert(bankSupportConversationsTable)
+        .values({
+          userId: user.id,
+          subject: parsed.data.subject,
+          status: "open",
+          customerUnread: false,
+          adminUnread: true,
+          lastMessageAt: now,
+          updatedAt: now,
+        })
+        .returning();
+      const [message] = await tx
+        .insert(bankSupportMessagesTable)
+        .values({
+          conversationId: conversation.id,
+          senderUserId: user.id,
+          senderRole: "customer",
+          body: parsed.data.message,
+          createdAt: now,
+        })
+        .returning();
+      return { conversation, message };
+    });
+    res.status(201).json(
+      CreateBankSupportConversationResponse.parse({
+        conversation: {
+          id: created.conversation.id,
+          subject: created.conversation.subject,
+          status: "open",
+          customerUnread: false,
+          lastMessagePreview: created.message.body.slice(0, 160),
+          lastMessageAt: now.toISOString(),
+          createdAt: now.toISOString(),
+          updatedAt: now.toISOString(),
+        },
+      }),
+    );
+  },
+);
+
+router.get(
+  "/bank/support/conversations/:conversationId/messages",
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to view this support conversation." });
+      return;
+    }
+    const params = ListBankSupportMessagesParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "The conversation link is invalid." });
+      return;
+    }
+    const user = await getOrCreateBankUser(authUserId);
+    const [conversation] = await db
+      .select({ id: bankSupportConversationsTable.id })
+      .from(bankSupportConversationsTable)
+      .where(
+        and(
+          eq(bankSupportConversationsTable.id, params.data.conversationId),
+          eq(bankSupportConversationsTable.userId, user.id),
+        ),
+      )
+      .limit(1);
+    if (!conversation) {
+      res.status(404).json({ error: "That support conversation was not found." });
+      return;
+    }
+    const messages = await db
+      .select()
+      .from(bankSupportMessagesTable)
+      .where(eq(bankSupportMessagesTable.conversationId, conversation.id))
+      .orderBy(asc(bankSupportMessagesTable.createdAt))
+      .limit(500);
+    res.setHeader("Cache-Control", "no-store");
+    res.json(
+      ListBankSupportMessagesResponse.parse({
+        messages: messages.map((message) => bankSupportMessageResponse(message, "customer")),
+      }),
+    );
+  },
+);
+
+router.post(
+  "/bank/support/conversations/:conversationId/messages",
+  supportMessageLimiter,
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to reply to this support conversation." });
+      return;
+    }
+    const params = SendBankSupportMessageParams.safeParse(req.params);
+    const parsed = SendBankSupportMessageBody.safeParse({
+      body: typeof req.body?.body === "string" ? req.body.body.trim() : req.body?.body,
+    });
+    if (!params.success || !parsed.success) {
+      res.status(400).json({ error: "Enter a message of 1 to 4,000 characters." });
+      return;
+    }
+    const user = await getOrCreateBankUser(authUserId);
+    const now = new Date();
+    const created = await db.transaction(async (tx) => {
+      const [conversation] = await tx
+        .select({ id: bankSupportConversationsTable.id })
+        .from(bankSupportConversationsTable)
+        .where(
+          and(
+            eq(bankSupportConversationsTable.id, params.data.conversationId),
+            eq(bankSupportConversationsTable.userId, user.id),
+          ),
+        )
+        .for("update");
+      if (!conversation) return null;
+      const [message] = await tx
+        .insert(bankSupportMessagesTable)
+        .values({
+          conversationId: conversation.id,
+          senderUserId: user.id,
+          senderRole: "customer",
+          body: parsed.data.body,
+          createdAt: now,
+        })
+        .returning();
+      await tx
+        .update(bankSupportConversationsTable)
+        .set({
+          status: "open",
+          customerUnread: false,
+          adminUnread: true,
+          lastMessageAt: now,
+          updatedAt: now,
+        })
+        .where(eq(bankSupportConversationsTable.id, conversation.id));
+      return message;
+    });
+    if (!created) {
+      res.status(404).json({ error: "That support conversation was not found." });
+      return;
+    }
+    res.status(201).json(
+      SendBankSupportMessageResponse.parse({
+        message: bankSupportMessageResponse(created, "customer"),
+      }),
+    );
+  },
+);
+
+router.post(
+  "/bank/support/conversations/:conversationId/read",
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to update support messages." });
+      return;
+    }
+    const params = MarkBankSupportConversationReadParams.safeParse(req.params);
+    if (!params.success) {
+      res.status(400).json({ error: "The conversation link is invalid." });
+      return;
+    }
+    const user = await getOrCreateBankUser(authUserId);
+    const [conversation] = await db
+      .update(bankSupportConversationsTable)
+      .set({ customerUnread: false, updatedAt: new Date() })
+      .where(
+        and(
+          eq(bankSupportConversationsTable.id, params.data.conversationId),
+          eq(bankSupportConversationsTable.userId, user.id),
+        ),
+      )
+      .returning({ id: bankSupportConversationsTable.id });
+    if (!conversation) {
+      res.status(404).json({ error: "That support conversation was not found." });
+      return;
+    }
+    res.json(MarkBankSupportConversationReadResponse.parse({ markedRead: true }));
+  },
+);
+
 router.get("/bank/vault/session", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const authUserId = getAuth(req).userId;
   if (!authUserId) {
     res.status(401).json({ error: "Sign in to access your Globus account." });
@@ -730,7 +1010,7 @@ router.post(
         });
         return;
       }
-      if (!["failed", "abandoned"].includes(payment.status)) {
+      if (!isTerminalUnpaidPaystackStatus(payment.status)) {
         res.status(409).json({
           error: payment.status === "success"
             ? "Paystack reports a completed payment. Verify it to activate Vault access."
@@ -774,9 +1054,12 @@ router.post(
         autoRenew: lockedUser.vaultSubscriptionAutoRenew,
         providerSubscriptionCode: lockedUser.vaultPaystackSubscriptionCode,
       });
+      const paystackFailureWasConfirmed =
+        classification === "verify_with_paystack" &&
+        confirmedUnpaidReference === lockedUser.vaultSubscriptionPaymentReference;
       if (
         classification === "protected" ||
-        classification === "verify_with_paystack" ||
+        (classification === "verify_with_paystack" && !paystackFailureWasConfirmed) ||
         classification === "none"
       ) {
         return "changed" as const;

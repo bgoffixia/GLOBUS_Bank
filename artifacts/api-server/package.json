@@ -14,6 +14,7 @@
     "test:admin-access-controls": "tsx --test test/admin-access-controls.unit.test.ts",
     "test:admin-vault-access": "tsx --test test/admin-vault-access.test.ts",
     "test:bank-vault-access-unit": "tsx --test test/bank-vault-access.unit.test.ts",
+    "test:vault-device-session": "tsx --test test/vault-device-session.test.ts",
     "test:vault-subscriber-deposit": "tsx --test test/vault-subscriber-deposit.test.ts",
     "test:sensitive-bank-details": "tsx --test test/sensitive-bank-details.test.ts",
     "test:private-vault": "tsx --test test/private-vault.test.ts",

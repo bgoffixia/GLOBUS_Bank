@@ -6,6 +6,7 @@ import {
   VAULT_DEVICE_COOKIE_PATH,
   VAULT_REMEMBERED_SESSION_DURATION_MS,
   VAULT_SESSION_DURATION_MS,
+  isTerminalUnpaidPaystackStatus,
   vaultSessionDurationMs,
 } from "../src/lib/vault-session-policy";
 
@@ -54,4 +55,17 @@ test("only unpaid incomplete subscription attempts can be cleared", () => {
     autoRenew: false,
     providerSubscriptionCode: null,
   }), "none");
+
+  assert.equal(classifyIncompleteVaultAttempt({
+    subscriptionStatus: "inactive",
+    paymentStatus: "pending",
+    paymentReference: null,
+    paymentVerifiedAt: null,
+    autoRenew: false,
+    providerSubscriptionCode: null,
+  }), "protected");
+  assert.equal(isTerminalUnpaidPaystackStatus("failed"), true);
+  assert.equal(isTerminalUnpaidPaystackStatus("abandoned"), true);
+  assert.equal(isTerminalUnpaidPaystackStatus("success"), false);
+  assert.equal(isTerminalUnpaidPaystackStatus("pending"), false);
 });

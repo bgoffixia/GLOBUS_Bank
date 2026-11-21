@@ -6,7 +6,7 @@ import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, Banknote,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, ClipboardList, Download,
   FileClock, Landmark, LayoutDashboard, LockKeyhole, LogOut, Menu, Search,
-  Settings2, Shield, ShieldCheck, SlidersHorizontal, Users, WalletCards, X,
+  MessageSquareText, Settings2, Shield, ShieldCheck, SlidersHorizontal, Users, WalletCards, X,
 } from 'lucide-react';
 import {
   getGetAdminAccessQueryKey, getGetAdminSummaryQueryKey, getGetAdminSettingsQueryKey,
@@ -35,6 +35,7 @@ import {
   useUpdateAdminUserVaultSubscription,
 } from '@workspace/api-client-react';
 import { AdminVaultAccessPage } from '../components/admin-vault-access-page';
+import { AdminSupportInbox } from '@/components/support-messaging';
 import type {
   ActiveCurrencyCode, AdminAccount, AdminAuditLog, AdminLedgerRequest, AdminUser, BankTransaction, CurrencyCode,
   AdminRestriction, BankRestrictionType, ListAdminTransactionsParams, ListAdminUsersParams, TransactionType, Wallet,
@@ -50,6 +51,7 @@ const nav = [
   { path: '/admin', label: 'Overview', icon: LayoutDashboard },
   { path: '/admin/users', label: 'Members', icon: Users },
   { path: '/admin/vault-access', label: 'Vault Access', icon: ShieldCheck },
+  { path: '/admin/support', label: 'Support inbox', icon: MessageSquareText },
   { path: '/admin/accounts', label: 'Accounts', icon: WalletCards },
   { path: '/admin/transactions', label: 'Transactions', icon: Activity },
   { path: '/admin/funding', label: 'Funding', icon: Banknote },
@@ -117,7 +119,7 @@ export function AdminWorkspace() {
   const access = useGetAdminAccess({ query: { queryKey: getGetAdminAccessQueryKey(), retry: false } });
   const isDetail = /^\/admin\/users\/[^/]+$/.test(path);
   const page = path === '/admin' ? 'overview' : isDetail ? 'member-detail' : path.split('/')[2] || 'overview';
-  const pageTitles: Record<string, string> = { overview: t('Operations overview'), users: t('Member directory'), 'vault-access': t('Private Vault access'), accounts: t('Currency accounts'), transactions: t('Transaction activity'), funding: t('User funding'), wallets: t('Wallet controls'), restrictions: t('Restrictions'), audit: t('Audit trail'), settings: t('Operations settings'), 'member-detail': t('Member record') };
+  const pageTitles: Record<string, string> = { overview: t('Operations overview'), users: t('Member directory'), 'vault-access': t('Private Vault access'), support: t('Support inbox'), accounts: t('Currency accounts'), transactions: t('Transaction activity'), funding: t('User funding'), wallets: t('Wallet controls'), restrictions: t('Restrictions'), audit: t('Audit trail'), settings: t('Operations settings'), 'member-detail': t('Member record') };
   if (path === '/admin/logout') return <WorkspaceFrame active="logout" title={t('Sign out')} authorized={access.data?.allowed === true}><LogoutPage /></WorkspaceFrame>;
   if (access.isLoading) return <WorkspaceFrame active={page} title={t('Operations workspace')} authorized={false}><div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map(x => <div key={x} className={`${box} h-36 animate-pulse bg-[#edf2ef]`} />)}</div></WorkspaceFrame>;
   if (access.isError || !access.data?.allowed) return <WorkspaceFrame active={page} title={t('Operations workspace')} authorized={false}><div className={`${box} mx-auto max-w-xl p-8 text-center`}><Shield size={28} className="mx-auto text-[#9b6157]" /><h1 className="mt-4 text-xl font-bold text-[#263e4b]">{t('Operations access restricted')}</h1><p className="mt-2 text-[12px] leading-5 text-[#7a8c91]">{t('This workspace is available to authorized Globus operations administrators.')}</p><button onClick={() => access.refetch()} className={`${button} mt-5`}>{t('Check access again')}</button></div></WorkspaceFrame>;
@@ -125,6 +127,7 @@ export function AdminWorkspace() {
     {page === 'overview' && <Overview />}
     {page === 'users' && <UsersPage />}
     {page === 'vault-access' && <AdminVaultAccessPage />}
+    {page === 'support' && <AdminSupportInbox />}
     {page === 'member-detail' && <MemberDetail userId={path.split('/')[3] || ''} />}
     {page === 'accounts' && <AccountsPage />}
     {page === 'wallets' && <AccountsPage controlsOnly />}

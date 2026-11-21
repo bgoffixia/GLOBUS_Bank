@@ -7,6 +7,7 @@ import {
   LayoutDashboard,
   LogOut,
   LockKeyhole,
+  MessageSquareText,
   Menu,
   ShieldCheck,
   UserRound,
@@ -31,6 +32,7 @@ const primaryLinks = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
   { href: '/financial-overview', label: 'Financial overview', icon: TrendingUp },
   { href: '/private-vault', label: 'Private Vault', icon: LockKeyhole },
+  { href: '/support', label: 'Support', icon: MessageSquareText },
 ];
 
 const dashboardTools = [
@@ -189,6 +191,7 @@ function NavGroup({ title, links, location, onNavigate }: { title: string; links
 function pageLabel(path: string) {
   const labels: Record<string, string> = {
     '/dashboard': 'Overview',
+    '/support': 'Support',
     '/financial-overview': 'Financial overview',
     '/notifications': 'Notifications',
     '/wallets': 'Wallets',

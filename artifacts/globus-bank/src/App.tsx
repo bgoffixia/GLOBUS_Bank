@@ -29,6 +29,7 @@ import { CurrencyCalculatorPage } from '@/pages/currency-calculator-page';
 import { PersonalFinancePage } from '@/pages/personal-finance/personal-finance';
 import { useLanguage } from '@/lib/i18n';
 import { AdminWorkspace } from '@/pages/admin-workspace';
+import { CustomerSupportPage } from '@/components/support-messaging';
 import {
   Redirect,
   Route,
@@ -265,6 +266,7 @@ function ClerkRoutes() {
         <Route path="/dashboard"><ProtectedPage><DashboardPage /></ProtectedPage></Route>
         <Route path="/financial-overview"><ProtectedPage><PersonalFinancePage /></ProtectedPage></Route>
         <Route path="/notifications"><ProtectedPage><DashboardPage /></ProtectedPage></Route>
+        <Route path="/support"><ProtectedPage><CustomerSupportPage /></ProtectedPage></Route>
         <Route path="/wallets"><ProtectedPage><WalletsPage /></ProtectedPage></Route>
         <Route path="/wallets/:walletId"><ProtectedPage><WalletDetailsPage /></ProtectedPage></Route>
         <Route path="/transactions"><ProtectedPage><TransactionsPage /></ProtectedPage></Route>
@@ -291,6 +293,7 @@ function ClerkRoutes() {
         <Route path="/settings"><Redirect to="/profile" /></Route>
         <Route path="/admin/vault-acces"><Redirect to="/admin/vault-access" /></Route>
         <Route path="/admin/vault-access"><ProtectedAdminPage /></Route>
+        <Route path="/admin/support"><ProtectedAdminPage /></Route>
         <Route path="/admin/users/:userId"><ProtectedAdminPage /></Route>
         <Route path="/admin/users"><ProtectedAdminPage /></Route>
         <Route path="/admin/accounts"><ProtectedAdminPage /></Route>

@@ -466,7 +466,7 @@ export function PersonalFinancePage() {
           <span className="rounded-full bg-[#eef6f6] px-2.5 py-1 text-[9px] font-bold capitalize text-[#357b83]">{period} · in-app</span>
         </div>
         {reportQuery.isError ? <QueryError text="Globus activity is unavailable." retry={() => reportQuery.refetch()} /> : reportQuery.isLoading ? <div className="grid gap-3 p-4 sm:grid-cols-2">{[0,1].map(i => <div key={i} className="pf-skeleton h-20" />)}</div> : <>
-          <div className="grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
+         <div data-testid="dashboard-ledger-scroll" className="dashboard-ledger-scroll grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
             {(reportQuery.data?.ledgerSummaries ?? []).map(summary => <article data-testid={`ledger-summary-${summary.currency}-${summary.walletId.slice(-4)}`} key={summary.walletId} className="rounded-xl border border-[#e7edf0] bg-[#fbfcfc] p-3">
               <div className="flex items-center justify-between gap-2"><div><h3 className="text-[11px] font-extrabold">{summary.currency}</h3><p className="mt-0.5 text-[8px] text-[#82909a]">Wallet ····{summary.walletId.slice(-4)}</p></div><span className="text-[9px] text-[#82909a]">Posted ledger</span></div>
               <div className="mt-3 grid grid-cols-3 gap-2"><LedgerValue label="Inflow" value={summary.inflowMinor} currency={summary.currency} tone="in" /><LedgerValue label="Outflow" value={summary.outflowMinor} currency={summary.currency} tone="out" /><LedgerValue label="Net" value={summary.netMinor} currency={summary.currency} signed /></div>

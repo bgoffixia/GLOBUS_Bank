@@ -143,6 +143,30 @@ test('Vault service navigation is passcode-gated and admin tier controls are pre
   expect(adminSource).toContain('data-testid="checkbox-transfer-access-granted"');
 });
 
+test('Vault remembers a device only by explicit choice and exposes guarded attempt cleanup', () => {
+  const vaultSource = readFileSync(
+    new URL('../src/components/private-vault-panel.tsx', import.meta.url),
+    'utf8',
+  );
+  expect(vaultSource).toContain('data-testid="checkbox-remember-vault-device"');
+  expect(vaultSource).toContain('Remember this device for 7 days');
+  expect(vaultSource).toContain('data-testid="button-clear-incomplete-vault-subscription"');
+  expect(vaultSource).toContain('useGetBankVaultSession');
+  expect(vaultSource).toContain('useLockBankVaultSession');
+
+  const bankSource = readFileSync(
+    new URL('../../api-server/src/routes/bank.ts', import.meta.url),
+    'utf8',
+  );
+  expect(bankSource).toContain('router.get("/bank/vault/session"');
+  expect(bankSource).toContain('getVaultPasscodeSessionExpiry');
+  expect(bankSource).toContain('router.post("/bank/vault/session/lock"');
+  expect(bankSource).toContain('router.post(\n  "/bank/vault/subscription/clear-incomplete"');
+  expect(bankSource).toContain('verifyPaystackVaultCheckout({ secretKey, reference })');
+  expect(bankSource).toContain('isTerminalUnpaidPaystackStatus(payment.status)');
+  expect(bankSource).toContain('clear_incomplete_private_vault_subscription');
+});
+
 async function openAndCheck(page: Page, path: string, width: number, context: string) {
   await page.setViewportSize({ width, height: 850 });
   await page.goto(path, { waitUntil: 'domcontentloaded' });
