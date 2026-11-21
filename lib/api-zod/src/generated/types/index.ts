@@ -37,7 +37,6 @@ export * from './adminRestrictionPage';
 export * from './adminRestrictionRemoveInput';
 export * from './adminRestrictionStatus';
 export * from './adminSettings';
-export * from './adminSettingsCustomerEmailSenderDisplayName';
 export * from './adminSettingsCustomerEmailSenderDomain';
 export * from './adminSettingsFrozenIncomingPolicy';
 export * from './adminSettingsInput';

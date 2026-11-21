@@ -45,7 +45,24 @@ export function customerEmailSenderAddress(localPart: string | null): string | n
   return `${normalized.value}@${CUSTOMER_EMAIL_SENDER_DOMAIN}`;
 }
 
-export function customerEmailSenderHeader(localPart: string | null): string | null {
+export function normalizeCustomerEmailSenderDisplayName(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const normalized = value.trim();
+  return normalized.length >= 1 &&
+    normalized.length <= 80 &&
+    !/[\u0000-\u001f\u007f-\u009f<>]/u.test(normalized)
+    ? normalized
+    : null;
+}
+
+export function customerEmailSenderHeader(
+  localPart: string | null,
+  displayName: string = CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
+): string | null {
   const address = customerEmailSenderAddress(localPart);
-  return address ? `${CUSTOMER_EMAIL_SENDER_DISPLAY_NAME} <${address}>` : null;
+  const normalizedName =
+    normalizeCustomerEmailSenderDisplayName(displayName) ??
+    CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
+  const quotedName = normalizedName.replace(/\\/g, "\\\\").replace(/"/g, '\\"');
+  return address ? `"${quotedName}" <${address}>` : null;
 }

@@ -2303,8 +2303,10 @@ export const ListAdminAuditLogsResponse = zod.object({
 
 
 /**
- * @summary Read operational funding and frozen-wallet policies
+ * @summary Read operational policies and transfer-alert sender identity
  */
+export const getAdminSettingsResponseCustomerEmailSenderDisplayNameMax = 80;
+
 export const getAdminSettingsResponseVaultPlan1mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const getAdminSettingsResponseVaultPlan3mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const getAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
@@ -2312,7 +2314,7 @@ export const getAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0-9]
 
 export const GetAdminSettingsResponse = zod.object({
   "customerEmailSenderDomain": zod.enum(['globus.website']),
-  "customerEmailSenderDisplayName": zod.enum(['GLOBUS BANK']),
+  "customerEmailSenderDisplayName": zod.string().min(1).max(getAdminSettingsResponseCustomerEmailSenderDisplayNameMax),
   "fundingLimit": zod.string(),
   "secondApprovalThreshold": zod.string(),
   "frozenIncomingPolicy": zod.enum(['allow_frozen']),
@@ -2324,8 +2326,10 @@ export const GetAdminSettingsResponse = zod.object({
 
 
 /**
- * @summary Update funding limits and approval settings
+ * @summary Update operational policies and transfer-alert display name
  */
+export const updateAdminSettingsBodyCustomerEmailSenderDisplayNameMax = 80;
+
 export const updateAdminSettingsBodyFundingLimitRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const updateAdminSettingsBodySecondApprovalThresholdRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const updateAdminSettingsBodyVaultPlan1mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
@@ -2335,6 +2339,7 @@ export const updateAdminSettingsBodyTransactionPinRegExp = new RegExp('^[0-9]{6}
 
 
 export const UpdateAdminSettingsBody = zod.object({
+  "customerEmailSenderDisplayName": zod.string().min(1).max(updateAdminSettingsBodyCustomerEmailSenderDisplayNameMax),
   "fundingLimit": zod.string().regex(updateAdminSettingsBodyFundingLimitRegExp),
   "secondApprovalThreshold": zod.string().regex(updateAdminSettingsBodySecondApprovalThresholdRegExp),
   "vaultPlan1mPrice": zod.string().regex(updateAdminSettingsBodyVaultPlan1mPriceRegExp),
@@ -2343,6 +2348,8 @@ export const UpdateAdminSettingsBody = zod.object({
   "transactionPin": zod.string().regex(updateAdminSettingsBodyTransactionPinRegExp)
 })
 
+export const updateAdminSettingsResponseCustomerEmailSenderDisplayNameMax = 80;
+
 export const updateAdminSettingsResponseVaultPlan1mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const updateAdminSettingsResponseVaultPlan3mPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
 export const updateAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0-9]{1,12}(\\.[0-9]{1,2})?$');
@@ -2350,7 +2357,7 @@ export const updateAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0
 
 export const UpdateAdminSettingsResponse = zod.object({
   "customerEmailSenderDomain": zod.enum(['globus.website']),
-  "customerEmailSenderDisplayName": zod.enum(['GLOBUS BANK']),
+  "customerEmailSenderDisplayName": zod.string().min(1).max(updateAdminSettingsResponseCustomerEmailSenderDisplayNameMax),
   "fundingLimit": zod.string(),
   "secondApprovalThreshold": zod.string(),
   "frozenIncomingPolicy": zod.enum(['allow_frozen']),

@@ -129,6 +129,7 @@ import {
 import {
   CUSTOMER_EMAIL_SENDER_DOMAIN,
   CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
+  normalizeCustomerEmailSenderDisplayName,
 } from "../lib/customer-email-sender";
 import { sendPasswordResetEmail } from "../lib/password-reset-email";
 import {
@@ -1675,6 +1676,16 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const customerEmailSenderDisplayName =
+    normalizeCustomerEmailSenderDisplayName(
+      parsed.data.customerEmailSenderDisplayName,
+    );
+  if (!customerEmailSenderDisplayName) {
+    res.status(400).json({
+      error: "Enter a display name from 1 to 80 characters without control characters or angle brackets.",
+    });
+    return;
+  }
   const clerkUserId = getAuth(req).userId;
   if (!clerkUserId) {
     res.status(401).json({ error: "Sign in to access your Globus account." });
@@ -1726,6 +1737,7 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     .insert(bankAdminSettingsTable)
     .values({
       id: "operations",
+      customerEmailSenderDisplayName,
       fundingLimit: formatMinorAmount(fundingLimitMinor),
       secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
       vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
@@ -1736,6 +1748,7 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     .onConflictDoUpdate({
       target: bankAdminSettingsTable.id,
       set: {
+        customerEmailSenderDisplayName,
         fundingLimit: formatMinorAmount(fundingLimitMinor),
         secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
         vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
@@ -1750,7 +1763,7 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     actorUserId,
     targetUserId: actorUserId,
     action: "update_admin_settings",
-    reason: `Funding cap ${settings.fundingLimit}; second approval threshold ${settings.secondApprovalThreshold}; unverified dashboard notice and Paystack Vault plan pricing updated. ${reason}`,
+    reason: `Transfer-alert display name ${settings.customerEmailSenderDisplayName}; funding cap ${settings.fundingLimit}; second approval threshold ${settings.secondApprovalThreshold}; unverified dashboard notice and Paystack Vault plan pricing updated. ${reason}`,
   });
   res.json(
     UpdateAdminSettingsResponse.parse(adminSettingsPayload(settings)),

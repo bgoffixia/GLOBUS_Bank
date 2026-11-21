@@ -6235,7 +6235,7 @@ export const getGetAdminSettingsUrl = () => {
 }
 
 /**
- * @summary Read operational funding and frozen-wallet policies
+ * @summary Read operational policies and transfer-alert sender identity
  */
 export const getAdminSettings = async ( options?: Parameters<typeof customFetch>[1]): Promise<AdminSettings> => {
 
@@ -6282,7 +6282,7 @@ export type GetAdminSettingsQueryError = ErrorType<UnauthorizedResponse | Forbid
 
 
 /**
- * @summary Read operational funding and frozen-wallet policies
+ * @summary Read operational policies and transfer-alert sender identity
  */
 
 export function useGetAdminSettings<TData = Awaited<ReturnType<typeof getAdminSettings>>, TError = ErrorType<UnauthorizedResponse | ForbiddenResponse>>(
@@ -6312,7 +6312,7 @@ export const getUpdateAdminSettingsUrl = () => {
 }
 
 /**
- * @summary Update funding limits and approval settings
+ * @summary Update operational policies and transfer-alert display name
  */
 export const updateAdminSettings = async (adminSettingsInput: AdminSettingsInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminSettings> => {
 
@@ -6378,7 +6378,7 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
     export type UpdateAdminSettingsMutationVariables = {data: BodyType<AdminSettingsInput>}
 
     /**
- * @summary Update funding limits and approval settings
+ * @summary Update operational policies and transfer-alert display name
  */
 export const useUpdateAdminSettings = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse>,
     TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateAdminSettings>>, TError,UpdateAdminSettingsMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}

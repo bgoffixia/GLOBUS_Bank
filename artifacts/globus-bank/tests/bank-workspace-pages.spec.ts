@@ -9,6 +9,10 @@ const vaultPanel = readFileSync(
   new URL('../src/components/private-vault-panel.tsx', import.meta.url),
   'utf8',
 );
+const adminWorkspace = readFileSync(
+  new URL('../src/pages/admin-workspace.tsx', import.meta.url),
+  'utf8',
+);
 
 test('landing stays illustrative and describes Globus account records accurately', () => {
   expect(pages).toContain('data-testid="landing-hero-institute-illustration"');
@@ -50,4 +54,11 @@ test('withdrawal page removes the large administrator warning without changing t
 test('wallet policies default transfers to successful when Vault access is inactive', () => {
   expect(vaultPanel).toContain('The future transfer status defaults to Successful without active Vault access.');
   expect(vaultPanel).toContain('Active access is required to view or change wallet policies.');
+});
+
+test('admin can edit the transfer-alert display name without changing the verified sender identity', () => {
+  expect(adminWorkspace).toContain('data-testid="input-transfer-alert-display-name"');
+  expect(adminWorkspace).toContain('customerEmailSenderDisplayName:');
+  expect(adminWorkspace).toContain('The verified sender address and fixed Globus domain remain unchanged');
+  expect(adminWorkspace).toContain('password and security emails keep their existing sender identity');
 });

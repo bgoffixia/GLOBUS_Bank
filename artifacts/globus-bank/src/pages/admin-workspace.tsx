@@ -985,6 +985,7 @@ function SettingsPage() {
   const [vaultPlan1mPrice, setVaultPlan1mPrice] = useState<string | null>(null);
   const [vaultPlan3mPrice, setVaultPlan3mPrice] = useState<string | null>(null);
   const [vaultPlan1yPrice, setVaultPlan1yPrice] = useState<string | null>(null);
+  const [customerEmailSenderDisplayName, setCustomerEmailSenderDisplayName] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -1000,14 +1001,19 @@ function SettingsPage() {
           vaultPlan1mPrice: vaultPlan1mPrice ?? settings.data?.vaultPlan1mPrice ?? '',
           vaultPlan3mPrice: vaultPlan3mPrice ?? settings.data?.vaultPlan3mPrice ?? '',
           vaultPlan1yPrice: vaultPlan1yPrice ?? settings.data?.vaultPlan1yPrice ?? '',
+          customerEmailSenderDisplayName:
+            customerEmailSenderDisplayName ??
+            settings.data?.customerEmailSenderDisplayName ??
+            '',
           transactionPin: pin,
         },
       });
+      setCustomerEmailSenderDisplayName(result.customerEmailSenderDisplayName);
       setVaultPlan1mPrice(result.vaultPlan1mPrice);
       setVaultPlan3mPrice(result.vaultPlan3mPrice);
       setVaultPlan1yPrice(result.vaultPlan1yPrice);
       await client.invalidateQueries({ queryKey: getGetAdminSettingsQueryKey() });
-      setMessage('Operations and Paystack plan settings saved.');
+      setMessage('Operations, transfer-alert sender name, and Vault plan settings saved.');
       setPin('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Settings could not be updated.');
@@ -1051,15 +1057,22 @@ function SettingsPage() {
         </div>
         <Panel title="Customer transfer-email identity" eyebrow="Server-managed sender">
           <div className="grid gap-3 p-5 sm:grid-cols-2">
-            <div className="rounded-xl bg-[#f2f6f1] p-4">
-              <p className="text-[9px] font-bold uppercase tracking-[.1em] text-[#7d8d8e]">Display name</p>
-              <p className="mt-2 text-[13px] font-semibold">{settings.data?.customerEmailSenderDisplayName || 'GLOBUS BANK'}</p>
-            </div>
+            <Field label="Transfer-alert display name">
+              <input
+                required
+                maxLength={80}
+                className={input}
+                value={customerEmailSenderDisplayName ?? settings.data?.customerEmailSenderDisplayName ?? ''}
+                onChange={event => setCustomerEmailSenderDisplayName(event.target.value)}
+                autoComplete="organization"
+                data-testid="input-transfer-alert-display-name"
+              />
+            </Field>
             <div className="rounded-xl bg-[#f2f6f1] p-4">
               <p className="text-[9px] font-bold uppercase tracking-[.1em] text-[#7d8d8e]">Fixed email domain</p>
               <p className="mt-2 font-mono text-[13px] font-semibold">@{settings.data?.customerEmailSenderDomain || 'globus.website'}</p>
             </div>
-            <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">Customers may choose a unique sender prefix in their Private Vault. This fixed identity applies to transfer alerts only; password and security emails keep the configured system sender. The domain must be verified with Resend before it can send.</p>
+            <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">This display name applies to customer transfer alerts only. The verified sender address and fixed Globus domain remain unchanged; password and security emails keep their existing sender identity.</p>
           </div>
         </Panel>
         <Panel title="Exchange-rate quotes" eyebrow="Current rate sources" note="Frankfurter is primary; Grey is a read-only fallback. Neither is used to move money.">

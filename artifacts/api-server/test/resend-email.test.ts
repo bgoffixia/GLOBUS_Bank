@@ -1,8 +1,10 @@
 import assert from "node:assert/strict";
+import { readFileSync } from "node:fs";
 import { test } from "node:test";
 import { sendResendEmail } from "../src/lib/resend-email";
 import {
   customerEmailSenderHeader,
+  normalizeCustomerEmailSenderDisplayName,
   normalizeCustomerEmailSenderLocalPart,
 } from "../src/lib/customer-email-sender";
 import {
@@ -31,7 +33,7 @@ test("private-data encryption readiness validates without returning the key", ()
   }
 });
 
-test("customer transfer-email senders use a unique-safe local part and fixed identity", () => {
+test("customer transfer-email sender headers use the configured name and fixed domain", () => {
   assert.deepEqual(normalizeCustomerEmailSenderLocalPart("  Jane.Doe-7 "), {
     valid: true,
     value: "jane.doe-7",
@@ -46,7 +48,62 @@ test("customer transfer-email senders use a unique-safe local part and fixed ide
   });
   assert.equal(
     customerEmailSenderHeader("jane.doe-7"),
-    "GLOBUS BANK <jane.doe-7@globus.website>",
+    '"GLOBUS BANK" <jane.doe-7@globus.website>',
+  );
+  assert.equal(
+    customerEmailSenderHeader("jane.doe-7", '  Globus "Client" Alerts  '),
+    '"Globus \\"Client\\" Alerts" <jane.doe-7@globus.website>',
+  );
+});
+
+test("transfer-alert display names are trimmed and reject header injection", () => {
+  assert.equal(
+    normalizeCustomerEmailSenderDisplayName("  Globus Client Alerts  "),
+    "Globus Client Alerts",
+  );
+  assert.equal(normalizeCustomerEmailSenderDisplayName(" "), null);
+  assert.equal(normalizeCustomerEmailSenderDisplayName("Name\r\nBcc: victim@example.test"), null);
+  assert.equal(normalizeCustomerEmailSenderDisplayName(`x${"\u007f"}y`), null);
+  assert.equal(normalizeCustomerEmailSenderDisplayName("<alerts@example.test>"), null);
+  assert.equal(normalizeCustomerEmailSenderDisplayName("x".repeat(81)), null);
+  assert.equal(
+    customerEmailSenderHeader("jane.doe-7", "Name\r\nBcc: victim@example.test"),
+    '"GLOBUS BANK" <jane.doe-7@globus.website>',
+  );
+});
+
+test("admin sender-name setting is allowlisted, persisted, audited, and used by transfer alerts", () => {
+  const adminRoutes = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  const transferAlerts = readFileSync(
+    new URL("../src/lib/transfer-notifications.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    adminRoutes,
+    /router\.put\("\/bank\/admin\/settings", requireAdmin/,
+  );
+  assert.match(
+    adminRoutes,
+    /customerEmailSenderDisplayName,\s*fundingLimit:/,
+  );
+  assert.match(
+    adminRoutes,
+    /set:\s*\{\s*customerEmailSenderDisplayName,/,
+  );
+  assert.match(
+    adminRoutes,
+    /reason:\s*`Transfer-alert display name \$\{settings\.customerEmailSenderDisplayName\}/,
+  );
+  assert.match(
+    transferAlerts,
+    /bankAdminSettingsTable\.customerEmailSenderDisplayName/,
+  );
+  assert.match(
+    transferAlerts,
+    /customerEmailSenderHeader\([\s\S]*?senderDisplayName/,
   );
 });
 

@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import {
   bankNotificationsTable,
+  bankAdminSettingsTable,
   bankPushSubscriptionsTable,
   bankUsersTable,
   db,
@@ -10,6 +11,7 @@ import { sendResendEmail } from "./resend-email";
 import {
   CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
   customerEmailSenderHeader,
+  normalizeCustomerEmailSenderDisplayName,
 } from "./customer-email-sender";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -198,6 +200,21 @@ export async function sendTransferAlertEmail(input: {
         supportLabel: string;
       }
     | undefined;
+  let senderDisplayName = CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
+  try {
+    const [settings] = await db
+      .select({
+        displayName: bankAdminSettingsTable.customerEmailSenderDisplayName,
+      })
+      .from(bankAdminSettingsTable)
+      .where(eq(bankAdminSettingsTable.id, "operations"))
+      .limit(1);
+    senderDisplayName =
+      normalizeCustomerEmailSenderDisplayName(settings?.displayName) ??
+      CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
+  } catch {
+    // Transfer alerts should remain deliverable with the established default identity.
+  }
   if (input.senderUserId) {
     try {
       [senderPreferences] = await db
@@ -218,9 +235,12 @@ export async function sendTransferAlertEmail(input: {
     }
   }
   const senderHeader =
-    customerEmailSenderHeader(senderPreferences?.senderLocalPart ?? null) ??
+    customerEmailSenderHeader(
+      senderPreferences?.senderLocalPart ?? null,
+      senderDisplayName,
+    ) ??
     (validFallbackAddress
-      ? `${CUSTOMER_EMAIL_SENDER_DISPLAY_NAME} <${validFallbackAddress}>`
+      ? `"${senderDisplayName.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}" <${validFallbackAddress}>`
       : null);
   if (!senderHeader) return false;
   const emailThemes = {

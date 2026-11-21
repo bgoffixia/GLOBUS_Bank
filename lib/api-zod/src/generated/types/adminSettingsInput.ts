@@ -7,6 +7,11 @@
  */
 
 export interface AdminSettingsInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  customerEmailSenderDisplayName: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   fundingLimit: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */

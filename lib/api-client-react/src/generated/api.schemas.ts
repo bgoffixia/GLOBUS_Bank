@@ -2298,13 +2298,6 @@ export const AdminSettingsCustomerEmailSenderDomain = {
   globuswebsite: 'globus.website',
 } as const;
 
-export type AdminSettingsCustomerEmailSenderDisplayName = typeof AdminSettingsCustomerEmailSenderDisplayName[keyof typeof AdminSettingsCustomerEmailSenderDisplayName];
-
-
-export const AdminSettingsCustomerEmailSenderDisplayName = {
-  GLOBUS_BANK: 'GLOBUS BANK',
-} as const;
-
 export type AdminSettingsFrozenIncomingPolicy = typeof AdminSettingsFrozenIncomingPolicy[keyof typeof AdminSettingsFrozenIncomingPolicy];
 
 
@@ -2314,7 +2307,11 @@ export const AdminSettingsFrozenIncomingPolicy = {
 
 export interface AdminSettings {
   customerEmailSenderDomain: AdminSettingsCustomerEmailSenderDomain;
-  customerEmailSenderDisplayName: AdminSettingsCustomerEmailSenderDisplayName;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  customerEmailSenderDisplayName: string;
   fundingLimit: string;
   secondApprovalThreshold: string;
   frozenIncomingPolicy: AdminSettingsFrozenIncomingPolicy;
@@ -2328,6 +2325,11 @@ export interface AdminSettings {
 }
 
 export interface AdminSettingsInput {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  customerEmailSenderDisplayName: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   fundingLimit: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */

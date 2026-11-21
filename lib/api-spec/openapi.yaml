@@ -1476,7 +1476,7 @@ paths:
     get:
       operationId: getAdminSettings
       tags: [admin]
-      summary: Read operational funding and frozen-wallet policies
+      summary: Read operational policies and transfer-alert sender identity
       responses:
         "200":
           description: Current operational settings
@@ -1488,7 +1488,7 @@ paths:
     put:
       operationId: updateAdminSettings
       tags: [admin]
-      summary: Update funding limits and approval settings
+      summary: Update operational policies and transfer-alert display name
       requestBody:
         required: true
         content:
@@ -3474,7 +3474,7 @@ components:
       type: object
       properties:
         customerEmailSenderDomain: { type: string, enum: [globus.website] }
-        customerEmailSenderDisplayName: { type: string, enum: ["GLOBUS BANK"] }
+        customerEmailSenderDisplayName: { type: string, minLength: 1, maxLength: 80 }
         fundingLimit: { type: string }
         secondApprovalThreshold: { type: string }
         frozenIncomingPolicy: { type: string, enum: [allow_frozen] }
@@ -3486,13 +3486,14 @@ components:
     AdminSettingsInput:
       type: object
       properties:
+        customerEmailSenderDisplayName: { type: string, minLength: 1, maxLength: 80 }
         fundingLimit: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         secondApprovalThreshold: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan1mPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan3mPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         vaultPlan1yPrice: { type: string, pattern: "^[0-9]{1,12}(\\.[0-9]{1,2})?$" }
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }
-      required: [fundingLimit, secondApprovalThreshold, vaultPlan1mPrice, vaultPlan3mPrice, vaultPlan1yPrice, transactionPin]
+      required: [customerEmailSenderDisplayName, fundingLimit, secondApprovalThreshold, vaultPlan1mPrice, vaultPlan3mPrice, vaultPlan1yPrice, transactionPin]
     AdminTransactionPage:
       type: object
       properties:

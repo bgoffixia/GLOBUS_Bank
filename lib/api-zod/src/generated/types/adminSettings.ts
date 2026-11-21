@@ -5,13 +5,16 @@
  * Globus internal ledger API; no external financial provider is connected
  * OpenAPI spec version: 0.1.0
  */
-import type { AdminSettingsCustomerEmailSenderDisplayName } from './adminSettingsCustomerEmailSenderDisplayName';
 import type { AdminSettingsCustomerEmailSenderDomain } from './adminSettingsCustomerEmailSenderDomain';
 import type { AdminSettingsFrozenIncomingPolicy } from './adminSettingsFrozenIncomingPolicy';
 
 export interface AdminSettings {
   customerEmailSenderDomain: AdminSettingsCustomerEmailSenderDomain;
-  customerEmailSenderDisplayName: AdminSettingsCustomerEmailSenderDisplayName;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  customerEmailSenderDisplayName: string;
   fundingLimit: string;
   secondApprovalThreshold: string;
   frozenIncomingPolicy: AdminSettingsFrozenIncomingPolicy;

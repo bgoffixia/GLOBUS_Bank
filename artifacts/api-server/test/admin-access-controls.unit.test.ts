@@ -5,6 +5,7 @@ import express from "express";
 import { test } from "node:test";
 import {
   AssignAdminUserAccountTierBody,
+  UpdateAdminSettingsBody,
   UpdateAdminUserAccessControlsBody,
 } from "@workspace/api-zod";
 import { setPasswordResetCache } from "../src/lib/password-reset";
@@ -161,6 +162,7 @@ test("access-control route denies anonymous and non-allowlisted users before dat
     assert.ok(address && typeof address !== "string");
     const endpoint = `http://127.0.0.1:${address.port}/api/bank/admin/users/member-1/access-controls`;
     const tierEndpoint = `http://127.0.0.1:${address.port}/api/bank/admin/users/member-1/account-tier`;
+    const settingsEndpoint = `http://127.0.0.1:${address.port}/api/bank/admin/settings`;
     const body = {
       testingModeDisabled: true,
       transferAccessGranted: true,
@@ -209,6 +211,36 @@ test("access-control route denies anonymous and non-allowlisted users before dat
         await sendTier(adminId, {
           ...validTierBody,
           adminAccountTier: "unsupported",
+        })
+      ).status,
+      400,
+    );
+    const sendSettings = (userId: string | null, payload: Record<string, unknown>) =>
+      fetch(settingsEndpoint, {
+        method: "PUT",
+        headers: {
+          "content-type": "application/json",
+          ...(userId ? { "x-test-user-id": userId } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+    const settingsBody = {
+      customerEmailSenderDisplayName: "Globus Client Alerts",
+      fundingLimit: "100000.00",
+      secondApprovalThreshold: "50000.00",
+      vaultPlan1mPrice: "12000.00",
+      vaultPlan3mPrice: "22000.00",
+      vaultPlan1yPrice: "79000.00",
+      transactionPin: "482731",
+    };
+    assert.equal(UpdateAdminSettingsBody.safeParse(settingsBody).success, true);
+    assert.equal((await sendSettings(null, settingsBody)).status, 401);
+    assert.equal((await sendSettings(ordinaryUserId, settingsBody)).status, 403);
+    assert.equal(
+      (
+        await sendSettings(adminId, {
+          ...settingsBody,
+          customerEmailSenderDisplayName: "Alerts\r\nBcc: outsider@example.test",
         })
       ).status,
       400,
