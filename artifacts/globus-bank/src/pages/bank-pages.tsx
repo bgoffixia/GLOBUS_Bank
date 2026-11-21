@@ -275,7 +275,7 @@ export function DashboardPage() {
         <p className="min-w-0 flex-1"><strong className="font-bold">{t('Testing Mode')}</strong> · {t('Private Vault is inactive. Set it up and choose a subscription to unlock its services.')}</p>
         <Link href="/private-vault" data-testid="link-dashboard-setup-vault" className="shrink-0 font-bold text-[#315f63] underline underline-offset-2">{t('Set up Private Vault')}</Link>
       </div>}
-      <section data-testid="dashboard-sticky-balance" className="balance-panel sticky top-0 z-10 min-w-0 self-start overflow-hidden rounded-[16px] p-3 text-white sm:p-3.5">
+      <section data-testid="dashboard-sticky-balance" className="balance-panel sticky top-0 z-10 min-w-0 w-full overflow-hidden rounded-[16px] p-3 text-white sm:p-3.5">
           <div className="absolute -right-10 -top-12 h-48 w-48 rounded-full border border-white/[.08]" />
           <div className="absolute -right-2 -top-5 h-32 w-32 rounded-full border border-white/[.08]" />
           <div className="relative flex items-start justify-between gap-4">

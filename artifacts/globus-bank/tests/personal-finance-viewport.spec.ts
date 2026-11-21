@@ -4,6 +4,7 @@ const viewports = [
   { name: "320px mobile", width: 320, height: 740 },
   { name: "360px mobile", width: 360, height: 780 },
   { name: "390px mobile", width: 390, height: 844 },
+  { name: "450px mobile", width: 450, height: 975 },
   { name: "tablet", width: 768, height: 1024 },
   { name: "desktop", width: 1440, height: 900 },
 ];
@@ -258,8 +259,34 @@ test.describe("personal finance responsive workspace", () => {
       ]);
       expect(mainBox).not.toBeNull();
       expect(stickyBalanceBox).not.toBeNull();
+      expect(stickyBalanceBox!.x).toBeGreaterThanOrEqual(mainBox!.x - 1);
+      expect(stickyBalanceBox!.x + stickyBalanceBox!.width).toBeLessThanOrEqual(
+        Math.min(mainBox!.x + mainBox!.width, viewport.width) + 1,
+      );
       expect(stickyBalanceBox!.y).toBeGreaterThanOrEqual(mainBox!.y - 1);
       expect(stickyBalanceBox!.y).toBeLessThanOrEqual(mainBox!.y + 24);
+
+      const dashboardSummaryScroller = page.getByTestId("dashboard-workspace").getByTestId("dashboard-ledger-summary-scroll");
+      const dashboardSummaryState = await dashboardSummaryScroller.evaluate((element) => ({
+        overflowY: getComputedStyle(element).overflowY,
+        scrollHeight: element.scrollHeight,
+        clientHeight: element.clientHeight,
+      }));
+      expect(dashboardSummaryState.overflowY).toBe("auto");
+      expect(dashboardSummaryState.scrollHeight).toBeGreaterThan(dashboardSummaryState.clientHeight);
+      await dashboardSummaryScroller.evaluate((element) => {
+        element.scrollTop = element.scrollHeight;
+      });
+      const lastDashboardSummary = await page
+        .getByTestId("dashboard-workspace")
+        .getByTestId("dashboard-ledger-CAD-9011")
+        .boundingBox();
+      const dashboardSummaryBox = await dashboardSummaryScroller.boundingBox();
+      expect(lastDashboardSummary).not.toBeNull();
+      expect(dashboardSummaryBox).not.toBeNull();
+      expect(lastDashboardSummary!.y + lastDashboardSummary!.height).toBeLessThanOrEqual(
+        dashboardSummaryBox!.y + dashboardSummaryBox!.height + 1,
+      );
 
       const ledgerScroller = page.getByTestId("dashboard-ledger-scroll");
       const ledgerState = await ledgerScroller.evaluate((element) => ({

@@ -36,11 +36,15 @@ test('transfer workspace uses the available width and allows the page to scroll 
 test('dashboard keeps the balance card sticky and scrolls long ledger sections internally', () => {
   expect(dashboard).toContain('data-testid="dashboard-workspace" className="flex min-h-full w-full flex-col"');
   expect(dashboard).toContain('data-testid="dashboard-sticky-balance" className="balance-panel sticky top-0');
+  expect(dashboard).toContain('min-w-0 w-full overflow-hidden');
   expect(dashboard).toContain('data-testid="dashboard-content-grid" className="mt-2 grid min-h-0 min-w-0 flex-1');
   expect(financeWidget).toContain('data-testid="dashboard-ledger-scroll"');
+  expect(financeWidget).toContain('data-testid="dashboard-ledger-summary-scroll"');
   expect(appStyles).toContain('.dashboard-ledger-scroll');
   expect(appStyles).toContain('overflow-y: auto');
   expect(appStyles).toContain('max-height: min(44dvh, 20rem)');
+  expect(appStyles).toContain('.dashboard-ledger-summary-scroll');
+  expect(appStyles).toContain('max-height: min(34dvh, 15rem)');
   expect(shell).toContain('isDashboard ? \'min-h-full pb-24');
 });
 
