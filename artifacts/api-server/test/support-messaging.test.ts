@@ -81,9 +81,14 @@ test("support message contracts trim to bounded non-empty content and expose no 
     SendBankSupportMessageBody.safeParse({ body: "A".repeat(4001) }).success,
     false,
   );
+  const withForgedRole = SendBankSupportMessageBody.safeParse({
+    body: "Reply",
+    senderRole: "admin",
+  });
+  assert.equal(withForgedRole.success, true);
   assert.equal(
-    SendBankSupportMessageBody.safeParse({ body: "Reply", senderRole: "admin" }).success,
-    true,
+    withForgedRole.success && "senderRole" in withForgedRole.data,
+    false,
   );
 });
 
@@ -109,7 +114,7 @@ test("customer handlers enforce owner scope and message rate limits", () => {
   assert.match(routes, /router\.post\(\s*"\/bank\/support\/conversations",\s*supportMessageLimiter/);
   assert.match(routes, /router\.post\(\s*"\/bank\/support\/conversations\/:conversationId\/messages",\s*supportMessageLimiter/);
   assert.match(routes, /eq\(bankSupportConversationsTable\.userId,\s*user\.id\)/);
-  assert.match(routes, /markBankSupportConversationRead/);
+  assert.match(routes, /router\.post\(\s*"\/bank\/support\/conversations\/:conversationId\/read"/);
   assert.match(customerRoutes, /where\(eq\(bankSupportConversationsTable\.userId, user\.id\)\)/);
 });
 
@@ -137,5 +142,9 @@ test("unauthenticated customers and non-allowlisted users are rejected before da
   await serve(authenticatedApp(adminRouter, memberId), async (baseUrl) => {
     const response = await fetch(`${baseUrl}/bank/admin/support/conversations`);
     assert.equal(response.status, 403);
+    const access = await fetch(`${baseUrl}/bank/admin/access`);
+    assert.equal(access.status, 200);
+    assert.match(access.headers.get("cache-control") ?? "", /no-store/i);
+    assert.equal((await access.json() as { allowed: boolean }).allowed, false);
   });
 });

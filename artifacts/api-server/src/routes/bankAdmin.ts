@@ -544,6 +544,7 @@ function respondWithTransactionPinError(
 }
 
 router.get("/bank/admin/access", requireSignedIn, async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const userId = getAuth(req).userId;
   let allowed = false;
   if (userId) {

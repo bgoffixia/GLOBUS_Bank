@@ -17,6 +17,12 @@ const toaster = source('../src/components/ui/toaster.tsx');
 const notificationCenter = source('../src/components/notifications-center.tsx');
 const transferRoutes = source('../../api-server/src/routes/bank.ts');
 const notificationDelivery = source('../../api-server/src/lib/transfer-notifications.ts');
+const vault = source('../src/components/private-vault-panel.tsx');
+const support = source('../src/components/support-messaging.tsx');
+const app = source('../src/App.tsx');
+const adminSupportRoutes = source('../../api-server/src/routes/bankAdmin.ts');
+const customerSupportRoutes = source('../../api-server/src/routes/bank.ts');
+const contactPage = source('../src/pages/bank-pages.tsx');
 
 test('transfer workspace uses the available width and allows the page to scroll vertically', () => {
   expect(shell).toContain("isDashboard || isTransfer ? 'max-w-none px-3 sm:px-6'");
@@ -77,4 +83,38 @@ test('new in-app notices toast while transfer push delivery remains wired', () =
   expect(notificationCenter).toContain('title: newest.title');
   expect(transferRoutes).toContain('void sendPushToUser(notification.userId, notification)');
   expect(notificationDelivery).toContain('https://api.webpushr.com/v1/notification/send/sid');
+});
+
+test('Vault fills the page and keeps long service content in its internal scroller', () => {
+  expect(appStyles).toContain('.vault-unlocked-shell');
+  expect(appStyles).toContain('grid-template-rows: auto auto minmax(0, 1fr)');
+  expect(appStyles).toContain('.vault-page-content');
+  expect(appStyles).toContain('overflow-y: auto');
+  expect(vault).toContain('data-testid="vault-readonly-preview-banner"');
+  expect(vault).toContain('data-testid={`vault-wallet-policy-preview-${wallet.id}`}');
+  expect(vault).toContain('Read-only preview. Defaults are examples, not your saved policies.');
+  expect(vault).toContain('required to load saved choices and make changes');
+  expect(vault).toContain('disabled={!vaultAccessActive}');
+});
+
+test('inactive Vault access previews services while keeping changes disabled', () => {
+  expect(vault).toContain('Preview only. Your saved settings load after you have an active subscription or administrator grant.');
+  expect(vault).toContain('Preview only. Saved alert choices load after you have an active subscription or administrator grant.');
+  expect(vault).toContain('Private notes are available with Vault access');
+  expect(vault).toContain('button-save-receipt-preference');
+  expect(vault).toContain('disabled={!canSaveReceiptPreference(vaultSessionActive, vaultAccessActive)');
+  expect(vault).toContain('accessActive');
+});
+
+test('support pages are routed, owned, allowlisted, audited, and refresh messages live', () => {
+  expect(app).toContain('path="/support"');
+  expect(app).toContain('path="/admin/support"');
+  expect(support).toContain('refetchInterval: 5000');
+  expect(support).toContain('refetchInterval: 15000');
+  expect(support).toContain('useListBankSupportConversations');
+  expect(support).toContain('useListAdminSupportConversations');
+  expect(customerSupportRoutes).toContain('eq(bankSupportConversationsTable.userId, user.id)');
+  expect(adminSupportRoutes).toContain('action: "support_reply"');
+  expect(adminSupportRoutes).toContain('requireAdmin');
+  expect(contactPage).toContain('Globus support cannot complete, trace, or reverse payments made outside this product.');
 });

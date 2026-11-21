@@ -52,8 +52,9 @@ test('withdrawal page removes the large administrator warning without changing t
 });
 
 test('wallet policies default transfers to successful when Vault access is inactive', () => {
-  expect(vaultPanel).toContain('The future transfer status defaults to Successful without active Vault access.');
-  expect(vaultPanel).toContain('Active access is required to view or change wallet policies.');
+  expect(vaultPanel).toContain('Read-only preview. Defaults are examples, not your saved policies.');
+  expect(vaultPanel).toContain('Future transfer requests');
+  expect(vaultPanel).toContain('<option value="successful">Successful</option>');
 });
 
 test('admin can edit the transfer-alert display name without changing the verified sender identity', () => {

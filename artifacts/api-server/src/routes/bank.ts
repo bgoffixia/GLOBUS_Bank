@@ -2850,6 +2850,7 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
 });
 
 router.get("/bank/vault/status", async (req, res): Promise<void> => {
+  res.setHeader("Cache-Control", "no-store");
   const authUserId = getAuth(req).userId;
   if (!authUserId) {
     res.status(401).json({ error: "Sign in to access your Globus account." });
