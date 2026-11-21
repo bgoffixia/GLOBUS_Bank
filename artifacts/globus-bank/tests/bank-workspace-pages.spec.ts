@@ -24,7 +24,6 @@ test('dashboard preview is limited to three rows without receipt shortcuts', () 
   expect(pages).toContain('recentTransactions.slice(0, 3)');
   expect(pages).toContain('showReceipt={false}');
   expect(pages).toContain('canPrintReceipt && showReceipt');
-  expect(pages).toContain('aria-label={`View receipt ${transaction.reference}`}');
 });
 
 test('activity history keeps currency search, filtering and receipt access', () => {

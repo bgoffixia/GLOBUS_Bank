@@ -323,6 +323,7 @@ test.describe('Globus sign-up design', () => {
         'Username',
         'Email address',
         'Password',
+        'Address',
         'Country of origin',
         'City of origin',
         'Date of birth',
@@ -332,6 +333,7 @@ test.describe('Globus sign-up design', () => {
       const form = page.locator('form.gb-signup-form');
       await expect(form).toHaveCount(1);
       for (const field of [
+        'input-signup-address',
         'input-signup-country',
         'input-signup-city',
         'input-signup-date-of-birth',

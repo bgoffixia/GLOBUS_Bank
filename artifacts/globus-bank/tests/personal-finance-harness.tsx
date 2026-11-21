@@ -2,6 +2,7 @@ import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Router } from "wouter";
+import { LanguageProvider } from "../src/lib/i18n";
 import { DashboardPage } from "../src/pages/bank-pages";
 import { CompactExpenseTracker, PersonalFinancePage } from "../src/pages/personal-finance/personal-finance";
 import "../src/index.css";
@@ -28,7 +29,9 @@ if (!root) throw new Error("Personal finance viewport harness root is missing.")
 createRoot(root).render(
   <StrictMode>
     <QueryClientProvider client={queryClient}>
-      <PersonalFinanceViewportHarness />
+      <LanguageProvider>
+        <PersonalFinanceViewportHarness />
+      </LanguageProvider>
     </QueryClientProvider>
   </StrictMode>,
 );
