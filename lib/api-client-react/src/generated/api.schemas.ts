@@ -655,6 +655,12 @@ export interface BankVaultPasscodeInput {
   passcode: string;
 }
 
+export interface BankVaultUnlockInput {
+  /** @pattern ^[0-9]{4}$ */
+  passcode: string;
+  rememberDevice?: boolean;
+}
+
 export interface BankVaultPasscodeUpdateInput {
   /** @pattern ^[0-9]{4}$ */
   newPasscode: string;
@@ -664,9 +670,42 @@ export interface BankVaultSession {
   /**
      * @minLength 32
      * @maxLength 128
+     * @nullable
      */
-  sessionToken: string;
+  sessionToken: string | null;
   expiresAt: string;
+  rememberedDevice: boolean;
+}
+
+export interface BankVaultSessionStatus {
+  active: boolean;
+  /** @nullable */
+  expiresAt: string | null;
+}
+
+export const BankVaultSessionLockResultValue = {
+  locked: true,
+} as const;
+export type BankVaultSessionLockResult = typeof BankVaultSessionLockResultValue;
+
+export type BankVaultIncompleteSubscriptionClearResultSubscriptionStatus = typeof BankVaultIncompleteSubscriptionClearResultSubscriptionStatus[keyof typeof BankVaultIncompleteSubscriptionClearResultSubscriptionStatus];
+
+
+export const BankVaultIncompleteSubscriptionClearResultSubscriptionStatus = {
+  inactive: 'inactive',
+} as const;
+
+export type BankVaultIncompleteSubscriptionClearResultPaymentStatus = typeof BankVaultIncompleteSubscriptionClearResultPaymentStatus[keyof typeof BankVaultIncompleteSubscriptionClearResultPaymentStatus];
+
+
+export const BankVaultIncompleteSubscriptionClearResultPaymentStatus = {
+  none: 'none',
+} as const;
+
+export interface BankVaultIncompleteSubscriptionClearResult {
+  cleared: boolean;
+  subscriptionStatus: BankVaultIncompleteSubscriptionClearResultSubscriptionStatus;
+  paymentStatus: BankVaultIncompleteSubscriptionClearResultPaymentStatus;
 }
 
 export type BankVaultWalletControlFutureTransferMode = typeof BankVaultWalletControlFutureTransferMode[keyof typeof BankVaultWalletControlFutureTransferMode];

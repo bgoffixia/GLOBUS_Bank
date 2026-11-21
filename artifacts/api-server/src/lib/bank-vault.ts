@@ -4,7 +4,7 @@ import {
   scrypt,
   timingSafeEqual,
 } from "node:crypto";
-import { and, eq, gt, inArray, lte } from "drizzle-orm";
+import { and, eq, gt, inArray, lte, or } from "drizzle-orm";
 import {
   bankUsersTable,
   bankVaultAdminEntitlementsTable,
@@ -12,11 +12,11 @@ import {
   db,
 } from "@workspace/db";
 import { getVaultSubscriptionPlan } from "./vault-subscription";
+import { vaultSessionDurationMs } from "./vault-session-policy";
 
 const KEY_LENGTH = 64;
 const MAX_FAILED_ATTEMPTS = 5;
 const LOCK_DURATION_MS = 15 * 60 * 1000;
-const SESSION_DURATION_MS = 15 * 60 * 1000;
 
 export type VaultPasscodeResult =
   | "valid"
@@ -360,6 +360,7 @@ export async function initializeVaultPasscode(
 export async function unlockVault(
   userId: string,
   passcode: string,
+  options: { rememberDevice?: boolean; previousSessionToken?: string } = {},
 ): Promise<
   | { result: "valid"; sessionToken: string; expiresAt: Date }
   | { result: Exclude<VaultPasscodeResult, "valid"> }
@@ -406,11 +407,25 @@ export async function unlockVault(
       .where(
         and(
           eq(bankVaultSessionsTable.userId, userId),
-          lte(bankVaultSessionsTable.expiresAt, now),
+          or(
+            lte(bankVaultSessionsTable.expiresAt, now),
+            ...(options.previousSessionToken
+              ? [
+                  eq(
+                    bankVaultSessionsTable.tokenHash,
+                    createHash("sha256")
+                      .update(options.previousSessionToken)
+                      .digest("hex"),
+                  ),
+                ]
+              : []),
+          ),
         ),
       );
     const sessionToken = randomBytes(32).toString("base64url");
-    const expiresAt = new Date(now.getTime() + SESSION_DURATION_MS);
+    const expiresAt = new Date(
+      now.getTime() + vaultSessionDurationMs(options.rememberDevice === true),
+    );
     await tx.insert(bankVaultSessionsTable).values({
       userId,
       tokenHash: createHash("sha256").update(sessionToken).digest("hex"),
@@ -444,6 +459,44 @@ export async function isVaultPasscodeSessionValid(
   sessionToken: string,
 ): Promise<boolean> {
   return hasValidVaultPasscodeSession(userId, sessionToken);
+}
+
+export async function getVaultPasscodeSessionExpiry(
+  userId: string,
+  sessionToken: string,
+): Promise<Date | null> {
+  if (!sessionToken) return null;
+  const tokenHash = createHash("sha256").update(sessionToken).digest("hex");
+  const [session] = await db
+    .select({ expiresAt: bankVaultSessionsTable.expiresAt })
+    .from(bankVaultSessionsTable)
+    .where(
+      and(
+        eq(bankVaultSessionsTable.userId, userId),
+        eq(bankVaultSessionsTable.tokenHash, tokenHash),
+        gt(bankVaultSessionsTable.expiresAt, new Date()),
+      ),
+    )
+    .limit(1);
+  return session?.expiresAt ?? null;
+}
+
+export async function revokeVaultPasscodeSession(
+  userId: string,
+  sessionToken: string,
+): Promise<boolean> {
+  if (!sessionToken) return false;
+  const tokenHash = createHash("sha256").update(sessionToken).digest("hex");
+  const [session] = await db
+    .delete(bankVaultSessionsTable)
+    .where(
+      and(
+        eq(bankVaultSessionsTable.userId, userId),
+        eq(bankVaultSessionsTable.tokenHash, tokenHash),
+      ),
+    )
+    .returning({ id: bankVaultSessionsTable.id });
+  return !!session;
 }
 
 export async function isVaultSessionActive(

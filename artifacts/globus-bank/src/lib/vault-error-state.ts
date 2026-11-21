@@ -1,17 +1,17 @@
 export function canLoadVaultPrivateData(
-  sessionToken: string,
+  sessionActive: boolean,
   accessActive: boolean | null | undefined,
 ): boolean {
-  return sessionToken.trim().length > 0 && accessActive === true;
+  return sessionActive && accessActive === true;
 }
 
 export function isVaultSessionActive(
-  sessionToken: string,
+  sessionActive: boolean,
   expiresAt: string,
   now = Date.now(),
 ): boolean {
   const expiryTime = Date.parse(expiresAt);
-  return sessionToken.trim().length > 0 && Number.isFinite(expiryTime) && expiryTime > now;
+  return sessionActive && Number.isFinite(expiryTime) && expiryTime > now;
 }
 
 export function isVaultSessionRejected(error: unknown): boolean {

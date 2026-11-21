@@ -153,7 +153,7 @@ export const getBankVaultBillingHeaderXGlobusVaultSessionMax = 128;
 
 
 export const GetBankVaultBillingHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(getBankVaultBillingHeaderXGlobusVaultSessionMin).max(getBankVaultBillingHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(getBankVaultBillingHeaderXGlobusVaultSessionMin).max(getBankVaultBillingHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const getBankVaultBillingResponsePlansItemPriceMinorRegExp = new RegExp('^[0-9]+$');
@@ -185,7 +185,7 @@ export const initializeBankVaultPaystackPaymentHeaderXGlobusVaultSessionMax = 12
 
 
 export const InitializeBankVaultPaystackPaymentHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(initializeBankVaultPaystackPaymentHeaderXGlobusVaultSessionMin).max(initializeBankVaultPaystackPaymentHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(initializeBankVaultPaystackPaymentHeaderXGlobusVaultSessionMin).max(initializeBankVaultPaystackPaymentHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const InitializeBankVaultPaystackPaymentBody = zod.object({
@@ -212,7 +212,7 @@ export const verifyBankVaultPaystackPaymentHeaderXGlobusVaultSessionMax = 128;
 
 
 export const VerifyBankVaultPaystackPaymentHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(verifyBankVaultPaystackPaymentHeaderXGlobusVaultSessionMin).max(verifyBankVaultPaystackPaymentHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(verifyBankVaultPaystackPaymentHeaderXGlobusVaultSessionMin).max(verifyBankVaultPaystackPaymentHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const verifyBankVaultPaystackPaymentBodyReferenceMax = 100;
@@ -253,7 +253,7 @@ export const emailBankVaultPaystackRenewalManagementLinkHeaderXGlobusVaultSessio
 
 
 export const EmailBankVaultPaystackRenewalManagementLinkHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(emailBankVaultPaystackRenewalManagementLinkHeaderXGlobusVaultSessionMin).max(emailBankVaultPaystackRenewalManagementLinkHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(emailBankVaultPaystackRenewalManagementLinkHeaderXGlobusVaultSessionMin).max(emailBankVaultPaystackRenewalManagementLinkHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const EmailBankVaultPaystackRenewalManagementLinkResponse = zod.object({
@@ -295,7 +295,7 @@ export const listBankVaultTransactionNotesHeaderXGlobusVaultSessionMax = 128;
 
 
 export const ListBankVaultTransactionNotesHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(listBankVaultTransactionNotesHeaderXGlobusVaultSessionMin).max(listBankVaultTransactionNotesHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(listBankVaultTransactionNotesHeaderXGlobusVaultSessionMin).max(listBankVaultTransactionNotesHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const listBankVaultTransactionNotesResponseNoteMax = 500;
@@ -325,7 +325,7 @@ export const updateBankVaultTransactionNoteHeaderXGlobusVaultSessionMax = 128;
 
 
 export const UpdateBankVaultTransactionNoteHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(updateBankVaultTransactionNoteHeaderXGlobusVaultSessionMin).max(updateBankVaultTransactionNoteHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(updateBankVaultTransactionNoteHeaderXGlobusVaultSessionMin).max(updateBankVaultTransactionNoteHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const updateBankVaultTransactionNoteBodyNoteMax = 500;
@@ -362,7 +362,7 @@ export const deleteBankVaultTransactionNoteHeaderXGlobusVaultSessionMax = 128;
 
 
 export const DeleteBankVaultTransactionNoteHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(deleteBankVaultTransactionNoteHeaderXGlobusVaultSessionMin).max(deleteBankVaultTransactionNoteHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(deleteBankVaultTransactionNoteHeaderXGlobusVaultSessionMin).max(deleteBankVaultTransactionNoteHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const DeleteBankVaultTransactionNoteResponse = zod.object({
@@ -380,7 +380,7 @@ export const getBankVaultEmailPreferencesHeaderXGlobusVaultSessionMax = 128;
 
 
 export const GetBankVaultEmailPreferencesHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(getBankVaultEmailPreferencesHeaderXGlobusVaultSessionMin).max(getBankVaultEmailPreferencesHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(getBankVaultEmailPreferencesHeaderXGlobusVaultSessionMin).max(getBankVaultEmailPreferencesHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const getBankVaultEmailPreferencesResponseBannerHeadlineMax = 60;
@@ -419,7 +419,7 @@ export const updateBankVaultEmailPreferencesHeaderXGlobusVaultSessionMax = 128;
 
 
 export const UpdateBankVaultEmailPreferencesHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(updateBankVaultEmailPreferencesHeaderXGlobusVaultSessionMin).max(updateBankVaultEmailPreferencesHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(updateBankVaultEmailPreferencesHeaderXGlobusVaultSessionMin).max(updateBankVaultEmailPreferencesHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const updateBankVaultEmailPreferencesBodyBannerHeadlineMax = 60;
@@ -482,7 +482,7 @@ export const getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax = 128;
 
 
 export const GetBankVaultReceiptPreferenceHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin).max(getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin).max(getBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const GetBankVaultReceiptPreferenceResponse = zod.object({
@@ -499,7 +499,7 @@ export const updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax = 128;
 
 
 export const UpdateBankVaultReceiptPreferenceHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin).max(updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMin).max(updateBankVaultReceiptPreferenceHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const UpdateBankVaultReceiptPreferenceBody = zod.object({
@@ -515,10 +515,11 @@ export const UpdateBankVaultReceiptPreferenceResponse = zod.object({
  * @summary Authenticate to the private customer vault
  */
 export const unlockBankVaultBodyPasscodeRegExp = new RegExp('^[0-9]{4}$');
-
+export const unlockBankVaultBodyRememberDeviceDefault = false;
 
 export const UnlockBankVaultBody = zod.object({
-  "passcode": zod.string().regex(unlockBankVaultBodyPasscodeRegExp)
+  "passcode": zod.string().regex(unlockBankVaultBodyPasscodeRegExp),
+  "rememberDevice": zod.boolean().default(unlockBankVaultBodyRememberDeviceDefault)
 })
 
 export const unlockBankVaultResponseSessionTokenMin = 32;
@@ -527,8 +528,54 @@ export const unlockBankVaultResponseSessionTokenMax = 128;
 
 
 export const UnlockBankVaultResponse = zod.object({
-  "sessionToken": zod.string().min(unlockBankVaultResponseSessionTokenMin).max(unlockBankVaultResponseSessionTokenMax),
-  "expiresAt": zod.coerce.date()
+  "sessionToken": zod.string().min(unlockBankVaultResponseSessionTokenMin).max(unlockBankVaultResponseSessionTokenMax).nullable(),
+  "expiresAt": zod.coerce.date(),
+  "rememberedDevice": zod.boolean()
+})
+
+
+/**
+ * @summary Restore the current device's remembered Vault session
+ */
+export const GetBankVaultSessionResponse = zod.object({
+  "active": zod.boolean(),
+  "expiresAt": zod.coerce.date().nullable()
+})
+
+
+/**
+ * @summary Revoke and clear the current device's Vault session
+ */
+export const lockBankVaultSessionHeaderXGlobusVaultSessionMin = 32;
+export const lockBankVaultSessionHeaderXGlobusVaultSessionMax = 128;
+
+
+
+export const LockBankVaultSessionHeader = zod.object({
+  "X-Globus-Vault-Session": zod.string().min(lockBankVaultSessionHeaderXGlobusVaultSessionMin).max(lockBankVaultSessionHeaderXGlobusVaultSessionMax).optional()
+})
+
+export const LockBankVaultSessionResponse = zod.object({
+  "locked": zod.literal(true)
+})
+
+
+/**
+ * @summary Expire the authenticated user's verified-unpaid Vault checkout attempt
+ */
+export const clearIncompleteBankVaultSubscriptionHeaderXGlobusVaultSessionMin = 32;
+export const clearIncompleteBankVaultSubscriptionHeaderXGlobusVaultSessionMax = 128;
+
+
+
+export const ClearIncompleteBankVaultSubscriptionHeader = zod.object({
+  "X-Globus-Vault-Session": zod.string().min(clearIncompleteBankVaultSubscriptionHeaderXGlobusVaultSessionMin).max(clearIncompleteBankVaultSubscriptionHeaderXGlobusVaultSessionMax).optional()
+})
+
+export const ClearIncompleteBankVaultSubscriptionResponse = zod.object({
+  "cleared": zod.boolean(),
+  "subscriptionStatus": zod.enum(['inactive']),
+  "paymentStatus": zod.enum(['none'])
 })
 
 
@@ -541,7 +588,7 @@ export const updateBankVaultPasscodeHeaderXGlobusVaultSessionMax = 128;
 
 
 export const UpdateBankVaultPasscodeHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(updateBankVaultPasscodeHeaderXGlobusVaultSessionMin).max(updateBankVaultPasscodeHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(updateBankVaultPasscodeHeaderXGlobusVaultSessionMin).max(updateBankVaultPasscodeHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const updateBankVaultPasscodeBodyNewPasscodeRegExp = new RegExp('^[0-9]{4}$');
@@ -581,7 +628,7 @@ export const listBankVaultWalletControlsHeaderXGlobusVaultSessionMax = 128;
 
 
 export const ListBankVaultWalletControlsHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(listBankVaultWalletControlsHeaderXGlobusVaultSessionMin).max(listBankVaultWalletControlsHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(listBankVaultWalletControlsHeaderXGlobusVaultSessionMin).max(listBankVaultWalletControlsHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const ListBankVaultWalletControlsResponseItem = zod.object({
@@ -608,7 +655,7 @@ export const updateBankVaultWalletControlHeaderXGlobusVaultSessionMax = 128;
 
 
 export const UpdateBankVaultWalletControlHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(updateBankVaultWalletControlHeaderXGlobusVaultSessionMin).max(updateBankVaultWalletControlHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(updateBankVaultWalletControlHeaderXGlobusVaultSessionMin).max(updateBankVaultWalletControlHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const UpdateBankVaultWalletControlBody = zod.object({
@@ -692,7 +739,7 @@ export const updateBankPushPreferencesHeaderXGlobusVaultSessionMax = 128;
 
 
 export const UpdateBankPushPreferencesHeader = zod.object({
-  "X-Globus-Vault-Session": zod.string().min(updateBankPushPreferencesHeaderXGlobusVaultSessionMin).max(updateBankPushPreferencesHeaderXGlobusVaultSessionMax)
+  "X-Globus-Vault-Session": zod.string().min(updateBankPushPreferencesHeaderXGlobusVaultSessionMin).max(updateBankPushPreferencesHeaderXGlobusVaultSessionMax).optional()
 })
 
 export const UpdateBankPushPreferencesBody = zod.object({

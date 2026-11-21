@@ -10,6 +10,7 @@ import {
   getGetBankVaultBillingQueryKey,
   getGetBankVaultEmailPreferencesQueryKey,
   getGetBankVaultReceiptPreferenceQueryKey,
+  getGetBankVaultSessionQueryKey,
   getGetBankVaultStatusQueryKey,
   getGetBankPushConfigQueryKey,
   getGetBankPushPreferencesQueryKey,
@@ -23,6 +24,7 @@ import {
   useGetBankVaultBilling,
   useGetBankVaultEmailPreferences,
   useGetBankVaultReceiptPreference,
+  useGetBankVaultSession,
   useGetBankVaultStatus,
   useEmailBankVaultPaystackRenewalManagementLink,
   useInitializeBankVaultPaystackPayment,
@@ -32,6 +34,8 @@ import {
   useListBankVaultWalletControls,
   useSaveBankPushSubscription,
   useUnlockBankVault,
+  useLockBankVaultSession,
+  useClearIncompleteBankVaultSubscription,
   useUpdateBankPushPreferences,
   useUpdateBankVaultEmailPreferences,
   useUpdateBankVaultReceiptPreference,
@@ -96,11 +100,27 @@ export function PrivateVaultPanel() {
   const { user } = useUser();
   const { t } = useLanguage();
   const status = useGetBankVaultStatus({ query: { queryKey: getGetBankVaultStatusQueryKey(), retry: false, refetchInterval: 60_000 } });
+  const rememberedSession = useGetBankVaultSession({
+    query: {
+      queryKey: getGetBankVaultSessionQueryKey(),
+      retry: false,
+      refetchOnWindowFocus: true,
+      staleTime: 0,
+    },
+  });
   const initialize = useInitializeBankVaultPasscode();
   const unlock = useUnlockBankVault();
   const [sessionToken, setSessionToken] = useState('');
+  const [rememberedDeviceSession, setRememberedDeviceSession] = useState(false);
   const [expiresAt, setExpiresAt] = useState('');
   const [passcode, setPasscode] = useState('');
+  const [rememberDevice, setRememberDevice] = useState(false);
+  const lockSession = useLockBankVaultSession({
+    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+  });
+  const clearIncompleteSubscription = useClearIncompleteBankVaultSubscription({
+    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+  });
   const [newPasscode, setNewPasscode] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -150,9 +170,10 @@ export function PrivateVaultPanel() {
     { id: 'vault-personal-notes', label: 'Personal notes', icon: FileText, requiresUnlock: true },
     { id: 'vault-email-preferences', label: 'Email preferences', icon: ReceiptText, requiresUnlock: true },
   ] as const;
-  const vaultSessionActive = isVaultSessionActive(sessionToken, expiresAt);
+  const sessionCredentialActive = sessionToken.length > 0 || rememberedDeviceSession;
+  const vaultSessionActive = isVaultSessionActive(sessionCredentialActive, expiresAt);
   const privateVaultDataEnabled = vaultSessionActive && canLoadVaultPrivateData(
-    sessionToken,
+    vaultSessionActive,
     status.data?.accessActive,
   );
   const billing = useGetBankVaultBilling({
@@ -287,20 +308,30 @@ export function PrivateVaultPanel() {
     return () => window.removeEventListener('keydown', closeOnEscape);
   }, [mobileNavigationOpen]);
   useEffect(() => {
+    if (sessionToken) return;
+    if (rememberedSession.data?.active && rememberedSession.data.expiresAt) {
+      setRememberedDeviceSession(true);
+      setExpiresAt(rememberedSession.data.expiresAt);
+    } else if (rememberedSession.data?.active === false) {
+      setRememberedDeviceSession(false);
+      setExpiresAt('');
+    }
+  }, [rememberedSession.data, sessionToken]);
+  useEffect(() => {
     if (!receiptPreference.data) return;
     setPreferredReceiptTemplate(receiptPreference.data.preferredReceiptTemplate);
   }, [receiptPreference.data]);
   useEffect(() => {
-    const hasPreferenceAccess = canSaveReceiptPreference(sessionToken, !!status.data?.accessActive);
+    const hasPreferenceAccess = canSaveReceiptPreference(vaultSessionActive, !!status.data?.accessActive);
     if (shouldClearSavedReceiptSelection(
       receiptPreferenceWasAuthorized.current,
-      sessionToken,
+      vaultSessionActive,
       !!status.data?.accessActive,
     )) {
       setPreferredReceiptTemplate('standard');
     }
     receiptPreferenceWasAuthorized.current = hasPreferenceAccess;
-  }, [sessionToken, status.data?.accessActive]);
+  }, [status.data?.accessActive, vaultSessionActive]);
   useEffect(() => {
     if (!selectedTransactionId && transactions.data?.length) {
       setSelectedTransactionId(transactions.data[0].id);
@@ -313,14 +344,14 @@ export function PrivateVaultPanel() {
     setPrivateNoteDraft(selectedTransactionNote?.note ?? '');
   }, [selectedTransactionId, selectedTransactionNote?.note]);
   useEffect(() => {
-    if (sessionToken) return;
+    if (vaultSessionActive) return;
     void queryClient.cancelQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
     queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
     setSelectedTransactionId('');
     setPrivateNoteDraft('');
-  }, [queryClient, sessionToken]);
+  }, [queryClient, vaultSessionActive]);
   useEffect(() => {
-    if (!sessionToken || !expiresAt) return;
+    if (!vaultSessionActive || !expiresAt) return;
     const remaining = Date.parse(expiresAt) - Date.now();
     if (remaining <= 0) {
       queryClient.removeQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
@@ -330,7 +361,9 @@ export function PrivateVaultPanel() {
       queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
       queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
       setSessionToken('');
+      setRememberedDeviceSession(false);
       setExpiresAt('');
+      queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
       setReceiptPreview(null);
       setReceiptPreviewIsIllustrative(false);
       setSelectedTransactionId('');
@@ -352,7 +385,9 @@ export function PrivateVaultPanel() {
       queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
       queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
       setSessionToken('');
+        setRememberedDeviceSession(false);
       setExpiresAt('');
+        queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
       setReceiptPreview(null);
       setReceiptPreviewIsIllustrative(false);
       setSelectedTransactionId('');
@@ -361,7 +396,7 @@ export function PrivateVaultPanel() {
       setSubscriptionStep('closed');
     }, remaining);
     return () => window.clearTimeout(timeout);
-  }, [expiresAt, queryClient, sessionToken]);
+  }, [expiresAt, queryClient, vaultSessionActive]);
   useEffect(() => {
     if (status.data?.accessActive !== false) return;
     const privateQueryKeys = [
@@ -393,9 +428,15 @@ export function PrivateVaultPanel() {
         setPasscode('');
         setMessage('Vault passcode set. Unlock to view plans and Vault settings.');
       } else {
-        const result = await unlock.mutateAsync({ data: { passcode } });
-        setSessionToken(result.sessionToken);
+        const result = await unlock.mutateAsync({ data: { passcode, rememberDevice } });
+        setSessionToken(result.sessionToken ?? '');
+        setRememberedDeviceSession(result.rememberedDevice);
         setExpiresAt(result.expiresAt);
+        setRememberDevice(false);
+        queryClient.setQueryData(getGetBankVaultSessionQueryKey(), {
+          active: result.rememberedDevice,
+          expiresAt: result.rememberedDevice ? result.expiresAt : null,
+        });
         setPasscode('');
         await queryClient.invalidateQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
         await queryClient.invalidateQueries({ queryKey: getGetBankVaultBillingQueryKey() });
@@ -420,7 +461,9 @@ export function PrivateVaultPanel() {
       await updatePasscode.mutateAsync({ data: { newPasscode } });
       setNewPasscode('');
       setSessionToken('');
+      setRememberedDeviceSession(false);
       setExpiresAt('');
+      queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
       setSubscriptionStep('closed');
       void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
       void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
@@ -441,7 +484,14 @@ export function PrivateVaultPanel() {
       setError(err instanceof Error ? err.message : 'Vault passcode could not be updated.');
     }
   };
-  const lockVault = () => {
+  const lockVault = async () => {
+    setError('');
+    try {
+      await lockSession.mutateAsync();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'This device could not be locked.');
+      return;
+    }
     void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
     void queryClient.cancelQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
@@ -454,7 +504,9 @@ export function PrivateVaultPanel() {
     queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
     queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
     setSessionToken('');
+    setRememberedDeviceSession(false);
     setExpiresAt('');
+    queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
     setPasscode('');
     setNewPasscode('');
     setSelectedTransactionId('');
@@ -463,9 +515,26 @@ export function PrivateVaultPanel() {
     setReceiptPreviewIsIllustrative(false);
     setMobileNavigationOpen(false);
     setSubscriptionStep('closed');
+    setMessage('Vault locked on this device.');
+  };
+  const clearIncompleteSubscriptionAttempt = async () => {
+    setError('');
+    setMessage('');
+    try {
+      const result = await clearIncompleteSubscription.mutateAsync();
+      setMessage(result.cleared
+        ? 'The unpaid subscription attempt was cleared. You can start again.'
+        : 'There is no incomplete subscription attempt to clear.');
+      await Promise.all([
+        queryClient.invalidateQueries({ queryKey: getGetBankVaultStatusQueryKey() }),
+        queryClient.invalidateQueries({ queryKey: getGetBankVaultBillingQueryKey() }),
+      ]);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'The incomplete subscription could not be cleared safely.');
+    }
   };
   useEffect(() => {
-    if (!sessionToken) return;
+    if (!vaultSessionActive) return;
     const rejected = [
       controls.error,
       emailPreferences.error,
@@ -487,7 +556,9 @@ export function PrivateVaultPanel() {
     queryClient.removeQueries({ queryKey: getListBankVaultTransactionNotesQueryKey() });
     queryClient.removeQueries({ queryKey: getListBankTransactionsQueryKey({ limit: 100 }) });
     setSessionToken('');
+    setRememberedDeviceSession(false);
     setExpiresAt('');
+    queryClient.setQueryData(getGetBankVaultSessionQueryKey(), { active: false, expiresAt: null });
     setSubscriptionStep('closed');
     setReceiptPreview(null);
     setReceiptPreviewIsIllustrative(false);
@@ -497,12 +568,13 @@ export function PrivateVaultPanel() {
     setMessage('');
     setError('Your Vault session expired or access changed. Unlock it again to continue.');
     void queryClient.invalidateQueries({ queryKey: getGetBankVaultStatusQueryKey() });
+    void queryClient.invalidateQueries({ queryKey: getGetBankVaultSessionQueryKey() });
   }, [
     controls.error,
     emailPreferences.error,
     receiptPreference.error,
     queryClient,
-    sessionToken,
+    vaultSessionActive,
     transactionNotes.error,
   ]);
   const startPaystackCheckout = async () => {
@@ -563,7 +635,7 @@ export function PrivateVaultPanel() {
     : '';
   useEffect(() => {
     if (
-      !sessionToken ||
+      !vaultSessionActive ||
       !callbackReference ||
       !status.data?.paymentReference ||
       callbackReference !== status.data.paymentReference ||
@@ -571,7 +643,7 @@ export function PrivateVaultPanel() {
     ) return;
     paymentCallbackHandled.current = callbackReference;
     void checkPaystackPayment(callbackReference);
-  }, [sessionToken, callbackReference, status.data?.paymentReference]);
+  }, [vaultSessionActive, callbackReference, status.data?.paymentReference]);
   const submitEmailPreferences = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
@@ -602,7 +674,7 @@ export function PrivateVaultPanel() {
   const submitReceiptPreference = async () => {
     setError('');
     setMessage('');
-    if (!canSaveReceiptPreference(sessionToken, !!status.data?.accessActive)) {
+    if (!canSaveReceiptPreference(vaultSessionActive, !!status.data?.accessActive)) {
       setError('Active Private Vault access is required to save a receipt layout.');
       return;
     }
@@ -618,7 +690,7 @@ export function PrivateVaultPanel() {
   };
   const savePrivateTransactionNote = async () => {
     if (
-      !sessionToken ||
+      !vaultSessionActive ||
       !vaultAccessActive ||
       !selectedTransactionId ||
       !privateNoteDraft.trim()
@@ -637,7 +709,7 @@ export function PrivateVaultPanel() {
     }
   };
   const removePrivateTransactionNote = async () => {
-    if (!sessionToken || !vaultAccessActive || !selectedTransactionId || !selectedTransactionNote) return;
+    if (!vaultSessionActive || !vaultAccessActive || !selectedTransactionId || !selectedTransactionNote) return;
     setError('');
     setMessage('');
     try {
@@ -731,7 +803,7 @@ export function PrivateVaultPanel() {
     }
   };
   const changeControl = async (control: BankVaultWalletControl, input: Partial<BankVaultWalletControl>) => {
-    if (!sessionToken || !status.data?.accessActive || busyWallet) return;
+    if (!vaultSessionActive || !status.data?.accessActive || busyWallet) return;
     setBusyWallet(control.walletId);
     setError('');
     setMessage('');
@@ -804,6 +876,7 @@ export function PrivateVaultPanel() {
               {status.data?.configured ? 'Unlock your Private Vault' : 'Set up your Private Vault'}
             </h2>
             {status.isLoading && <div className="mt-5 h-12 animate-pulse rounded-lg bg-[#f0f4f6]" aria-label="Checking Vault passcode setup" />}
+            {rememberedSession.isLoading && status.data?.configured && <p className="mt-3 text-[9px] text-[#718397]" role="status">Checking this device’s Vault session…</p>}
             {status.isError && (
               <div className="mt-5 flex flex-wrap items-center justify-between gap-3 rounded-lg border border-[#eadfda] bg-[#fff8f6] px-3 py-3 text-[10px] text-[#a24940]" role="alert">
                 <span>Vault status is unavailable.</span>
@@ -818,10 +891,14 @@ export function PrivateVaultPanel() {
                 <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-setup" className="h-9 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50">{initialize.isPending ? 'Setting up…' : 'Set up Vault'}</button>
               </form>
             )}
-            {!status.isLoading && !status.isError && status.data?.configured === true && (
+            {!status.isLoading && !status.isError && !rememberedSession.isLoading && status.data?.configured === true && (
               <form onSubmit={submitPasscode} className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end" data-testid="form-vault-unlock">
                 <label className="min-w-0 flex-1 text-[10px] font-bold text-[#5c7085]">
                   <input aria-label="Vault passcode" required pattern="[0-9]{4}" inputMode="numeric" autoComplete="current-password" maxLength={4} value={passcode} onChange={event => setPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-unlock-passcode" />
+                </label>
+                <label className="inline-flex min-h-9 items-center gap-2 text-[9px] font-semibold text-[#526b7d]" data-testid="label-remember-vault-device">
+                  <input type="checkbox" checked={rememberDevice} onChange={event => setRememberDevice(event.target.checked)} className="h-4 w-4 accent-[#2f777b]" data-testid="checkbox-remember-vault-device" />
+                  Remember this device for 7 days
                 </label>
                 <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-unlock" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50"><LockKeyhole size={13} />{unlock.isPending ? 'Unlocking…' : 'Unlock Vault'}</button>
               </form>
@@ -845,7 +922,7 @@ export function PrivateVaultPanel() {
           <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain" aria-label="Vault workspace navigation">
             {vaultNavigation.map(item => {
               const Icon = item.icon;
-              const disabled = !sessionToken && item.requiresUnlock;
+              const disabled = !vaultSessionActive && item.requiresUnlock;
               return <button key={item.id} type="button" disabled={disabled} aria-current={activeNavigation === item.id ? 'page' : undefined} title={disabled ? 'Unlock your Vault to open this section' : undefined} onClick={() => navigateToSection(item.id)} className={`flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[9px] font-semibold transition ${activeNavigation === item.id ? 'bg-white/12 text-[#f1dc98]' : 'text-[#d5e2e1] hover:bg-white/[.07]'} disabled:cursor-not-allowed disabled:opacity-45`}><Icon size={14} />{item.label}{disabled && <LockKeyhole size={11} className="ml-auto" />}</button>;
             })}
           </nav>
@@ -870,11 +947,11 @@ export function PrivateVaultPanel() {
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
-            {status.data?.autoRenew && sessionToken && <button type="button" disabled={!status.data.renewalManagementReady || billingBusy} onClick={() => void requestRenewalManagementLink()} className="h-9 rounded-lg border border-[#d8e2df] bg-white px-3 text-[9px] font-bold text-[#456b6b] disabled:opacity-50" data-testid="button-vault-renewal-management">
+            {status.data?.autoRenew && vaultSessionActive && <button type="button" disabled={!status.data.renewalManagementReady || billingBusy} onClick={() => void requestRenewalManagementLink()} className="h-9 rounded-lg border border-[#d8e2df] bg-white px-3 text-[9px] font-bold text-[#456b6b] disabled:opacity-50" data-testid="button-vault-renewal-management">
               {emailRenewalManagementLink.isPending ? 'Sending link…' : 'Manage renewal'}
             </button>}
             {!vaultAccessActive && <button type="button" disabled={status.isLoading || status.isError} onClick={() => {
-              if (!sessionToken) {
+              if (!vaultSessionActive) {
                 setMessage('Unlock your Vault first to choose or manage a subscription.');
                 navigateToSection('vault-overview');
               } else if (checkoutPending) {
@@ -886,7 +963,13 @@ export function PrivateVaultPanel() {
                   setLocation('/private-vault/subscription');
               }
             }} data-testid="button-vault-subscription-primary" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[9px] font-bold text-white transition hover:bg-[#214b70] disabled:opacity-50">
-              {sessionToken ? checkoutPending ? 'Verify payment' : 'Choose a plan' : 'Unlock to manage'} <ArrowRight size={13} />
+              {vaultSessionActive ? checkoutPending ? 'Verify payment' : 'Choose a plan' : 'Unlock to manage'} <ArrowRight size={13} />
+            </button>}
+            {!vaultAccessActive && vaultSessionActive && (
+              ["pending", "failed"].includes(status.data?.paymentStatus ?? "") ||
+              status.data?.subscriptionStatus === "pending"
+            ) && <button type="button" onClick={() => void clearIncompleteSubscriptionAttempt()} disabled={clearIncompleteSubscription.isPending} data-testid="button-clear-incomplete-vault-subscription" className="h-9 rounded-lg border border-[#e3d9c6] bg-white px-3 text-[9px] font-bold text-[#806c4c] disabled:opacity-50">
+              {clearIncompleteSubscription.isPending ? 'Checking payment…' : 'Clear incomplete attempt'}
             </button>}
             {vaultAccessActive && <span className="inline-flex items-center gap-1.5 rounded-full border border-[#d7e7dc] bg-[#f1f8f2] px-3 py-2 text-[9px] font-bold text-[#49765f]"><ShieldCheck size={13} /> Access active</span>}
           </div>
@@ -902,7 +985,7 @@ export function PrivateVaultPanel() {
               </label>
               <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-setup" className="h-9 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50">{initialize.isPending ? 'Setting up…' : 'Set up vault'}</button>
             </form>
-          ) : !sessionToken ? (
+          ) : !vaultSessionActive ? (
             <form onSubmit={submitPasscode} className="mt-4 flex flex-col gap-2 sm:flex-row sm:items-end" data-testid="form-vault-unlock">
                 <label className="min-w-0 flex-1 text-[9px] font-bold text-[#5c7085]">
                 <input aria-label="Vault passcode" required pattern="[0-9]{4}" inputMode="numeric" autoComplete="current-password" maxLength={4} value={passcode} onChange={event => setPasscode(event.target.value.replace(/\D/g, '').slice(0, 4))} className={`${fieldClass} mt-1`} data-testid="input-vault-unlock-passcode" />

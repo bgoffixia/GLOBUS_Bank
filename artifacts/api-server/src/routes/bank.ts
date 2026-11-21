@@ -1,4 +1,4 @@
-import { Router, type IRouter, type RequestHandler, type Response } from "express";
+import { Router, type IRouter, type Request, type RequestHandler, type Response } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import { rateLimit } from "express-rate-limit";
 import { randomUUID } from "node:crypto";
@@ -31,6 +31,7 @@ import {
   GetBankPushConfigResponse,
   GetBankPushPreferencesResponse,
   GetBankVaultStatusResponse,
+  GetBankVaultSessionResponse,
   GetBankVaultTransferEmailAlertResponse,
   InitializeBankVaultPaystackPaymentBody,
   InitializeBankVaultPaystackPaymentHeader,
@@ -88,6 +89,8 @@ import {
   UpdateBankPushPreferencesResponse,
   UnlockBankVaultBody,
   UnlockBankVaultResponse,
+  LockBankVaultSessionResponse,
+  ClearIncompleteBankVaultSubscriptionResponse,
   MarkBankNotificationReadParams,
   MarkBankNotificationReadResponse,
   SaveBankPushSubscriptionBody,
@@ -185,6 +188,8 @@ import {
   isVaultTestingMode,
   isVaultPasscodeSessionValid,
   isVaultSessionActive,
+  getVaultPasscodeSessionExpiry,
+  revokeVaultPasscodeSession,
   normalizeFutureTransferMode,
   resolveFutureTransferStatus,
   unlockVault,
@@ -192,6 +197,12 @@ import {
   vaultTransferEmailAlertsEnabled,
   vaultSubscriptionStatus,
 } from "../lib/bank-vault";
+import {
+  classifyIncompleteVaultAttempt,
+  VAULT_DEVICE_COOKIE_NAME,
+  VAULT_DEVICE_COOKIE_PATH,
+  VAULT_REMEMBERED_SESSION_DURATION_MS,
+} from "../lib/vault-session-policy";
 import { decryptPrivateData, encryptPrivateData } from "../lib/private-data";
 import {
   normalizeSupportLabel,
@@ -206,6 +217,22 @@ import {
 } from "../lib/transfer-notifications";
 
 const router: IRouter = Router();
+const vaultDeviceCookieOptions = () => ({
+  httpOnly: true,
+  sameSite: "strict" as const,
+  secure: process.env.NODE_ENV === "production",
+  path: VAULT_DEVICE_COOKIE_PATH,
+});
+
+function clearVaultDeviceCookie(res: Response): void {
+  res.clearCookie(VAULT_DEVICE_COOKIE_NAME, vaultDeviceCookieOptions());
+}
+
+function getVaultDeviceCookieToken(req: Request): string {
+  const cookies = (req as Request & { cookies?: Record<string, unknown> }).cookies;
+  const token = cookies?.[VAULT_DEVICE_COOKIE_NAME];
+  return typeof token === "string" ? token : "";
+}
 const customerIdLookupLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 8,
@@ -585,6 +612,225 @@ router.post(
 );
 
 router.use("/bank", requireSignedIn);
+router.use("/bank", (req, _res, next): void => {
+  if (req.get("X-Globus-Vault-Session")) {
+    next();
+    return;
+  }
+  const cookieToken = getVaultDeviceCookieToken(req);
+  if (cookieToken) req.headers["x-globus-vault-session"] = cookieToken;
+  next();
+});
+
+router.get("/bank/vault/session", async (req, res): Promise<void> => {
+  const authUserId = getAuth(req).userId;
+  if (!authUserId) {
+    res.status(401).json({ error: "Sign in to access your Globus account." });
+    return;
+  }
+  const token = getVaultDeviceCookieToken(req);
+  if (!token) {
+    res.json(GetBankVaultSessionResponse.parse({ active: false, expiresAt: null }));
+    return;
+  }
+  const user = await getOrCreateBankUser(authUserId);
+  const expiresAt = await getVaultPasscodeSessionExpiry(user.id, token);
+  if (!expiresAt) {
+    clearVaultDeviceCookie(res);
+    res.json(GetBankVaultSessionResponse.parse({ active: false, expiresAt: null }));
+    return;
+  }
+  res.setHeader("Cache-Control", "no-store");
+  res.json(
+    GetBankVaultSessionResponse.parse({
+      active: true,
+      expiresAt: expiresAt.toISOString(),
+    }),
+  );
+});
+
+router.post("/bank/vault/session/lock", async (req, res): Promise<void> => {
+  const authUserId = getAuth(req).userId;
+  if (!authUserId) {
+    res.status(401).json({ error: "Sign in to access your Globus account." });
+    return;
+  }
+  const token = req.get("X-Globus-Vault-Session") ?? "";
+  if (token) {
+    const user = await getOrCreateBankUser(authUserId);
+    await revokeVaultPasscodeSession(user.id, token);
+  }
+  clearVaultDeviceCookie(res);
+  res.json(LockBankVaultSessionResponse.parse({ locked: true }));
+});
+
+router.post(
+  "/bank/vault/subscription/clear-incomplete",
+  vaultSubscriptionRequestLimiter,
+  async (req, res): Promise<void> => {
+    const authUserId = getAuth(req).userId;
+    if (!authUserId) {
+      res.status(401).json({ error: "Sign in to manage your Private Vault subscription." });
+      return;
+    }
+    const sessionToken = req.get("X-Globus-Vault-Session") ?? "";
+    const user = await getOrCreateBankUser(authUserId);
+    if (!(await isVaultPasscodeSessionValid(user.id, sessionToken))) {
+      res.status(403).json({ error: "Unlock your Private Vault before clearing an unfinished checkout." });
+      return;
+    }
+
+    const initialClassification = classifyIncompleteVaultAttempt({
+      subscriptionStatus: vaultSubscriptionStatus(
+        user.vaultSubscriptionStatus,
+        user.vaultSubscriptionExpiresAt,
+      ),
+      paymentStatus: user.vaultSubscriptionPaymentStatus,
+      paymentReference: user.vaultSubscriptionPaymentReference,
+      paymentVerifiedAt: user.vaultSubscriptionPaymentVerifiedAt,
+      autoRenew: user.vaultSubscriptionAutoRenew,
+      providerSubscriptionCode: user.vaultPaystackSubscriptionCode,
+    });
+    let confirmedUnpaidReference: string | null = null;
+    if (initialClassification === "protected") {
+      res.status(409).json({
+        error: "An active or verified Vault subscription cannot be cleared.",
+      });
+      return;
+    }
+    if (initialClassification === "verify_with_paystack") {
+      const secretKey = getPaystackSecretKey();
+      const reference = user.vaultSubscriptionPaymentReference;
+      if (!secretKey || !reference) {
+        res.status(503).json({
+          error: "Payment status cannot be confirmed right now. Your attempt was not changed.",
+        });
+        return;
+      }
+      let payment;
+      try {
+        payment = await verifyPaystackVaultCheckout({ secretKey, reference });
+      } catch (error) {
+        req.log.error({ error }, "Could not verify an unfinished Vault checkout before clearing it");
+        res.status(503).json({
+          error: "Payment status cannot be confirmed right now. Your attempt was not changed.",
+        });
+        return;
+      }
+      if (
+        payment.amount !== Number(user.vaultSubscriptionAmountMinor) ||
+        payment.currency !== "NGN" ||
+        payment.metadata?.userId !== user.id ||
+        payment.metadata?.planCode !== user.vaultSubscriptionPlan ||
+        String(payment.metadata?.autoRenew) !== String(user.vaultSubscriptionAutoRenew)
+      ) {
+        req.log.warn({ reference }, "Vault checkout details did not match before cleanup");
+        res.status(409).json({
+          error: "The checkout could not be safely matched to this account. Your attempt was not changed.",
+        });
+        return;
+      }
+      if (!["failed", "abandoned"].includes(payment.status)) {
+        res.status(409).json({
+          error: payment.status === "success"
+            ? "Paystack reports a completed payment. Verify it to activate Vault access."
+            : "Paystack is still processing this payment. Check again before clearing it.",
+        });
+        return;
+      }
+      confirmedUnpaidReference = reference;
+    } else if (initialClassification === "none") {
+      res.json(
+        ClearIncompleteBankVaultSubscriptionResponse.parse({
+          cleared: false,
+          subscriptionStatus: "inactive",
+          paymentStatus: "none",
+        }),
+      );
+      return;
+    }
+
+    const clearResult = await db.transaction(async (tx) => {
+      const [lockedUser] = await tx
+        .select()
+        .from(bankUsersTable)
+        .where(eq(bankUsersTable.id, user.id))
+        .for("update");
+      if (!lockedUser) return "missing" as const;
+      if (
+        confirmedUnpaidReference &&
+        lockedUser.vaultSubscriptionPaymentReference !== confirmedUnpaidReference
+      ) {
+        return "changed" as const;
+      }
+      const classification = classifyIncompleteVaultAttempt({
+        subscriptionStatus: vaultSubscriptionStatus(
+          lockedUser.vaultSubscriptionStatus,
+          lockedUser.vaultSubscriptionExpiresAt,
+        ),
+        paymentStatus: lockedUser.vaultSubscriptionPaymentStatus,
+        paymentReference: lockedUser.vaultSubscriptionPaymentReference,
+        paymentVerifiedAt: lockedUser.vaultSubscriptionPaymentVerifiedAt,
+        autoRenew: lockedUser.vaultSubscriptionAutoRenew,
+        providerSubscriptionCode: lockedUser.vaultPaystackSubscriptionCode,
+      });
+      if (
+        classification === "protected" ||
+        classification === "verify_with_paystack" ||
+        classification === "none"
+      ) {
+        return "changed" as const;
+      }
+      const now = new Date();
+      await tx
+        .update(bankUsersTable)
+        .set({
+          vaultSubscriptionStatus: "inactive",
+          vaultSubscriptionRequestedAt: null,
+          vaultSubscriptionReviewedAt: null,
+          vaultSubscriptionReviewedByUserId: null,
+          vaultSubscriptionReason: null,
+          vaultSubscriptionExpiresAt: null,
+          vaultSubscriptionPlan: null,
+          vaultSubscriptionAmountMinor: null,
+          vaultSubscriptionPaymentReference: null,
+          vaultSubscriptionPaymentStatus: "none",
+          vaultSubscriptionPaymentInitializedAt: null,
+          vaultSubscriptionPaymentVerifiedAt: null,
+          vaultSubscriptionAutoRenew: false,
+          vaultPaystackPlanCode: null,
+          vaultPaystackSubscriptionCode: null,
+          vaultPaystackCustomerCode: null,
+          updatedAt: now,
+        })
+        .where(eq(bankUsersTable.id, user.id));
+      await tx.insert(bankAuditLogsTable).values({
+        actorUserId: user.id,
+        targetUserId: user.id,
+        action: "clear_incomplete_private_vault_subscription",
+        reason: "Member cleared an unfinished, unpaid Private Vault subscription attempt.",
+      });
+      return "cleared" as const;
+    });
+    if (clearResult === "missing") {
+      res.status(404).json({ error: "The Globus account could not be found." });
+      return;
+    }
+    if (clearResult === "changed") {
+      res.status(409).json({
+        error: "The subscription changed while it was being checked. Refresh its status and try again.",
+      });
+      return;
+    }
+    res.json(
+      ClearIncompleteBankVaultSubscriptionResponse.parse({
+        cleared: true,
+        subscriptionStatus: "inactive",
+        paymentStatus: "none",
+      }),
+    );
+  },
+);
 router.post("/bank/me/password-reset/complete", passwordResetLimiter, async (req, res): Promise<void> => {
   const userId = getAuth(req).userId;
   if (!userId) {
@@ -3251,7 +3497,11 @@ router.post(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
-    const result = await unlockVault(user.id, parsed.data.passcode);
+    const rememberDevice = parsed.data.rememberDevice === true;
+    const result = await unlockVault(user.id, parsed.data.passcode, {
+      rememberDevice,
+      previousSessionToken: getVaultDeviceCookieToken(req) || undefined,
+    });
     if (result.result !== "valid") {
       if (result.result === "not_configured") {
         res.status(409).json({ error: "Set up a private vault passcode first." });
@@ -3264,10 +3514,24 @@ router.post(
       }
       return;
     }
+    if (rememberDevice) {
+      res.cookie(
+        VAULT_DEVICE_COOKIE_NAME,
+        result.sessionToken,
+        {
+          ...vaultDeviceCookieOptions(),
+          maxAge: VAULT_REMEMBERED_SESSION_DURATION_MS,
+        },
+      );
+    } else {
+      clearVaultDeviceCookie(res);
+    }
+    res.setHeader("Cache-Control", "no-store");
     res.json(
       UnlockBankVaultResponse.parse({
-        sessionToken: result.sessionToken,
+        sessionToken: rememberDevice ? null : result.sessionToken,
         expiresAt: result.expiresAt.toISOString(),
+        rememberedDevice: rememberDevice,
       }),
     );
   },
@@ -3300,6 +3564,7 @@ router.patch(
       res.status(403).json({ error: "Your private vault session expired. Unlock it again." });
       return;
     }
+    clearVaultDeviceCookie(res);
     await db.insert(bankAuditLogsTable).values({
       actorUserId: user.id,
       targetUserId: user.id,

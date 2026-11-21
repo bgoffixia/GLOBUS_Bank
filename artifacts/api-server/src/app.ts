@@ -3,6 +3,7 @@ import path from "node:path";
 import { clerkMiddleware } from "@clerk/express";
 import { publishableKeyFromHost } from "@clerk/shared/keys";
 import { rateLimit } from "express-rate-limit";
+import cookieParser from "cookie-parser";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -45,6 +46,7 @@ app.use(
   }),
 );
 app.use(CLERK_PROXY_PATH, clerkProxyMiddleware());
+app.use(cookieParser());
 app.use(express.json({
   verify(req, _res, buffer) {
     if (req.url?.split("?")[0] === "/api/bank/vault/paystack/webhook") {

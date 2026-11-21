@@ -133,7 +133,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       responses:
         "200":
@@ -151,7 +151,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       requestBody:
         required: true
@@ -177,7 +177,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       requestBody:
         required: true
@@ -203,7 +203,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       responses:
         "200":
@@ -262,7 +262,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       responses:
         "200":
@@ -287,7 +287,7 @@ paths:
           schema: { type: string, format: uuid }
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       requestBody:
         required: true
@@ -316,7 +316,7 @@ paths:
           schema: { type: string, format: uuid }
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       responses:
         "200":
@@ -335,7 +335,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       responses:
         "200":
@@ -352,7 +352,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       requestBody:
         required: true
@@ -377,7 +377,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       responses:
         "200":
@@ -394,7 +394,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       requestBody:
         required: true
@@ -420,16 +420,65 @@ paths:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/BankVaultPasscodeInput" }
+            schema: { $ref: "#/components/schemas/BankVaultUnlockInput" }
       responses:
         "200":
-          description: Short-lived vault session
+          description: Short-lived session or seven-day remembered-device session
           content:
             application/json:
               schema: { $ref: "#/components/schemas/BankVaultSession" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "403": { $ref: "#/components/responses/Forbidden" }
         "429": { $ref: "#/components/responses/TooManyRequests" }
+  /bank/vault/session:
+    get:
+      operationId: getBankVaultSession
+      tags: [bank]
+      summary: Restore the current device's remembered Vault session
+      responses:
+        "200":
+          description: Remembered device session state
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankVaultSessionStatus" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bank/vault/session/lock:
+    post:
+      operationId: lockBankVaultSession
+      tags: [bank]
+      summary: Revoke and clear the current device's Vault session
+      parameters:
+        - name: X-Globus-Vault-Session
+          in: header
+          required: false
+          schema: { type: string, minLength: 32, maxLength: 128 }
+      responses:
+        "200":
+          description: Current device session revoked
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankVaultSessionLockResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bank/vault/subscription/clear-incomplete:
+    post:
+      operationId: clearIncompleteBankVaultSubscription
+      tags: [bank]
+      summary: Expire the authenticated user's verified-unpaid Vault checkout attempt
+      parameters:
+        - name: X-Globus-Vault-Session
+          in: header
+          required: false
+          schema: { type: string, minLength: 32, maxLength: 128 }
+      responses:
+        "200":
+          description: Incomplete checkout cleared
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankVaultIncompleteSubscriptionClearResult" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
   /bank/vault/passcode:
     patch:
       operationId: updateBankVaultPasscode
@@ -438,7 +487,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       requestBody:
         required: true
@@ -463,7 +512,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       responses:
         "200":
@@ -487,7 +536,7 @@ paths:
           schema: { type: string, format: uuid }
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       requestBody:
         required: true
@@ -566,7 +615,7 @@ paths:
       parameters:
         - name: X-Globus-Vault-Session
           in: header
-          required: true
+          required: false
           schema: { type: string, minLength: 32, maxLength: 128 }
       requestBody:
         required: true
@@ -2490,6 +2539,12 @@ components:
       properties:
         passcode: { type: string, pattern: "^[0-9]{4}$" }
       required: [passcode]
+    BankVaultUnlockInput:
+      type: object
+      properties:
+        passcode: { type: string, pattern: "^[0-9]{4}$" }
+        rememberDevice: { type: boolean, default: false }
+      required: [passcode]
     BankVaultPasscodeUpdateInput:
       type: object
       properties:
@@ -2498,9 +2553,28 @@ components:
     BankVaultSession:
       type: object
       properties:
-        sessionToken: { type: string, minLength: 32, maxLength: 128 }
+        sessionToken: { type: ["string", "null"], minLength: 32, maxLength: 128 }
         expiresAt: { type: string, format: date-time }
-      required: [sessionToken, expiresAt]
+        rememberedDevice: { type: boolean }
+      required: [sessionToken, expiresAt, rememberedDevice]
+    BankVaultSessionStatus:
+      type: object
+      properties:
+        active: { type: boolean }
+        expiresAt: { type: ["string", "null"], format: date-time }
+      required: [active, expiresAt]
+    BankVaultSessionLockResult:
+      type: object
+      properties:
+        locked: { type: boolean, const: true }
+      required: [locked]
+    BankVaultIncompleteSubscriptionClearResult:
+      type: object
+      properties:
+        cleared: { type: boolean }
+        subscriptionStatus: { type: string, enum: [inactive] }
+        paymentStatus: { type: string, enum: [none] }
+      required: [cleared, subscriptionStatus, paymentStatus]
     BankVaultWalletControl:
       type: object
       properties:

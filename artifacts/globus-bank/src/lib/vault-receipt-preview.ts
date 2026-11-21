@@ -43,18 +43,18 @@ export function buildReceiptLayoutPreview(
 }
 
 export function canSaveReceiptPreference(
-  sessionToken: string,
+  sessionActive: boolean,
   vaultAccessActive: boolean,
 ) {
-  return sessionToken.trim().length > 0 && vaultAccessActive;
+  return sessionActive && vaultAccessActive;
 }
 
 export function shouldClearSavedReceiptSelection(
   wasAuthorized: boolean,
-  sessionToken: string,
+  sessionActive: boolean,
   vaultAccessActive: boolean,
 ) {
-  return wasAuthorized && !canSaveReceiptPreference(sessionToken, vaultAccessActive);
+  return wasAuthorized && !canSaveReceiptPreference(sessionActive, vaultAccessActive);
 }
 
 export function canExportReceipt(

@@ -10,7 +10,9 @@ export interface BankVaultSession {
   /**
      * @minLength 32
      * @maxLength 128
+     * @nullable
      */
-  sessionToken: string;
+  sessionToken: string | null;
   expiresAt: Date;
+  rememberedDevice: boolean;
 }
