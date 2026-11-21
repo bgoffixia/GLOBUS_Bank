@@ -8,7 +8,6 @@ import {
   getVaultAccessSource,
   hasActiveVaultAccess,
   hasActiveVaultSubscription,
-  hasImmediateTransferAccess,
   isVaultTestingMode,
   resolveEffectiveAccountTier,
   resolveFutureTransferStatus,
@@ -232,13 +231,6 @@ test("Testing Mode clears only for an active paid subscription or admin grant", 
   );
 });
 
-test("separate transfer access works without granting Vault access", () => {
-  assert.equal(hasImmediateTransferAccess(false, false), false);
-  assert.equal(hasImmediateTransferAccess(false, true), true);
-  assert.equal(hasImmediateTransferAccess(true, false), true);
-  assert.equal(isVaultTestingMode("none"), true);
-});
-
 test("separate transfer grant bypasses transfer controls only", () => {
   assert.equal(isOutgoingTransferEnabled(false, true), true);
   assert.equal(isOutgoingTransferEnabled(false, false), false);
@@ -279,11 +271,16 @@ test("separate transfer grant bypasses transfer controls only", () => {
     "unrelated operation restrictions do not become transfer controls",
   );
   assert.equal(
-    resolveFutureTransferStatus("failed", true),
+    resolveFutureTransferStatus("failed"),
     "failed",
     "an administrator's explicit no-posting mode remains authoritative",
   );
-  assert.equal(resolveFutureTransferStatus("pending", true), "pending");
+  assert.equal(resolveFutureTransferStatus("pending"), "pending");
+  assert.equal(
+    resolveFutureTransferStatus("successful"),
+    "completed",
+    "successful transfers post immediately without Vault access",
+  );
 });
 
 test("deposit and transfer routes do not require a terms timestamp but retain access checks", () => {
@@ -298,6 +295,14 @@ test("deposit and transfer routes do not require a terms timestamp but retain ac
   const internationalTransferRoute = routeBlockFrom(
     routes,
     'router.post(\n  "/bank/international-transfer-requests"',
+  );
+  const walletControlReadRoute = routeBlockFrom(
+    routes,
+    'router.get(\n  "/bank/vault/wallet-controls"',
+  );
+  const walletControlUpdateRoute = routeBlockFrom(
+    routes,
+    'router.patch(\n  "/bank/vault/wallet-controls/:walletId"',
   );
   const adminRoutes = readFileSync(
     new URL("../src/routes/bankAdmin.ts", import.meta.url),
@@ -316,9 +321,32 @@ test("deposit and transfer routes do not require a terms timestamp but retain ac
   assert.match(internationalTransferRoute, /sender\.accountStatus !== "active"/);
   assert.match(internationalTransferRoute, /verifyTransactionPin/);
   assert.match(internationalTransferRoute, /transferAccessGranted/);
+  assert.match(
+    internationalTransferRoute,
+    /requestedRecipientEmail\s*\?\s*await vaultTransferEmailAlertsEnabled\(sender\)\s*:\s*false/,
+    "empty recipient email should not depend on Vault email-alert settings",
+  );
+  assert.match(walletControlReadRoute, /isVaultSessionActive/);
+  assert.match(walletControlUpdateRoute, /isVaultSessionActive/);
   assert.match(adminVaultGrantRoute, /requireAdmin/);
   assert.match(adminVaultGrantRoute, /verifyTransactionPin/);
   assert.match(adminVaultGrantRoute, /applyAdminVaultEntitlementAction/);
+});
+
+test("new wallets default to enabled, successful transfers without rewriting saved wallet policies", () => {
+  const schema = readFileSync(
+    new URL("../../../lib/db/src/schema/bank.ts", import.meta.url),
+    "utf8",
+  );
+  const migration = readFileSync(
+    new URL("../../../lib/db/migrations/20261121_wallet_transfer_defaults.sql", import.meta.url),
+    "utf8",
+  );
+  assert.match(schema, /transfersEnabled: boolean\("transfers_enabled"\)\.notNull\(\)\.default\(true\)/);
+  assert.match(schema, /futureTransferMode: text\("future_transfer_mode"\)\.notNull\(\)\.default\("successful"\)/);
+  assert.match(migration, /ALTER COLUMN transfers_enabled SET DEFAULT true/i);
+  assert.match(migration, /ALTER COLUMN future_transfer_mode SET DEFAULT 'successful'/i);
+  assert.doesNotMatch(migration, /UPDATE\s+public\.bank_wallets/i);
 });
 
 test("failed Paystack charges are matched to the correct initial or renewal payment", () => {

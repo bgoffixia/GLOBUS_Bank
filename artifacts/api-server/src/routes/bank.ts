@@ -178,7 +178,6 @@ import {
 } from "../lib/password-reset";
 import {
   classifyVaultPaystackChargeFailure,
-  hasImmediateTransferAccess,
   initializeVaultPasscode,
   getEffectiveAccountTier,
   getVaultAccessSource,
@@ -1422,8 +1421,9 @@ router.post(
     .toUpperCase();
   const requestedRecipientEmail =
     parsed.data.recipientEmail?.trim().toLowerCase() ?? "";
-  const recipientEmailAlertsEnabled =
-    await vaultTransferEmailAlertsEnabled(sender);
+  const recipientEmailAlertsEnabled = requestedRecipientEmail
+    ? await vaultTransferEmailAlertsEnabled(sender)
+    : false;
   if (
     requestedRecipientEmail &&
     !recipientEmailAlertsEnabled &&
@@ -1609,13 +1609,7 @@ router.post(
       return { error: "There is not enough available ledger balance for this request." };
     }
 
-    const status = resolveFutureTransferStatus(
-      lockedWallet.futureTransferMode,
-      hasImmediateTransferAccess(
-        await hasActiveVaultAccess(lockedSender, tx),
-        lockedSender.transferAccessGranted,
-      ),
-    );
+    const status = resolveFutureTransferStatus(lockedWallet.futureTransferMode);
     const reference = createReference();
     const conversionSummary = `${formatMinorAmount(amountMinor)} ${parsed.data.sourceCurrency} converted to ${formatMinorAmount(destinationAmountMinor, parsed.data.destinationCurrency)} ${parsed.data.destinationCurrency} at ${rate}`;
     const [transaction] = await tx

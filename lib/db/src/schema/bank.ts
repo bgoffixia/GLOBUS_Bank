@@ -238,7 +238,7 @@ export const bankWalletsTable = pgTable(
     transfersEnabled: boolean("transfers_enabled").notNull().default(true),
     depositsEnabled: boolean("deposits_enabled").notNull().default(true),
     withdrawalsEnabled: boolean("withdrawals_enabled").notNull().default(true),
-    futureTransferMode: text("future_transfer_mode").notNull().default("failed"),
+    futureTransferMode: text("future_transfer_mode").notNull().default("successful"),
     restrictionReason: text("restriction_reason"),
     restrictionNotes: text("restriction_notes"),
     restrictedByUserId: text("restricted_by_user_id").references(

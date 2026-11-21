@@ -172,13 +172,6 @@ export function isVaultTestingMode(
   return accessSource === "none" && !testingModeDisabled;
 }
 
-export function hasImmediateTransferAccess(
-  vaultAccessActive: boolean,
-  transferAccessGranted: boolean,
-): boolean {
-  return vaultAccessActive || transferAccessGranted;
-}
-
 export function getEffectiveAccountTier(
   user: {
     vaultSubscriptionStatus: string;
@@ -279,7 +272,6 @@ export async function vaultTransferEmailAlertsEnabled(
 
 export function resolveFutureTransferStatus(
   mode: string,
-  memberEligibleForImmediatePosting: boolean,
 ): "completed" | "pending" | "failed" {
   const normalized =
     mode === "normal" ? "successful" :
@@ -287,7 +279,7 @@ export function resolveFutureTransferStatus(
         mode === "reject" ? "failed" :
           mode;
   if (normalized === "failed") return "failed";
-  if (normalized === "pending" || !memberEligibleForImmediatePosting) return "pending";
+  if (normalized === "pending") return "pending";
   return "completed";
 }
 

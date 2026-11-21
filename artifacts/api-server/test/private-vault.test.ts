@@ -43,6 +43,15 @@ const userId = `private-vault-${randomUUID()}`;
 const email = `${userId}@example.test`;
 const originalSessionSecret = process.env[sessionSecretEnv];
 process.env[sessionSecretEnv] = randomBytes(32).toString("base64url");
+const noAdminVaultGrantExecutor = {
+  select: () => ({
+    from: () => ({
+      where: () => ({
+        limit: async () => [],
+      }),
+    }),
+  }),
+} as never;
 
 after(async () => {
   await db.delete(bankUsersTable).where(eq(bankUsersTable.id, userId));
@@ -204,26 +213,25 @@ test("vault subscription states and per-wallet transfer choices preserve ledger 
     vaultEmailAlertsEnabled: false,
     vaultSubscriptionStatus: "active",
     vaultSubscriptionExpiresAt: null,
-  }, now), false);
+  }, noAdminVaultGrantExecutor, now), false);
   assert.equal(await vaultTransferEmailAlertsEnabled({
     id: userId,
     vaultEmailAlertsEnabled: true,
     vaultSubscriptionStatus: "active",
     vaultSubscriptionExpiresAt: null,
-  }, now), true);
+  }, noAdminVaultGrantExecutor, now), true);
   assert.equal(await vaultTransferEmailAlertsEnabled({
     id: userId,
     vaultEmailAlertsEnabled: true,
     vaultSubscriptionStatus: "active",
     vaultSubscriptionExpiresAt: new Date("2026-11-10T11:59:00.000Z"),
-  }, now), false);
-  assert.equal(resolveFutureTransferStatus("successful", true), "completed");
-  assert.equal(resolveFutureTransferStatus("successful", false), "pending");
-  assert.equal(resolveFutureTransferStatus("pending", true), "pending");
-  assert.equal(resolveFutureTransferStatus("failed", true), "failed");
-  assert.equal(resolveFutureTransferStatus("reject", true), "failed");
-  assert.equal(resolveFutureTransferStatus("hold", true), "pending");
-  assert.equal(resolveFutureTransferStatus("normal", true), "completed");
+  }, noAdminVaultGrantExecutor, now), false);
+  assert.equal(resolveFutureTransferStatus("successful"), "completed");
+  assert.equal(resolveFutureTransferStatus("pending"), "pending");
+  assert.equal(resolveFutureTransferStatus("failed"), "failed");
+  assert.equal(resolveFutureTransferStatus("reject"), "failed");
+  assert.equal(resolveFutureTransferStatus("hold"), "pending");
+  assert.equal(resolveFutureTransferStatus("normal"), "completed");
 });
 
 test("Vault expiry reminders are branded, one-time per expiry, and retry after delivery failure", async () => {
