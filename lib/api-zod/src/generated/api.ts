@@ -1073,6 +1073,289 @@ export const GetBankPersonalFinanceOverviewResponse = zod.object({
 
 
 /**
+ * @summary Summarize posted wallet activity and tracked finance records
+ */
+export const getBankFinanceReportQueryPeriodDefault = `month`;
+
+export const GetBankFinanceReportQueryParams = zod.object({
+  "period": zod.enum(['month', 'quarter', 'year']).default(getBankFinanceReportQueryPeriodDefault)
+})
+
+export const getBankFinanceReportResponseLedgerSummariesItemInflowMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseLedgerSummariesItemOutflowMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseLedgerSummariesItemNetMinorRegExp = new RegExp('^-?[0-9]{1,19}$');
+export const getBankFinanceReportResponseLedgerTrendItemPeriodRegExp = new RegExp('^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$');
+export const getBankFinanceReportResponseLedgerTrendItemInflowMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseLedgerTrendItemOutflowMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseRecentActivityItemAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseRecentActivityItemEffectiveDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getBankFinanceReportResponseAccountSummariesItemAccountCountMin = 0;
+
+export const getBankFinanceReportResponseAccountSummariesItemCurrentValueMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseAccountSummariesItemTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseBillSummariesItemUnpaidCountMin = 0;
+
+export const getBankFinanceReportResponseBillSummariesItemUnpaidAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseBillSummariesItemRecordedPaidCountMin = 0;
+
+export const getBankFinanceReportResponseBillSummariesItemRecordedPaidAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankFinanceReportResponseLoanSummariesItemSubmittedCountMin = 0;
+
+export const getBankFinanceReportResponseLoanSummariesItemWithdrawnCountMin = 0;
+
+export const getBankFinanceReportResponseLoanSummariesItemRequestedAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+
+
+export const GetBankFinanceReportResponse = zod.object({
+  "period": zod.enum(['month', 'quarter', 'year']),
+  "ledgerSummaries": zod.array(zod.object({
+  "walletId": zod.string().uuid(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "inflowMinor": zod.string().regex(getBankFinanceReportResponseLedgerSummariesItemInflowMinorRegExp),
+  "outflowMinor": zod.string().regex(getBankFinanceReportResponseLedgerSummariesItemOutflowMinorRegExp),
+  "netMinor": zod.string().regex(getBankFinanceReportResponseLedgerSummariesItemNetMinorRegExp)
+})),
+  "ledgerTrend": zod.array(zod.object({
+  "walletId": zod.string().uuid(),
+  "period": zod.string().regex(getBankFinanceReportResponseLedgerTrendItemPeriodRegExp),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "inflowMinor": zod.string().regex(getBankFinanceReportResponseLedgerTrendItemInflowMinorRegExp),
+  "outflowMinor": zod.string().regex(getBankFinanceReportResponseLedgerTrendItemOutflowMinorRegExp)
+})),
+  "recentActivity": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "transactionId": zod.string().uuid(),
+  "walletId": zod.string().uuid(),
+  "reference": zod.string(),
+  "type": zod.enum(['simulation_credit', 'admin_funding', 'admin_adjustment', 'reversal', 'external_transfer', 'external_transfer_in', 'sandbox_credit', 'transfer', 'deposit_request', 'withdrawal_request', 'exchange_request']),
+  "status": zod.enum(['completed', 'pending', 'failed', 'rejected', 'reversed']),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "direction": zod.enum(['inflow', 'outflow', 'transfer']),
+  "amountMinor": zod.string().regex(getBankFinanceReportResponseRecentActivityItemAmountMinorRegExp),
+  "description": zod.string(),
+  "walletCurrency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "effectiveDate": zod.string().regex(getBankFinanceReportResponseRecentActivityItemEffectiveDateRegExp),
+  "createdAt": zod.coerce.date()
+})),
+  "accountSummaries": zod.array(zod.object({
+  "type": zod.enum(['savings', 'investment']),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "accountCount": zod.number().int().min(getBankFinanceReportResponseAccountSummariesItemAccountCountMin),
+  "currentValueMinor": zod.string().regex(getBankFinanceReportResponseAccountSummariesItemCurrentValueMinorRegExp),
+  "targetAmountMinor": zod.string().regex(getBankFinanceReportResponseAccountSummariesItemTargetAmountMinorRegExp)
+})),
+  "billSummaries": zod.array(zod.object({
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "unpaidCount": zod.number().int().min(getBankFinanceReportResponseBillSummariesItemUnpaidCountMin),
+  "unpaidAmountMinor": zod.string().regex(getBankFinanceReportResponseBillSummariesItemUnpaidAmountMinorRegExp),
+  "recordedPaidCount": zod.number().int().min(getBankFinanceReportResponseBillSummariesItemRecordedPaidCountMin),
+  "recordedPaidAmountMinor": zod.string().regex(getBankFinanceReportResponseBillSummariesItemRecordedPaidAmountMinorRegExp)
+})),
+  "loanSummaries": zod.array(zod.object({
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "submittedCount": zod.number().int().min(getBankFinanceReportResponseLoanSummariesItemSubmittedCountMin),
+  "withdrawnCount": zod.number().int().min(getBankFinanceReportResponseLoanSummariesItemWithdrawnCountMin),
+  "requestedAmountMinor": zod.string().regex(getBankFinanceReportResponseLoanSummariesItemRequestedAmountMinorRegExp)
+}))
+})
+
+
+/**
+ * @summary List the signed-in customer's savings and investment trackers
+ */
+export const listBankFinancialAccountsResponseCurrentValueMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const listBankFinancialAccountsResponseTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const listBankFinancialAccountsResponseOpenedOnRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const ListBankFinancialAccountsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "type": zod.enum(['savings', 'investment']),
+  "name": zod.string(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "currentValueMinor": zod.string().regex(listBankFinancialAccountsResponseCurrentValueMinorRegExp),
+  "targetAmountMinor": zod.string().regex(listBankFinancialAccountsResponseTargetAmountMinorRegExp).nullable(),
+  "openedOn": zod.string().regex(listBankFinancialAccountsResponseOpenedOnRegExp),
+  "status": zod.enum(['active', 'closed']),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListBankFinancialAccountsResponse = zod.array(ListBankFinancialAccountsResponseItem)
+
+
+/**
+ * @summary Create an in-app savings or investment tracker
+ */
+export const createBankFinancialAccountBodyNameMax = 80;
+
+export const createBankFinancialAccountBodyCurrentValueMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankFinancialAccountBodyTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankFinancialAccountBodyOpenedOnRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const createBankFinancialAccountBodyNotesMax = 500;
+
+
+
+export const CreateBankFinancialAccountBody = zod.object({
+  "type": zod.enum(['savings', 'investment']),
+  "name": zod.string().min(1).max(createBankFinancialAccountBodyNameMax),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "currentValueMinor": zod.string().regex(createBankFinancialAccountBodyCurrentValueMinorRegExp),
+  "targetAmountMinor": zod.string().regex(createBankFinancialAccountBodyTargetAmountMinorRegExp).nullish(),
+  "openedOn": zod.string().regex(createBankFinancialAccountBodyOpenedOnRegExp),
+  "notes": zod.string().max(createBankFinancialAccountBodyNotesMax).nullish()
+})
+
+export const createBankFinancialAccountResponseCurrentValueMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankFinancialAccountResponseTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankFinancialAccountResponseOpenedOnRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateBankFinancialAccountResponse = zod.object({
+  "id": zod.string().uuid(),
+  "type": zod.enum(['savings', 'investment']),
+  "name": zod.string(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "currentValueMinor": zod.string().regex(createBankFinancialAccountResponseCurrentValueMinorRegExp),
+  "targetAmountMinor": zod.string().regex(createBankFinancialAccountResponseTargetAmountMinorRegExp).nullable(),
+  "openedOn": zod.string().regex(createBankFinancialAccountResponseOpenedOnRegExp),
+  "status": zod.enum(['active', 'closed']),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update one of the signed-in customer's finance account trackers
+ */
+export const UpdateBankFinancialAccountParams = zod.object({
+  "accountId": zod.coerce.string().uuid()
+})
+
+export const updateBankFinancialAccountBodyNameMax = 80;
+
+export const updateBankFinancialAccountBodyCurrentValueMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const updateBankFinancialAccountBodyTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const updateBankFinancialAccountBodyNotesMax = 500;
+
+
+
+export const UpdateBankFinancialAccountBody = zod.object({
+  "name": zod.string().min(1).max(updateBankFinancialAccountBodyNameMax).optional(),
+  "currentValueMinor": zod.string().regex(updateBankFinancialAccountBodyCurrentValueMinorRegExp).optional(),
+  "targetAmountMinor": zod.string().regex(updateBankFinancialAccountBodyTargetAmountMinorRegExp).nullish(),
+  "status": zod.enum(['active', 'closed']).optional(),
+  "notes": zod.string().max(updateBankFinancialAccountBodyNotesMax).nullish()
+})
+
+export const updateBankFinancialAccountResponseCurrentValueMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const updateBankFinancialAccountResponseTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const updateBankFinancialAccountResponseOpenedOnRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateBankFinancialAccountResponse = zod.object({
+  "id": zod.string().uuid(),
+  "type": zod.enum(['savings', 'investment']),
+  "name": zod.string(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "currentValueMinor": zod.string().regex(updateBankFinancialAccountResponseCurrentValueMinorRegExp),
+  "targetAmountMinor": zod.string().regex(updateBankFinancialAccountResponseTargetAmountMinorRegExp).nullable(),
+  "openedOn": zod.string().regex(updateBankFinancialAccountResponseOpenedOnRegExp),
+  "status": zod.enum(['active', 'closed']),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List the signed-in customer's in-app loan application requests
+ */
+export const listBankFinanceLoanApplicationsResponseRequestedAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const listBankFinanceLoanApplicationsResponseTermMonthsMax = 600;
+
+
+
+export const ListBankFinanceLoanApplicationsResponseItem = zod.object({
+  "id": zod.string().uuid(),
+  "requestedAmountMinor": zod.string().regex(listBankFinanceLoanApplicationsResponseRequestedAmountMinorRegExp),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "purpose": zod.string(),
+  "termMonths": zod.number().int().min(1).max(listBankFinanceLoanApplicationsResponseTermMonthsMax),
+  "status": zod.enum(['submitted', 'withdrawn']),
+  "submittedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListBankFinanceLoanApplicationsResponse = zod.array(ListBankFinanceLoanApplicationsResponseItem)
+
+
+/**
+ * @summary Submit an in-app loan application request
+ */
+export const createBankFinanceLoanApplicationBodyRequestedAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankFinanceLoanApplicationBodyPurposeMax = 160;
+
+export const createBankFinanceLoanApplicationBodyTermMonthsMax = 600;
+
+
+
+export const CreateBankFinanceLoanApplicationBody = zod.object({
+  "requestedAmountMinor": zod.string().regex(createBankFinanceLoanApplicationBodyRequestedAmountMinorRegExp),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "purpose": zod.string().min(1).max(createBankFinanceLoanApplicationBodyPurposeMax),
+  "termMonths": zod.number().int().min(1).max(createBankFinanceLoanApplicationBodyTermMonthsMax)
+})
+
+export const createBankFinanceLoanApplicationResponseRequestedAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankFinanceLoanApplicationResponseTermMonthsMax = 600;
+
+
+
+export const CreateBankFinanceLoanApplicationResponse = zod.object({
+  "id": zod.string().uuid(),
+  "requestedAmountMinor": zod.string().regex(createBankFinanceLoanApplicationResponseRequestedAmountMinorRegExp),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "purpose": zod.string(),
+  "termMonths": zod.number().int().min(1).max(createBankFinanceLoanApplicationResponseTermMonthsMax),
+  "status": zod.enum(['submitted', 'withdrawn']),
+  "submittedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Withdraw a submitted in-app loan application request
+ */
+export const WithdrawBankFinanceLoanApplicationParams = zod.object({
+  "applicationId": zod.coerce.string().uuid()
+})
+
+export const WithdrawBankFinanceLoanApplicationBody = zod.object({
+  "status": zod.literal("withdrawn")
+})
+
+export const withdrawBankFinanceLoanApplicationResponseRequestedAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const withdrawBankFinanceLoanApplicationResponseTermMonthsMax = 600;
+
+
+
+export const WithdrawBankFinanceLoanApplicationResponse = zod.object({
+  "id": zod.string().uuid(),
+  "requestedAmountMinor": zod.string().regex(withdrawBankFinanceLoanApplicationResponseRequestedAmountMinorRegExp),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "purpose": zod.string(),
+  "termMonths": zod.number().int().min(1).max(withdrawBankFinanceLoanApplicationResponseTermMonthsMax),
+  "status": zod.enum(['submitted', 'withdrawn']),
+  "submittedAt": zod.coerce.date(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
  * @summary List the authenticated user's currency wallets
  */
 export const ListBankWalletsResponseItem = zod.object({

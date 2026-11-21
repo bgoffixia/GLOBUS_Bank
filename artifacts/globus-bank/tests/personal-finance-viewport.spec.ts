@@ -41,6 +41,46 @@ const overview = {
   recentExpenses: [sampleExpense],
 };
 
+const financeReport = {
+  period: "month",
+  ledgerSummaries: [
+    {
+      walletId: "9b51bdb0-80a9-44eb-a2d9-73d923968001",
+      currency: "USD",
+      inflowMinor: "12000",
+      outflowMinor: "2500",
+      netMinor: "9500",
+    },
+    {
+      walletId: "9b51bdb0-80a9-44eb-a2d9-73d923968002",
+      currency: "USD",
+      inflowMinor: "2000",
+      outflowMinor: "700",
+      netMinor: "1300",
+    },
+  ],
+  ledgerTrend: [
+    {
+      walletId: "9b51bdb0-80a9-44eb-a2d9-73d923968001",
+      period: "2026-11-20",
+      currency: "USD",
+      inflowMinor: "12000",
+      outflowMinor: "2500",
+    },
+    {
+      walletId: "9b51bdb0-80a9-44eb-a2d9-73d923968002",
+      period: "2026-11-20",
+      currency: "USD",
+      inflowMinor: "2000",
+      outflowMinor: "700",
+    },
+  ],
+  recentActivity: [],
+  accountSummaries: [],
+  billSummaries: [],
+  loanSummaries: [],
+};
+
 const dashboard = {
   profile: {
     firstName: "Sample",
@@ -57,8 +97,74 @@ async function mockFinanceApi(page: Page) {
   await page.route("**/api/bank/dashboard", async (route) => {
     await route.fulfill({ json: dashboard });
   });
+  await page.route("**/api/bank/personal-finance/report**", async (route) => {
+    await route.fulfill({ json: financeReport });
+  });
+  await page.route("**/api/bank/personal-finance/accounts", async (route) => {
+    await route.fulfill({ json: route.request().method() === "GET" ? [] : {
+      id: "tracker-id",
+      type: "savings",
+      name: "Savings tracker",
+      currency: "USD",
+      currentValueMinor: "0",
+      targetAmountMinor: null,
+      openedOn: "2026-11-19",
+      status: "active",
+      notes: null,
+      createdAt: "2026-11-19T09:00:00.000Z",
+      updatedAt: "2026-11-19T09:00:00.000Z",
+    } });
+  });
+  await page.route("**/api/bank/personal-finance/loan-applications", async (route) => {
+    await route.fulfill({ json: route.request().method() === "GET" ? [] : {
+      id: "loan-id",
+      requestedAmountMinor: "10000",
+      currency: "USD",
+      purpose: "Education",
+      termMonths: 12,
+      status: "submitted",
+      submittedAt: "2026-11-19T09:00:00.000Z",
+      createdAt: "2026-11-19T09:00:00.000Z",
+      updatedAt: "2026-11-19T09:00:00.000Z",
+    } });
+  });
   await page.route("**/api/bank/personal-finance/**", async (route) => {
     const request = route.request();
+    const pathname = new URL(request.url()).pathname;
+    if (pathname.endsWith("/report")) {
+      await route.fulfill({ json: financeReport });
+      return;
+    }
+    if (pathname.endsWith("/accounts")) {
+      await route.fulfill({ json: request.method() === "GET" ? [] : {
+        id: "tracker-id",
+        type: "savings",
+        name: "Savings tracker",
+        currency: "USD",
+        currentValueMinor: "0",
+        targetAmountMinor: null,
+        openedOn: "2026-11-19",
+        status: "active",
+        notes: null,
+        createdAt: "2026-11-19T09:00:00.000Z",
+        updatedAt: "2026-11-19T09:00:00.000Z",
+      } });
+      return;
+    }
+    if (pathname.endsWith("/loan-applications")) {
+      await route.fulfill({ json: request.method() === "GET" ? [] : {
+        id: "loan-id",
+        requestedAmountMinor: "10000",
+        currency: "USD",
+        purpose: "Education",
+        termMonths: 12,
+        status: "submitted",
+        submittedAt: "2026-11-19T09:00:00.000Z",
+        createdAt: "2026-11-19T09:00:00.000Z",
+        updatedAt: "2026-11-19T09:00:00.000Z",
+      } });
+      return;
+    }
     if (request.url().includes("/overview")) {
       await route.fulfill({ json: overview });
       return;
@@ -89,7 +195,7 @@ async function expectNoHorizontalOverflow(page: Page, width: number) {
 
 test.describe("personal finance responsive workspace", () => {
   for (const viewport of viewports) {
-    test(`summary, records, expense tracker, and editor fit at ${viewport.name}`, async ({ page }) => {
+    test(`ledger widget, personal records, and editor fit at ${viewport.name}`, async ({ page }) => {
       await page.setViewportSize({ width: viewport.width, height: viewport.height });
       await mockFinanceApi(page);
       await page.goto("/tests/personal-finance-harness.html", { waitUntil: "domcontentloaded" });
@@ -98,7 +204,13 @@ test.describe("personal finance responsive workspace", () => {
       await expect(page.getByTestId("dashboard-testing-mode-warning")).toBeVisible();
       await expect(page.getByTestId("dashboard-account-tier-badge")).toContainText("Standard");
       await expect(page.getByRole("heading", { name: "Financial overview" })).toBeVisible();
-      await expect(page.getByTestId("dashboard-workspace").getByRole("heading", { name: "Expense tracker" })).toBeVisible();
+      await expect(page.getByTestId("dashboard-workspace").getByRole("heading", { name: "Account activity · income & expenses" })).toBeVisible();
+      await expect(page.getByTestId("dashboard-workspace").getByTestId("dashboard-ledger-summary")).toBeVisible();
+      await expect(page.getByTestId("dashboard-workspace").getByTestId("dashboard-ledger-USD-8001")).toBeVisible();
+      await expect(page.getByTestId("dashboard-workspace").getByTestId("dashboard-ledger-USD-8002")).toBeVisible();
+      await expect(page.getByTestId("dashboard-workspace").getByTestId("link-financial-overview")).toHaveAttribute("href", "/financial-overview");
+      await expect(page.getByTestId("dashboard-workspace").getByTestId("button-add-dashboard-expense")).toHaveCount(0);
+      await expect(page.getByTestId("dashboard-workspace").getByText("Market shopping")).toHaveCount(0);
       await expect(page.getByText("Market shopping").first()).toBeVisible();
       await expectNoHorizontalOverflow(page, viewport.width);
       const dashboardBoxes = await page.getByTestId("dashboard-content-grid").locator(":scope > section").evaluateAll((sections) =>
@@ -161,6 +273,13 @@ test.describe("personal finance responsive workspace", () => {
         element.scrollTop = element.scrollHeight;
       });
       await expect(dialog.getByRole("button", { name: "Save record" })).toBeVisible();
+      await expectNoHorizontalOverflow(page, viewport.width);
+      await dialog.getByTestId("button-close-record-dialog").click();
+      await page.getByTestId("button-add-account-tracker").click();
+      const trackerDialog = page.getByRole("dialog", { name: "Add a tracker" });
+      await expect(trackerDialog.getByTestId("input-account-target")).toBeVisible();
+      await trackerDialog.getByTestId("select-account-type").selectOption("investment");
+      await expect(trackerDialog.getByTestId("input-account-target")).toHaveCount(0);
       await expectNoHorizontalOverflow(page, viewport.width);
     });
   }

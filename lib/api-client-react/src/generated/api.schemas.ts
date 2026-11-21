@@ -1101,6 +1101,252 @@ export const BankPersonalFinanceRecordDeletionValue = {
 } as const;
 export type BankPersonalFinanceRecordDeletion = typeof BankPersonalFinanceRecordDeletionValue;
 
+export type FinancialAccountType = typeof FinancialAccountType[keyof typeof FinancialAccountType];
+
+
+export const FinancialAccountType = {
+  savings: 'savings',
+  investment: 'investment',
+} as const;
+
+export type FinancialAccountStatus = typeof FinancialAccountStatus[keyof typeof FinancialAccountStatus];
+
+
+export const FinancialAccountStatus = {
+  active: 'active',
+  closed: 'closed',
+} as const;
+
+export interface BankFinancialAccount {
+  id: string;
+  type: FinancialAccountType;
+  name: string;
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  currentValueMinor: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{1,19}$
+     */
+  targetAmountMinor: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  openedOn: string;
+  status: FinancialAccountStatus;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinancialAccountInput {
+  type: FinancialAccountType;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name: string;
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  currentValueMinor: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{1,19}$
+     */
+  targetAmountMinor?: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  openedOn: string;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export interface FinancialAccountUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  name?: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  currentValueMinor?: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{1,19}$
+     */
+  targetAmountMinor?: string | null;
+  status?: FinancialAccountStatus;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export type FinanceLoanApplicationStatus = typeof FinanceLoanApplicationStatus[keyof typeof FinanceLoanApplicationStatus];
+
+
+export const FinanceLoanApplicationStatus = {
+  submitted: 'submitted',
+  withdrawn: 'withdrawn',
+} as const;
+
+export interface BankFinanceLoanApplication {
+  id: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  requestedAmountMinor: string;
+  currency: CurrencyCode;
+  purpose: string;
+  /**
+     * @minimum 1
+     * @maximum 600
+     */
+  termMonths: number;
+  status: FinanceLoanApplicationStatus;
+  submittedAt: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface FinanceLoanApplicationInput {
+  /** @pattern ^[0-9]{1,19}$ */
+  requestedAmountMinor: string;
+  currency: CurrencyCode;
+  /**
+     * @minLength 1
+     * @maxLength 160
+     */
+  purpose: string;
+  /**
+     * @minimum 1
+     * @maximum 600
+     */
+  termMonths: number;
+}
+
+export const FinanceLoanApplicationWithdrawalValue = {
+  status: 'withdrawn',
+} as const;
+export type FinanceLoanApplicationWithdrawal = typeof FinanceLoanApplicationWithdrawalValue;
+
+export type FinanceLedgerDirection = typeof FinanceLedgerDirection[keyof typeof FinanceLedgerDirection];
+
+
+export const FinanceLedgerDirection = {
+  inflow: 'inflow',
+  outflow: 'outflow',
+  transfer: 'transfer',
+} as const;
+
+export type FinanceLedgerActivityType = typeof FinanceLedgerActivityType[keyof typeof FinanceLedgerActivityType];
+
+
+export const FinanceLedgerActivityType = {
+  simulation_credit: 'simulation_credit',
+  admin_funding: 'admin_funding',
+  admin_adjustment: 'admin_adjustment',
+  reversal: 'reversal',
+  external_transfer: 'external_transfer',
+  external_transfer_in: 'external_transfer_in',
+  sandbox_credit: 'sandbox_credit',
+  transfer: 'transfer',
+  deposit_request: 'deposit_request',
+  withdrawal_request: 'withdrawal_request',
+  exchange_request: 'exchange_request',
+} as const;
+
+export interface FinanceLedgerWalletSummary {
+  walletId: string;
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  inflowMinor: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  outflowMinor: string;
+  /** @pattern ^-?[0-9]{1,19}$ */
+  netMinor: string;
+}
+
+export interface FinanceLedgerTrendPoint {
+  walletId: string;
+  /** @pattern ^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$ */
+  period: string;
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  inflowMinor: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  outflowMinor: string;
+}
+
+export interface FinanceLedgerActivity {
+  id: string;
+  transactionId: string;
+  walletId: string;
+  reference: string;
+  type: FinanceLedgerActivityType;
+  status: TransactionStatus;
+  currency: CurrencyCode;
+  direction: FinanceLedgerDirection;
+  /** @pattern ^[0-9]{1,19}$ */
+  amountMinor: string;
+  description: string;
+  walletCurrency: CurrencyCode;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  effectiveDate: string;
+  createdAt: string;
+}
+
+export interface FinanceAccountSummary {
+  type: FinancialAccountType;
+  currency: CurrencyCode;
+  /** @minimum 0 */
+  accountCount: number;
+  /** @pattern ^[0-9]{1,19}$ */
+  currentValueMinor: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  targetAmountMinor: string;
+}
+
+export interface FinanceBillSummary {
+  currency: CurrencyCode;
+  /** @minimum 0 */
+  unpaidCount: number;
+  /** @pattern ^[0-9]{1,19}$ */
+  unpaidAmountMinor: string;
+  /** @minimum 0 */
+  recordedPaidCount: number;
+  /** @pattern ^[0-9]{1,19}$ */
+  recordedPaidAmountMinor: string;
+}
+
+export interface FinanceLoanSummary {
+  currency: CurrencyCode;
+  /** @minimum 0 */
+  submittedCount: number;
+  /** @minimum 0 */
+  withdrawnCount: number;
+  /** @pattern ^[0-9]{1,19}$ */
+  requestedAmountMinor: string;
+}
+
+export type BankFinanceReportPeriod = typeof BankFinanceReportPeriod[keyof typeof BankFinanceReportPeriod];
+
+
+export const BankFinanceReportPeriod = {
+  month: 'month',
+  quarter: 'quarter',
+  year: 'year',
+} as const;
+
+export interface BankFinanceReport {
+  period: BankFinanceReportPeriod;
+  ledgerSummaries: FinanceLedgerWalletSummary[];
+  ledgerTrend: FinanceLedgerTrendPoint[];
+  recentActivity: FinanceLedgerActivity[];
+  accountSummaries: FinanceAccountSummary[];
+  billSummaries: FinanceBillSummary[];
+  loanSummaries: FinanceLoanSummary[];
+}
+
 export type BankDashboardProfile = BankProfile & {
   accountTier: DashboardAccountTier;
   testingMode: boolean;
@@ -2264,6 +2510,19 @@ export type GetBankPersonalFinanceOverviewPeriod = typeof GetBankPersonalFinance
 
 
 export const GetBankPersonalFinanceOverviewPeriod = {
+  month: 'month',
+  quarter: 'quarter',
+  year: 'year',
+} as const;
+
+export type GetBankFinanceReportParams = {
+period?: GetBankFinanceReportPeriod;
+};
+
+export type GetBankFinanceReportPeriod = typeof GetBankFinanceReportPeriod[keyof typeof GetBankFinanceReportPeriod];
+
+
+export const GetBankFinanceReportPeriod = {
   month: 'month',
   quarter: 'quarter',
   year: 'year',

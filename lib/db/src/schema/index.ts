@@ -21,3 +21,4 @@ export * from "./bank";
 export * from "./identity";
 export * from "./international";
 export * from "./personal-finance";
+export * from "./finance-workspace";

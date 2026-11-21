@@ -20,6 +20,7 @@
     "test:paystack-vault": "tsx --test test/paystack-vault.test.ts",
     "test:receipt-preferences": "tsx --test test/receipt-preferences.test.ts test/vault-receipt-preference.test.ts test/customer-receipt-template.test.ts",
     "test:dashboard-schema": "tsx --test test/dashboard-schema-compatibility.test.ts",
+    "test:finance-workspace": "tsx --test test/finance-workspace.test.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "dependencies": {

@@ -64,6 +64,13 @@
       "when": 1795244254786,
       "tag": "20261121_wallet_transfer_defaults",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1795249254786,
+      "tag": "20261121_finance_workspace_accounts",
+      "breakpoints": true
     }
   ]
 }

@@ -778,6 +778,136 @@ paths:
             application/json:
               schema: { $ref: "#/components/schemas/BankPersonalFinanceOverview" }
         "401": { $ref: "#/components/responses/Unauthorized" }
+  /bank/personal-finance/report:
+    get:
+      operationId: getBankFinanceReport
+      tags: [bank]
+      summary: Summarize posted wallet activity and tracked finance records
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [month, quarter, year]
+            default: month
+      responses:
+        "200":
+          description: Internal ledger analysis and finance account summaries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankFinanceReport" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bank/personal-finance/accounts:
+    get:
+      operationId: listBankFinancialAccounts
+      tags: [bank]
+      summary: List the signed-in customer's savings and investment trackers
+      responses:
+        "200":
+          description: Customer-owned finance account trackers
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BankFinancialAccount" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createBankFinancialAccount
+      tags: [bank]
+      summary: Create an in-app savings or investment tracker
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinancialAccountInput" }
+      responses:
+        "201":
+          description: Saved finance account tracker
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankFinancialAccount" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bank/personal-finance/accounts/{accountId}:
+    patch:
+      operationId: updateBankFinancialAccount
+      tags: [bank]
+      summary: Update one of the signed-in customer's finance account trackers
+      parameters:
+        - name: accountId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinancialAccountUpdate" }
+      responses:
+        "200":
+          description: Updated finance account tracker
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankFinancialAccount" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /bank/personal-finance/loan-applications:
+    get:
+      operationId: listBankFinanceLoanApplications
+      tags: [bank]
+      summary: List the signed-in customer's in-app loan application requests
+      responses:
+        "200":
+          description: Customer-owned application requests
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BankFinanceLoanApplication" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createBankFinanceLoanApplication
+      tags: [bank]
+      summary: Submit an in-app loan application request
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinanceLoanApplicationInput" }
+      responses:
+        "201":
+          description: Submitted application request, not an approval or disbursement
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankFinanceLoanApplication" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bank/personal-finance/loan-applications/{applicationId}:
+    patch:
+      operationId: withdrawBankFinanceLoanApplication
+      tags: [bank]
+      summary: Withdraw a submitted in-app loan application request
+      parameters:
+        - name: applicationId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/FinanceLoanApplicationWithdrawal" }
+      responses:
+        "200":
+          description: Withdrawn application request
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankFinanceLoanApplication" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
   /bank/wallets:
     get:
       operationId: listBankWallets
@@ -2641,6 +2771,166 @@ components:
       properties:
         deleted: { type: boolean, const: true }
       required: [deleted]
+    FinancialAccountType:
+      type: string
+      enum: [savings, investment]
+    FinancialAccountStatus:
+      type: string
+      enum: [active, closed]
+    BankFinancialAccount:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        type: { $ref: "#/components/schemas/FinancialAccountType" }
+        name: { type: string }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        currentValueMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        targetAmountMinor: { type: ["string", "null"], pattern: "^[0-9]{1,19}$" }
+        openedOn: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        status: { $ref: "#/components/schemas/FinancialAccountStatus" }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, type, name, currency, currentValueMinor, targetAmountMinor, openedOn, status, notes, createdAt, updatedAt]
+    FinancialAccountInput:
+      type: object
+      properties:
+        type: { $ref: "#/components/schemas/FinancialAccountType" }
+        name: { type: string, minLength: 1, maxLength: 80 }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        currentValueMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        targetAmountMinor: { type: ["string", "null"], pattern: "^[0-9]{1,19}$" }
+        openedOn: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        notes: { type: ["string", "null"], maxLength: 500 }
+      required: [type, name, currency, currentValueMinor, openedOn]
+    FinancialAccountUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        name: { type: string, minLength: 1, maxLength: 80 }
+        currentValueMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        targetAmountMinor: { type: ["string", "null"], pattern: "^[0-9]{1,19}$" }
+        status: { $ref: "#/components/schemas/FinancialAccountStatus" }
+        notes: { type: ["string", "null"], maxLength: 500 }
+    FinanceLoanApplicationStatus:
+      type: string
+      enum: [submitted, withdrawn]
+    BankFinanceLoanApplication:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        requestedAmountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        purpose: { type: string }
+        termMonths: { type: integer, minimum: 1, maximum: 600 }
+        status: { $ref: "#/components/schemas/FinanceLoanApplicationStatus" }
+        submittedAt: { type: string, format: date-time }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, requestedAmountMinor, currency, purpose, termMonths, status, submittedAt, createdAt, updatedAt]
+    FinanceLoanApplicationInput:
+      type: object
+      properties:
+        requestedAmountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        purpose: { type: string, minLength: 1, maxLength: 160 }
+        termMonths: { type: integer, minimum: 1, maximum: 600 }
+      required: [requestedAmountMinor, currency, purpose, termMonths]
+    FinanceLoanApplicationWithdrawal:
+      type: object
+      properties:
+        status: { type: string, const: withdrawn }
+      required: [status]
+    FinanceLedgerDirection:
+      type: string
+      enum: [inflow, outflow, transfer]
+    FinanceLedgerActivityType:
+      type: string
+      enum: [simulation_credit, admin_funding, admin_adjustment, reversal, external_transfer, external_transfer_in, sandbox_credit, transfer, deposit_request, withdrawal_request, exchange_request]
+    FinanceLedgerWalletSummary:
+      type: object
+      properties:
+        walletId: { type: string, format: uuid }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        inflowMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        outflowMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        netMinor: { type: string, pattern: "^-?[0-9]{1,19}$" }
+      required: [walletId, currency, inflowMinor, outflowMinor, netMinor]
+    FinanceLedgerTrendPoint:
+      type: object
+      properties:
+        walletId: { type: string, format: uuid }
+        period: { type: string, pattern: "^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$" }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        inflowMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        outflowMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+      required: [walletId, period, currency, inflowMinor, outflowMinor]
+    FinanceLedgerActivity:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        transactionId: { type: string, format: uuid }
+        walletId: { type: string, format: uuid }
+        reference: { type: string }
+        type: { $ref: "#/components/schemas/FinanceLedgerActivityType" }
+        status: { $ref: "#/components/schemas/TransactionStatus" }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        direction: { $ref: "#/components/schemas/FinanceLedgerDirection" }
+        amountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        description: { type: string }
+        walletCurrency: { $ref: "#/components/schemas/CurrencyCode" }
+        effectiveDate: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        createdAt: { type: string, format: date-time }
+      required: [id, transactionId, walletId, reference, type, status, currency, direction, amountMinor, description, walletCurrency, effectiveDate, createdAt]
+    FinanceAccountSummary:
+      type: object
+      properties:
+        type: { $ref: "#/components/schemas/FinancialAccountType" }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        accountCount: { type: integer, minimum: 0 }
+        currentValueMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        targetAmountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+      required: [type, currency, accountCount, currentValueMinor, targetAmountMinor]
+    FinanceBillSummary:
+      type: object
+      properties:
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        unpaidCount: { type: integer, minimum: 0 }
+        unpaidAmountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        recordedPaidCount: { type: integer, minimum: 0 }
+        recordedPaidAmountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+      required: [currency, unpaidCount, unpaidAmountMinor, recordedPaidCount, recordedPaidAmountMinor]
+    FinanceLoanSummary:
+      type: object
+      properties:
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        submittedCount: { type: integer, minimum: 0 }
+        withdrawnCount: { type: integer, minimum: 0 }
+        requestedAmountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+      required: [currency, submittedCount, withdrawnCount, requestedAmountMinor]
+    BankFinanceReport:
+      type: object
+      properties:
+        period: { type: string, enum: [month, quarter, year] }
+        ledgerSummaries:
+          type: array
+          items: { $ref: "#/components/schemas/FinanceLedgerWalletSummary" }
+        ledgerTrend:
+          type: array
+          items: { $ref: "#/components/schemas/FinanceLedgerTrendPoint" }
+        recentActivity:
+          type: array
+          items: { $ref: "#/components/schemas/FinanceLedgerActivity" }
+        accountSummaries:
+          type: array
+          items: { $ref: "#/components/schemas/FinanceAccountSummary" }
+        billSummaries:
+          type: array
+          items: { $ref: "#/components/schemas/FinanceBillSummary" }
+        loanSummaries:
+          type: array
+          items: { $ref: "#/components/schemas/FinanceLoanSummary" }
+      required: [period, ledgerSummaries, ledgerTrend, recentActivity, accountSummaries, billSummaries, loanSummaries]
     BankDashboard:
       type: object
       properties:
