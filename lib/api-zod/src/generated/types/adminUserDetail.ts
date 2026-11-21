@@ -13,6 +13,8 @@ import type { Wallet } from './wallet';
 export interface AdminUserDetail {
   user: AdminUser;
   /** @nullable */
+  address: string | null;
+  /** @nullable */
   phone: string | null;
   /**
      * @nullable

@@ -18,6 +18,11 @@ export interface AdminUserProfileInput {
      */
   lastName?: string | null;
   /**
+     * @maxLength 1024
+     * @nullable
+     */
+  address?: string | null;
+  /**
      * @maxLength 40
      * @nullable
      */

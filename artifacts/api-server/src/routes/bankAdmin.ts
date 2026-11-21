@@ -2628,6 +2628,7 @@ router.get(
           walletCount: wallets.length,
           createdAt: user.createdAt.toISOString(),
         },
+        address: user.address,
         phone: user.phone,
         dateOfBirth: user.dateOfBirth,
         cityOfOrigin: user.cityOfOrigin,
@@ -2991,6 +2992,15 @@ router.patch(
       });
       return;
     }
+    if (
+      typeof parsed.data.address === "string" &&
+      /[\u0000-\u001f\u007f-\u009f]/u.test(parsed.data.address)
+    ) {
+      res.status(400).json({
+        error: "Address cannot contain control characters.",
+      });
+      return;
+    }
     const clerkUserId = getAuth(req).userId;
     if (!clerkUserId) {
       res.status(401).json({ error: "Sign in to access your Globus account." });
@@ -3012,6 +3022,9 @@ router.patch(
         : {}),
       ...(parsed.data.lastName !== undefined
         ? { lastName: parsed.data.lastName?.trim() || null }
+        : {}),
+      ...(parsed.data.address !== undefined
+        ? { address: parsed.data.address?.trim() || null }
         : {}),
       ...(parsed.data.phone !== undefined
         ? { phone: parsed.data.phone?.trim() || null }
@@ -3068,6 +3081,7 @@ router.patch(
         customerId: updated.user.customerId,
         firstName: updated.user.firstName,
         lastName: updated.user.lastName,
+        address: updated.user.address,
         country: updated.user.country,
         accountStatus: updated.user.accountStatus,
         accountRestrictionReason: updated.user.accountRestrictionReason,

@@ -1750,6 +1750,8 @@ export interface AdminUser {
   /** @nullable */
   lastName: string | null;
   /** @nullable */
+  address?: string | null;
+  /** @nullable */
   country: string | null;
   accountStatus: AdminUserAccountStatus;
   /** @nullable */
@@ -1845,6 +1847,8 @@ export interface AdminVaultAccessActionInput {
 export interface AdminUserDetail {
   user: AdminUser;
   /** @nullable */
+  address: string | null;
+  /** @nullable */
   phone: string | null;
   /**
      * @nullable
@@ -1890,6 +1894,11 @@ export interface AdminUserProfileInput {
      * @nullable
      */
   lastName?: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
+  address?: string | null;
   /**
      * @maxLength 40
      * @nullable

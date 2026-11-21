@@ -6,6 +6,7 @@ import { test } from "node:test";
 import {
   AssignAdminUserAccountTierBody,
   UpdateAdminSettingsBody,
+  UpdateAdminUserProfileBody,
   UpdateAdminUserAccessControlsBody,
 } from "@workspace/api-zod";
 import { setPasswordResetCache } from "../src/lib/password-reset";
@@ -129,6 +130,43 @@ test("Vault grant migration only adds the explicit entitlement table", () => {
   assert.doesNotMatch(migration, /bank_account_tiers|account_tier_id/i);
 });
 
+test("admin profile address is optional, clearable, bounded, and audited", () => {
+  const valid = { transactionPin: "482731", address: "  42 Market Road  " };
+  assert.equal(UpdateAdminUserProfileBody.safeParse(valid).success, true);
+  assert.equal(
+    UpdateAdminUserProfileBody.safeParse({ transactionPin: "482731", address: null }).success,
+    true,
+  );
+  assert.equal(
+    UpdateAdminUserProfileBody.safeParse({
+      transactionPin: "482731",
+      address: "x".repeat(1025),
+    }).success,
+    false,
+  );
+  const source = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(
+    source,
+    /router\.patch\(\s*"\/bank\/admin\/users\/:userId\/profile",\s*requireAdmin/,
+  );
+  assert.match(source, /Address cannot contain control characters/);
+  assert.match(source, /parsed\.data\.address\?\.trim\(\) \|\| null/);
+  assert.match(source, /action:\s*"update_member_profile"/);
+  assert.match(source, /address:\s*updated\.user\.address/);
+  assert.match(source, /address:\s*user\.address/);
+  const ui = readFileSync(
+    new URL("../../globus-bank/src/pages/admin-workspace.tsx", import.meta.url),
+    "utf8",
+  );
+  assert.match(ui, /detail\.data\.address \|\| 'Missing'/);
+  assert.match(ui, /address: form\.address\.trim\(\) \|\| null/);
+  assert.match(ui, /data-testid="input-admin-member-address"/);
+  assert.match(ui, /maxLength=\{1024\}/);
+});
+
 test("access-control route denies anonymous and non-allowlisted users before database writes", async () => {
   const adminId = "unit-allowlisted-admin";
   const ordinaryUserId = "unit-ordinary-user";
@@ -163,6 +201,7 @@ test("access-control route denies anonymous and non-allowlisted users before dat
     const endpoint = `http://127.0.0.1:${address.port}/api/bank/admin/users/member-1/access-controls`;
     const tierEndpoint = `http://127.0.0.1:${address.port}/api/bank/admin/users/member-1/account-tier`;
     const settingsEndpoint = `http://127.0.0.1:${address.port}/api/bank/admin/settings`;
+    const profileEndpoint = `http://127.0.0.1:${address.port}/api/bank/admin/users/member-1/profile`;
     const body = {
       testingModeDisabled: true,
       transferAccessGranted: true,
@@ -241,6 +280,30 @@ test("access-control route denies anonymous and non-allowlisted users before dat
         await sendSettings(adminId, {
           ...settingsBody,
           customerEmailSenderDisplayName: "Alerts\r\nBcc: outsider@example.test",
+        })
+      ).status,
+      400,
+    );
+    const sendProfile = (userId: string | null, payload: Record<string, unknown>) =>
+      fetch(profileEndpoint, {
+        method: "PATCH",
+        headers: {
+          "content-type": "application/json",
+          ...(userId ? { "x-test-user-id": userId } : {}),
+        },
+        body: JSON.stringify(payload),
+      });
+    const profileBody = {
+      address: "42 Market Road",
+      transactionPin: "482731",
+    };
+    assert.equal((await sendProfile(null, profileBody)).status, 401);
+    assert.equal((await sendProfile(ordinaryUserId, profileBody)).status, 403);
+    assert.equal(
+      (
+        await sendProfile(adminId, {
+          ...profileBody,
+          address: "42 Market Road\r\nBcc: outsider@example.test",
         })
       ).status,
       400,

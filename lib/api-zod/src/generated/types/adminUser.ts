@@ -28,6 +28,8 @@ export interface AdminUser {
   /** @nullable */
   lastName: string | null;
   /** @nullable */
+  address?: string | null;
+  /** @nullable */
   country: string | null;
   accountStatus: AdminUserAccountStatus;
   /** @nullable */

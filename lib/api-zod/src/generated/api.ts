@@ -2468,6 +2468,7 @@ export const ListAdminUsersResponse = zod.object({
   "customerId": zod.string().regex(listAdminUsersResponseItemsItemCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
+  "address": zod.string().nullish(),
   "country": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
   "accountRestrictionReason": zod.string().nullable(),
@@ -2622,6 +2623,7 @@ export const GetAdminUserDetailResponse = zod.object({
   "customerId": zod.string().regex(getAdminUserDetailResponseUserCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
+  "address": zod.string().nullish(),
   "country": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
   "accountRestrictionReason": zod.string().nullable(),
@@ -2640,6 +2642,7 @@ export const GetAdminUserDetailResponse = zod.object({
   "walletCount": zod.number().int(),
   "createdAt": zod.coerce.date()
 }),
+  "address": zod.string().nullable(),
   "phone": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getAdminUserDetailResponseDateOfBirthRegExp).nullable(),
   "cityOfOrigin": zod.string().nullable(),
@@ -2757,6 +2760,7 @@ export const UpdateAdminUserStatusResponse = zod.object({
   "customerId": zod.string().regex(updateAdminUserStatusResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
+  "address": zod.string().nullish(),
   "country": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
   "accountRestrictionReason": zod.string().nullable(),
@@ -2791,6 +2795,8 @@ export const updateAdminUserProfileBodyFirstNameMax = 80;
 
 export const updateAdminUserProfileBodyLastNameMax = 80;
 
+export const updateAdminUserProfileBodyAddressMax = 1024;
+
 export const updateAdminUserProfileBodyPhoneMax = 40;
 
 export const updateAdminUserProfileBodyCountryMax = 80;
@@ -2806,6 +2812,7 @@ export const updateAdminUserProfileBodyTransactionPinRegExp = new RegExp('^[0-9]
 export const UpdateAdminUserProfileBody = zod.object({
   "firstName": zod.string().max(updateAdminUserProfileBodyFirstNameMax).nullish(),
   "lastName": zod.string().max(updateAdminUserProfileBodyLastNameMax).nullish(),
+  "address": zod.string().max(updateAdminUserProfileBodyAddressMax).nullish(),
   "phone": zod.string().max(updateAdminUserProfileBodyPhoneMax).nullish(),
   "country": zod.string().max(updateAdminUserProfileBodyCountryMax).nullish(),
   "cityOfOrigin": zod.string().max(updateAdminUserProfileBodyCityOfOriginMax).nullish(),
@@ -2827,6 +2834,7 @@ export const UpdateAdminUserProfileResponse = zod.object({
   "customerId": zod.string().regex(updateAdminUserProfileResponseCustomerIdRegExp).nullable(),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
+  "address": zod.string().nullish(),
   "country": zod.string().nullable(),
   "accountStatus": zod.enum(['active', 'restricted', 'suspended']),
   "accountRestrictionReason": zod.string().nullable(),

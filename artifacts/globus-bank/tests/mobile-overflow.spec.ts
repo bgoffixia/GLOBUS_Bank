@@ -765,6 +765,8 @@ test.describe('signed-in member pages at phone widths', () => {
   test('member access statuses and reasoned controls render and submit', async ({ page }) => {
     let submitted: Record<string, unknown> | null = null;
     let tierSubmitted: Record<string, unknown> | null = null;
+    let profileSubmitted: Record<string, unknown> | null = null;
+    let memberAddress: string | null = '12 King Street';
     let testingModeDisabled = false;
     let transferAccessGranted = false;
     let adminAccountTier: string | null = null;
@@ -776,6 +778,7 @@ test.describe('signed-in member pages at phone widths', () => {
       customerId: 'ABC1234',
       firstName: 'Viewport',
       lastName: 'Member',
+      address: memberAddress,
       accountTierName,
       accountTierSource,
       adminAccountTier,
@@ -804,6 +807,12 @@ test.describe('signed-in member pages at phone widths', () => {
       const pathname = new URL(request.url()).pathname;
       if (pathname.endsWith('/access')) {
         await route.fulfill({ json: { allowed: true, roles: ['operations'] } });
+      } else if (pathname.endsWith('/profile') && request.method() === 'PATCH') {
+        profileSubmitted = request.postDataJSON() as Record<string, unknown>;
+        memberAddress = typeof profileSubmitted.address === 'string'
+          ? profileSubmitted.address
+          : null;
+        await route.fulfill({ json: { ...member, address: memberAddress } });
       } else if (pathname.endsWith('/account-tier') && request.method() === 'PATCH') {
         tierSubmitted = request.postDataJSON() as Record<string, unknown>;
         adminAccountTier = typeof tierSubmitted.adminAccountTier === 'string'
@@ -836,6 +845,7 @@ test.describe('signed-in member pages at phone widths', () => {
         await route.fulfill({
           json: {
             user: { ...member, accountTierName, accountTierSource, adminAccountTier, testingModeDisabled, transferAccessGranted },
+            address: memberAddress,
             phone: null,
             dateOfBirth: null,
             profileSetupCompletedAt: member.profileSetupCompletedAt,
@@ -935,6 +945,43 @@ test.describe('signed-in member pages at phone widths', () => {
     });
     await expect(page.getByTestId('member-account-tier-viewport-member')).toContainText('Silver🥈');
     await expect(page.getByRole('status')).toContainText('Account tier updated');
+
+    await expect(page.getByTestId('admin-member-address')).toHaveText('12 King Street');
+    await page.getByTestId('button-edit-member-profile').click();
+    const dialog = page.getByRole('dialog');
+    const addressField = dialog.getByTestId('input-admin-member-address');
+    await expect(addressField).toHaveValue('12 King Street');
+    await expect(addressField).not.toHaveAttribute('required', '');
+    for (const width of [320, 360, 390, 768, 1440]) {
+      await page.setViewportSize({ width, height: 850 });
+      const [dialogBox, fieldBox] = await Promise.all([
+        dialog.boundingBox(),
+        addressField.boundingBox(),
+      ]);
+      expect(dialogBox, `Profile editor should render at ${width}px`).not.toBeNull();
+      expect(fieldBox, `Address editor should render at ${width}px`).not.toBeNull();
+      expect(dialogBox!.x).toBeGreaterThanOrEqual(0);
+      expect(dialogBox!.x + dialogBox!.width).toBeLessThanOrEqual(width + 1);
+      expect(fieldBox!.x).toBeGreaterThanOrEqual(dialogBox!.x);
+      expect(fieldBox!.x + fieldBox!.width).toBeLessThanOrEqual(dialogBox!.x + dialogBox!.width + 1);
+    }
+    await addressField.fill('45 Market Road');
+    await dialog.getByLabel('Your six-digit transaction PIN').fill('482731');
+    await dialog.getByRole('button', { name: 'Confirm & save' }).click();
+    await expect.poll(() => profileSubmitted).toMatchObject({
+      address: '45 Market Road',
+      transactionPin: '482731',
+    });
+    await expect(page.getByTestId('admin-member-address')).toHaveText('45 Market Road');
+
+    await page.getByTestId('button-edit-member-profile').click();
+    const clearDialog = page.getByRole('dialog');
+    const clearAddressField = clearDialog.getByTestId('input-admin-member-address');
+    await clearAddressField.fill('');
+    await clearDialog.getByLabel('Your six-digit transaction PIN').fill('482731');
+    await clearDialog.getByRole('button', { name: 'Confirm & save' }).click();
+    await expect.poll(() => profileSubmitted?.address).toBeNull();
+    await expect(page.getByTestId('admin-member-address')).toHaveText('Missing');
   });
 });
 
