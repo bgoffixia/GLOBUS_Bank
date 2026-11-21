@@ -25,6 +25,8 @@ export interface AdminVaultAccessRecord {
   /** @nullable */
   adminGrantAt: Date | null;
   /** @nullable */
+  adminGrantExpiresAt: Date | null;
+  /** @nullable */
   adminGrantByUserId: string | null;
   /** @nullable */
   adminGrantReason: string | null;

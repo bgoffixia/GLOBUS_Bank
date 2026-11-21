@@ -1877,7 +1877,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminVaultAccessActionInput"
+              $ref: "#/components/schemas/AdminVaultAccessGrantInput"
       responses:
         "200":
           description: Administrator Vault entitlement granted
@@ -1910,7 +1910,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: "#/components/schemas/AdminVaultAccessActionInput"
+              $ref: "#/components/schemas/AdminVaultAccessRevokeInput"
       responses:
         "200":
           description: Administrator Vault entitlement revoked
@@ -3505,11 +3505,12 @@ components:
         subscriptionExpiresAt: { type: ["string", "null"], format: date-time }
         adminGrantActive: { type: boolean }
         adminGrantAt: { type: ["string", "null"], format: date-time }
+        adminGrantExpiresAt: { type: ["string", "null"], format: date-time }
         adminGrantByUserId: { type: ["string", "null"] }
         adminGrantReason: { type: ["string", "null"] }
         accessActive: { type: boolean }
         accessSource: { $ref: "#/components/schemas/AdminVaultAccessSource" }
-      required: [userId, email, customerId, firstName, lastName, subscriptionStatus, subscriptionActive, subscriptionExpiresAt, adminGrantActive, adminGrantAt, adminGrantByUserId, adminGrantReason, accessActive, accessSource]
+      required: [userId, email, customerId, firstName, lastName, subscriptionStatus, subscriptionActive, subscriptionExpiresAt, adminGrantActive, adminGrantAt, adminGrantExpiresAt, adminGrantByUserId, adminGrantReason, accessActive, accessSource]
     AdminVaultAccessPage:
       type: object
       properties:
@@ -3517,7 +3518,14 @@ components:
           type: array
           items: { $ref: "#/components/schemas/AdminVaultAccessRecord" }
       required: [items]
-    AdminVaultAccessActionInput:
+    AdminVaultAccessGrantInput:
+      type: object
+      properties:
+        transactionPin: { type: string, pattern: "^[0-9]{6}$" }
+        confirmed: { type: boolean, enum: [true] }
+        duration: { type: string, enum: [7d, 30d, 90d, permanent] }
+      required: [transactionPin, confirmed, duration]
+    AdminVaultAccessRevokeInput:
       type: object
       properties:
         transactionPin: { type: string, pattern: "^[0-9]{6}$" }

@@ -25,13 +25,14 @@ const suffix = randomUUID();
 const adminId = `vault-access-admin-${suffix}`;
 const nonAdminId = `vault-access-member-${suffix}`;
 const targetId = `vault-access-target-${suffix}`;
+const expiredGrantUserId = `vault-access-expired-${suffix}`;
 const paidUserId = `vault-access-paid-${suffix}`;
 const targetEmail = `${targetId}@example.test`;
 const adminPin = "481639";
 const originalAdminIds = process.env.GLOBUS_ADMIN_CLERK_IDS;
 const originalAdminEmails = process.env.GLOBUS_ADMIN_EMAILS;
 after(async () => {
-  const ids = [adminId, nonAdminId, targetId, paidUserId];
+    const ids = [adminId, nonAdminId, targetId, expiredGrantUserId, paidUserId];
   try {
     try {
       await db.delete(bankVaultAdminEntitlementsTable).where(inArray(bankVaultAdminEntitlementsTable.userId, ids));
@@ -68,6 +69,7 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     },
     { id: nonAdminId, email: `${nonAdminId}@example.test` },
     { id: targetId, email: targetEmail, firstName: "Vault", lastName: "Member" },
+      { id: expiredGrantUserId, email: `${expiredGrantUserId}@example.test` },
     {
       id: paidUserId,
       email: `${paidUserId}@example.test`,
@@ -164,6 +166,7 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
         body: JSON.stringify({
           transactionPin: adminPin,
           confirmed: true,
+          duration: "7d",
         }),
       },
     );
@@ -286,17 +289,20 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       body: JSON.stringify({
         transactionPin: adminPin,
         confirmed: true,
+        duration: "permanent",
       }),
     });
     assert.equal(selfGrant.status, 200, await selfGrant.clone().text());
     const selfGranted = await selfGrant.json() as {
       adminGrantActive: boolean;
+      adminGrantExpiresAt: string | null;
       accessActive: boolean;
       accessSource: string;
     };
     assert.equal(selfGranted.adminGrantActive, true);
     assert.equal(selfGranted.accessActive, true);
     assert.equal(selfGranted.accessSource, "admin_grant");
+    assert.equal(selfGranted.adminGrantExpiresAt, null);
     assert.equal(await hasActiveVaultAccess({
       id: adminId,
       vaultSubscriptionStatus: "inactive",
@@ -312,11 +318,65 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     assert.equal(initialData.items[0]?.userId, targetId);
     assert.equal(initialData.items[0]?.accessSource, "none");
 
+    const expiredAt = new Date(Date.now() - 60_000);
+    await db.insert(bankVaultAdminEntitlementsTable).values({
+      userId: targetId,
+      grantedByUserId: adminId,
+      reason: "Previous timed grant",
+      grantedAt: new Date(Date.now() - 8 * 24 * 60 * 60 * 1000),
+      expiresAt: expiredAt,
+    });
+    const expiredSearch = await request(
+      `/vault-access?search=${encodeURIComponent(targetEmail)}`,
+      adminId,
+    );
+    assert.equal(expiredSearch.status, 200);
+    const expiredData = await expiredSearch.json() as {
+      items: Array<{
+        userId: string;
+        adminGrantActive: boolean;
+        adminGrantAt: string | null;
+        adminGrantExpiresAt: string | null;
+        accessSource: string;
+      }>;
+    };
+    assert.deepEqual(
+      {
+        userId: expiredData.items[0]?.userId,
+        adminGrantActive: expiredData.items[0]?.adminGrantActive,
+        adminGrantAt: expiredData.items[0]?.adminGrantAt !== null,
+        adminGrantExpiresAt: expiredData.items[0]?.adminGrantExpiresAt,
+        accessSource: expiredData.items[0]?.accessSource,
+      },
+      {
+        userId: targetId,
+        adminGrantActive: false,
+        adminGrantAt: true,
+        adminGrantExpiresAt: expiredAt.toISOString(),
+        accessSource: "none",
+      },
+    );
+
+    const invalidDuration = await request(
+      `/users/${expiredGrantUserId}/vault-access/grant`,
+      adminId,
+      {
+        method: "POST",
+        body: JSON.stringify({
+          transactionPin: adminPin,
+          confirmed: true,
+          duration: "365d",
+        }),
+      },
+    );
+    assert.equal(invalidDuration.status, 400);
+
     const badPinResponse = await request(`/users/${targetId}/vault-access/grant`, adminId, {
       method: "POST",
       body: JSON.stringify({
         transactionPin: "000000",
         confirmed: true,
+        duration: "7d",
       }),
     });
     assert.equal(badPinResponse.status, 403);
@@ -331,6 +391,7 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       body: JSON.stringify({
         transactionPin: adminPin,
         confirmed: true,
+        duration: "7d",
       }),
     });
     assert.equal(grantResponse.status, 200);
@@ -340,12 +401,22 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       accessSource: string;
       subscriptionActive: boolean;
       adminGrantByUserId: string;
+      adminGrantExpiresAt: string | null;
     };
     assert.equal(granted.adminGrantActive, true);
     assert.equal(granted.accessActive, true);
     assert.equal(granted.accessSource, "admin_grant");
     assert.equal(granted.subscriptionActive, false);
     assert.equal(granted.adminGrantByUserId, adminId);
+    assert.ok(granted.adminGrantExpiresAt);
+    assert.ok(
+      new Date(granted.adminGrantExpiresAt).getTime() >
+        Date.now() + 6 * 24 * 60 * 60 * 1000,
+    );
+    assert.ok(
+      new Date(granted.adminGrantExpiresAt).getTime() <
+        Date.now() + 8 * 24 * 60 * 60 * 1000,
+    );
     assert.equal(await hasActiveVaultAccess({
       id: targetId,
       vaultSubscriptionStatus: "inactive",
@@ -361,6 +432,7 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
         eq(bankAuditLogsTable.action, "grant_admin_private_vault_access"),
       ));
     assert.match(audit?.reason ?? "", /^Automatically generated audit reason for Private Vault admin grant/);
+    assert.match(audit?.reason ?? "", /Grant duration: 7d/);
     assert.ok(audit?.createdAt instanceof Date);
 
     const selfRevoke = await request(`/users/${adminId}/vault-access/revoke`, adminId, {
@@ -379,6 +451,7 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       body: JSON.stringify({
         transactionPin: adminPin,
         confirmed: true,
+        duration: "30d",
       }),
     });
     assert.equal(revokeResponse.status, 200);

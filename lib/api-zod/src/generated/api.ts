@@ -2762,6 +2762,7 @@ export const ListAdminVaultAccessResponse = zod.object({
   "subscriptionExpiresAt": zod.coerce.date().nullable(),
   "adminGrantActive": zod.boolean(),
   "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantExpiresAt": zod.coerce.date().nullable(),
   "adminGrantByUserId": zod.string().nullable(),
   "adminGrantReason": zod.string().nullable(),
   "accessActive": zod.boolean(),
@@ -2785,7 +2786,8 @@ export const grantAdminVaultAccessBodyTransactionPinRegExp = new RegExp('^[0-9]{
 
 export const GrantAdminVaultAccessBody = zod.object({
   "transactionPin": zod.string().regex(grantAdminVaultAccessBodyTransactionPinRegExp),
-  "confirmed": zod.literal(true)
+  "confirmed": zod.literal(true),
+  "duration": zod.enum(['7d', '30d', '90d', 'permanent'])
 })
 
 export const GrantAdminVaultAccessResponse = zod.object({
@@ -2799,6 +2801,7 @@ export const GrantAdminVaultAccessResponse = zod.object({
   "subscriptionExpiresAt": zod.coerce.date().nullable(),
   "adminGrantActive": zod.boolean(),
   "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantExpiresAt": zod.coerce.date().nullable(),
   "adminGrantByUserId": zod.string().nullable(),
   "adminGrantReason": zod.string().nullable(),
   "accessActive": zod.boolean(),
@@ -2835,6 +2838,7 @@ export const RevokeAdminVaultAccessResponse = zod.object({
   "subscriptionExpiresAt": zod.coerce.date().nullable(),
   "adminGrantActive": zod.boolean(),
   "adminGrantAt": zod.coerce.date().nullable(),
+  "adminGrantExpiresAt": zod.coerce.date().nullable(),
   "adminGrantByUserId": zod.string().nullable(),
   "adminGrantReason": zod.string().nullable(),
   "accessActive": zod.boolean(),

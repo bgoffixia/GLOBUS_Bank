@@ -44,6 +44,7 @@ export function AdminVaultAccessPage() {
   const [submittedSearch, setSubmittedSearch] = useState("");
   const [target, setTarget] = useState<AdminVaultAccessRecord | null>(null);
   const [action, setAction] = useState<"grant" | "revoke" | null>(null);
+  const [duration, setDuration] = useState<"7d" | "30d" | "90d" | "permanent">("30d");
   const [transactionPin, setTransactionPin] = useState("");
   const [confirmed, setConfirmed] = useState(false);
   const [error, setError] = useState("");
@@ -76,6 +77,7 @@ export function AdminVaultAccessPage() {
   ) => {
     setTarget(record);
     setAction(nextAction);
+    setDuration("30d");
     setTransactionPin("");
     setConfirmed(false);
     setError("");
@@ -96,10 +98,18 @@ export function AdminVaultAccessPage() {
     try {
       const variables = {
         userId: target.userId,
-        data: { transactionPin, confirmed: true as const },
       };
-      if (action === "grant") await grantMutation.mutateAsync(variables);
-      else await revokeMutation.mutateAsync(variables);
+      if (action === "grant") {
+        await grantMutation.mutateAsync({
+          ...variables,
+          data: { transactionPin, confirmed: true, duration },
+        });
+      } else {
+        await revokeMutation.mutateAsync({
+          ...variables,
+          data: { transactionPin, confirmed: true },
+        });
+      }
       await client.invalidateQueries({
         queryKey: getListAdminVaultAccessQueryKey({ search: submittedSearch }),
       });
@@ -187,7 +197,7 @@ export function AdminVaultAccessPage() {
                         <div><dt className="font-bold uppercase tracking-wide text-[#879596]">Customer ID</dt><dd className="mt-0.5 font-mono text-[#49646e]">{record.customerId || "—"}</dd></div>
                         <div><dt className="font-bold uppercase tracking-wide text-[#879596]">User identifier</dt><dd className="mt-0.5 break-all font-mono text-[#49646e]">{record.userId}</dd></div>
                         <div><dt className="font-bold uppercase tracking-wide text-[#879596]">Paid subscription</dt><dd className="mt-0.5 text-[#49646e]">{record.subscriptionActive ? `Active${record.subscriptionExpiresAt ? ` · expires ${dateTime(record.subscriptionExpiresAt)}` : ""}` : record.subscriptionStatus.replaceAll("_", " ")}</dd></div>
-                        <div><dt className="font-bold uppercase tracking-wide text-[#879596]">Admin grant</dt><dd className="mt-0.5 text-[#49646e]">{record.adminGrantActive ? `Active since ${dateTime(record.adminGrantAt)}` : "None"}</dd></div>
+                         <div><dt className="font-bold uppercase tracking-wide text-[#879596]">Admin grant</dt><dd className="mt-0.5 text-[#49646e]">{!record.adminGrantAt ? "None" : record.adminGrantActive ? `Active since ${dateTime(record.adminGrantAt)}${record.adminGrantExpiresAt ? ` · expires ${dateTime(record.adminGrantExpiresAt)}` : " · no expiry"}` : `Expired ${dateTime(record.adminGrantExpiresAt)}`}</dd></div>
                         {record.adminGrantActive && <div><dt className="font-bold uppercase tracking-wide text-[#879596]">Granting administrator</dt><dd className="mt-0.5 break-all font-mono text-[#49646e]">{record.adminGrantByUserId || "—"}</dd></div>}
                         {record.adminGrantReason && <div className="sm:col-span-2"><dt className="font-bold uppercase tracking-wide text-[#879596]">Grant reason</dt><dd className="mt-0.5 break-words text-[#49646e]">{record.adminGrantReason}</dd></div>}
                       </dl>
@@ -231,6 +241,22 @@ export function AdminVaultAccessPage() {
                   ? "This adds a separate admin entitlement. It does not create or modify a payment, transaction, or subscription."
                   : "This removes only the admin entitlement. Any active paid subscription remains unchanged."}
               </div>
+              {action === "grant" && (
+                <label className="block">
+                  <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.11em] text-[#71848b]">Access duration</span>
+                  <select
+                    value={duration}
+                    onChange={(event) => setDuration(event.target.value as typeof duration)}
+                    className={inputClass}
+                    data-testid="select-admin-vault-grant-duration"
+                  >
+                    <option value="7d">7 days</option>
+                    <option value="30d">30 days</option>
+                    <option value="90d">90 days</option>
+                    <option value="permanent">No expiry</option>
+                  </select>
+                </label>
+              )}
               <label className="block">
                 <span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.11em] text-[#71848b]">Administrator transaction PIN</span>
                 <input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="off" value={transactionPin} onChange={(event) => setTransactionPin(event.target.value.replace(/\D/g, "").slice(0, 6))} className={inputClass} />

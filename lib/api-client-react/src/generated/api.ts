@@ -56,9 +56,10 @@ import type {
   AdminUserPasswordResetResult,
   AdminUserProfileInput,
   AdminUserStatusInput,
-  AdminVaultAccessActionInput,
+  AdminVaultAccessGrantInput,
   AdminVaultAccessPage,
   AdminVaultAccessRecord,
+  AdminVaultAccessRevokeInput,
   AdminVaultSubscriptionInput,
   AdminVaultSubscriptionResult,
   AdminWalletCurrencyMigrationInput,
@@ -7711,7 +7712,7 @@ export const getGrantAdminVaultAccessUrl = (userId: string,) => {
  * @summary Grant a separate administrator Vault entitlement
  */
 export const grantAdminVaultAccess = async (userId: string,
-    adminVaultAccessActionInput: AdminVaultAccessActionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminVaultAccessRecord> => {
+    adminVaultAccessGrantInput: AdminVaultAccessGrantInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminVaultAccessRecord> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7732,7 +7733,7 @@ return customFetch<AdminVaultAccessRecord>(getGrantAdminVaultAccessUrl(userId),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(adminVaultAccessActionInput)
+    body: JSON.stringify(adminVaultAccessGrantInput)
   }
 );}
 
@@ -7770,9 +7771,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type GrantAdminVaultAccessMutationResult = NonNullable<Awaited<ReturnType<typeof grantAdminVaultAccess>>>
-    export type GrantAdminVaultAccessMutationBody = BodyType<AdminVaultAccessActionInput>
+    export type GrantAdminVaultAccessMutationBody = BodyType<AdminVaultAccessGrantInput>
     export type GrantAdminVaultAccessMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
-    export type GrantAdminVaultAccessMutationVariables = {userId: string;data: BodyType<AdminVaultAccessActionInput>}
+    export type GrantAdminVaultAccessMutationVariables = {userId: string;data: BodyType<AdminVaultAccessGrantInput>}
 
     /**
  * @summary Grant a separate administrator Vault entitlement
@@ -7800,7 +7801,7 @@ export const getRevokeAdminVaultAccessUrl = (userId: string,) => {
  * @summary Revoke an administrator Vault entitlement without changing paid access
  */
 export const revokeAdminVaultAccess = async (userId: string,
-    adminVaultAccessActionInput: AdminVaultAccessActionInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminVaultAccessRecord> => {
+    adminVaultAccessRevokeInput: AdminVaultAccessRevokeInput, options?: Parameters<typeof customFetch>[1]): Promise<AdminVaultAccessRecord> => {
 
     const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
     if (!h) return {};
@@ -7821,7 +7822,7 @@ return customFetch<AdminVaultAccessRecord>(getRevokeAdminVaultAccessUrl(userId),
     ...options,
     method: 'POST',
     headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
-    body: JSON.stringify(adminVaultAccessActionInput)
+    body: JSON.stringify(adminVaultAccessRevokeInput)
   }
 );}
 
@@ -7859,9 +7860,9 @@ const {mutation: mutationOptions, request: requestOptions} = options ?
   return  { mutationFn, ...mutationOptions }}
 
     export type RevokeAdminVaultAccessMutationResult = NonNullable<Awaited<ReturnType<typeof revokeAdminVaultAccess>>>
-    export type RevokeAdminVaultAccessMutationBody = BodyType<AdminVaultAccessActionInput>
+    export type RevokeAdminVaultAccessMutationBody = BodyType<AdminVaultAccessRevokeInput>
     export type RevokeAdminVaultAccessMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | ForbiddenResponse | NotFoundResponse | ConflictResponse>
-    export type RevokeAdminVaultAccessMutationVariables = {userId: string;data: BodyType<AdminVaultAccessActionInput>}
+    export type RevokeAdminVaultAccessMutationVariables = {userId: string;data: BodyType<AdminVaultAccessRevokeInput>}
 
     /**
  * @summary Revoke an administrator Vault entitlement without changing paid access

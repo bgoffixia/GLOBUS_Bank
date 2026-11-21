@@ -649,6 +649,7 @@ export const bankVaultAdminEntitlementsTable = pgTable(
     grantedAt: timestamp("granted_at", { withTimezone: true })
       .notNull()
       .defaultNow(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }),
   },
   (table) => [
     index("bank_vault_admin_entitlement_grantor_idx").on(

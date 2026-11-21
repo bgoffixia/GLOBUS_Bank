@@ -1974,6 +1974,8 @@ export interface AdminVaultAccessRecord {
   /** @nullable */
   adminGrantAt: string | null;
   /** @nullable */
+  adminGrantExpiresAt: string | null;
+  /** @nullable */
   adminGrantByUserId: string | null;
   /** @nullable */
   adminGrantReason: string | null;
@@ -1985,7 +1987,24 @@ export interface AdminVaultAccessPage {
   items: AdminVaultAccessRecord[];
 }
 
-export interface AdminVaultAccessActionInput {
+export type AdminVaultAccessGrantInputDuration = typeof AdminVaultAccessGrantInputDuration[keyof typeof AdminVaultAccessGrantInputDuration];
+
+
+export const AdminVaultAccessGrantInputDuration = {
+  '7d': '7d',
+  '30d': '30d',
+  '90d': '90d',
+  permanent: 'permanent',
+} as const;
+
+export interface AdminVaultAccessGrantInput {
+  /** @pattern ^[0-9]{6}$ */
+  transactionPin: string;
+  confirmed: true;
+  duration: AdminVaultAccessGrantInputDuration;
+}
+
+export interface AdminVaultAccessRevokeInput {
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;

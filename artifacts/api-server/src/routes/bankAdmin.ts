@@ -288,13 +288,17 @@ async function isAllowlistedAdmin(userId: string): Promise<boolean> {
 function adminVaultAccessRecord(
   user: typeof bankUsersTable.$inferSelect,
   grant: typeof bankVaultAdminEntitlementsTable.$inferSelect | null,
+  now = new Date(),
 ) {
   const subscriptionStatus = vaultSubscriptionStatus(
     user.vaultSubscriptionStatus,
     user.vaultSubscriptionExpiresAt,
   );
   const subscriptionActive = subscriptionStatus === "active";
-  const accessSource = grant
+  const adminGrantActive = Boolean(
+    grant && (!grant.expiresAt || grant.expiresAt > now),
+  );
+  const accessSource = adminGrantActive
     ? "admin_grant"
     : subscriptionActive
       ? "paystack_subscription"
@@ -308,13 +312,30 @@ function adminVaultAccessRecord(
     subscriptionStatus,
     subscriptionActive,
     subscriptionExpiresAt: user.vaultSubscriptionExpiresAt?.toISOString() ?? null,
-    adminGrantActive: Boolean(grant),
+    adminGrantActive,
     adminGrantAt: grant?.grantedAt.toISOString() ?? null,
+    adminGrantExpiresAt: grant?.expiresAt?.toISOString() ?? null,
     adminGrantByUserId: grant?.grantedByUserId ?? null,
     adminGrantReason: grant?.reason ?? null,
-    accessActive: Boolean(grant) || subscriptionActive,
+    accessActive: adminGrantActive || subscriptionActive,
     accessSource,
   };
+}
+
+type AdminVaultGrantDuration = "7d" | "30d" | "90d" | "permanent";
+const adminVaultGrantDurationDays: Record<AdminVaultGrantDuration, number | null> = {
+  "7d": 7,
+  "30d": 30,
+  "90d": 90,
+  permanent: null,
+};
+
+function adminVaultGrantExpiry(
+  duration: AdminVaultGrantDuration,
+  now = new Date(),
+): Date | null {
+  const days = adminVaultGrantDurationDays[duration];
+  return days === null ? null : new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
 }
 
 async function applyAdminVaultEntitlementAction(
@@ -322,6 +343,7 @@ async function applyAdminVaultEntitlementAction(
   targetUserId: string,
   reason: string,
   action: "grant" | "revoke",
+  grantExpiresAt: Date | null = null,
 ) {
   if (actorUserId === targetUserId && action === "revoke") {
     return { selfRevoke: true as const };
@@ -335,16 +357,32 @@ async function applyAdminVaultEntitlementAction(
     if (!target) return { notFound: true as const };
 
     if (action === "grant") {
-      const [grant] = await tx
-        .insert(bankVaultAdminEntitlementsTable)
-        .values({
-          userId: target.id,
-          grantedByUserId: actorUserId,
-          reason,
-        })
-        .onConflictDoNothing()
-        .returning();
-      if (!grant) return { alreadyGranted: true as const };
+      const [existing] = await tx
+        .select()
+        .from(bankVaultAdminEntitlementsTable)
+        .where(eq(bankVaultAdminEntitlementsTable.userId, target.id))
+        .for("update");
+      const now = new Date();
+      if (existing && (!existing.expiresAt || existing.expiresAt > now)) {
+        return { alreadyGranted: true as const };
+      }
+      const grantValues = {
+        userId: target.id,
+        grantedByUserId: actorUserId,
+        reason,
+        grantedAt: now,
+        expiresAt: grantExpiresAt,
+      };
+      if (existing) {
+        await tx
+          .update(bankVaultAdminEntitlementsTable)
+          .set(grantValues)
+          .where(eq(bankVaultAdminEntitlementsTable.userId, target.id));
+      } else {
+        await tx
+          .insert(bankVaultAdminEntitlementsTable)
+          .values(grantValues);
+      }
     } else {
       const [grant] = await tx
         .delete(bankVaultAdminEntitlementsTable)
@@ -2421,7 +2459,8 @@ router.post(
       res.status(401).json({ error: "Sign in with an administrator account." });
       return;
     }
-    const reason = generatedAdminAuditReason(req);
+    const expiresAt = adminVaultGrantExpiry(parsed.data.duration);
+    const reason = `${generatedAdminAuditReason(req)} Grant duration: ${parsed.data.duration}${expiresAt ? `; expires ${expiresAt.toISOString()}` : "; no expiry"}.`;
     const actor = await ensureBankUser(authUserId);
     const pinResult = await verifyTransactionPin(actor.id, parsed.data.transactionPin);
     if (pinResult !== "valid") {
@@ -2440,6 +2479,7 @@ router.post(
       params.data.userId,
       reason,
       "grant",
+      expiresAt,
     );
     if ("notFound" in result) {
       res.status(404).json({ error: "User record not found." });

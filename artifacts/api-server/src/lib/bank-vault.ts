@@ -4,7 +4,7 @@ import {
   scrypt,
   timingSafeEqual,
 } from "node:crypto";
-import { and, eq, gt, inArray, lte, or } from "drizzle-orm";
+import { and, eq, gt, inArray, isNull, lte, or } from "drizzle-orm";
 import {
   bankUsersTable,
   bankVaultAdminEntitlementsTable,
@@ -189,11 +189,20 @@ type VaultAccessExecutor = Pick<typeof db, "select">;
 export async function hasAdminVaultEntitlement(
   userId: string,
   executor: VaultAccessExecutor = db,
+  now = new Date(),
 ): Promise<boolean> {
   const [entitlement] = await executor
     .select({ userId: bankVaultAdminEntitlementsTable.userId })
     .from(bankVaultAdminEntitlementsTable)
-    .where(eq(bankVaultAdminEntitlementsTable.userId, userId))
+    .where(
+      and(
+        eq(bankVaultAdminEntitlementsTable.userId, userId),
+        or(
+          isNull(bankVaultAdminEntitlementsTable.expiresAt),
+          gt(bankVaultAdminEntitlementsTable.expiresAt, now),
+        ),
+      ),
+    )
     .limit(1);
   return Boolean(entitlement);
 }
@@ -207,7 +216,7 @@ export async function getVaultAccessSource(
   executor: VaultAccessExecutor = db,
   now = new Date(),
 ): Promise<"none" | "paystack_subscription" | "admin_grant"> {
-  if (await hasAdminVaultEntitlement(user.id, executor)) return "admin_grant";
+  if (await hasAdminVaultEntitlement(user.id, executor, now)) return "admin_grant";
   return hasActiveVaultSubscription(user, now)
     ? "paystack_subscription"
     : "none";
