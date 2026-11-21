@@ -24,6 +24,8 @@ import {
 } from '@workspace/api-client-react';
 import { InstallAppButton } from '@/components/pwa-install-prompt';
 import { NotificationsCenter } from '@/components/notifications-center';
+import { AppLanguageSelector } from '@/components/app-language-selector';
+import { useLanguage } from '@/lib/i18n';
 
 const primaryLinks = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
@@ -47,6 +49,7 @@ const moneyLinks = [
 export function BankShell({ children }: { children: ReactNode }) {
   const [location] = useLocation();
   const [mobileMenu, setMobileMenu] = useState(false);
+  const { t } = useLanguage();
   const { user } = useUser();
   const { signOut } = useClerk();
   const isDashboard = location === '/dashboard';
@@ -80,35 +83,36 @@ export function BankShell({ children }: { children: ReactNode }) {
               <span className="mt-1 text-[8px] font-bold tracking-[0.3em] text-[#d1b05f]">BANK</span>
             </span>
           </Link>
-          <button aria-label="Close navigation" onClick={() => setMobileMenu(false)} className="rounded-lg p-2 text-slate-300 lg:hidden">
+          <button aria-label={t('Close navigation')} data-testid="button-close-navigation" onClick={() => setMobileMenu(false)} className="rounded-lg p-2 text-slate-300 lg:hidden">
             <X size={18} />
           </button>
         </div>
-        <nav className="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain px-4 pb-5">
-          <NavGroup title="Your account" links={primaryLinks} location={location} onNavigate={() => setMobileMenu(false)} />
-          <NavGroup title="Move money" links={moneyLinks} location={location} onNavigate={() => setMobileMenu(false)} />
+        <nav aria-label={t('Account navigation')} className="min-h-0 flex-1 space-y-7 overflow-y-auto overscroll-contain px-4 pb-5">
+          <NavGroup title={t('Your account')} links={primaryLinks.map(link => ({ ...link, label: t(link.label) }))} location={location} onNavigate={() => setMobileMenu(false)} />
+          <NavGroup title={t('Move money')} links={moneyLinks.map(link => ({ ...link, label: t(link.label) }))} location={location} onNavigate={() => setMobileMenu(false)} />
           <div>
             {adminAccess.data?.allowed && (
               <Link href="/admin" onClick={() => setMobileMenu(false)} className="flex items-center gap-3 rounded-lg px-3 py-2.5 text-[13px] text-slate-300 transition hover:bg-white/[0.07] hover:text-white">
                 <ShieldCheck size={17} strokeWidth={1.8} />
-                Operations
+                {t('Operations')}
               </Link>
             )}
           </div>
         </nav>
         <div className="border-t border-white/10 p-4">
           <InstallAppButton className="mb-3 flex w-full items-center gap-2 rounded-lg border border-white/10 bg-white/[.06] px-3 py-2.5 text-left text-[11px] font-semibold text-slate-200 transition hover:bg-white/10" />
+          <AppLanguageSelector className="mb-3 w-full justify-start" />
           <div className="flex items-center gap-2 rounded-xl px-2 py-2">
             <Link href="/profile" aria-label="Open your profile" data-testid="link-sidebar-profile" onClick={() => setMobileMenu(false)} className="flex min-w-0 flex-1 items-center gap-3 rounded-lg">
               <div className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-[#d6eaf0] text-xs font-bold text-[#163753]">
                 {user?.imageUrl ? <img src={user.imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-white">{user?.fullName ?? 'Globus member'}</p>
+                <p className="truncate text-xs font-semibold text-white">{user?.fullName ?? t('Globus member')}</p>
                 <p className="truncate text-[10px] text-slate-400">{user?.primaryEmailAddress?.emailAddress}</p>
               </div>
             </Link>
-            <button aria-label="Sign out" onClick={() => signOut({ redirectUrl: import.meta.env.BASE_URL })} className="rounded-md p-2 text-slate-400 hover:bg-white/10 hover:text-white">
+            <button aria-label={t('Sign out')} onClick={() => signOut({ redirectUrl: import.meta.env.BASE_URL })} className="rounded-md p-2 text-slate-400 hover:bg-white/10 hover:text-white">
               <LogOut size={16} />
             </button>
           </div>
@@ -118,26 +122,31 @@ export function BankShell({ children }: { children: ReactNode }) {
       <div className="bank-main-column min-w-0 w-full lg:pl-[252px]">
         <header className="sticky top-0 z-20 flex min-h-[64px] items-center justify-between gap-2 border-b border-[#e3e9ef] bg-[#f7f9fb]/95 px-3 py-2 backdrop-blur-md sm:h-[72px] sm:px-8">
           <div className="flex min-w-0 flex-1 items-center gap-2 sm:gap-3">
-            <button aria-label="Open navigation" onClick={() => setMobileMenu(true)} className="shrink-0 rounded-lg p-2 text-[#283c55] hover:bg-[#e9eff4] lg:hidden">
+            <button aria-label={t('Open navigation')} data-testid="button-open-navigation" onClick={() => setMobileMenu(true)} className="shrink-0 rounded-lg p-2 text-[#283c55] hover:bg-[#e9eff4] lg:hidden">
               <Menu size={19} />
             </button>
             {isDashboard ? (
               <div className="min-w-0">
-                <p className="truncate text-[8px] font-bold uppercase tracking-[.14em] text-[#738297] sm:text-[9px]">Dashboard</p>
+                <p className="truncate text-[8px] font-bold uppercase tracking-[.14em] text-[#738297] sm:text-[9px]">{t('Dashboard')}</p>
                 <p data-testid="dashboard-header-greeting" className="truncate text-[11px] font-bold text-[#253850] sm:text-[13px]">
-                  Good to see you{(dashboardProfile.data?.firstName ?? user?.firstName) ? `, ${dashboardProfile.data?.firstName ?? user?.firstName}` : ''}.
+                  {t('Good to see you{greetingName}.', {
+                    greetingName: (dashboardProfile.data?.firstName ?? user?.firstName)
+                      ? `, ${dashboardProfile.data?.firstName ?? user?.firstName}`
+                      : '',
+                  })}
                 </p>
               </div>
             ) : (
-              <p className="min-w-0 truncate text-[11px] font-medium text-[#738297] sm:text-[12px]"><span className="hidden sm:inline">Globus Bank <span className="px-1.5 text-[#c5ced7]">/</span> </span><span className="text-[#253850]">{pageLabel(location)}</span></p>
+              <p className="min-w-0 truncate text-[11px] font-medium text-[#738297] sm:text-[12px]"><span className="hidden sm:inline">Globus Bank <span className="px-1.5 text-[#c5ced7]">/</span> </span><span className="text-[#253850]">{t(pageLabel(location))}</span></p>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <NotificationsCenter />
-            <Link href="/home" aria-label="Return to Globus home" data-testid="link-app-home" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#377d83] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
+            <Link href="/home" aria-label={t('Return to Globus home')} data-testid="link-app-home" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#377d83] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
               <House size={14} />
-              <span className="hidden sm:inline">Home</span>
+              <span className="hidden sm:inline">{t('Home')}</span>
             </Link>
+            <div className="hidden sm:block"><AppLanguageSelector /></div>
             <InstallAppButton className="hidden items-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2.5 py-2 text-[10px] font-bold text-[#377d83] hover:bg-[#eff8f8] sm:inline-flex" />
             <Link href="/profile" aria-label="Open your profile" data-testid="link-header-profile" className={`grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-[#dbe3eb] bg-white text-xs font-bold text-[#27445e] ${isProfile ? 'ring-2 ring-[#68a3a6] ring-offset-2' : ''}`}>
               {user?.imageUrl ? <img src={user.imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
@@ -147,13 +156,13 @@ export function BankShell({ children }: { children: ReactNode }) {
         <main className={`page-enter mx-auto min-w-0 w-full ${isDashboard || isTransfer ? 'max-w-none px-3 sm:px-6' : 'max-w-[1440px] px-4 lg:px-10'} ${isSingleViewportPage ? `h-[calc(100dvh-64px)] ${isProfile ? 'overflow-hidden' : 'overflow-y-auto'} overscroll-contain py-3 sm:h-[calc(100dvh-72px)] sm:px-8 sm:py-4` : isDashboard ? 'min-h-full pb-24 pt-3 sm:px-8 sm:pb-24 sm:pt-4' : 'py-4 sm:px-8 sm:py-6'} ${isProfile ? 'profile-viewport-fixed' : ''}`}>{children}</main>
       </div>
       {isDashboard && (
-        <nav aria-label="Dashboard tools" data-testid="dashboard-bottom-toolbar" className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-[#dfe7ed] bg-white/95 px-1 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+.35rem)] shadow-[0_-8px_20px_rgba(20,47,81,.06)] backdrop-blur-md lg:left-[252px] lg:px-4">
+        <nav aria-label={t('Dashboard tools')} data-testid="dashboard-bottom-toolbar" className="fixed inset-x-0 bottom-0 z-20 grid grid-cols-5 border-t border-[#dfe7ed] bg-white/95 px-1 pt-1.5 pb-[calc(env(safe-area-inset-bottom)+.35rem)] shadow-[0_-8px_20px_rgba(20,47,81,.06)] backdrop-blur-md lg:left-[252px] lg:px-4">
           {dashboardTools.map(({ href, label, ariaLabel, icon: Icon }) => {
             const active = location === href || (href === '/transactions' && location.startsWith('/transactions'));
             return (
-              <Link key={href} href={href} aria-label={ariaLabel} data-testid={`dashboard-tool-${href.slice(1)}`} className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-center text-[8px] font-bold transition sm:text-[9px] ${active ? 'text-[#277a80]' : 'text-[#718297] hover:bg-[#f2f7f8] hover:text-[#315d6c]'}`}>
+              <Link key={href} href={href} aria-label={t(ariaLabel)} data-testid={`dashboard-tool-${href.slice(1)}`} className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-center text-[8px] font-bold transition sm:text-[9px] ${active ? 'text-[#277a80]' : 'text-[#718297] hover:bg-[#f2f7f8] hover:text-[#315d6c]'}`}>
                 <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
-                <span className="max-w-full truncate">{label}</span>
+                <span className="max-w-full truncate">{t(label)}</span>
               </Link>
             );
           })}

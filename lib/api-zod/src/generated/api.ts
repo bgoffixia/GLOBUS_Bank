@@ -45,6 +45,7 @@ export const GetBankProfileResponse = zod.object({
   "customerId": zod.string().regex(getBankProfileResponseCustomerIdRegExp),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
+  "address": zod.string().nullable(),
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getBankProfileResponseDateOfBirthRegExp).nullable(),
@@ -780,6 +781,7 @@ export const GetBankDashboardResponse = zod.object({
   "customerId": zod.string().regex(getBankDashboardResponseProfileOneCustomerIdRegExp),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
+  "address": zod.string().nullable(),
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(getBankDashboardResponseProfileOneDateOfBirthRegExp).nullable(),
@@ -1488,6 +1490,8 @@ export const updateBankProfileBodyFirstNameMax = 80;
 export const updateBankProfileBodyLastNameMin = 0;
 export const updateBankProfileBodyLastNameMax = 80;
 
+export const updateBankProfileBodyAddressMax = 1024;
+
 export const updateBankProfileBodyPhoneMax = 1024;
 
 export const updateBankProfileBodyCountryMax = 1024;
@@ -1503,6 +1507,7 @@ export const updateBankProfileBodyOccupationMax = 1024;
 export const UpdateBankProfileBody = zod.object({
   "firstName": zod.string().min(1).max(updateBankProfileBodyFirstNameMax),
   "lastName": zod.string().min(updateBankProfileBodyLastNameMin).max(updateBankProfileBodyLastNameMax),
+  "address": zod.string().max(updateBankProfileBodyAddressMax).nullish(),
   "phone": zod.string().max(updateBankProfileBodyPhoneMax).nullish(),
   "country": zod.string().max(updateBankProfileBodyCountryMax).nullish(),
   "dateOfBirth": zod.string().max(updateBankProfileBodyDateOfBirthMax).nullish(),
@@ -1521,6 +1526,7 @@ export const UpdateBankProfileResponse = zod.object({
   "customerId": zod.string().regex(updateBankProfileResponseCustomerIdRegExp),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
+  "address": zod.string().nullable(),
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(updateBankProfileResponseDateOfBirthRegExp).nullable(),
@@ -1551,6 +1557,8 @@ export const saveSignupProfileBodyFirstNameMax = 80;
 
 export const saveSignupProfileBodyLastNameMax = 80;
 
+export const saveSignupProfileBodyAddressMax = 1024;
+
 export const saveSignupProfileBodyPhoneMax = 1024;
 
 export const saveSignupProfileBodyCountryMax = 1024;
@@ -1566,6 +1574,7 @@ export const saveSignupProfileBodyOccupationMax = 1024;
 export const SaveSignupProfileBody = zod.object({
   "firstName": zod.string().min(1).max(saveSignupProfileBodyFirstNameMax),
   "lastName": zod.string().min(1).max(saveSignupProfileBodyLastNameMax),
+  "address": zod.string().max(saveSignupProfileBodyAddressMax).optional(),
   "phone": zod.string().max(saveSignupProfileBodyPhoneMax).optional(),
   "country": zod.string().max(saveSignupProfileBodyCountryMax).optional(),
   "cityOfOrigin": zod.string().max(saveSignupProfileBodyCityOfOriginMax).optional(),
@@ -1584,6 +1593,7 @@ export const SaveSignupProfileResponse = zod.object({
   "customerId": zod.string().regex(saveSignupProfileResponseCustomerIdRegExp),
   "firstName": zod.string().nullable(),
   "lastName": zod.string().nullable(),
+  "address": zod.string().nullable(),
   "phone": zod.string().nullable(),
   "country": zod.string().nullable(),
   "dateOfBirth": zod.string().regex(saveSignupProfileResponseDateOfBirthRegExp).nullable(),

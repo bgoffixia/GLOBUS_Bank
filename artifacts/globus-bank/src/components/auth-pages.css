@@ -160,6 +160,7 @@
   padding: 52px clamp(28px, 7vw, 104px);
 }
 .gb-auth-content { width: 100%; max-width: 452px; animation: gb-arrive .42s cubic-bezier(.2,.7,.2,1) both; }
+.gb-auth-language-position { display: flex; min-height: 36px; justify-content: flex-end; margin-bottom: 3px; }
 .gb-step-label { margin-bottom: 16px; color: #92743d; }
 .gb-step-label i { width: 26px; height: 1px; background: #c4a250; }
 .gb-form-heading { margin-bottom: 28px; }

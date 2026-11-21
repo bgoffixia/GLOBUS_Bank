@@ -2329,6 +2329,7 @@ components:
         customerId: { type: string, pattern: "^[A-Z0-9]{7}$" }
         firstName: { type: ["string", "null"] }
         lastName: { type: ["string", "null"] }
+        address: { type: ["string", "null"] }
         phone: { type: ["string", "null"] }
         country: { type: ["string", "null"] }
         dateOfBirth: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
@@ -2345,7 +2346,7 @@ components:
         withdrawalAllowed: { type: boolean }
         accountTier: { $ref: "#/components/schemas/DashboardAccountTier" }
         createdAt: { type: string, format: date-time }
-      required: [id, email, customerId, firstName, lastName, phone, country, dateOfBirth, cityOfOrigin, occupation, profileSetupComplete, transferAccessGranted, transactionPinConfigured, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, accountTier, createdAt]
+      required: [id, email, customerId, firstName, lastName, address, phone, country, dateOfBirth, cityOfOrigin, occupation, profileSetupComplete, transferAccessGranted, transactionPinConfigured, accountStatus, vaultSubscriptionActive, vaultAccessActive, vaultAccessSource, depositAllowed, withdrawalAllowed, accountTier, createdAt]
     BankVaultStatus:
       type: object
       properties:
@@ -2622,6 +2623,7 @@ components:
       properties:
         firstName: { type: string, minLength: 1, maxLength: 80 }
         lastName: { type: string, minLength: 0, maxLength: 80 }
+        address: { type: ["string", "null"], maxLength: 1024 }
         phone: { type: ["string", "null"], maxLength: 1024 }
         country: { type: ["string", "null"], maxLength: 1024 }
         dateOfBirth: { type: ["string", "null"], maxLength: 1024 }
@@ -2634,6 +2636,7 @@ components:
       properties:
         firstName: { type: string, minLength: 1, maxLength: 80 }
         lastName: { type: string, minLength: 1, maxLength: 80 }
+        address: { type: string, maxLength: 1024 }
         phone: { type: string, maxLength: 1024 }
         country: { type: string, maxLength: 1024 }
         cityOfOrigin: { type: string, maxLength: 1024 }

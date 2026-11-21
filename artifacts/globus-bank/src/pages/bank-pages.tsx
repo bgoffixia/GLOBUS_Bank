@@ -85,12 +85,15 @@ import { BankSelect } from '@/components/bank-select';
 import { CountrySelect } from '@/components/country-select';
 import { InstallAppButton } from '@/components/pwa-install-prompt';
 import { countries } from '@/lib/countries';
-import { customerProfileFieldLabels, getMissingCustomerProfileFields } from '@/lib/customer-profile';
+import { customerProfileFieldLabels, formatCustomerProfileValue, getMissingCustomerProfileFields } from '@/lib/customer-profile';
 import { destinationCurrencyForCountry } from '@/lib/destination-currency';
 import { customerTransactionDate } from '@/lib/transaction-date';
 import { TransferReceiptModal } from '@/components/transfer/transfer-receipt';
 import { PrivateVaultPanel } from '@/components/private-vault-panel';
 import { CompactExpenseTracker } from '@/pages/personal-finance/personal-finance';
+import { LandingPageHeader } from '@/components/landing-page-header';
+import { AppLanguageSelector } from '@/components/app-language-selector';
+import { useLanguage } from '@/lib/i18n';
 const currencies = ['USD', 'EUR', 'GBP', 'CAD'] as const;
 const historicalCurrencies = ['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD'] as const;
 type Currency = typeof currencies[number];
@@ -128,50 +131,36 @@ function currencyActionHref(path: string, currency: Currency) {
 export function HomePage() {
   const health = useHealthCheck({ query: { queryKey: getHealthCheckQueryKey(), retry: false } });
   const { isSignedIn } = useUser();
+  const { t } = useLanguage();
   return (
-    <div className="public-viewport-scroll bg-[#f6f8fa] text-[#192e49]">
-      <header className="relative z-10 mx-auto flex max-w-[1320px] items-center justify-between gap-2 px-4 pt-[calc(env(safe-area-inset-top)+1.25rem)] pb-5 sm:gap-3 sm:px-6 sm:py-6 lg:px-12">
-          <Link href={isSignedIn ? '/home' : '/'} aria-label="Globus Bank home" className="flex shrink-0 items-center">
-          <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank — Your world. Our priority." className="h-auto w-[96px] min-[380px]:w-[108px] sm:w-[156px]" />
-        </Link>
-        <nav className="hidden items-center gap-8 text-[13px] font-medium text-[#607187] md:flex">
-          <Link href="/fees" className="hover:text-[#142d4d]">Fees</Link>
-        </nav>
-        <div className="flex shrink-0 items-center gap-0.5 sm:gap-3">
-          <InstallAppButton className="inline-flex items-center gap-1 rounded-xl border border-[#dbe5eb] bg-white px-2 py-2.5 text-[10px] font-bold text-[#36516d] hover:bg-[#f0f5f7] sm:gap-1.5 sm:px-3 sm:text-[12px]" />
-          {isSignedIn ? (
-            <Link href="/dashboard" className="whitespace-nowrap rounded-xl bg-[#142f51] px-3 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#1b4269] sm:px-5 sm:text-[13px]">Dashboard</Link>
-          ) : (
-            <>
-              <Link href="/sign-in" className="whitespace-nowrap rounded-xl px-2 py-2.5 text-[12px] font-bold text-[#263e5b] hover:bg-[#eaf0f4] sm:px-4 sm:text-[13px]">Sign in</Link>
-              <Link href="/sign-up" className="whitespace-nowrap rounded-xl bg-[#142f51] px-2.5 py-2.5 text-[11px] font-bold text-white shadow-sm transition hover:bg-[#1b4269] sm:px-5 sm:text-[13px]"><span className="sm:hidden">Open</span><span className="hidden sm:inline">Open an account</span></Link>
-            </>
-          )}
-        </div>
-      </header>
+    <div className="public-viewport-scroll bg-[#f6f8fa] pt-[5.2rem] text-[#192e49] sm:pt-[6rem]">
+      <LandingPageHeader
+        isSignedIn={Boolean(isSignedIn)}
+        t={t}
+      />
 
-      <section className="relative mx-auto grid min-w-0 max-w-[1320px] items-center gap-10 px-4 pb-16 pt-7 sm:gap-14 sm:px-6 sm:pb-20 sm:pt-9 lg:grid-cols-[1.04fr_.96fr] lg:px-12 lg:pb-28 lg:pt-16">
+      <section id="account-record" className="relative mx-auto grid min-w-0 max-w-[1320px] items-center gap-10 px-4 pb-16 pt-7 scroll-mt-24 sm:gap-14 sm:px-6 sm:pb-20 sm:pt-9 lg:grid-cols-[1.04fr_.96fr] lg:px-12 lg:pb-28 lg:pt-16">
         <div className="relative z-10 min-w-0">
           <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#dbe7e9] bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#3b777d]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#55a5a9]" />
-            A multi-currency account workspace
+            {t('A multi-currency account workspace')}
           </div>
           <h1 className="max-w-full font-serif text-[clamp(2.25rem,10vw,5.6rem)] font-medium leading-[1.04] tracking-[-.055em] text-[#142c49] sm:max-w-[700px] sm:text-[clamp(3.2rem,6.5vw,5.8rem)]">
-            A clear record.
+            {t('A clear record.')}
             <br />
-            <span className="text-[#9a7840]">For every currency.</span>
+            <span className="text-[#9a7840]">{t('For every currency.')}</span>
           </h1>
           <p className="mt-7 max-w-[510px] text-[16px] leading-7 text-[#64758a] sm:text-[18px] sm:leading-8">
-            Review your currency balances and the entries recorded in your Globus account, all in one considered workspace.
+            {t('Review your currency balances and the entries recorded in your Globus account, all in one considered workspace.')}
           </p>
           <div className="mt-8 flex flex-col items-stretch gap-2 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#152f50] px-5 py-3.5 text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(18,43,75,.16)] transition hover:-translate-y-0.5 hover:bg-[#1b4168] sm:w-auto sm:px-6 sm:py-4">
-              {isSignedIn ? 'Go to your dashboard' : 'Get started'} <ArrowRight size={16} />
+              {isSignedIn ? t('Go to your dashboard') : t('Get started')} <ArrowRight size={16} />
             </Link>
           </div>
           <div className="mt-8 flex min-w-0 flex-wrap gap-x-5 gap-y-3 text-[10px] font-medium text-[#68798d] sm:mt-11 sm:gap-x-7 sm:text-[11px]">
-            <span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#478b8e]" /> Globus account activity clearly identified</span>
-            <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#478b8e]" /> Four supported wallet currencies</span>
+            <span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#478b8e]" /> {t('Globus account activity clearly identified')}</span>
+            <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#478b8e]" /> {t('Four supported wallet currencies')}</span>
           </div>
         </div>
         <figure data-testid="landing-hero-institute-illustration" className="relative mx-auto w-full min-w-0 max-w-[560px]">
@@ -181,13 +170,13 @@ export function HomePage() {
             <div className="flex items-center justify-between gap-2 border-b border-[#dcd2bd] px-1 pb-3 sm:px-2 sm:pb-4">
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#b99a5b]/60 bg-[#e9e0cc] text-[#173651]"><Building2 size={17} strokeWidth={1.6} /></span>
-                <span className="min-w-0"><span className="block font-serif text-[12px] font-semibold tracking-[.08em] text-[#173651] sm:text-[14px]">GLOBUS BANK</span><span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[.18em] text-[#8b7953] sm:text-[8px]">Currency account records</span></span>
+              <span className="min-w-0"><span className="block font-serif text-[12px] font-semibold tracking-[.08em] text-[#173651] sm:text-[14px]">GLOBUS BANK</span><span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[.18em] text-[#8b7953] sm:text-[8px]">{t('Currency account records')}</span></span>
               </div>
-              <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">Illustrative artwork</span>
+              <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">{t('Illustrative artwork')}</span>
             </div>
             <svg className="relative mx-auto block h-auto w-full max-w-[500px]" viewBox="0 0 560 365" role="img" aria-labelledby="globus-institute-title globus-institute-description">
-              <title id="globus-institute-title">Illustration of a classical financial institute</title>
-              <desc id="globus-institute-description">A stylized neoclassical bank facade, drawn in Globus navy, parchment and brass. This is an illustration, not a photograph or account statement.</desc>
+              <title id="globus-institute-title">{t('Illustration of a classical financial institute')}</title>
+              <desc id="globus-institute-description">{t('A stylized neoclassical bank facade, drawn in Globus navy, parchment and brass. This is an illustration, not a photograph or account statement.')}</desc>
               <rect x="8" y="8" width="544" height="349" rx="15" fill="#f7f4eb" />
               <path d="M29 325H531M45 336H515" stroke="#c6b890" strokeWidth="1" />
               <circle cx="280" cy="174" r="139" fill="none" stroke="#ded4bf" strokeWidth="1" />
@@ -215,39 +204,39 @@ export function HomePage() {
               <circle cx="280" cy="104" r="13" fill="none" stroke="#d8bd7d" strokeWidth="1.5" />
               <path d="M280 96V112M274 101H286M274 107H286" stroke="#d8bd7d" strokeWidth="1" />
               <path d="M78 327H482" stroke="#dcd2bd" strokeWidth="1" />
-              <text x="280" y="346" textAnchor="middle" fill="#7f745b" fontSize="8" fontFamily="Georgia, serif" letterSpacing="2.1">A CLEAR VIEW OF EVERY CURRENCY</text>
+              <text x="280" y="346" textAnchor="middle" fill="#7f745b" fontSize="8" fontFamily="Georgia, serif" letterSpacing="2.1">{t('A CLEAR VIEW OF EVERY CURRENCY')}</text>
             </svg>
             <figcaption className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[#dcd2bd] px-1 pt-3 sm:px-2 sm:pt-4">
-              <span className="text-[8px] leading-4 text-[#7d786b] sm:text-[9px]">Illustrative institute artwork · no account data shown</span>
+              <span className="text-[8px] leading-4 text-[#7d786b] sm:text-[9px]">{t('Illustrative institute artwork · no account data shown')}</span>
               <span className="flex flex-wrap gap-1.5" aria-label="Supported wallet currencies">{currencies.map(code => <span key={code} className="rounded-md border border-[#d6cbb3] bg-[#f9f6ef] px-1.5 py-1 text-[8px] font-bold tracking-[.04em] text-[#37566c]">{code}</span>)}</span>
             </figcaption>
           </div>
         </figure>
       </section>
 
-      <section className="mx-auto grid max-w-[1320px] gap-7 px-4 py-10 sm:gap-9 sm:px-6 sm:py-14 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-20">
+      <section id="features" className="mx-auto grid max-w-[1320px] gap-7 px-4 py-10 scroll-mt-24 sm:gap-9 sm:px-6 sm:py-14 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-20">
         <div>
-          <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#528f95] sm:text-[10px]">A clearer view of your account</p>
-          <h2 className="bank-display mt-3 max-w-[450px] text-[32px] font-semibold leading-[1.08] text-[#17304f] sm:mt-4 sm:text-[52px]">Your balances.<br />Your ledger.</h2>
+          <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#528f95] sm:text-[10px]">{t('A clearer view of your account')}</p>
+          <h2 className="bank-display mt-3 max-w-[450px] text-[32px] font-semibold leading-[1.08] text-[#17304f] sm:mt-4 sm:text-[52px]">{t('Your balances.')}<br />{t('Your ledger.')}</h2>
         </div>
         <div data-testid="landing-feature-grid" className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-8">
-          <FeatureBlock number="01" title="See each currency clearly" copy="Review available, pending and reserved amounts separately in each Globus wallet." />
-          <FeatureBlock number="02" title="Follow account entries" copy="Search internal Globus ledger activity by currency, description or transaction reference." />
+          <FeatureBlock number="01" title={t('See each currency clearly')} copy={t('Review available, pending and reserved amounts separately in each Globus wallet.')} />
+          <FeatureBlock number="02" title={t('Follow account entries')} copy={t('Search internal Globus ledger activity by currency, description or transaction reference.')} />
           <div className="sm:col-span-2 lg:col-span-1">
-            <FeatureBlock number="03" title="Keep a clear record" copy="Every entry has a reference, status and timestamp for straightforward review." />
+            <FeatureBlock number="03" title={t('Keep a clear record')} copy={t('Every entry has a reference, status and timestamp for straightforward review.')} />
           </div>
         </div>
       </section>
       <section className="mx-3 mb-10 rounded-[22px] bg-[#132f51] px-4 py-7 text-white sm:mx-10 sm:mb-16 sm:rounded-[28px] sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1240px] lg:px-16 lg:py-16">
         <div className="grid items-center gap-5 sm:gap-8 md:grid-cols-[1fr_auto]">
-          <div><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#a6d5d8] sm:text-[10px]">Make your next step clearer</p><h2 className="bank-display mt-2 max-w-[640px] text-[25px] font-semibold leading-tight sm:mt-3 sm:text-[45px]">Your Globus account workspace, ready to use.</h2></div>
-          <Link href="/sign-up" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#d5b765] px-5 py-3 text-[11px] font-bold text-[#17304d] hover:bg-[#e0c879] sm:gap-3 sm:px-6 sm:py-4 sm:text-[13px]">Create your account <ArrowRight size={15} /></Link>
+          <div><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#a6d5d8] sm:text-[10px]">{t('Make your next step clearer')}</p><h2 className="bank-display mt-2 max-w-[640px] text-[25px] font-semibold leading-tight sm:mt-3 sm:text-[45px]">{t('Your Globus account workspace, ready to use.')}</h2></div>
+          <Link href="/sign-up" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#d5b765] px-5 py-3 text-[11px] font-bold text-[#17304d] hover:bg-[#e0c879] sm:gap-3 sm:px-6 sm:py-4 sm:text-[13px]">{t('Create your account')} <ArrowRight size={15} /></Link>
         </div>
       </section>
       <footer className="border-t border-[#e1e7ec] bg-white">
         <div className="mx-auto flex max-w-[1320px] flex-col gap-5 px-6 py-8 text-[11px] text-[#76869a] sm:flex-row sm:items-center sm:justify-between lg:px-12">
-          <p>© {new Date().getFullYear()} Globus. A multi-currency software platform.</p>
-          <div className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/fees">Fees</Link><Link href="/contact">Contact</Link></div>
+          <p>{t('© {year} Globus. A multi-currency software platform.', { year: new Date().getFullYear() })}</p>
+          <div className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/fees">{t('Fees')}</Link><Link href="/contact">{t('Contact')}</Link></div>
         </div>
       </footer>
       <div className="sr-only" aria-live="polite">{health.isError ? 'Service status unavailable' : health.data?.status ?? 'Checking service status'}</div>
@@ -256,6 +245,7 @@ export function HomePage() {
 }
 
 export function DashboardPage() {
+  const { t } = useLanguage();
   const query = useGetBankDashboard({
     query: {
       queryKey: getGetBankDashboardQueryKey(),
@@ -277,12 +267,12 @@ export function DashboardPage() {
     transaction => !selectedWallet || transaction.currency === selectedWallet.currency,
   ) ?? [];
   if (query.isLoading) return <PageSkeleton />;
-  if (query.isError) return <Failure title="Your overview isn’t available" retry={() => query.refetch()} />;
+  if (query.isError) return <Failure title={t('Your overview isn’t available')} retry={() => query.refetch()} />;
   return (
     <div data-testid="dashboard-workspace" className="flex min-h-full w-full flex-col">
       {dash?.profile.testingMode && <div role="status" data-testid="dashboard-testing-mode-warning" className="mt-3 flex items-start gap-2 rounded-xl border border-[#ead9a8] bg-[#fff9e9] px-3.5 py-2.5 text-[10px] leading-4 text-[#765e2d]">
         <ShieldCheck size={14} className="mt-0.5 shrink-0" />
-        <p><strong className="font-bold">Testing Mode</strong> · Private Vault is not active for this account.</p>
+        <p><strong className="font-bold">{t('Testing Mode')}</strong> · {t('Private Vault is not active for this account.')}</p>
       </div>}
       <div data-testid="dashboard-content-grid" className="mt-2 grid min-w-0 flex-1 content-start gap-2 xl:grid-cols-[1.15fr_.85fr]">
         <section className="balance-panel relative min-w-0 overflow-hidden rounded-[16px] p-3 text-white sm:p-3.5 xl:col-start-1 xl:row-start-1">
@@ -290,19 +280,19 @@ export function DashboardPage() {
           <div className="absolute -right-2 -top-5 h-32 w-32 rounded-full border border-white/[.08]" />
           <div className="relative flex items-start justify-between gap-4">
             <div className="min-w-0">
-              <p className="text-[10px] font-medium text-[#cad9e4]">{selectedWallet ? `${currencyNames[selectedWallet.currency]} · available` : 'Available balance'}</p>
+               <p className="text-[10px] font-medium text-[#cad9e4]">{selectedWallet ? `${t(currencyNames[selectedWallet.currency])} · ${t('available')}` : t('Available balance')}</p>
               <div data-testid="dashboard-active-wallet-balance" className="bank-display mt-1.5 break-words text-[clamp(1.8rem,7vw,2.8rem)] font-semibold tracking-[-.06em]">{selectedWallet ? formatMoney(Number(selectedWallet.available), selectedWallet.currency) : '—'}</div>
               {selectedWallet && <p className="mt-0.5 text-[10px] text-[#b5c7d4]">{selectedWallet.currency} wallet</p>}
               <span data-testid="dashboard-account-tier-badge" className="mt-2 inline-flex max-w-full truncate rounded-full border border-white/20 bg-white/[.1] px-2.5 py-1 text-[9px] font-bold text-[#e4eff0]">
-                {dash?.profile.accountTier.name ?? 'Standard 🏦'}
+              {t(dash?.profile.accountTier.name ?? 'Standard 🏦')}
               </span>
             </div>
             {selectedWallet && <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-white/15 bg-white/[.08] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[.13em] text-[#d9e7eb]"><span className="h-1.5 w-1.5 rounded-full bg-[#8fd2cf]" /> {selectedWallet.currency}</span>}
           </div>
           <div className="relative mt-2.5 border-t border-white/10 pt-2.5">
-            <p className="mb-1 text-[8px] font-bold uppercase tracking-[.14em] text-[#b5c7d4]">Switch wallet</p>
+            <p className="mb-1 text-[8px] font-bold uppercase tracking-[.14em] text-[#b5c7d4]">{t('Switch wallet')}</p>
             {dash?.wallets.length ? (
-              <div role="group" aria-label="Switch dashboard wallet" className="flex min-w-0 gap-2 overflow-x-auto pb-1">
+              <div role="group" aria-label={t('Switch dashboard wallet')} className="flex min-w-0 gap-2 overflow-x-auto pb-1">
                 {dash.wallets.map(wallet => {
                   const isSelected = wallet.id === selectedWallet?.id;
                   return (
@@ -310,7 +300,7 @@ export function DashboardPage() {
                       key={wallet.id}
                       type="button"
                       data-testid={`dashboard-wallet-${wallet.currency.toLowerCase()}`}
-                      aria-label={`${wallet.currency} wallet, available ${formatMoney(Number(wallet.available), wallet.currency)}`}
+                      aria-label={t('{currency} wallet, available {amount}', { currency: wallet.currency, amount: formatMoney(Number(wallet.available), wallet.currency) })}
                       aria-pressed={isSelected}
                       onClick={() => setSelectedCurrency(wallet.currency as Currency)}
                       className={`min-w-[98px] shrink-0 rounded-lg border px-2 py-1 text-left transition ${isSelected ? 'border-white/35 bg-white/15 text-white' : 'border-white/10 bg-white/[.06] text-[#d4e1eb] hover:bg-white/[.12]'}`}
@@ -321,36 +311,36 @@ export function DashboardPage() {
                   );
                 })}
               </div>
-            ) : <p className="text-[11px] text-[#c2d2dd]">No wallets are available.</p>}
+            ) : <p className="text-[11px] text-[#c2d2dd]">{t('No wallets are available.')}</p>}
           </div>
-          {dash?.profile.accountStatus === 'suspended' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2d8d1]">Your account is suspended. Financial actions are unavailable.</p>}
-          {dash?.profile.accountStatus === 'restricted' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2e7c9]">Some account operations are restricted.</p>}
-          {selectedWallet?.status === 'restricted' && dash?.profile.accountStatus === 'active' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2e7c9]">This wallet is frozen. Outgoing transfers and withdrawals are unavailable.</p>}
+          {dash?.profile.accountStatus === 'suspended' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2d8d1]">{t('Your account is suspended. Financial actions are unavailable.')}</p>}
+          {dash?.profile.accountStatus === 'restricted' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2e7c9]">{t('Some account operations are restricted.')}</p>}
+          {selectedWallet?.status === 'restricted' && dash?.profile.accountStatus === 'active' && <p role="status" className="relative mt-2 rounded-lg border border-white/15 bg-white/[.08] px-3 py-1.5 text-[8px] leading-4 text-[#f2e7c9]">{t('This wallet is frozen. Outgoing transfers and withdrawals are unavailable.')}</p>}
         </section>
 
-        <section data-testid="dashboard-action-toolbar" aria-label="Dashboard quick actions" className="min-w-0 rounded-[16px] border border-[#e2e9ef] bg-white p-3 xl:col-start-1 xl:row-start-2">
+        <section data-testid="dashboard-action-toolbar" aria-label={t('Dashboard quick actions')} className="min-w-0 rounded-[16px] border border-[#e2e9ef] bg-white p-3 xl:col-start-1 xl:row-start-2">
           <div className="mb-2 flex items-center justify-between gap-2">
             <div>
-              <p className="text-[9px] font-bold uppercase tracking-[.15em] text-[#589198]">Quick actions</p>
-              <p className="mt-0.5 text-[9px] text-[#8190a0]">Using {actionCurrency}</p>
+              <p className="text-[9px] font-bold uppercase tracking-[.15em] text-[#589198]">{t('Quick actions')}</p>
+              <p className="mt-0.5 text-[9px] text-[#8190a0]">{t('Using {currency}', { currency: actionCurrency })}</p>
             </div>
             {selectedWallet && <span className="shrink-0 rounded-full bg-[#eff5f6] px-2 py-1 text-[8px] font-bold text-[#456c73]">{selectedWallet.currency} wallet</span>}
           </div>
           <nav role="toolbar" aria-label="Dashboard actions" className="grid min-w-0 grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-5">
-            <ActionTile href={currencyActionHref('/withdraw', actionCurrency)} icon={<ArrowUpRight size={16} />} label="Withdraw" testId="dashboard-quick-withdraw" />
-            <ActionTile href={currencyActionHref('/transfer', actionCurrency)} icon={<ArrowLeftRight size={16} />} label="Transfer" testId="dashboard-quick-transfer" />
-            <ActionTile href="/calculator" icon={<Calculator size={16} />} label="Convert" testId="dashboard-quick-converter" />
-            <ActionTile href="/transactions" icon={<History size={16} />} label="Activity" testId="dashboard-quick-activity" />
+            <ActionTile href={currencyActionHref('/withdraw', actionCurrency)} icon={<ArrowUpRight size={16} />} label={t('Withdraw')} testId="dashboard-quick-withdraw" />
+            <ActionTile href={currencyActionHref('/transfer', actionCurrency)} icon={<ArrowLeftRight size={16} />} label={t('Transfer')} testId="dashboard-quick-transfer" />
+            <ActionTile href="/calculator" icon={<Calculator size={16} />} label={t('Convert')} testId="dashboard-quick-converter" />
+            <ActionTile href="/transactions" icon={<History size={16} />} label={t('Activity')} testId="dashboard-quick-activity" />
           </nav>
         </section>
 
         <section className="min-w-0 overflow-hidden rounded-[16px] border border-[#e2e9ef] bg-white xl:col-start-2 xl:row-start-1 xl:row-span-2 xl:h-full">
           <div className="flex items-center justify-between gap-2 border-b border-[#edf0f3] px-3.5 py-2.5">
-            <div><h2 className="text-[12px] font-bold text-[#203851]">Recent activity{selectedWallet ? ` · ${selectedWallet.currency}` : ''}</h2><p className="mt-0.5 text-[9px] text-[#8592a1]">Latest wallet entries</p></div>
-            <Link href={currencyActionHref('/transactions', actionCurrency)} aria-label="View all activity" className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#397d83]">View all <ChevronRight size={12} /></Link>
+            <div><h2 className="text-[12px] font-bold text-[#203851]">{selectedWallet ? t('Recent activity · {currency}', { currency: selectedWallet.currency }) : t('Recent activity')}</h2><p className="mt-0.5 text-[9px] text-[#8592a1]">{t('Latest wallet entries')}</p></div>
+            <Link href={currencyActionHref('/transactions', actionCurrency)} aria-label={t('View all activity')} className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#397d83]">{t('View all')} <ChevronRight size={12} /></Link>
           </div>
           <div className="min-w-0">
-            {recentTransactions.length ? <TransactionList transactions={recentTransactions.slice(0, 3)} showReceipt={false} /> : <EmptyState title="Nothing recorded yet" text="Your latest Globus ledger entries will appear here." />}
+            {recentTransactions.length ? <TransactionList transactions={recentTransactions.slice(0, 3)} showReceipt={false} /> : <EmptyState title={t('Nothing recorded yet')} text={t('Your latest Globus ledger entries will appear here.')} />}
           </div>
         </section>
       </div>
@@ -923,6 +913,7 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
 export function ProfilePage() {
   const queryClient = useQueryClient();
   const { isLoaded: userLoaded, user } = useUser();
+  const { t } = useLanguage();
   const query = useGetBankProfile({
     query: {
       queryKey: getGetBankProfileQueryKey(),
@@ -946,6 +937,7 @@ export function ProfilePage() {
   const profile = query.data;
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
+  const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
   const [cityOfOrigin, setCityOfOrigin] = useState('');
@@ -956,6 +948,7 @@ export function ProfilePage() {
     if (profile && !initialised) {
       setFirstName(profile.firstName ?? '');
       setLastName(profile.lastName ?? '');
+      setAddress(profile.address ?? '');
       setPhone(profile.phone ?? '');
       setCountry(profile.country ?? '');
       setCityOfOrigin(profile.cityOfOrigin ?? '');
@@ -974,6 +967,7 @@ export function ProfilePage() {
     update.mutate({ data: {
       firstName: firstName.trim(),
       lastName: lastName.trim(),
+      address: address.trim() || null,
       phone: phone.trim() || null,
       country: country.trim() || null,
       cityOfOrigin: cityOfOrigin.trim() || null,
@@ -1157,13 +1151,19 @@ export function ProfilePage() {
               <span className="text-[8px] text-[#8492a0]">{missingProfileFields.length ? `${missingProfileFields.length} missing` : 'All details supplied'}</span>
             </div>
             <dl className="mt-2 grid gap-x-4 gap-y-2 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="min-w-0" data-testid="profile-field-username">
+                <dt className="text-[8px] font-semibold text-[#8492a0]">{t('Username')}</dt>
+                <dd className={`mt-0.5 break-words text-[9px] font-semibold ${user?.username ? 'text-[#40566e]' : 'text-[#a07855]'}`}>
+                  {formatCustomerProfileValue(user?.username) === 'Missing' ? t('Missing') : formatCustomerProfileValue(user?.username)}
+                </dd>
+              </div>
               {customerProfileFieldLabels.map(([key, label]) => {
                 const value = profile[key];
                 const provided = typeof value === 'string' && value.trim().length > 0;
                 return <div key={key} data-testid={`profile-field-${key}`} className="min-w-0">
-                  <dt className="text-[8px] font-semibold text-[#8492a0]">{label}</dt>
+                  <dt className="text-[8px] font-semibold text-[#8492a0]">{t(label)}</dt>
                   <dd className={`mt-0.5 break-words text-[9px] font-semibold ${provided ? 'text-[#40566e]' : 'text-[#a07855]'}`}>
-                    {provided ? value : 'Missing'}
+                    {formatCustomerProfileValue(value) === 'Missing' ? t('Missing') : formatCustomerProfileValue(value)}
                   </dd>
                 </div>;
               })}
@@ -1174,10 +1174,14 @@ export function ProfilePage() {
         {profileTab === 'details' && (profile.profileSetupComplete ? <section className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5" data-testid="profile-details-readonly">
           <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">These details are read-only after initial setup. Contact an administrator to request a correction.</p></div>
           <dl className="grid gap-3 sm:grid-cols-2">
+            <div className="min-w-0 rounded-xl bg-[#f7f9fa] p-3" data-testid="profile-details-username">
+              <dt className="text-[8px] font-bold uppercase tracking-[.1em] text-[#8291a0]">{t('Username')}</dt>
+              <dd className={`mt-1 break-words text-[10px] font-semibold ${user?.username ? 'text-[#40566e]' : 'text-[#a07855]'}`}>{formatCustomerProfileValue(user?.username) === 'Missing' ? t('Missing') : formatCustomerProfileValue(user?.username)}</dd>
+            </div>
             {customerProfileFieldLabels.map(([key, label]) => {
               const value = profile[key];
               const provided = typeof value === 'string' && value.trim().length > 0;
-              return <div key={key} className="min-w-0 rounded-xl bg-[#f7f9fa] p-3"><dt className="text-[8px] font-bold uppercase tracking-[.1em] text-[#8291a0]">{label}</dt><dd className={`mt-1 break-words text-[10px] font-semibold ${provided ? 'text-[#40566e]' : 'text-[#a07855]'}`}>{provided ? value : 'Missing'}</dd></div>;
+              return <div key={key} className="min-w-0 rounded-xl bg-[#f7f9fa] p-3"><dt className="text-[8px] font-bold uppercase tracking-[.1em] text-[#8291a0]">{t(label)}</dt><dd className={`mt-1 break-words text-[10px] font-semibold ${provided ? 'text-[#40566e]' : 'text-[#a07855]'}`}>{formatCustomerProfileValue(value) === 'Missing' ? t('Missing') : formatCustomerProfileValue(value)}</dd></div>;
             })}
           </dl>
           <p className="mt-3 text-[9px] text-[#7c8b9a]">Email address · {profile.email}</p>
@@ -1186,6 +1190,7 @@ export function ProfilePage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="First name"><input required maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} className={inputClass} /></Field>
             <Field label="Last name"><input required maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
+            <Field label="Address"><textarea maxLength={1024} value={address} onChange={event => setAddress(event.target.value)} className={`${inputClass} min-h-[72px] resize-y py-2`} placeholder="Missing" /></Field>
             <Field label="Phone number"><input maxLength={1024} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
             <Field label="Country of origin"><input maxLength={1024} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
             <Field label="City of origin"><input maxLength={1024} value={cityOfOrigin} onChange={event => setCityOfOrigin(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
@@ -1749,39 +1754,43 @@ const disclosureCopy: Record<string, { eyebrow: string; title: string; intro: st
 };
 
 export function DisclosurePage({ path }: { path: string }) {
+  const { t } = useLanguage();
   const data = disclosureCopy[path];
   if (!data) return null;
   return (
     <div className="public-viewport-scroll bg-[#f5f8fa]">
-      <header className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-6 sm:px-6"><Link href="/" aria-label="Globus Bank home" className="flex shrink-0 items-center"><img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank — Your world. Our priority." className="h-auto w-[128px] sm:w-[156px]" /></Link><Link href="/" className="text-[12px] font-semibold text-[#456077] hover:text-[#347e83]">Back to home</Link></header>
+       <header className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-6 sm:px-6"><Link href="/" aria-label={t('Globus Bank home')} className="flex shrink-0 items-center"><img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt={t('Globus Bank — Your world. Our priority.')} className="h-auto w-[128px] sm:w-[156px]" /></Link><div className="flex items-center gap-2"><AppLanguageSelector /><Link href="/" className="text-[12px] font-semibold text-[#456077] hover:text-[#347e83]">{t('Back to home')}</Link></div></header>
       <main className="mx-auto max-w-[1020px] px-6 pb-20 pt-10 sm:pt-16">
-        <p className="text-[10px] font-bold uppercase tracking-[.17em] text-[#4b8b90]">{data.eyebrow}</p>
-        <h1 className="bank-display mt-4 max-w-[760px] text-[clamp(2.6rem,7vw,5.2rem)] font-semibold leading-[1.02] text-[#16304f]">{data.title}</h1>
-        <p className="mt-6 max-w-[670px] text-[15px] leading-7 text-[#66788c]">{data.intro}</p>
+         <p className="text-[10px] font-bold uppercase tracking-[.17em] text-[#4b8b90]">{t(data.eyebrow)}</p>
+         <h1 className="bank-display mt-4 max-w-[760px] text-[clamp(2.6rem,7vw,5.2rem)] font-semibold leading-[1.02] text-[#16304f]">{t(data.title)}</h1>
+         <p className="mt-6 max-w-[670px] text-[15px] leading-7 text-[#66788c]">{t(data.intro)}</p>
         <div className="mt-12 grid gap-4 md:grid-cols-2">
-          {data.sections.map(([title, copy], index) => <article key={title} className="rounded-[20px] border border-[#e0e8ed] bg-white p-6 sm:p-7"><span className="font-mono text-[10px] font-bold tracking-[.14em] text-[#70a0a1]">0{index + 1}</span><h2 className="mt-4 text-[17px] font-bold text-[#27405a]">{title}</h2><p className="mt-3 text-[12px] leading-6 text-[#76869a]">{copy}</p></article>)}
+          {data.sections.map(([title, copy], index) => <article key={title} className="rounded-[20px] border border-[#e0e8ed] bg-white p-6 sm:p-7"><span className="font-mono text-[10px] font-bold tracking-[.14em] text-[#70a0a1]">0{index + 1}</span><h2 className="mt-4 text-[17px] font-bold text-[#27405a]">{t(title)}</h2><p className="mt-3 text-[12px] leading-6 text-[#76869a]">{t(copy)}</p></article>)}
         </div>
-        <div className="mt-8 rounded-xl border border-[#d9e7e8] bg-[#edf6f6] p-5 text-[11px] leading-5 text-[#4c7579]"><b className="text-[#35676b]">Important:</b> Globus Bank is a product name for a software platform. It is not a representation that Globus is a licensed bank or financial institution.</div>
+         <div className="mt-8 rounded-xl border border-[#d9e7e8] bg-[#edf6f6] p-5 text-[11px] leading-5 text-[#4c7579]"><b className="text-[#35676b]">{t('Important:')}</b> {t('Globus Bank is a product name for a software platform. It is not a representation that Globus is a licensed bank or financial institution.')}</div>
       </main>
-      <footer className="border-t border-[#e2e8ed] bg-white px-6 py-7 text-center text-[10px] text-[#8794a3]">Globus · Account activity software · no outside funds are held or sent</footer>
+       <footer className="border-t border-[#e2e8ed] bg-white px-6 py-7 text-center text-[10px] text-[#8794a3]">{t('Globus · Account activity software · no outside funds are held or sent')}</footer>
     </div>
   );
 }
 
 function PageHeading({ eyebrow, title, subtitle, titleClassName }: { eyebrow: string; title: string; subtitle?: string; titleClassName?: string }) {
-  return <div className="min-w-0 max-w-full"><p className="text-[10px] font-bold uppercase tracking-[.17em] text-[#548d92]">{eyebrow}</p><h1 className={`bank-display mt-2 max-w-full break-words font-semibold text-[#1a334f] ${titleClassName ?? 'text-[clamp(2rem,4vw,3rem)] leading-[1.08]'}`}>{title}</h1>{subtitle && <p className="mt-2 max-w-[760px] break-words text-[12px] leading-5 text-[#76879a]">{subtitle}</p>}</div>;
+  const { t } = useLanguage();
+  return <div className="min-w-0 max-w-full"><p className="text-[10px] font-bold uppercase tracking-[.17em] text-[#548d92]">{t(eyebrow)}</p><h1 className={`bank-display mt-2 max-w-full break-words font-semibold text-[#1a334f] ${titleClassName ?? 'text-[clamp(2rem,4vw,3rem)] leading-[1.08]'}`}>{t(title)}</h1>{subtitle && <p className="mt-2 max-w-[760px] break-words text-[12px] leading-5 text-[#76879a]">{t(subtitle)}</p>}</div>;
 }
 
 function Field({ label, children }: { label: string; children: ReactNode }) {
-  return <label className="block text-[11px] font-semibold text-[#435971]">{label}<span className="mt-2 block">{children}</span></label>;
+  const { t } = useLanguage();
+  return <label className="block text-[11px] font-semibold text-[#435971]">{t(label)}<span className="mt-2 block">{children}</span></label>;
 }
 
 function WalletCard({ wallet }: { wallet: Wallet }) {
+  const { t } = useLanguage();
   const accents: Record<string, string> = { USD: '#41878d', EUR: '#6881a3', GBP: '#a58b4e', NGN: '#598a70', CAD: '#a16964', AUD: '#6d7ea4' };
   return (
     <article data-testid={`wallet-card-${wallet.currency.toLowerCase()}`} className="rounded-[18px] border border-[#e1e8ed] bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(27,51,78,.06)] sm:p-5">
-      <div className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eff5f6] text-[11px] font-bold" style={{ color: accents[wallet.currency] }}>{wallet.currency}</span><span className={`rounded-full px-2.5 py-1 text-[9px] font-bold capitalize ${wallet.status === 'active' ? 'bg-[#eef7f3] text-[#4b826d]' : 'bg-[#fff4e7] text-[#a0793b]'}`}>{humanize(wallet.status)}</span></div>
-      <p className="mt-4 text-[10px] text-[#8291a0]">{currencyNames[wallet.currency]} · available</p>
+      <div className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eff5f6] text-[11px] font-bold" style={{ color: accents[wallet.currency] }}>{wallet.currency}</span><span className={`rounded-full px-2.5 py-1 text-[9px] font-bold capitalize ${wallet.status === 'active' ? 'bg-[#eef7f3] text-[#4b826d]' : 'bg-[#fff4e7] text-[#a0793b]'}`}>{t(humanize(wallet.status))}</span></div>
+      <p className="mt-4 text-[10px] text-[#8291a0]">{t(currencyNames[wallet.currency])} · {t('available')}</p>
       <p className="bank-display mt-1 break-words text-[clamp(1.35rem,5vw,1.7rem)] font-semibold tracking-[-.04em] text-[#1c3551]">{formatMoney(Number(wallet.available), wallet.currency)}</p>
       <div className="mt-4 border-t border-[#edf0f2] pt-3">
         <WalletAmount label="Pending" amount={wallet.pending} currency={wallet.currency} />
@@ -1792,11 +1801,13 @@ function WalletCard({ wallet }: { wallet: Wallet }) {
 }
 
 function WalletAmount({ label, amount, currency }: { label: string; amount: string; currency: string }) {
-  return <div className="flex items-center justify-between py-1 text-[10px]"><span className="text-[#8794a2]">{label}</span><span className="font-semibold text-[#576b80]">{formatMoney(Number(amount), currency)}</span></div>;
+  const { t } = useLanguage();
+  return <div className="flex items-center justify-between py-1 text-[10px]"><span className="text-[#8794a2]">{t(label)}</span><span className="font-semibold text-[#576b80]">{formatMoney(Number(amount), currency)}</span></div>;
 }
 
 function WalletMini({ wallet }: { wallet: Wallet }) {
-  return <div className="flex items-center justify-between rounded-xl bg-[#f6f8fa] px-3.5 py-3"><span><b className="block text-[11px] text-[#3b5168]">{wallet.currency}</b><small className="mt-1 block text-[9px] text-[#8b98a5]">{currencyNames[wallet.currency]}</small></span><span className="text-[11px] font-semibold text-[#3e566e]">{formatMoney(Number(wallet.available), wallet.currency)}</span></div>;
+  const { t } = useLanguage();
+  return <div className="flex items-center justify-between rounded-xl bg-[#f6f8fa] px-3.5 py-3"><span><b className="block text-[11px] text-[#3b5168]">{wallet.currency}</b><small className="mt-1 block text-[9px] text-[#8b98a5]">{t(currencyNames[wallet.currency])}</small></span><span className="text-[11px] font-semibold text-[#3e566e]">{formatMoney(Number(wallet.available), wallet.currency)}</span></div>;
 }
 
 function transactionDisplayType(transaction: BankTransaction) {
@@ -1830,6 +1841,7 @@ function TransactionList({
   statusPending?: boolean;
   showReceipt?: boolean;
 }) {
+  const { t } = useLanguage();
   const [receipt, setReceipt] = useState<BankTransaction | null>(null);
   const [historyTarget, setHistoryTarget] = useState<BankTransaction | null>(null);
   return <>
@@ -1839,11 +1851,11 @@ function TransactionList({
       const canPrintReceipt = transaction.status === 'completed';
       return <div key={transaction.id} className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-[#edf0f2] px-4 py-4 last:border-0 sm:flex-nowrap sm:gap-4 sm:px-7">
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${isIncoming ? 'bg-[#edf7f3] text-[#4d8c72]' : isPendingTransferRecord ? 'bg-[#fbf7eb] text-[#a0793b]' : 'bg-[#f0f4f7] text-[#658097]'}`}>{isPendingTransferRecord ? <ArrowLeftRight size={16} /> : isIncoming ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</span>
-        <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-[#334a63]">{transaction.description || transactionDisplayType(transaction)}</p><p className="mt-1 truncate text-[9px] text-[#8996a4]">{transaction.counterparty || 'Globus account'} · {customerTransactionDate(transaction.transactionDate, transaction.createdAt)} · Globus record</p></div>
-        <div className="shrink-0 text-right"><p className={`text-[11px] font-bold ${isIncoming ? 'text-[#417f69]' : isPendingTransferRecord ? 'text-[#a0793b]' : 'text-[#3c5269]'}`}>{isPendingTransferRecord ? 'Request · ' : isIncoming ? '+' : '−'}{formatMoney(Number(transaction.amount), transaction.currency)}</p><p className={`mt-1 text-[9px] capitalize ${transaction.status === 'completed' ? 'text-[#4f8c75]' : 'text-[#9b8050]'}`}>{humanize(transaction.status)}</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-[#334a63]">{transaction.description || t(transactionDisplayType(transaction))}</p><p className="mt-1 truncate text-[9px] text-[#8996a4]">{transaction.counterparty || t('Globus account')} · {customerTransactionDate(transaction.transactionDate, transaction.createdAt)} · {t('Globus record')}</p></div>
+        <div className="shrink-0 text-right"><p className={`text-[11px] font-bold ${isIncoming ? 'text-[#417f69]' : isPendingTransferRecord ? 'text-[#a0793b]' : 'text-[#3c5269]'}`}>{isPendingTransferRecord ? `${t('Request')} · ` : isIncoming ? '+' : '−'}{formatMoney(Number(transaction.amount), transaction.currency)}</p><p className={`mt-1 text-[9px] capitalize ${transaction.status === 'completed' ? 'text-[#4f8c75]' : 'text-[#9b8050]'}`}>{t(humanize(transaction.status))}</p></div>
           {((canPrintReceipt && showReceipt) || onStatusOverride) && <div className="flex w-full flex-wrap justify-end gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
-          {canPrintReceipt && showReceipt && <button type="button" onClick={() => setReceipt(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={`View receipt ${transaction.reference}`}><FileText size={13} /><span className="hidden sm:inline">Receipt</span></button>}
-          {onStatusOverride && <button type="button" onClick={() => setHistoryTarget(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={`View status history for ${transaction.reference}`}><History size={13} /><span className="hidden sm:inline">History</span></button>}
+           {canPrintReceipt && showReceipt && <button type="button" onClick={() => setReceipt(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={t('View receipt {reference}', { reference: transaction.reference })}><FileText size={13} /><span className="hidden sm:inline">{t('Receipt')}</span></button>}
+           {onStatusOverride && <button type="button" onClick={() => setHistoryTarget(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={t('View status history for {reference}', { reference: transaction.reference })}><History size={13} /><span className="hidden sm:inline">{t('History')}</span></button>}
           {onStatusOverride && transaction.type !== 'deposit_request' && transaction.type !== 'withdrawal_request' && <button type="button" disabled={statusPending} onClick={() => onStatusOverride(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Override status for ${transaction.reference}`}><RefreshCw size={13} /><span className="hidden sm:inline">Status</span></button>}
         </div>}
       </div>;

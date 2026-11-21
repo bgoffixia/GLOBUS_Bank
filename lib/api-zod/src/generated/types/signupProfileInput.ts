@@ -18,6 +18,8 @@ export interface SignupProfileInput {
      */
   lastName: string;
   /** @maxLength 1024 */
+  address?: string;
+  /** @maxLength 1024 */
   phone?: string;
   /** @maxLength 1024 */
   country?: string;

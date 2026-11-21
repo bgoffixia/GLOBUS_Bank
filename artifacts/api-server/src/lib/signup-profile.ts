@@ -1,4 +1,5 @@
 export type SanitizedSignupProfileDetails = {
+  address?: string;
   phone?: string;
   country?: string;
   cityOfOrigin?: string;
@@ -23,6 +24,17 @@ function validOccupation(value: unknown, maxLength: number): string | undefined 
   const trimmed = value.trim();
   return trimmed &&
     trimmed.length <= maxLength &&
+    /[\p{L}\p{N}]/u.test(trimmed) &&
+    !/[\p{Cc}\p{Cf}]/u.test(trimmed)
+    ? trimmed
+    : undefined;
+}
+
+function validAddress(value: unknown): string | undefined {
+  if (typeof value !== "string") return undefined;
+  const trimmed = value.trim();
+  return trimmed &&
+    trimmed.length <= 1024 &&
     /[\p{L}\p{N}]/u.test(trimmed) &&
     !/[\p{Cc}\p{Cf}]/u.test(trimmed)
     ? trimmed
@@ -73,6 +85,9 @@ export function sanitizeSignupProfileDetails(
 ): SanitizedSignupProfileDetails {
   const details: SanitizedSignupProfileDetails = {};
 
+  const address = validAddress(input.address);
+  if (address) details.address = address;
+
   const phone = validPhone(input.phone);
   if (phone) details.phone = phone;
 
@@ -92,6 +107,7 @@ export function sanitizeSignupProfileDetails(
 }
 
 export type SanitizedBankProfileUpdateDetails = {
+  address?: string | null;
   phone?: string | null;
   country?: string | null;
   cityOfOrigin?: string | null;
@@ -105,6 +121,7 @@ export function sanitizeBankProfileUpdateDetails(
   const sanitized = sanitizeSignupProfileDetails(input);
   const updates: SanitizedBankProfileUpdateDetails = {};
   const fields = [
+    "address",
     "phone",
     "country",
     "cityOfOrigin",

@@ -11,6 +11,7 @@ test("accepts required names with each supplied optional registration field", ()
   const parsed = SaveSignupProfileBody.safeParse({
     firstName: "Ada",
     lastName: "Mensah",
+    address: "14 Adebayo Street, Apt #3",
     phone: "+233 24 123 4567",
     country: "Ghana",
     cityOfOrigin: "Accra",
@@ -32,6 +33,7 @@ test("blank optional profile values are omitted", () => {
   assert.deepEqual(
     sanitizeSignupProfileDetails({
       phone: " ",
+      address: " ",
       country: "",
       cityOfOrigin: "   ",
       dateOfBirth: "",
@@ -45,12 +47,14 @@ test("valid optional values are trimmed and kept", () => {
   assert.deepEqual(
     sanitizeSignupProfileDetails({
       phone: "+233 24 123 4567",
+      address: " 14 Adebayo Street, Apt #3 ",
       country: " Ghana ",
       cityOfOrigin: " Accra ",
       dateOfBirth: "1992-03-14",
       occupation: " Product designer ",
     }),
     {
+      address: "14 Adebayo Street, Apt #3",
       phone: "+233 24 123 4567",
       country: "Ghana",
       cityOfOrigin: "Accra",
@@ -63,6 +67,7 @@ test("valid optional values are trimmed and kept", () => {
 test("invalid optional formats are skipped while valid profile details are kept", () => {
   assert.deepEqual(
     sanitizeSignupProfileDetails({
+      address: "\u0000invalid",
       phone: "phone me",
       country: "Nigeri@",
       cityOfOrigin: "A".repeat(1025),

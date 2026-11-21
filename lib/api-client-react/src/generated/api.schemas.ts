@@ -298,6 +298,8 @@ export interface BankProfile {
   /** @nullable */
   lastName: string | null;
   /** @nullable */
+  address: string | null;
+  /** @nullable */
   phone: string | null;
   /** @nullable */
   country: string | null;
@@ -828,6 +830,11 @@ export interface BankProfileInput {
      * @maxLength 1024
      * @nullable
      */
+  address?: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
   phone?: string | null;
   /**
      * @maxLength 1024
@@ -863,6 +870,8 @@ export interface SignupProfileInput {
      * @maxLength 80
      */
   lastName: string;
+  /** @maxLength 1024 */
+  address?: string;
   /** @maxLength 1024 */
   phone?: string;
   /** @maxLength 1024 */

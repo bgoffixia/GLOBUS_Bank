@@ -19,6 +19,8 @@ export interface BankProfile {
   /** @nullable */
   lastName: string | null;
   /** @nullable */
+  address: string | null;
+  /** @nullable */
   phone: string | null;
   /** @nullable */
   country: string | null;

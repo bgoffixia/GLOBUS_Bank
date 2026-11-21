@@ -4,6 +4,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { getGetBankDashboardQueryKey, getGetBankProfileQueryKey, useCompleteRequiredPasswordReset, useGetBankProfile, useLookupCustomerId, useSaveSignupProfile } from '@workspace/api-client-react';
 import { Link, useLocation } from 'wouter';
 import { useToast } from '@/hooks/use-toast';
+import { useLanguage } from '@/lib/i18n';
+import { AppLanguageSelector } from '@/components/app-language-selector';
 import { SignupOptionalProfileFields } from './signup-profile-fields';
 import { authFailureMessage, signInNextStep } from '../lib/auth-errors';
 import {
@@ -60,6 +62,7 @@ type AuthFrameProps = {
 
 export function AuthFrame({ mode, children }: AuthFrameProps) {
   const isSignUp = mode === 'sign-up';
+  const { t } = useLanguage();
 
   return (
     <main className={`gb-auth-shell ${isSignUp ? 'gb-auth-signup-shell' : 'gb-auth-signin-shell'}`}>
@@ -73,28 +76,31 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
           </span>
         </div>
         <div className="gb-brand-copy">
-          <span className="gb-eyebrow">A clearer view of your money</span>
-          <h2>{isSignUp ? <>Begin with<br />a better view.</> : <>Your world.<br />In one place.</>}</h2>
+          <span className="gb-eyebrow">{t('A clearer view of your money')}</span>
+          <h2>{t(isSignUp ? 'Begin with\na better view.' : 'Your world.\nIn one place.')}</h2>
           <p>
             {isSignUp
-              ? 'Create your member account and bring your Globus activity into focus.'
-              : 'Access your accounts, follow your balances, and move money with clarity.'}
+              ? t('Create your member account and bring your Globus activity into focus.')
+              : t('Access your accounts, follow your balances, and move money with clarity.')}
           </p>
         </div>
         <div className="gb-world-art" aria-hidden="true">
           <span className="gb-orbit gb-orbit-one" />
           <span className="gb-orbit gb-orbit-two" />
           <span className="gb-orbit-dot" />
-          <span className="gb-world-label">GLOBAL FINANCE</span>
+          <span className="gb-world-label">{t('GLOBAL FINANCE')}</span>
         </div>
         <div className="gb-panel-foot">
           <span>GLOBUS BANK</span>
-          <span>YOUR WORLD. OUR PRIORITY.</span>
+          <span>{t('YOUR WORLD. OUR PRIORITY.')}</span>
         </div>
       </aside>
 
       <section className="gb-form-side">
         <div className={`gb-auth-content ${isSignUp ? 'gb-signup-content' : ''}`}>
+          <div className="gb-auth-language-position">
+            <AppLanguageSelector />
+          </div>
           <div className={`gb-signup-brand${isSignUp ? '' : ' gb-signin-brand'}`}>
             <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
           </div>
@@ -104,7 +110,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
               <rect x="3.25" y="7" width="9.5" height="7" rx="1.4" stroke="currentColor" strokeWidth="1.4" />
               <path d="M5.25 7V4.9a2.75 2.75 0 0 1 5.5 0V7" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" />
             </svg>
-            <span>Secured by Clerk</span>
+            <span>{t('Secured by Clerk')}</span>
           </div>
         </div>
       </section>
@@ -116,6 +122,7 @@ export function ClerkSignInForm() {
   const [, setLocation] = useLocation();
   const clerk = (window as Window & { Clerk?: ClerkRuntimeSignInSettings }).Clerk;
   const { signIn, fetchStatus } = useSignIn();
+  const { t } = useLanguage();
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -270,21 +277,21 @@ export function ClerkSignInForm() {
   return (
     <div className="gb-signin-form-wrap">
       <div className="gb-form-heading gb-signin-heading">
-        <h1>Welcome back</h1>
-        <p>Sign in with your username and password.</p>
+        <h1>{t('Welcome back')}</h1>
+        <p>{t('Sign in with your username and password.')}</p>
       </div>
       {verificationFactor ? (
         <form className="gb-auth-form" onSubmit={submitVerificationCode}>
           <p className="gb-switch-copy">
             {verificationFactor === 'first_email_code' || verificationFactor === 'email_code'
-              ? 'Enter the verification code sent to your email.'
+              ? t('Enter the verification code sent to your email.')
               : verificationFactor === 'phone_code'
-                ? 'Enter the verification code sent to your phone.'
+                ? t('Enter the verification code sent to your phone.')
                 : verificationFactor === 'totp'
-                  ? 'Enter the code from your authenticator app.'
-                  : 'Enter one of your backup codes.'}
+                  ? t('Enter the code from your authenticator app.')
+                  : t('Enter one of your backup codes.')}
           </p>
-          <label className="gb-field-label" htmlFor="gb-signin-verification-code">Verification code</label>
+          <label className="gb-field-label" htmlFor="gb-signin-verification-code">{t('Verification code')}</label>
           <input
             id="gb-signin-verification-code"
             className="gb-input"
@@ -295,9 +302,9 @@ export function ClerkSignInForm() {
             onChange={event => setVerificationCode(event.target.value)}
             required
           />
-          {error && <p role="alert" className="gb-auth-error">{error}</p>}
+          {error && <p role="alert" className="gb-auth-error">{t(error)}</p>}
           <button className="gb-primary-button" type="submit" disabled={busy || !verificationCode.trim()}>
-            <span>{busy ? 'Verifying…' : 'Verify & sign in'}</span>
+            <span>{busy ? t('Verifying…') : t('Verify & sign in')}</span>
             <span aria-hidden="true">→</span>
           </button>
           <button
@@ -310,16 +317,16 @@ export function ClerkSignInForm() {
               clearFormError();
             }}
           >
-            Back to sign in
+            {t('Back to sign in')}
           </button>
         </form>
       ) : (
         showFormUnavailable ? (
-          <p role="status" className="gb-auth-notice">{showFormUnavailable}</p>
+          <p role="status" className="gb-auth-notice">{t(showFormUnavailable)}</p>
         ) : (
           <form className="gb-auth-form" noValidate onSubmit={submit}>
             <div className="gb-field">
-              <label className="gb-field-label" htmlFor="gb-signin-username">Username</label>
+              <label className="gb-field-label" htmlFor="gb-signin-username">{t('Username')}</label>
               <input
                 id="gb-signin-username"
                 className="gb-input"
@@ -339,11 +346,11 @@ export function ClerkSignInForm() {
                 required
               />
               {error && errorField === 'username' && (
-                <p id="gb-signin-field-error" role="alert" className="gb-auth-error gb-signin-field-error">{error}</p>
+                <p id="gb-signin-field-error" role="alert" className="gb-auth-error gb-signin-field-error">{t(error)}</p>
               )}
             </div>
             <div className="gb-field">
-              <label className="gb-field-label" htmlFor="gb-signin-password">Password</label>
+              <label className="gb-field-label" htmlFor="gb-signin-password">{t('Password')}</label>
               <input
                 id="gb-signin-password"
                 className="gb-input"
@@ -359,21 +366,21 @@ export function ClerkSignInForm() {
                 required
               />
               {error && errorField === 'password' && (
-                <p id="gb-signin-field-error" role="alert" className="gb-auth-error gb-signin-field-error">{error}</p>
+                <p id="gb-signin-field-error" role="alert" className="gb-auth-error gb-signin-field-error">{t(error)}</p>
               )}
             </div>
-            {error && !errorField && <p role="alert" className="gb-auth-error">{error}</p>}
+            {error && !errorField && <p role="alert" className="gb-auth-error">{t(error)}</p>}
             <button className="gb-primary-button" type="submit" disabled={busy}>
-              <span>{busy ? 'Signing in…' : 'Sign in'}</span>
+              <span>{busy ? t('Signing in…') : t('Sign in')}</span>
               <span aria-hidden="true">→</span>
             </button>
           </form>
         )
       )}
       <p className="gb-recovery-link">
-        <Link href="/sign-in/email">Forgot username or password?</Link>
+        <Link href="/sign-in/email">{t('Forgot username or password?')}</Link>
       </p>
-      <p className="gb-switch-copy">New to Globus? <Link href="/sign-up">Create an account</Link></p>
+      <p className="gb-switch-copy">{t('New to Globus?')} <Link href="/sign-up">{t('Create an account')}</Link></p>
     </div>
   );
 }
@@ -946,11 +953,13 @@ export function ClerkSignUpForm() {
   const [, setLocation] = useLocation();
   const { signUp, fetchStatus } = useSignUp();
   const { isLoaded: userLoaded, user } = useUser();
+  const { t } = useLanguage();
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [address, setAddress] = useState('');
   const [phone, setPhone] = useState('');
   const [country, setCountry] = useState('');
   const [cityOfOrigin, setCityOfOrigin] = useState('');
@@ -1019,6 +1028,7 @@ export function ClerkSignUpForm() {
     value: string,
   ) => {
     const setters: Record<keyof OptionalSignupProfile, (next: string) => void> = {
+      address: setAddress,
       phone: setPhone,
       country: setCountry,
       cityOfOrigin: setCityOfOrigin,
@@ -1036,6 +1046,7 @@ export function ClerkSignUpForm() {
     ) {
       setFirstName((current) => current || initialDraft.firstName);
       setLastName((current) => current || initialDraft.lastName);
+      setAddress((current) => current || initialDraft.address || '');
       setPhone((current) => current || initialDraft.phone || '');
       setCountry((current) => current || initialDraft.country || '');
       setCityOfOrigin((current) => current || initialDraft.cityOfOrigin || '');
@@ -1357,6 +1368,7 @@ export function ClerkSignUpForm() {
 
     try {
       const enteredDetails: OptionalSignupProfile = {
+        address,
         phone,
         country,
         cityOfOrigin,
@@ -1597,9 +1609,9 @@ export function ClerkSignUpForm() {
       {stage !== 'finishing' && (
         <>
           <div className="gb-form-heading gb-signup-heading">
-            <span className="gb-step-label">SECURE REGISTRATION <i /></span>
-            <h1>Create your account</h1>
-            <p>Enter your account details and verify your email.</p>
+            <span className="gb-step-label">{t('SECURE REGISTRATION')} <i /></span>
+            <h1>{t('Create your account')}</h1>
+            <p>{t('Enter your account details and verify your email.')}</p>
           </div>
           <form
             className="gb-auth-form gb-signup-form gb-signup-main-form"
@@ -1616,37 +1628,37 @@ export function ClerkSignUpForm() {
               disabled={requiredFieldsDisabled}
             >
               <div className="gb-field">
-                <label className="gb-field-label" htmlFor="gb-signup-first-name">First name</label>
+                <label className="gb-field-label" htmlFor="gb-signup-first-name">{t('First name')}</label>
                 <input id="gb-signup-first-name" data-testid="input-signup-first-name" className="gb-input" type="text" autoComplete="given-name" maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} required />
               </div>
               <div className="gb-field">
-                <label className="gb-field-label" htmlFor="gb-signup-last-name">Last name</label>
+                <label className="gb-field-label" htmlFor="gb-signup-last-name">{t('Last name')}</label>
                 <input id="gb-signup-last-name" data-testid="input-signup-last-name" className="gb-input" type="text" autoComplete="family-name" maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} required />
               </div>
               <div className="gb-field gb-field-wide">
-                <label className="gb-field-label" htmlFor="gb-signup-username">Username</label>
+                <label className="gb-field-label" htmlFor="gb-signup-username">{t('Username')}</label>
                 <input id="gb-signup-username" data-testid="input-signup-username" className="gb-input" type="text" autoComplete="username" autoCapitalize="off" spellCheck={false} minLength={6} maxLength={12} pattern="(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}" value={username} onChange={event => setUsername(event.target.value.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12))} required />
-                <p className="gb-password-hint">6–12 characters with a letter; letters, numbers, hyphens, underscores.</p>
+                <p className="gb-password-hint">{t('6–12 characters with a letter; letters, numbers, hyphens, underscores.')}</p>
               </div>
               <div className="gb-field gb-field-wide">
-                <label className="gb-field-label" htmlFor="gb-signup-email">Email address</label>
+                <label className="gb-field-label" htmlFor="gb-signup-email">{t('Email address')}</label>
                 <input id="gb-signup-email" data-testid="input-signup-email" className="gb-input" type="email" autoComplete="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} required />
               </div>
               <div className="gb-field gb-field-wide">
-                <label className="gb-field-label" htmlFor="gb-signup-password">Password</label>
+                <label className="gb-field-label" htmlFor="gb-signup-password">{t('Password')}</label>
                 <input id="gb-signup-password" data-testid="input-signup-password" className="gb-input" type="password" autoComplete="new-password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required />
               </div>
-              <p className="gb-password-hint gb-field-wide">8+ characters; Clerk checks additional requirements.</p>
+              <p className="gb-password-hint gb-field-wide">{t('8+ characters; Clerk checks additional requirements.')}</p>
             </fieldset>
 
             <section className="gb-signup-profile-section" aria-labelledby="gb-signup-profile-title">
-              <h2 id="gb-signup-profile-title" className="gb-signup-section-title">Profile information</h2>
+              <h2 id="gb-signup-profile-title" className="gb-signup-section-title">{t('Profile information')}</h2>
               <fieldset
                 className="gb-signup-fields gb-signup-optional-fields"
                 disabled={verificationInProgress}
               >
                 <SignupOptionalProfileFields
-                  values={{ phone, country, cityOfOrigin, dateOfBirth, occupation }}
+                  values={{ address, phone, country, cityOfOrigin, dateOfBirth, occupation }}
                   onChange={updateOptionalField}
                 />
               </fieldset>
@@ -1655,30 +1667,30 @@ export function ClerkSignUpForm() {
             {legalAcceptanceRequired && (
               <label className="gb-terms-check gb-signup-terms">
                 <input data-testid="checkbox-signup-terms" type="checkbox" checked={acceptedTerms} onChange={event => setAcceptedTerms(event.target.checked)} disabled={verificationInProgress} required />
-                <span>I accept the account terms required by this Clerk account.</span>
+                <span>{t('I accept the account terms required by this Clerk account.')}</span>
               </label>
             )}
 
             {stage === 'verify' && !emailVerified && (
               <section className="gb-signup-verify-fields" aria-labelledby="gb-signup-verification-title">
-                <h2 id="gb-signup-verification-title" className="gb-signup-section-title">Email verification</h2>
+                <h2 id="gb-signup-verification-title" className="gb-signup-section-title">{t('Email verification')}</h2>
                 <p className="gb-signup-verification-copy">
-                  Code sent to <strong>{email || signUp.emailAddress}</strong>
+                  {t('Code sent to')} <strong>{email || signUp.emailAddress}</strong>
                 </p>
                 <div className="gb-signup-fields">
                   <div className="gb-field">
-                    <label className="gb-field-label" htmlFor="gb-verification-code">Email verification code</label>
+                    <label className="gb-field-label" htmlFor="gb-verification-code">{t('Email verification code')}</label>
                     <input id="gb-verification-code" data-testid="input-signup-verification-code" className="gb-input gb-code-input" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={12} value={verificationCode} onChange={event => setVerificationCode(event.target.value)} required />
                   </div>
                 </div>
               </section>
             )}
 
-            {error && <p role="alert" className="gb-auth-error">{error}</p>}
-            {notice && <p role="status" className="gb-auth-notice">{notice}</p>}
+            {error && <p role="alert" className="gb-auth-error">{t(error)}</p>}
+            {notice && <p role="status" className="gb-auth-notice">{t(notice)}</p>}
             {stage === 'verify' && emailVerified && signUp.status !== 'complete' && canReviewSignupDetails && (
               <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={reviewRequiredSignupDetails}>
-                Review required details
+                {t('Review required details')}
               </button>
             )}
             {stage !== 'verify' || !emailVerified || canSubmitVerifiedSignup ? (
@@ -1691,17 +1703,17 @@ export function ClerkSignUpForm() {
                 <span>
                   {busy
                     ? stage === 'verify'
-                      ? 'Checking…'
+                      ? t('Checking…')
                       : stage === 'optional-profile'
-                        ? 'Sending code…'
-                        : 'Creating account…'
+                        ? t('Sending code…')
+                        : t('Creating account…')
                     : stage === 'verify'
                       ? emailVerified
-                        ? 'Finish account setup'
-                        : 'Verify email and continue'
+                        ? t('Finish account setup')
+                        : t('Verify email and continue')
                       : stage === 'optional-profile'
-                        ? 'Send verification code'
-                        : 'Create account and send code'}
+                        ? t('Send verification code')
+                        : t('Create account and send code')}
                 </span>
               </button>
             ) : null}
@@ -1710,32 +1722,32 @@ export function ClerkSignUpForm() {
           <div className="gb-verification-actions">
             {stage === 'verify' && !emailVerified && signUp.status !== 'complete' && (
               <>
-                <button type="button" onClick={() => void resendCode()} disabled={busy}>Resend code</button>
-                <button type="button" onClick={returnToOptionalProfile} disabled={busy}>Edit profile details</button>
-                <button type="button" onClick={() => void changeEmail()} disabled={busy}>Use a different email</button>
+                <button type="button" onClick={() => void resendCode()} disabled={busy}>{t('Resend code')}</button>
+                <button type="button" onClick={returnToOptionalProfile} disabled={busy}>{t('Edit profile details')}</button>
+                <button type="button" onClick={() => void changeEmail()} disabled={busy}>{t('Use a different email')}</button>
                 {canResetSignupAttempt && (
-                  <button type="button" onClick={() => void startOver()} disabled={busy}>Start over</button>
+                  <button type="button" onClick={() => void startOver()} disabled={busy}>{t('Start over')}</button>
                 )}
               </>
             )}
           </div>
           {stage !== 'verify' && (canResetSignupAttempt || Boolean(error)) && (
             <button className="gb-recovery-secondary" type="button" onClick={() => void startOver()} disabled={busy}>
-              Start over
+              {t('Start over')}
             </button>
           )}
           <p className="gb-switch-copy gb-signup-switch">
-            Already have an account? <Link data-testid="link-signup-sign-in" href="/sign-in">Sign in</Link>
-            {stage === 'verify' && emailVerified && <> · <Link href="/sign-in/email">Recover it</Link></>}
+            {t('Already have an account?')} <Link data-testid="link-signup-sign-in" href="/sign-in">{t('Sign in')}</Link>
+            {stage === 'verify' && emailVerified && <> · <Link href="/sign-in/email">{t('Recover it')}</Link></>}
           </p>
         </>
       )}
 
       {stage === 'finishing' && (
         <div className="gb-form-heading" role="status" aria-live="polite">
-          <span className="gb-step-label">ACCOUNT SETUP <i /></span>
-          <h1>Opening your account</h1>
-          <p>Your email is verified. Signing you in and opening your dashboard.</p>
+          <span className="gb-step-label">{t('ACCOUNT SETUP')} <i /></span>
+          <h1>{t('Opening your account')}</h1>
+          <p>{t('Your email is verified. Signing you in and opening your dashboard.')}</p>
         </div>
       )}
     </div>

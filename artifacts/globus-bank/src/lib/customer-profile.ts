@@ -1,6 +1,7 @@
 export type CustomerProfileFields = {
   firstName?: string | null;
   lastName?: string | null;
+  address?: string | null;
   phone?: string | null;
   country?: string | null;
   cityOfOrigin?: string | null;
@@ -11,6 +12,7 @@ export type CustomerProfileFields = {
 export const customerProfileFieldLabels = [
   ['firstName', 'First name'],
   ['lastName', 'Last name'],
+  ['address', 'Address'],
   ['phone', 'Phone number'],
   ['country', 'Country of origin'],
   ['cityOfOrigin', 'City of origin'],
@@ -22,6 +24,10 @@ export const customerProfileFieldLabels = [
 
 export function isProfileFieldProvided(value: unknown): boolean {
   return typeof value === 'string' && value.trim().length > 0;
+}
+
+export function formatCustomerProfileValue(value: unknown): string {
+  return isProfileFieldProvided(value) ? (value as string).trim() : 'Missing';
 }
 
 export function getMissingCustomerProfileFields(

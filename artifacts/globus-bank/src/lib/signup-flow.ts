@@ -2,6 +2,7 @@ export type SignupProgressStage = 'optional-profile' | 'verify';
 export type SignupResumeStage = 'details' | SignupProgressStage | 'dashboard';
 
 export type OptionalSignupProfile = {
+  address?: string;
   phone?: string;
   country?: string;
   cityOfOrigin?: string;
@@ -64,6 +65,17 @@ function optionalOccupation(value: unknown) {
     : undefined;
 }
 
+function optionalAddress(value: unknown) {
+  if (typeof value !== 'string') return undefined;
+  const trimmed = value.trim();
+  return trimmed &&
+    trimmed.length <= 1024 &&
+    /[\p{L}\p{N}]/u.test(trimmed) &&
+    !/[\p{Cc}\p{Cf}]/u.test(trimmed)
+    ? trimmed
+    : undefined;
+}
+
 function optionalPhone(value: unknown) {
   if (typeof value !== 'string') return undefined;
   const trimmed = value.trim();
@@ -91,6 +103,9 @@ export function sanitizeOptionalSignupProfile(
   input: Partial<Record<keyof OptionalSignupProfile, unknown>>,
 ): OptionalSignupProfile {
   const normalized: OptionalSignupProfile = {};
+
+  const address = optionalAddress(input.address);
+  if (address) normalized.address = address;
 
   const phone = optionalPhone(input.phone);
   if (phone) normalized.phone = phone;

@@ -26,6 +26,7 @@ import { currencyLabel, destinationCurrencies, destinationCurrencyForCountry } f
 import { previewConversion } from '@/lib/currency-conversion';
 import { digitsFor, formatAmount, formatRate, TransferReceiptModal } from './transfer-receipt';
 import { receiptFromRequest, type ReceiptTransaction } from '@/lib/transfer-receipt-data';
+import { useLanguage } from '@/lib/i18n';
 
 type TransferType = 'local_routing' | 'international_wire';
 type SourceCurrency = InternationalTransferRequestInput['sourceCurrency'];
@@ -44,6 +45,7 @@ function newKey() {
 }
 
 export function InternationalTransferPage() {
+  const { t } = useLanguage();
   const queryClient = useQueryClient();
   const profile = useGetBankProfile({ query: { queryKey: getGetBankProfileQueryKey() } });
   const emailAlertPreference = useGetBankVaultTransferEmailAlert({
@@ -294,7 +296,7 @@ export function InternationalTransferPage() {
           <div className="flex-1 px-3.5 py-3.5 sm:px-5 sm:py-4">
             <p className="text-[9px] font-bold uppercase tracking-[.14em] text-[#4f8b90]">Step {step + 1} of 3 · {routeLabel}</p>
             <h1 id="transfer-step-title" ref={headingRef} tabIndex={-1} className="bank-display mt-0.5 text-[20px] font-semibold tracking-[-.03em] text-[#18324f] outline-none">{['Recipient & destination', 'Amount & review', 'Authorise with PIN'][step]}</h1>
-            <p data-testid="text-transfer-guide" className="mt-0.5 text-[10px] leading-4 text-[#6d7f92]">{GUIDE[step]}</p>
+      <p data-testid="text-transfer-guide" className="mt-0.5 text-[10px] leading-4 text-[#6d7f92]">{t(GUIDE[step])}</p>
 
             <div className="mt-3 space-y-2.5">
               {step === 0 && <>
@@ -390,12 +392,14 @@ export function InternationalTransferPage() {
 }
 
 function F({ label, hint, className = '', children }: { label: string; hint?: string; className?: string; children: ReactNode }) {
-  return <div className={`block min-w-0 ${className}`}><span className="mb-1 block text-[9px] font-semibold uppercase tracking-[.06em] text-[#5c7085]">{label}</span>{children}{hint && <span className="mt-0.5 block text-[9px] text-[#8391a0]">{hint}</span>}</div>;
+  const { t } = useLanguage();
+  return <div className={`block min-w-0 ${className}`}><span className="mb-1 block text-[9px] font-semibold uppercase tracking-[.06em] text-[#5c7085]">{t(label)}</span>{children}{hint && <span className="mt-0.5 block text-[9px] text-[#8391a0]">{t(hint)}</span>}</div>;
 }
 
 function RateWarning({ changed, lost, onReview }: { changed: boolean; lost: boolean; onReview: () => void }) {
+  const { t } = useLanguage();
   if (!changed && !lost) return null;
-  return <div role="alert" data-testid="status-rate-changed" className="flex items-start justify-between gap-3 rounded-lg border border-[#ecdcb6] bg-[#fcf7ea] px-3 py-2 text-[9px] leading-4 text-[#7d6230]"><span className="flex gap-1.5"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{lost ? 'A current quote is unavailable. This transfer cannot be submitted.' : 'The conversion rate changed. Review the new total before continuing.'}</span>{changed && <button type="button" data-testid="button-review-rate" onClick={onReview} className="shrink-0 font-bold underline">Review</button>}</div>;
+  return <div role="alert" data-testid="status-rate-changed" className="flex items-start justify-between gap-3 rounded-lg border border-[#ecdcb6] bg-[#fcf7ea] px-3 py-2 text-[9px] leading-4 text-[#7d6230]"><span className="flex gap-1.5"><AlertTriangle size={12} className="mt-0.5 shrink-0" />{t(lost ? 'A current quote is unavailable. This transfer cannot be submitted.' : 'The conversion rate changed. Review the new total before continuing.')}</span>{changed && <button type="button" data-testid="button-review-rate" onClick={onReview} className="shrink-0 font-bold underline">{t('Review')}</button>}</div>;
 }
 
 function PinPad({ value, onChange, disabled, onSubmit }: { value: string; onChange: (v: string) => void; disabled: boolean; onSubmit: () => void }) {

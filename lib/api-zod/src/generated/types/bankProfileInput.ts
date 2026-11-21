@@ -21,6 +21,11 @@ export interface BankProfileInput {
      * @maxLength 1024
      * @nullable
      */
+  address?: string | null;
+  /**
+     * @maxLength 1024
+     * @nullable
+     */
   phone?: string | null;
   /**
      * @maxLength 1024

@@ -40,6 +40,8 @@ import type {
   AdminRestriction, BankRestrictionType, ListAdminTransactionsParams, ListAdminUsersParams, TransactionType, Wallet,
 } from '@workspace/api-client-react';
 import { customerTransactionDate, transactionDateInputValue } from '../lib/transaction-date';
+import { AppLanguageSelector } from '@/components/app-language-selector';
+import { useLanguage } from '@/lib/i18n';
 
 const currencies: ActiveCurrencyCode[] = ['USD', 'EUR', 'GBP', 'CAD'];
 const historicalCurrencies: CurrencyCode[] = ['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD'];
@@ -111,14 +113,15 @@ function StatusPill({ status }: { status: string }) { const tone = ['active', 'a
 
 export function AdminWorkspace() {
   const [path] = useLocation();
+  const { t } = useLanguage();
   const access = useGetAdminAccess({ query: { queryKey: getGetAdminAccessQueryKey(), retry: false } });
   const isDetail = /^\/admin\/users\/[^/]+$/.test(path);
   const page = path === '/admin' ? 'overview' : isDetail ? 'member-detail' : path.split('/')[2] || 'overview';
-  const pageTitles: Record<string, string> = { overview: 'Operations overview', users: 'Member directory', 'vault-access': 'Private Vault access', accounts: 'Currency accounts', transactions: 'Transaction activity', funding: 'User funding', wallets: 'Wallet controls', restrictions: 'Restrictions', audit: 'Audit trail', settings: 'Operations settings', 'member-detail': 'Member record' };
-  if (path === '/admin/logout') return <WorkspaceFrame active="logout" title="Sign out" authorized={access.data?.allowed === true}><LogoutPage /></WorkspaceFrame>;
-  if (access.isLoading) return <WorkspaceFrame active={page} title="Operations workspace" authorized={false}><div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map(x => <div key={x} className={`${box} h-36 animate-pulse bg-[#edf2ef]`} />)}</div></WorkspaceFrame>;
-  if (access.isError || !access.data?.allowed) return <WorkspaceFrame active={page} title="Operations workspace" authorized={false}><div className={`${box} mx-auto max-w-xl p-8 text-center`}><Shield size={28} className="mx-auto text-[#9b6157]" /><h1 className="mt-4 text-xl font-bold text-[#263e4b]">Operations access restricted</h1><p className="mt-2 text-[12px] leading-5 text-[#7a8c91]">This workspace is available to authorized Globus operations administrators.</p><button onClick={() => access.refetch()} className={`${button} mt-5`}>Check access again</button></div></WorkspaceFrame>;
-  return <WorkspaceFrame active={page} title={pageTitles[page] || 'Operations workspace'} authorized>
+  const pageTitles: Record<string, string> = { overview: t('Operations overview'), users: t('Member directory'), 'vault-access': t('Private Vault access'), accounts: t('Currency accounts'), transactions: t('Transaction activity'), funding: t('User funding'), wallets: t('Wallet controls'), restrictions: t('Restrictions'), audit: t('Audit trail'), settings: t('Operations settings'), 'member-detail': t('Member record') };
+  if (path === '/admin/logout') return <WorkspaceFrame active="logout" title={t('Sign out')} authorized={access.data?.allowed === true}><LogoutPage /></WorkspaceFrame>;
+  if (access.isLoading) return <WorkspaceFrame active={page} title={t('Operations workspace')} authorized={false}><div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map(x => <div key={x} className={`${box} h-36 animate-pulse bg-[#edf2ef]`} />)}</div></WorkspaceFrame>;
+  if (access.isError || !access.data?.allowed) return <WorkspaceFrame active={page} title={t('Operations workspace')} authorized={false}><div className={`${box} mx-auto max-w-xl p-8 text-center`}><Shield size={28} className="mx-auto text-[#9b6157]" /><h1 className="mt-4 text-xl font-bold text-[#263e4b]">{t('Operations access restricted')}</h1><p className="mt-2 text-[12px] leading-5 text-[#7a8c91]">{t('This workspace is available to authorized Globus operations administrators.')}</p><button onClick={() => access.refetch()} className={`${button} mt-5`}>{t('Check access again')}</button></div></WorkspaceFrame>;
+  return <WorkspaceFrame active={page} title={pageTitles[page] || t('Operations workspace')} authorized>
     {page === 'overview' && <Overview />}
     {page === 'users' && <UsersPage />}
     {page === 'vault-access' && <AdminVaultAccessPage />}
@@ -137,6 +140,7 @@ export function AdminWorkspace() {
 function WorkspaceFrame({ children, active, title, authorized }: { children: ReactNode; active: string; title: string; authorized: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { user } = useUser();
+  const { t } = useLanguage();
   const email = user?.primaryEmailAddress?.emailAddress || '';
   const initials = (user?.firstName?.[0] || email[0] || 'G').toUpperCase();
   const isActive = (href: string) =>
@@ -159,14 +163,14 @@ function WorkspaceFrame({ children, active, title, authorized }: { children: Rea
         }`}
       >
         <Icon size={15} strokeWidth={1.8} />
-        <span className="flex-1">{item.label}</span>
+        <span className="flex-1">{t(item.label)}</span>
       </Link>
     );
   };
-  const navContent = (onNavigate?: () => void) => <nav aria-label="Administration navigation" className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5">{nav.map(item => navigationLink(item, onNavigate))}</nav>;
+  const navContent = (onNavigate?: () => void) => <nav aria-label={t('Administration navigation')} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5">{nav.map(item => navigationLink(item, onNavigate))}</nav>;
   const identityCard = <div className="flex items-center gap-2.5 rounded-[9px] bg-white/[.045] p-2.5">
     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#d7e8e3] text-[10px] font-bold text-[#244a54]">{initials}</div>
-    <div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold text-white">{user?.fullName || 'Administrator'}</p><p className="truncate text-[9px] text-[#9eb5b6]">{email || 'Authorized operator'}</p></div>
+    <div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold text-white">{user?.fullName || t('Administrator')}</p><p className="truncate text-[9px] text-[#9eb5b6]">{email || t('Authorized operator')}</p></div>
   </div>;
   return <div className="admin-viewport bg-[#f1f5f0] text-[#243d4b]">
     <aside className="admin-sidebar hidden h-full w-[218px] shrink-0 flex-col bg-[#173b49] text-[#dbe8e5] lg:flex">
@@ -194,6 +198,7 @@ function WorkspaceFrame({ children, active, title, authorized }: { children: Rea
             <div className="min-w-0"><p className="truncate text-[10px] text-[#859492]"><span className="hidden sm:inline">Globus Bank&nbsp; / &nbsp;</span><span className="font-semibold text-[#3e575b]">{title}</span></p></div>
           </div>
           <div className="flex min-w-0 items-center gap-2.5">
+            <AppLanguageSelector className="min-h-8" />
             {authorized && <div className="hidden items-center gap-1.5 rounded-full border border-[#dce7df] bg-[#f0f6f0] px-2.5 py-1.5 sm:flex"><ShieldCheck size={12} className="text-[#57816d]" /><span className="text-[9px] font-semibold text-[#557364]">Authorized</span></div>}
             <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#d9e3dd] bg-[#e7efea] text-[9px] font-bold text-[#365963]">{initials}</div>
           </div>

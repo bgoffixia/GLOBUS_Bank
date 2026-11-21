@@ -4,6 +4,7 @@ import { createElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 import { test, expect, type Page } from '@playwright/test';
 import { SignupOptionalProfileFields } from '../src/components/signup-profile-fields';
+import { LanguageProvider } from '../src/lib/i18n';
 
 const viewportWidths = [320, 360, 375, 402];
 const memberViewportWidths = [320, 360, 390, 768, 1440];
@@ -217,6 +218,27 @@ test.describe('public and authentication pages at phone widths', () => {
     });
   }
 
+});
+
+test('compact language picker follows the country-selector pattern and translates the landing page', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('globus-bank-language', 'en');
+  });
+  for (const width of [320, 360]) {
+    await page.setViewportSize({ width, height: 760 });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const picker = page.getByTestId('select-language');
+    await expect(picker).toBeVisible();
+    await expect(picker).toContainText('EN');
+    await expectNoHorizontalOverflow(page, `Landing header language picker at ${width}px`);
+
+    await picker.click();
+    await expect(page.getByTestId('select-language-drawer')).toBeVisible();
+    await page.getByRole('option', { name: /Français/ }).click();
+    await expect(page.locator('html')).toHaveAttribute('lang', 'fr-FR');
+    await expect(page.locator('h1').first()).toContainText('Des relevés clairs.');
+    await expectNoHorizontalOverflow(page, `Translated landing header at ${width}px`);
+  }
 });
 
 test('the removed Help Center route no longer renders support content', async ({ page }) => {
@@ -531,10 +553,14 @@ test.describe('Globus sign-up design', () => {
 
 test.describe('optional sign-up details responsive layout', () => {
   const optionalFieldsMarkup = renderToStaticMarkup(
-    createElement(SignupOptionalProfileFields, {
-      values: {},
-      onChange: () => undefined,
-    }),
+    createElement(
+      LanguageProvider,
+      null,
+      createElement(SignupOptionalProfileFields, {
+        values: {},
+        onChange: () => undefined,
+      }),
+    ),
   );
   const authStyles = readFileSync(
     new URL('../src/components/auth-pages.css', import.meta.url),
@@ -576,6 +602,7 @@ test.describe('optional sign-up details responsive layout', () => {
 
       await expect(page.getByRole('heading', { name: 'Optional profile details' })).toBeVisible();
       await expect(page.locator('.gb-signup-optional-fields .gb-field-label')).toHaveText([
+        'Address',
         'Country of origin',
         'City of origin',
         'Date of birth',
@@ -583,6 +610,7 @@ test.describe('optional sign-up details responsive layout', () => {
         'Phone number',
       ]);
       for (const field of [
+        'input-signup-address',
         'input-signup-country',
         'input-signup-city',
         'input-signup-date-of-birth',

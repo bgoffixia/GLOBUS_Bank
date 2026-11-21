@@ -3,6 +3,8 @@ import { ArrowLeft, ArrowRight, Bell, FileText, LayoutDashboard, LockKeyhole, Me
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/react';
+import { AppLanguageSelector } from '@/components/app-language-selector';
+import { useLanguage } from '@/lib/i18n';
 import { toast } from '@/hooks/use-toast';
 import {
   getGetBankVaultBillingQueryKey,
@@ -92,6 +94,7 @@ export function PrivateVaultPanel() {
   const [location, setLocation] = useLocation();
   const queryClient = useQueryClient();
   const { user } = useUser();
+  const { t } = useLanguage();
   const status = useGetBankVaultStatus({ query: { queryKey: getGetBankVaultStatusQueryKey(), retry: false, refetchInterval: 60_000 } });
   const initialize = useInitializeBankVaultPasscode();
   const unlock = useUnlockBankVault();
@@ -750,18 +753,19 @@ export function PrivateVaultPanel() {
   const vaultHeader = (
     <header data-testid="vault-page-header" className="relative z-30 flex min-h-[68px] items-center justify-between gap-2 border-b border-[#e1e8eb] bg-white px-3 py-3 sm:px-5">
       <div className="flex min-w-0 items-center gap-3">
-        {vaultSessionActive && <button type="button" aria-label="Open Vault workspace navigation" aria-expanded={mobileNavigationOpen} aria-controls="vault-workspace-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dfe7eb] bg-white text-[#29465d] hover:bg-[#f4f8f9] lg:hidden" data-testid="button-vault-navigation"><Menu size={17} /></button>}
+        {vaultSessionActive && <button type="button" aria-label={t('Open Vault workspace navigation')} aria-expanded={mobileNavigationOpen} aria-controls="vault-workspace-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dfe7eb] bg-white text-[#29465d] hover:bg-[#f4f8f9] lg:hidden" data-testid="button-vault-navigation"><Menu size={17} /></button>}
         <div className="min-w-0">
-          <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#56878a]">Globus Bank · Customer workspace</p>
-          <h1 className="truncate text-[14px] font-bold text-[#233c54] sm:text-[16px]">Private Vault</h1>
+          <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#56878a]">{t('Globus Bank · Customer workspace')}</p>
+          <h1 className="truncate text-[14px] font-bold text-[#233c54] sm:text-[16px]">{t('Private Vault')}</h1>
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-1.5 sm:gap-2">
-        <span className="hidden max-w-[180px] truncate pr-1 text-right text-[9px] font-medium text-[#708397] sm:block">{user?.firstName ? `Welcome, ${user.firstName}` : 'Secure account workspace'}</span>
-        <Link href="/dashboard" aria-label="Return to dashboard" data-testid="link-vault-dashboard" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#377d83] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
-          <LayoutDashboard size={14} /><span className="hidden sm:inline">Dashboard</span>
+        <AppLanguageSelector className="h-9" />
+        <span className="hidden max-w-[180px] truncate pr-1 text-right text-[9px] font-medium text-[#708397] sm:block">{user?.firstName ? t('Welcome, {name}', { name: user.firstName }) : t('Secure account workspace')}</span>
+        <Link href="/dashboard" aria-label={t('Return to dashboard')} data-testid="link-vault-dashboard" className="inline-flex h-9 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#377d83] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
+          <LayoutDashboard size={14} /><span className="hidden sm:inline">{t('Dashboard')}</span>
         </Link>
-        <Link href="/profile" aria-label="Open profile" data-testid="link-vault-profile" className="grid h-9 w-9 place-items-center rounded-lg border border-[#d6e8e9] bg-white text-[#377d83] hover:bg-[#eff8f8]">
+        <Link href="/profile" aria-label={t('Open profile')} data-testid="link-vault-profile" className="grid h-9 w-9 place-items-center rounded-lg border border-[#d6e8e9] bg-white text-[#377d83] hover:bg-[#eff8f8]">
           <UserRound size={15} />
         </Link>
       </div>
@@ -780,10 +784,10 @@ export function PrivateVaultPanel() {
     { path: '/private-vault/email-preferences', label: 'Email preferences', page: 'email-preferences' },
   ];
   const serviceNavigation = (
-    <nav aria-label="Private Vault pages" data-testid="vault-page-navigation" className="vault-page-navigation flex min-w-0 gap-1 overflow-x-auto border-b border-[#e1e8eb] bg-[#f8faf9] px-3 py-2 sm:px-5">
+    <nav aria-label={t('Private Vault pages')} data-testid="vault-page-navigation" className="vault-page-navigation flex min-w-0 gap-1 overflow-x-auto border-b border-[#e1e8eb] bg-[#f8faf9] px-3 py-2 sm:px-5">
       {servicePages.map(page => (
         <Link key={page.path} href={page.path} aria-current={location === page.path ? 'page' : undefined} data-testid={`link-vault-page-${page.page}`} className={`shrink-0 rounded-full border px-3 py-2 text-[9px] font-bold transition ${location === page.path ? 'border-[#54898b] bg-[#eaf4f2] text-[#315f63]' : 'border-transparent text-[#708397] hover:border-[#dce6e7] hover:bg-white hover:text-[#35536a]'}`}>
-          {page.label}
+          {t(page.label)}
         </Link>
       ))}
     </nav>

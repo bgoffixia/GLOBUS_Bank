@@ -27,6 +27,7 @@ import {
 } from '@/pages/bank-pages';
 import { CurrencyCalculatorPage } from '@/pages/currency-calculator-page';
 import { PersonalFinancePage } from '@/pages/personal-finance/personal-finance';
+import { useLanguage } from '@/lib/i18n';
 import { AdminWorkspace } from '@/pages/admin-workspace';
 import {
   Redirect,
@@ -219,6 +220,7 @@ function ClerkQueryClientCacheInvalidator() {
 
 function ClerkRoutes() {
   const [, setLocation] = useLocation();
+  const { t } = useLanguage();
 
   return (
     <ClerkProvider
@@ -230,14 +232,14 @@ function ClerkRoutes() {
       localization={{
         signIn: {
           start: {
-            title: 'Welcome back',
-            subtitle: 'Sign in to access your Globus workspace',
+            title: t('Welcome back'),
+            subtitle: t('Sign in to access your Globus workspace'),
           },
         },
         signUp: {
           start: {
-            title: 'Set up your account',
-            subtitle: 'Create a secure account to explore Globus',
+            title: t('Set up your account'),
+            subtitle: t('Create a secure account to explore Globus'),
           },
         },
       }}

@@ -193,6 +193,7 @@ test('optional fields can all be omitted and do not add empty values', () => {
   expect(
     sanitizeOptionalSignupProfile({
       phone: '   ',
+      address: ' ',
       country: '',
       cityOfOrigin: ' ',
       dateOfBirth: '',
@@ -204,6 +205,7 @@ test('optional fields can all be omitted and do not add empty values', () => {
 test('valid optional profile values are trimmed and retained', () => {
   expect(
     sanitizeOptionalSignupProfile({
+      address: '  14 Adebayo Street, Apt #3  ',
       country: ' Ghana ',
       cityOfOrigin: ' Accra ',
       dateOfBirth: '1992-03-14',
@@ -211,6 +213,7 @@ test('valid optional profile values are trimmed and retained', () => {
       phone: '+233 24 123 4567',
     }),
   ).toEqual({
+    address: '14 Adebayo Street, Apt #3',
     country: 'Ghana',
     cityOfOrigin: 'Accra',
     dateOfBirth: '1992-03-14',
@@ -222,6 +225,7 @@ test('valid optional profile values are trimmed and retained', () => {
 test('invalid optional profile values are ignored while valid values remain', () => {
   expect(
     sanitizeOptionalSignupProfile({
+      address: '\u0000invalid',
       country: 'Nigeri@',
       cityOfOrigin: 'A'.repeat(1025),
       dateOfBirth: '2023-02-30',

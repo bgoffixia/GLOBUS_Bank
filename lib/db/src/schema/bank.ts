@@ -78,6 +78,7 @@ export const bankUsersTable = pgTable("bank_users", {
   profileSetupCompletedAt: timestamp("profile_setup_completed_at", {
     withTimezone: true,
   }),
+  address: text("address"),
   phone: text("phone"),
   country: text("country"),
   cityOfOrigin: text("city_of_origin"),

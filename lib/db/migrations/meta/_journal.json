@@ -71,6 +71,13 @@
       "when": 1795249254786,
       "tag": "20261121_finance_workspace_accounts",
       "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1795249255786,
+      "tag": "20261121_customer_profile_address",
+      "breakpoints": true
     }
   ]
 }
