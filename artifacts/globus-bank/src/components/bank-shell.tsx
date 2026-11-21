@@ -11,6 +11,7 @@ import {
   ShieldCheck,
   UserRound,
   WalletCards,
+  TrendingUp,
   X,
 } from 'lucide-react';
 import { useState, type ReactNode } from 'react';
@@ -26,6 +27,7 @@ import { NotificationsCenter } from '@/components/notifications-center';
 
 const primaryLinks = [
   { href: '/dashboard', label: 'Overview', icon: LayoutDashboard },
+  { href: '/financial-overview', label: 'Financial overview', icon: TrendingUp },
   { href: '/private-vault', label: 'Private Vault', icon: LockKeyhole },
 ];
 
@@ -178,6 +180,7 @@ function NavGroup({ title, links, location, onNavigate }: { title: string; links
 function pageLabel(path: string) {
   const labels: Record<string, string> = {
     '/dashboard': 'Overview',
+    '/financial-overview': 'Financial overview',
     '/notifications': 'Notifications',
     '/wallets': 'Wallets',
     '/transactions': 'Activity',

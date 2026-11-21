@@ -671,6 +671,113 @@ paths:
                 $ref: "#/components/schemas/BankDashboard"
         "401":
           $ref: "#/components/responses/Unauthorized"
+  /bank/personal-finance/records:
+    get:
+      operationId: listBankPersonalFinanceRecords
+      tags: [bank]
+      summary: List the signed-in customer's manually maintained finance records
+      parameters:
+        - name: kind
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/PersonalFinanceKind" }
+        - name: currency
+          in: query
+          required: false
+          schema: { $ref: "#/components/schemas/CurrencyCode" }
+        - name: page
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, default: 1 }
+        - name: pageSize
+          in: query
+          required: false
+          schema: { type: integer, minimum: 1, maximum: 100, default: 50 }
+      responses:
+        "200":
+          description: Customer-owned finance records
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankPersonalFinanceRecordPage" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      operationId: createBankPersonalFinanceRecord
+      tags: [bank]
+      summary: Create a manually maintained personal finance record
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PersonalFinanceRecordInput" }
+      responses:
+        "201":
+          description: Saved personal finance record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankPersonalFinanceRecord" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /bank/personal-finance/records/{recordId}:
+    patch:
+      operationId: updateBankPersonalFinanceRecord
+      tags: [bank]
+      summary: Update one of the signed-in customer's personal finance records
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/PersonalFinanceRecordUpdate" }
+      responses:
+        "200":
+          description: Updated personal finance record
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankPersonalFinanceRecord" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    delete:
+      operationId: deleteBankPersonalFinanceRecord
+      tags: [bank]
+      summary: Delete one of the signed-in customer's personal finance records
+      parameters:
+        - name: recordId
+          in: path
+          required: true
+          schema: { type: string, format: uuid }
+      responses:
+        "200":
+          description: Personal finance record deleted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankPersonalFinanceRecordDeletion" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+  /bank/personal-finance/overview:
+    get:
+      operationId: getBankPersonalFinanceOverview
+      tags: [bank]
+      summary: Summarize the signed-in customer's manually maintained finances
+      parameters:
+        - name: period
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [month, quarter, year]
+            default: month
+      responses:
+        "200":
+          description: Currency-separated savings, investments, loans, bills, and expense summaries
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankPersonalFinanceOverview" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
   /bank/wallets:
     get:
       operationId: listBankWallets
@@ -2421,6 +2528,119 @@ components:
         transactionDate: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
         createdAt: { type: string, format: date-time }
       required: [id, reference, type, status, receiptTemplate, currency, amount, fee, counterparty, description, mode, transactionDate, createdAt]
+    PersonalFinanceKind:
+      type: string
+      enum: [expense, savings, investment, loan, bill]
+    PersonalFinanceStatus:
+      type: string
+      enum: [active, paid, closed]
+    PersonalFinanceFrequency:
+      type: string
+      enum: [once, weekly, monthly, quarterly, yearly]
+    BankPersonalFinanceRecord:
+      type: object
+      properties:
+        id: { type: string, format: uuid }
+        kind: { $ref: "#/components/schemas/PersonalFinanceKind" }
+        title: { type: string }
+        category: { type: ["string", "null"] }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        amountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        targetAmountMinor: { type: ["string", "null"], pattern: "^[0-9]{1,19}$" }
+        recordDate: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        dueDate: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        frequency: { anyOf: [{ $ref: "#/components/schemas/PersonalFinanceFrequency" }, { type: "null" }] }
+        status: { $ref: "#/components/schemas/PersonalFinanceStatus" }
+        notes: { type: ["string", "null"] }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+      required: [id, kind, title, category, currency, amountMinor, targetAmountMinor, recordDate, dueDate, frequency, status, notes, createdAt, updatedAt]
+    PersonalFinanceRecordInput:
+      type: object
+      properties:
+        kind: { $ref: "#/components/schemas/PersonalFinanceKind" }
+        title: { type: string, minLength: 1, maxLength: 80 }
+        category: { type: ["string", "null"], maxLength: 60 }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        amountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        targetAmountMinor: { type: ["string", "null"], pattern: "^[0-9]{1,19}$" }
+        recordDate: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        dueDate: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        frequency: { anyOf: [{ $ref: "#/components/schemas/PersonalFinanceFrequency" }, { type: "null" }] }
+        status: { $ref: "#/components/schemas/PersonalFinanceStatus" }
+        notes: { type: ["string", "null"], maxLength: 500 }
+      required: [kind, title, currency, amountMinor, recordDate]
+    PersonalFinanceRecordUpdate:
+      type: object
+      minProperties: 1
+      properties:
+        title: { type: string, minLength: 1, maxLength: 80 }
+        category: { type: ["string", "null"], maxLength: 60 }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        amountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        targetAmountMinor: { type: ["string", "null"], pattern: "^[0-9]{1,19}$" }
+        recordDate: { type: string, pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        dueDate: { type: ["string", "null"], pattern: "^[0-9]{4}-[0-9]{2}-[0-9]{2}$" }
+        frequency: { anyOf: [{ $ref: "#/components/schemas/PersonalFinanceFrequency" }, { type: "null" }] }
+        status: { $ref: "#/components/schemas/PersonalFinanceStatus" }
+        notes: { type: ["string", "null"], maxLength: 500 }
+    BankPersonalFinanceRecordPage:
+      type: object
+      properties:
+        records:
+          type: array
+          items: { $ref: "#/components/schemas/BankPersonalFinanceRecord" }
+        total: { type: integer, minimum: 0 }
+        page: { type: integer, minimum: 1 }
+        pageSize: { type: integer, minimum: 1, maximum: 100 }
+      required: [records, total, page, pageSize]
+    BankPersonalFinanceCurrencySummary:
+      type: object
+      properties:
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        expensesMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        savingsBalanceMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        savingsTargetMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        investmentValueMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        loanBalanceMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+        unpaidBillsMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+      required: [currency, expensesMinor, savingsBalanceMinor, savingsTargetMinor, investmentValueMinor, loanBalanceMinor, unpaidBillsMinor]
+    BankPersonalFinanceTrendPoint:
+      type: object
+      properties:
+        period: { type: string, pattern: "^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$" }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        amountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+      required: [period, currency, amountMinor]
+    BankPersonalFinanceCategoryTotal:
+      type: object
+      properties:
+        category: { type: string }
+        currency: { $ref: "#/components/schemas/CurrencyCode" }
+        amountMinor: { type: string, pattern: "^[0-9]{1,19}$" }
+      required: [category, currency, amountMinor]
+    BankPersonalFinanceOverview:
+      type: object
+      properties:
+        period: { type: string, enum: [month, quarter, year] }
+        currencySummaries:
+          type: array
+          items: { $ref: "#/components/schemas/BankPersonalFinanceCurrencySummary" }
+        expenseTrend:
+          type: array
+          items: { $ref: "#/components/schemas/BankPersonalFinanceTrendPoint" }
+        expenseCategories:
+          type: array
+          items: { $ref: "#/components/schemas/BankPersonalFinanceCategoryTotal" }
+        recentExpenses:
+          type: array
+          items: { $ref: "#/components/schemas/BankPersonalFinanceRecord" }
+      required: [period, currencySummaries, expenseTrend, expenseCategories, recentExpenses]
+    BankPersonalFinanceRecordDeletion:
+      type: object
+      properties:
+        deleted: { type: boolean, const: true }
+      required: [deleted]
     BankDashboard:
       type: object
       properties:

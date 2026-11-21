@@ -26,6 +26,7 @@ import {
   WalletDetailsPage,
 } from '@/pages/bank-pages';
 import { CurrencyCalculatorPage } from '@/pages/currency-calculator-page';
+import { PersonalFinancePage } from '@/pages/personal-finance/personal-finance';
 import { AdminWorkspace } from '@/pages/admin-workspace';
 import {
   Redirect,
@@ -260,6 +261,7 @@ function ClerkRoutes() {
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />
         <Route path="/dashboard"><ProtectedPage><DashboardPage /></ProtectedPage></Route>
+        <Route path="/financial-overview"><ProtectedPage><PersonalFinancePage /></ProtectedPage></Route>
         <Route path="/notifications"><ProtectedPage><DashboardPage /></ProtectedPage></Route>
         <Route path="/wallets"><ProtectedPage><WalletsPage /></ProtectedPage></Route>
         <Route path="/wallets/:walletId"><ProtectedPage><WalletDetailsPage /></ProtectedPage></Route>

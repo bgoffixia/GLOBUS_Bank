@@ -594,6 +594,7 @@ test.describe('signed-in member pages at phone widths', () => {
 
   const memberPaths = [
     '/dashboard',
+    '/financial-overview',
     '/home',
     '/wallets',
     '/transactions',

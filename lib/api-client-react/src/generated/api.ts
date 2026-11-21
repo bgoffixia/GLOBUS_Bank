@@ -71,6 +71,10 @@ import type {
   BankExchangeRateQuote,
   BankNotification,
   BankNotificationClearResult,
+  BankPersonalFinanceOverview,
+  BankPersonalFinanceRecord,
+  BankPersonalFinanceRecordDeletion,
+  BankPersonalFinanceRecordPage,
   BankProfile,
   BankProfileInput,
   BankPushConfig,
@@ -111,6 +115,7 @@ import type {
   ExternalTransferInput,
   ForbiddenResponse,
   GetBankExchangeRateQuoteParams,
+  GetBankPersonalFinanceOverviewParams,
   HealthStatus,
   IncomingExternalTransferInput,
   InternationalTransferRequest,
@@ -125,8 +130,11 @@ import type {
   ListAdminTransactionsParams,
   ListAdminUsersParams,
   ListAdminVaultAccessParams,
+  ListBankPersonalFinanceRecordsParams,
   ListBankTransactionsParams,
   NotFoundResponse,
+  PersonalFinanceRecordInput,
+  PersonalFinanceRecordUpdate,
   ReceiveBankVaultPaystackWebhook200,
   SavedPaymentMethod,
   SavedPaymentMethodInput,
@@ -2912,6 +2920,425 @@ export function useGetBankDashboard<TData = Awaited<ReturnType<typeof getBankDas
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetBankDashboardQueryOptions(options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getListBankPersonalFinanceRecordsUrl = (params?: ListBankPersonalFinanceRecordsParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bank/personal-finance/records?${stringifiedParams}` : `/api/bank/personal-finance/records`
+}
+
+/**
+ * @summary List the signed-in customer's manually maintained finance records
+ */
+export const listBankPersonalFinanceRecords = async (params?: ListBankPersonalFinanceRecordsParams, options?: Parameters<typeof customFetch>[1]): Promise<BankPersonalFinanceRecordPage> => {
+
+  return customFetch<BankPersonalFinanceRecordPage>(getListBankPersonalFinanceRecordsUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getListBankPersonalFinanceRecordsQueryKey = (params?: ListBankPersonalFinanceRecordsParams,) => {
+    return [
+    `/api/bank/personal-finance/records`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getListBankPersonalFinanceRecordsQueryOptions = <TData = Awaited<ReturnType<typeof listBankPersonalFinanceRecords>>, TError = ErrorType<UnauthorizedResponse>>(params?: ListBankPersonalFinanceRecordsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankPersonalFinanceRecords>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getListBankPersonalFinanceRecordsQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof listBankPersonalFinanceRecords>>> = ({ signal }) => listBankPersonalFinanceRecords(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof listBankPersonalFinanceRecords>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type ListBankPersonalFinanceRecordsQueryResult = NonNullable<Awaited<ReturnType<typeof listBankPersonalFinanceRecords>>>
+export type ListBankPersonalFinanceRecordsQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary List the signed-in customer's manually maintained finance records
+ */
+
+export function useListBankPersonalFinanceRecords<TData = Awaited<ReturnType<typeof listBankPersonalFinanceRecords>>, TError = ErrorType<UnauthorizedResponse>>(
+ params?: ListBankPersonalFinanceRecordsParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof listBankPersonalFinanceRecords>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getListBankPersonalFinanceRecordsQueryOptions(params,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return withQueryKey(query, queryOptions.queryKey);
+}
+
+
+
+
+
+
+
+export const getCreateBankPersonalFinanceRecordUrl = () => {
+
+
+
+
+  return `/api/bank/personal-finance/records`
+}
+
+/**
+ * @summary Create a manually maintained personal finance record
+ */
+export const createBankPersonalFinanceRecord = async (personalFinanceRecordInput: PersonalFinanceRecordInput, options?: Parameters<typeof customFetch>[1]): Promise<BankPersonalFinanceRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BankPersonalFinanceRecord>(getCreateBankPersonalFinanceRecordUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(personalFinanceRecordInput)
+  }
+);}
+
+
+
+
+
+export const getCreateBankPersonalFinanceRecordMutationKey = () => ['createBankPersonalFinanceRecord'] as const;
+
+export const getCreateBankPersonalFinanceRecordMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankPersonalFinanceRecord>>, TError,CreateBankPersonalFinanceRecordMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof createBankPersonalFinanceRecord>>, TError,CreateBankPersonalFinanceRecordMutationVariables, TContext> => {
+
+const mutationKey = getCreateBankPersonalFinanceRecordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof createBankPersonalFinanceRecord>>, CreateBankPersonalFinanceRecordMutationVariables> = (props) => {
+          const {data} = props ?? {};
+
+          return  createBankPersonalFinanceRecord(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type CreateBankPersonalFinanceRecordMutationResult = NonNullable<Awaited<ReturnType<typeof createBankPersonalFinanceRecord>>>
+    export type CreateBankPersonalFinanceRecordMutationBody = BodyType<PersonalFinanceRecordInput>
+    export type CreateBankPersonalFinanceRecordMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse>
+    export type CreateBankPersonalFinanceRecordMutationVariables = {data: BodyType<PersonalFinanceRecordInput>}
+
+    /**
+ * @summary Create a manually maintained personal finance record
+ */
+export const useCreateBankPersonalFinanceRecord = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof createBankPersonalFinanceRecord>>, TError,CreateBankPersonalFinanceRecordMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof createBankPersonalFinanceRecord>>,
+        TError,
+        CreateBankPersonalFinanceRecordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getCreateBankPersonalFinanceRecordMutationOptions(options));
+    }
+
+export const getUpdateBankPersonalFinanceRecordUrl = (recordId: string,) => {
+
+
+
+
+  return `/api/bank/personal-finance/records/${recordId}`
+}
+
+/**
+ * @summary Update one of the signed-in customer's personal finance records
+ */
+export const updateBankPersonalFinanceRecord = async (recordId: string,
+    personalFinanceRecordUpdate: PersonalFinanceRecordUpdate, options?: Parameters<typeof customFetch>[1]): Promise<BankPersonalFinanceRecord> => {
+
+    const getHeaders = (h?: NonNullable<RequestInit['headers']>): Record<string, string | readonly string[]> => {
+    if (!h) return {};
+    if (h instanceof Headers) return Object.fromEntries(h.entries());
+    if (Symbol.iterator in h) {
+      return Object.fromEntries(
+        Array.from(h as Iterable<Iterable<string>>, (entry) => Array.from(entry) as [string, string]),
+      );
+    }
+    const headers: Record<string, string | readonly string[]> = {};
+    for (const [name, value] of Object.entries<string | readonly string[] | undefined>(h)) {
+      if (value !== undefined) headers[name] = value;
+    }
+    return headers;
+  };
+return customFetch<BankPersonalFinanceRecord>(getUpdateBankPersonalFinanceRecordUrl(recordId),
+  {
+    ...options,
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json', ...getHeaders(options?.headers) },
+    body: JSON.stringify(personalFinanceRecordUpdate)
+  }
+);}
+
+
+
+
+
+export const getUpdateBankPersonalFinanceRecordMutationKey = () => ['updateBankPersonalFinanceRecord'] as const;
+
+export const getUpdateBankPersonalFinanceRecordMutationOptions = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBankPersonalFinanceRecord>>, TError,UpdateBankPersonalFinanceRecordMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof updateBankPersonalFinanceRecord>>, TError,UpdateBankPersonalFinanceRecordMutationVariables, TContext> => {
+
+const mutationKey = getUpdateBankPersonalFinanceRecordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof updateBankPersonalFinanceRecord>>, UpdateBankPersonalFinanceRecordMutationVariables> = (props) => {
+          const {recordId,data} = props ?? {};
+
+          return  updateBankPersonalFinanceRecord(recordId,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type UpdateBankPersonalFinanceRecordMutationResult = NonNullable<Awaited<ReturnType<typeof updateBankPersonalFinanceRecord>>>
+    export type UpdateBankPersonalFinanceRecordMutationBody = BodyType<PersonalFinanceRecordUpdate>
+    export type UpdateBankPersonalFinanceRecordMutationError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>
+    export type UpdateBankPersonalFinanceRecordMutationVariables = {recordId: string;data: BodyType<PersonalFinanceRecordUpdate>}
+
+    /**
+ * @summary Update one of the signed-in customer's personal finance records
+ */
+export const useUpdateBankPersonalFinanceRecord = <TError = ErrorType<BadRequestResponse | UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof updateBankPersonalFinanceRecord>>, TError,UpdateBankPersonalFinanceRecordMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof updateBankPersonalFinanceRecord>>,
+        TError,
+        UpdateBankPersonalFinanceRecordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getUpdateBankPersonalFinanceRecordMutationOptions(options));
+    }
+
+export const getDeleteBankPersonalFinanceRecordUrl = (recordId: string,) => {
+
+
+
+
+  return `/api/bank/personal-finance/records/${recordId}`
+}
+
+/**
+ * @summary Delete one of the signed-in customer's personal finance records
+ */
+export const deleteBankPersonalFinanceRecord = async (recordId: string, options?: Parameters<typeof customFetch>[1]): Promise<BankPersonalFinanceRecordDeletion> => {
+
+  return customFetch<BankPersonalFinanceRecordDeletion>(getDeleteBankPersonalFinanceRecordUrl(recordId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteBankPersonalFinanceRecordMutationKey = () => ['deleteBankPersonalFinanceRecord'] as const;
+
+export const getDeleteBankPersonalFinanceRecordMutationOptions = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBankPersonalFinanceRecord>>, TError,DeleteBankPersonalFinanceRecordMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteBankPersonalFinanceRecord>>, TError,DeleteBankPersonalFinanceRecordMutationVariables, TContext> => {
+
+const mutationKey = getDeleteBankPersonalFinanceRecordMutationKey();
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteBankPersonalFinanceRecord>>, DeleteBankPersonalFinanceRecordMutationVariables> = (props) => {
+          const {recordId} = props ?? {};
+
+          return  deleteBankPersonalFinanceRecord(recordId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteBankPersonalFinanceRecordMutationResult = NonNullable<Awaited<ReturnType<typeof deleteBankPersonalFinanceRecord>>>
+
+    export type DeleteBankPersonalFinanceRecordMutationError = ErrorType<UnauthorizedResponse | NotFoundResponse>
+    export type DeleteBankPersonalFinanceRecordMutationVariables = {recordId: string}
+
+    /**
+ * @summary Delete one of the signed-in customer's personal finance records
+ */
+export const useDeleteBankPersonalFinanceRecord = <TError = ErrorType<UnauthorizedResponse | NotFoundResponse>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteBankPersonalFinanceRecord>>, TError,DeleteBankPersonalFinanceRecordMutationVariables, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteBankPersonalFinanceRecord>>,
+        TError,
+        DeleteBankPersonalFinanceRecordMutationVariables,
+        TContext
+      > => {
+      return useMutation(getDeleteBankPersonalFinanceRecordMutationOptions(options));
+    }
+
+export const getGetBankPersonalFinanceOverviewUrl = (params?: GetBankPersonalFinanceOverviewParams,) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? 'null' : String(value))
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0 ? `/api/bank/personal-finance/overview?${stringifiedParams}` : `/api/bank/personal-finance/overview`
+}
+
+/**
+ * @summary Summarize the signed-in customer's manually maintained finances
+ */
+export const getBankPersonalFinanceOverview = async (params?: GetBankPersonalFinanceOverviewParams, options?: Parameters<typeof customFetch>[1]): Promise<BankPersonalFinanceOverview> => {
+
+  return customFetch<BankPersonalFinanceOverview>(getGetBankPersonalFinanceOverviewUrl(params),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetBankPersonalFinanceOverviewQueryKey = (params?: GetBankPersonalFinanceOverviewParams,) => {
+    return [
+    `/api/bank/personal-finance/overview`, ...(params ? [params] : [])
+    ] as const;
+    }
+
+
+export const getGetBankPersonalFinanceOverviewQueryOptions = <TData = Awaited<ReturnType<typeof getBankPersonalFinanceOverview>>, TError = ErrorType<UnauthorizedResponse>>(params?: GetBankPersonalFinanceOverviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankPersonalFinanceOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetBankPersonalFinanceOverviewQueryKey(params);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getBankPersonalFinanceOverview>>> = ({ signal }) => getBankPersonalFinanceOverview(params, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getBankPersonalFinanceOverview>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetBankPersonalFinanceOverviewQueryResult = NonNullable<Awaited<ReturnType<typeof getBankPersonalFinanceOverview>>>
+export type GetBankPersonalFinanceOverviewQueryError = ErrorType<UnauthorizedResponse>
+
+
+/**
+ * @summary Summarize the signed-in customer's manually maintained finances
+ */
+
+export function useGetBankPersonalFinanceOverview<TData = Awaited<ReturnType<typeof getBankPersonalFinanceOverview>>, TError = ErrorType<UnauthorizedResponse>>(
+ params?: GetBankPersonalFinanceOverviewParams, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getBankPersonalFinanceOverview>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetBankPersonalFinanceOverviewQueryOptions(params,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

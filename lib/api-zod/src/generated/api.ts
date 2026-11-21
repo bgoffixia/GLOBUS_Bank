@@ -837,6 +837,242 @@ export const GetBankDashboardResponse = zod.object({
 
 
 /**
+ * @summary List the signed-in customer's manually maintained finance records
+ */
+export const listBankPersonalFinanceRecordsQueryPageDefault = 1;
+
+export const listBankPersonalFinanceRecordsQueryPageSizeDefault = 50;
+export const listBankPersonalFinanceRecordsQueryPageSizeMax = 100;
+
+
+
+export const ListBankPersonalFinanceRecordsQueryParams = zod.object({
+  "kind": zod.enum(['expense', 'savings', 'investment', 'loan', 'bill']).optional(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']).optional(),
+  "page": zod.coerce.number().int().min(1).default(listBankPersonalFinanceRecordsQueryPageDefault),
+  "pageSize": zod.coerce.number().int().min(1).max(listBankPersonalFinanceRecordsQueryPageSizeMax).default(listBankPersonalFinanceRecordsQueryPageSizeDefault)
+})
+
+export const listBankPersonalFinanceRecordsResponseRecordsItemAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const listBankPersonalFinanceRecordsResponseRecordsItemTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const listBankPersonalFinanceRecordsResponseRecordsItemRecordDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listBankPersonalFinanceRecordsResponseRecordsItemDueDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const listBankPersonalFinanceRecordsResponseTotalMin = 0;
+
+
+export const listBankPersonalFinanceRecordsResponsePageSizeMax = 100;
+
+
+
+export const ListBankPersonalFinanceRecordsResponse = zod.object({
+  "records": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.enum(['expense', 'savings', 'investment', 'loan', 'bill']),
+  "title": zod.string(),
+  "category": zod.string().nullable(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "amountMinor": zod.string().regex(listBankPersonalFinanceRecordsResponseRecordsItemAmountMinorRegExp),
+  "targetAmountMinor": zod.string().regex(listBankPersonalFinanceRecordsResponseRecordsItemTargetAmountMinorRegExp).nullable(),
+  "recordDate": zod.string().regex(listBankPersonalFinanceRecordsResponseRecordsItemRecordDateRegExp),
+  "dueDate": zod.string().regex(listBankPersonalFinanceRecordsResponseRecordsItemDueDateRegExp).nullable(),
+  "frequency": zod.union([zod.enum(['once', 'weekly', 'monthly', 'quarterly', 'yearly']),zod.null()]),
+  "status": zod.enum(['active', 'paid', 'closed']),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})),
+  "total": zod.number().int().min(listBankPersonalFinanceRecordsResponseTotalMin),
+  "page": zod.number().int().min(1),
+  "pageSize": zod.number().int().min(1).max(listBankPersonalFinanceRecordsResponsePageSizeMax)
+})
+
+
+/**
+ * @summary Create a manually maintained personal finance record
+ */
+export const createBankPersonalFinanceRecordBodyTitleMax = 80;
+
+export const createBankPersonalFinanceRecordBodyCategoryMax = 60;
+
+export const createBankPersonalFinanceRecordBodyAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankPersonalFinanceRecordBodyTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankPersonalFinanceRecordBodyRecordDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const createBankPersonalFinanceRecordBodyDueDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const createBankPersonalFinanceRecordBodyNotesMax = 500;
+
+
+
+export const CreateBankPersonalFinanceRecordBody = zod.object({
+  "kind": zod.enum(['expense', 'savings', 'investment', 'loan', 'bill']),
+  "title": zod.string().min(1).max(createBankPersonalFinanceRecordBodyTitleMax),
+  "category": zod.string().max(createBankPersonalFinanceRecordBodyCategoryMax).nullish(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "amountMinor": zod.string().regex(createBankPersonalFinanceRecordBodyAmountMinorRegExp),
+  "targetAmountMinor": zod.string().regex(createBankPersonalFinanceRecordBodyTargetAmountMinorRegExp).nullish(),
+  "recordDate": zod.string().regex(createBankPersonalFinanceRecordBodyRecordDateRegExp),
+  "dueDate": zod.string().regex(createBankPersonalFinanceRecordBodyDueDateRegExp).nullish(),
+  "frequency": zod.union([zod.enum(['once', 'weekly', 'monthly', 'quarterly', 'yearly']),zod.null()]).optional(),
+  "status": zod.enum(['active', 'paid', 'closed']).optional(),
+  "notes": zod.string().max(createBankPersonalFinanceRecordBodyNotesMax).nullish()
+})
+
+export const createBankPersonalFinanceRecordResponseAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankPersonalFinanceRecordResponseTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const createBankPersonalFinanceRecordResponseRecordDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const createBankPersonalFinanceRecordResponseDueDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const CreateBankPersonalFinanceRecordResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.enum(['expense', 'savings', 'investment', 'loan', 'bill']),
+  "title": zod.string(),
+  "category": zod.string().nullable(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "amountMinor": zod.string().regex(createBankPersonalFinanceRecordResponseAmountMinorRegExp),
+  "targetAmountMinor": zod.string().regex(createBankPersonalFinanceRecordResponseTargetAmountMinorRegExp).nullable(),
+  "recordDate": zod.string().regex(createBankPersonalFinanceRecordResponseRecordDateRegExp),
+  "dueDate": zod.string().regex(createBankPersonalFinanceRecordResponseDueDateRegExp).nullable(),
+  "frequency": zod.union([zod.enum(['once', 'weekly', 'monthly', 'quarterly', 'yearly']),zod.null()]),
+  "status": zod.enum(['active', 'paid', 'closed']),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update one of the signed-in customer's personal finance records
+ */
+export const UpdateBankPersonalFinanceRecordParams = zod.object({
+  "recordId": zod.coerce.string().uuid()
+})
+
+export const updateBankPersonalFinanceRecordBodyTitleMax = 80;
+
+export const updateBankPersonalFinanceRecordBodyCategoryMax = 60;
+
+export const updateBankPersonalFinanceRecordBodyAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const updateBankPersonalFinanceRecordBodyTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const updateBankPersonalFinanceRecordBodyRecordDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateBankPersonalFinanceRecordBodyDueDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateBankPersonalFinanceRecordBodyNotesMax = 500;
+
+
+
+export const UpdateBankPersonalFinanceRecordBody = zod.object({
+  "title": zod.string().min(1).max(updateBankPersonalFinanceRecordBodyTitleMax).optional(),
+  "category": zod.string().max(updateBankPersonalFinanceRecordBodyCategoryMax).nullish(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']).optional(),
+  "amountMinor": zod.string().regex(updateBankPersonalFinanceRecordBodyAmountMinorRegExp).optional(),
+  "targetAmountMinor": zod.string().regex(updateBankPersonalFinanceRecordBodyTargetAmountMinorRegExp).nullish(),
+  "recordDate": zod.string().regex(updateBankPersonalFinanceRecordBodyRecordDateRegExp).optional(),
+  "dueDate": zod.string().regex(updateBankPersonalFinanceRecordBodyDueDateRegExp).nullish(),
+  "frequency": zod.union([zod.enum(['once', 'weekly', 'monthly', 'quarterly', 'yearly']),zod.null()]).optional(),
+  "status": zod.enum(['active', 'paid', 'closed']).optional(),
+  "notes": zod.string().max(updateBankPersonalFinanceRecordBodyNotesMax).nullish()
+})
+
+export const updateBankPersonalFinanceRecordResponseAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const updateBankPersonalFinanceRecordResponseTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const updateBankPersonalFinanceRecordResponseRecordDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const updateBankPersonalFinanceRecordResponseDueDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const UpdateBankPersonalFinanceRecordResponse = zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.enum(['expense', 'savings', 'investment', 'loan', 'bill']),
+  "title": zod.string(),
+  "category": zod.string().nullable(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "amountMinor": zod.string().regex(updateBankPersonalFinanceRecordResponseAmountMinorRegExp),
+  "targetAmountMinor": zod.string().regex(updateBankPersonalFinanceRecordResponseTargetAmountMinorRegExp).nullable(),
+  "recordDate": zod.string().regex(updateBankPersonalFinanceRecordResponseRecordDateRegExp),
+  "dueDate": zod.string().regex(updateBankPersonalFinanceRecordResponseDueDateRegExp).nullable(),
+  "frequency": zod.union([zod.enum(['once', 'weekly', 'monthly', 'quarterly', 'yearly']),zod.null()]),
+  "status": zod.enum(['active', 'paid', 'closed']),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete one of the signed-in customer's personal finance records
+ */
+export const DeleteBankPersonalFinanceRecordParams = zod.object({
+  "recordId": zod.coerce.string().uuid()
+})
+
+export const DeleteBankPersonalFinanceRecordResponse = zod.object({
+  "deleted": zod.literal(true)
+})
+
+
+/**
+ * @summary Summarize the signed-in customer's manually maintained finances
+ */
+export const getBankPersonalFinanceOverviewQueryPeriodDefault = `month`;
+
+export const GetBankPersonalFinanceOverviewQueryParams = zod.object({
+  "period": zod.enum(['month', 'quarter', 'year']).default(getBankPersonalFinanceOverviewQueryPeriodDefault)
+})
+
+export const getBankPersonalFinanceOverviewResponseCurrencySummariesItemExpensesMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseCurrencySummariesItemSavingsBalanceMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseCurrencySummariesItemSavingsTargetMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseCurrencySummariesItemInvestmentValueMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseCurrencySummariesItemLoanBalanceMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseCurrencySummariesItemUnpaidBillsMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseExpenseTrendItemPeriodRegExp = new RegExp('^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$');
+export const getBankPersonalFinanceOverviewResponseExpenseTrendItemAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseExpenseCategoriesItemAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseRecentExpensesItemAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseRecentExpensesItemTargetAmountMinorRegExp = new RegExp('^[0-9]{1,19}$');
+export const getBankPersonalFinanceOverviewResponseRecentExpensesItemRecordDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+export const getBankPersonalFinanceOverviewResponseRecentExpensesItemDueDateRegExp = new RegExp('^[0-9]{4}-[0-9]{2}-[0-9]{2}$');
+
+
+export const GetBankPersonalFinanceOverviewResponse = zod.object({
+  "period": zod.enum(['month', 'quarter', 'year']),
+  "currencySummaries": zod.array(zod.object({
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "expensesMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseCurrencySummariesItemExpensesMinorRegExp),
+  "savingsBalanceMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseCurrencySummariesItemSavingsBalanceMinorRegExp),
+  "savingsTargetMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseCurrencySummariesItemSavingsTargetMinorRegExp),
+  "investmentValueMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseCurrencySummariesItemInvestmentValueMinorRegExp),
+  "loanBalanceMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseCurrencySummariesItemLoanBalanceMinorRegExp),
+  "unpaidBillsMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseCurrencySummariesItemUnpaidBillsMinorRegExp)
+})),
+  "expenseTrend": zod.array(zod.object({
+  "period": zod.string().regex(getBankPersonalFinanceOverviewResponseExpenseTrendItemPeriodRegExp),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "amountMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseExpenseTrendItemAmountMinorRegExp)
+})),
+  "expenseCategories": zod.array(zod.object({
+  "category": zod.string(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "amountMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseExpenseCategoriesItemAmountMinorRegExp)
+})),
+  "recentExpenses": zod.array(zod.object({
+  "id": zod.string().uuid(),
+  "kind": zod.enum(['expense', 'savings', 'investment', 'loan', 'bill']),
+  "title": zod.string(),
+  "category": zod.string().nullable(),
+  "currency": zod.enum(['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD']),
+  "amountMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseRecentExpensesItemAmountMinorRegExp),
+  "targetAmountMinor": zod.string().regex(getBankPersonalFinanceOverviewResponseRecentExpensesItemTargetAmountMinorRegExp).nullable(),
+  "recordDate": zod.string().regex(getBankPersonalFinanceOverviewResponseRecentExpensesItemRecordDateRegExp),
+  "dueDate": zod.string().regex(getBankPersonalFinanceOverviewResponseRecentExpensesItemDueDateRegExp).nullable(),
+  "frequency": zod.union([zod.enum(['once', 'weekly', 'monthly', 'quarterly', 'yearly']),zod.null()]),
+  "status": zod.enum(['active', 'paid', 'closed']),
+  "notes": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+}))
+})
+
+
+/**
  * @summary List the authenticated user's currency wallets
  */
 export const ListBankWalletsResponseItem = zod.object({

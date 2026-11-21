@@ -904,6 +904,203 @@ export interface BankTransaction {
   createdAt: string;
 }
 
+export type PersonalFinanceKind = typeof PersonalFinanceKind[keyof typeof PersonalFinanceKind];
+
+
+export const PersonalFinanceKind = {
+  expense: 'expense',
+  savings: 'savings',
+  investment: 'investment',
+  loan: 'loan',
+  bill: 'bill',
+} as const;
+
+export type PersonalFinanceStatus = typeof PersonalFinanceStatus[keyof typeof PersonalFinanceStatus];
+
+
+export const PersonalFinanceStatus = {
+  active: 'active',
+  paid: 'paid',
+  closed: 'closed',
+} as const;
+
+export type PersonalFinanceFrequency = typeof PersonalFinanceFrequency[keyof typeof PersonalFinanceFrequency];
+
+
+export const PersonalFinanceFrequency = {
+  once: 'once',
+  weekly: 'weekly',
+  monthly: 'monthly',
+  quarterly: 'quarterly',
+  yearly: 'yearly',
+} as const;
+
+export interface BankPersonalFinanceRecord {
+  id: string;
+  kind: PersonalFinanceKind;
+  title: string;
+  /** @nullable */
+  category: string | null;
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  amountMinor: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{1,19}$
+     */
+  targetAmountMinor: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  recordDate: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  dueDate: string | null;
+  frequency: PersonalFinanceFrequency | null;
+  status: PersonalFinanceStatus;
+  /** @nullable */
+  notes: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface PersonalFinanceRecordInput {
+  kind: PersonalFinanceKind;
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  title: string;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  category?: string | null;
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  amountMinor: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{1,19}$
+     */
+  targetAmountMinor?: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  recordDate: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  dueDate?: string | null;
+  frequency?: PersonalFinanceFrequency | null;
+  status?: PersonalFinanceStatus;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export interface PersonalFinanceRecordUpdate {
+  /**
+     * @minLength 1
+     * @maxLength 80
+     */
+  title?: string;
+  /**
+     * @maxLength 60
+     * @nullable
+     */
+  category?: string | null;
+  currency?: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  amountMinor?: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{1,19}$
+     */
+  targetAmountMinor?: string | null;
+  /** @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$ */
+  recordDate?: string;
+  /**
+     * @nullable
+     * @pattern ^[0-9]{4}-[0-9]{2}-[0-9]{2}$
+     */
+  dueDate?: string | null;
+  frequency?: PersonalFinanceFrequency | null;
+  status?: PersonalFinanceStatus;
+  /**
+     * @maxLength 500
+     * @nullable
+     */
+  notes?: string | null;
+}
+
+export interface BankPersonalFinanceRecordPage {
+  records: BankPersonalFinanceRecord[];
+  /** @minimum 0 */
+  total: number;
+  /** @minimum 1 */
+  page: number;
+  /**
+     * @minimum 1
+     * @maximum 100
+     */
+  pageSize: number;
+}
+
+export interface BankPersonalFinanceCurrencySummary {
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  expensesMinor: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  savingsBalanceMinor: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  savingsTargetMinor: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  investmentValueMinor: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  loanBalanceMinor: string;
+  /** @pattern ^[0-9]{1,19}$ */
+  unpaidBillsMinor: string;
+}
+
+export interface BankPersonalFinanceTrendPoint {
+  /** @pattern ^[0-9]{4}-[0-9]{2}(-[0-9]{2})?$ */
+  period: string;
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  amountMinor: string;
+}
+
+export interface BankPersonalFinanceCategoryTotal {
+  category: string;
+  currency: CurrencyCode;
+  /** @pattern ^[0-9]{1,19}$ */
+  amountMinor: string;
+}
+
+export type BankPersonalFinanceOverviewPeriod = typeof BankPersonalFinanceOverviewPeriod[keyof typeof BankPersonalFinanceOverviewPeriod];
+
+
+export const BankPersonalFinanceOverviewPeriod = {
+  month: 'month',
+  quarter: 'quarter',
+  year: 'year',
+} as const;
+
+export interface BankPersonalFinanceOverview {
+  period: BankPersonalFinanceOverviewPeriod;
+  currencySummaries: BankPersonalFinanceCurrencySummary[];
+  expenseTrend: BankPersonalFinanceTrendPoint[];
+  expenseCategories: BankPersonalFinanceCategoryTotal[];
+  recentExpenses: BankPersonalFinanceRecord[];
+}
+
+export const BankPersonalFinanceRecordDeletionValue = {
+  deleted: true,
+} as const;
+export type BankPersonalFinanceRecordDeletion = typeof BankPersonalFinanceRecordDeletionValue;
+
 export type BankDashboardProfile = BankProfile & {
   accountTier: DashboardAccountTier;
   testingMode: boolean;
@@ -2044,6 +2241,33 @@ export type EmailBankVaultPaystackRenewalManagementLink200 = {
 export type ReceiveBankVaultPaystackWebhook200 = {
   received: boolean;
 };
+
+export type ListBankPersonalFinanceRecordsParams = {
+kind?: PersonalFinanceKind;
+currency?: CurrencyCode;
+/**
+ * @minimum 1
+ */
+page?: number;
+/**
+ * @minimum 1
+ * @maximum 100
+ */
+pageSize?: number;
+};
+
+export type GetBankPersonalFinanceOverviewParams = {
+period?: GetBankPersonalFinanceOverviewPeriod;
+};
+
+export type GetBankPersonalFinanceOverviewPeriod = typeof GetBankPersonalFinanceOverviewPeriod[keyof typeof GetBankPersonalFinanceOverviewPeriod];
+
+
+export const GetBankPersonalFinanceOverviewPeriod = {
+  month: 'month',
+  quarter: 'quarter',
+  year: 'year',
+} as const;
 
 export type ListBankTransactionsParams = {
 currency?: CurrencyCode;

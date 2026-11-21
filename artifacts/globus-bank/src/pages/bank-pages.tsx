@@ -90,6 +90,7 @@ import { destinationCurrencyForCountry } from '@/lib/destination-currency';
 import { customerTransactionDate } from '@/lib/transaction-date';
 import { TransferReceiptModal } from '@/components/transfer/transfer-receipt';
 import { PrivateVaultPanel } from '@/components/private-vault-panel';
+import { CompactExpenseTracker } from '@/pages/personal-finance/personal-finance';
 const currencies = ['USD', 'EUR', 'GBP', 'CAD'] as const;
 const historicalCurrencies = ['USD', 'EUR', 'GBP', 'NGN', 'CAD', 'AUD'] as const;
 type Currency = typeof currencies[number];
@@ -282,8 +283,8 @@ export function DashboardPage() {
         <ShieldCheck size={14} className="mt-0.5 shrink-0" />
         <p><strong className="font-bold">Testing Mode</strong> · Private Vault is not active for this account.</p>
       </div>}
-      <div className="mt-3 grid min-w-0 flex-1 content-start gap-2.5 xl:grid-cols-[1.15fr_.85fr]">
-        <section className="balance-panel relative min-w-0 overflow-hidden rounded-[18px] p-3.5 text-white sm:p-4 xl:col-start-1 xl:row-start-1">
+      <div data-testid="dashboard-content-grid" className="mt-2 grid min-w-0 flex-1 content-start gap-2 xl:grid-cols-[1.15fr_.85fr]">
+        <section className="balance-panel relative min-w-0 overflow-hidden rounded-[16px] p-3 text-white sm:p-3.5 xl:col-start-1 xl:row-start-1">
           <div className="absolute -right-10 -top-12 h-48 w-48 rounded-full border border-white/[.08]" />
           <div className="absolute -right-2 -top-5 h-32 w-32 rounded-full border border-white/[.08]" />
           <div className="relative flex items-start justify-between gap-4">
@@ -352,6 +353,7 @@ export function DashboardPage() {
           </div>
         </section>
       </div>
+      <CompactExpenseTracker />
     </div>
   );
 }

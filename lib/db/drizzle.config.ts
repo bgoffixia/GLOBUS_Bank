@@ -27,6 +27,7 @@ export default defineConfig({
     "bank_identity_documents",
     "bank_exchange_rates",
     "bank_international_transfer_requests",
+    "bank_personal_finance_records",
   ],
   dbCredentials: {
     url: process.env.DATABASE_URL,

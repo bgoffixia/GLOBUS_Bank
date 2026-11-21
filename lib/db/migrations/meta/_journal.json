@@ -50,6 +50,13 @@
       "when": 1795215286000,
       "tag": "20261120_admin_account_tier_override",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1795244253786,
+      "tag": "20261121_personal_finance_records",
+      "breakpoints": true
     }
   ]
 }
