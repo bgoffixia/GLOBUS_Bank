@@ -6,10 +6,12 @@ export function BankSelect({
   countryCode,
   value,
   onChange,
+  compact = false,
 }: {
   countryCode: string;
   value: string;
   onChange: (bank: string) => void;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -69,7 +71,7 @@ export function BankSelect({
             setOpen(true);
           }
         }}
-        className={`flex h-12 w-full items-center justify-between gap-3 rounded-xl border bg-white px-3.5 text-left text-[12px] outline-none transition hover:border-[#9ab9bd] focus-visible:border-[#77aeb0] focus-visible:ring-2 focus-visible:ring-[#77aeb0]/20 disabled:cursor-not-allowed disabled:bg-[#f5f7f8] ${open ? 'border-[#77aeb0] ring-2 ring-[#77aeb0]/15' : 'border-[#dfe6ec]'}`}
+        className={`flex w-full items-center justify-between gap-3 border bg-white text-left outline-none transition hover:border-[#9ab9bd] focus-visible:border-[#77aeb0] focus-visible:ring-2 focus-visible:ring-[#77aeb0]/20 disabled:cursor-not-allowed disabled:bg-[#f5f7f8] ${compact ? 'h-10 rounded-lg px-3 text-[11px]' : 'h-12 rounded-xl px-3.5 text-[12px]'} ${open ? 'border-[#77aeb0] ring-2 ring-[#77aeb0]/15' : 'border-[#dfe6ec]'}`}
       >
         <span className={`flex min-w-0 items-center gap-2.5 ${value ? 'text-[#435872]' : 'text-[#93a0ad]'}`}>
           {value && <span aria-hidden="true" className="grid h-7 w-7 shrink-0 place-items-center rounded-lg border border-[#dce7ec] bg-[#f3f7f8] text-[9px] font-extrabold tracking-tight text-[#315773]">{bankInitials(value)}</span>}

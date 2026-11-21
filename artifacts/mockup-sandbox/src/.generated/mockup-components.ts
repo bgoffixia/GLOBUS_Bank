@@ -23,5 +23,7 @@ export const modules: ModuleMap = {
   "./components/mockups/globus-receipt/TransferJourney.tsx": () => import("../components/mockups/globus-receipt/TransferJourney.tsx"),
   "./components/mockups/globus-receipt/TransferLedger.tsx": () => import("../components/mockups/globus-receipt/TransferLedger.tsx"),
   "./components/mockups/globus-receipt/TransferLedgerColumnar.tsx": () => import("../components/mockups/globus-receipt/TransferLedgerColumnar.tsx"),
-  "./components/mockups/globus-receipt/TransferReconciliationStatement.tsx": () => import("../components/mockups/globus-receipt/TransferReconciliationStatement.tsx")
+  "./components/mockups/globus-receipt/TransferReconciliationStatement.tsx": () => import("../components/mockups/globus-receipt/TransferReconciliationStatement.tsx"),
+  "./components/mockups/transfer-wizard/Current.tsx": () => import("../components/mockups/transfer-wizard/Current.tsx"),
+  "./components/mockups/transfer-wizard/Professional.tsx": () => import("../components/mockups/transfer-wizard/Professional.tsx")
 };

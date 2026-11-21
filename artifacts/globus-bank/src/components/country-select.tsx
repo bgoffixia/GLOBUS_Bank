@@ -13,12 +13,14 @@ export function CountrySelect({
   label = 'Destination country',
   testId = 'input-destination-country',
   disabled = false,
+  compact = false,
 }: {
   value: string;
   onChange: (country: string) => void;
   label?: string;
   testId?: string;
   disabled?: boolean;
+  compact?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
@@ -81,7 +83,7 @@ export function CountrySelect({
         aria-controls={open ? listId : undefined}
         onClick={() => (open ? close() : setOpen(true))}
         onKeyDown={e => { if (e.key === 'ArrowDown' && !open) { e.preventDefault(); setOpen(true); } }}
-        className={`flex h-11 w-full items-center justify-between gap-3 rounded-xl border bg-white px-3.5 text-left text-[12px] text-[#344b64] outline-none transition hover:border-[#9ab9bd] focus-visible:border-[#77aeb0] focus-visible:ring-2 focus-visible:ring-[#77aeb0]/20 disabled:opacity-60 ${open ? 'border-[#77aeb0] ring-2 ring-[#77aeb0]/15' : 'border-[#dfe6eb]'}`}
+        className={`flex w-full items-center justify-between gap-3 border bg-white text-left text-[#344b64] outline-none transition hover:border-[#9ab9bd] focus-visible:border-[#77aeb0] focus-visible:ring-2 focus-visible:ring-[#77aeb0]/20 disabled:opacity-60 ${compact ? 'h-10 rounded-lg px-3 text-[11px]' : 'h-11 rounded-xl px-3.5 text-[12px]'} ${open ? 'border-[#77aeb0] ring-2 ring-[#77aeb0]/15' : 'border-[#dfe6eb]'}`}
       >
         <span className={`flex min-w-0 items-center gap-2 ${value ? '' : 'text-[#a0acb7]'}`}>
           {value && selectedCountry && <FlagIcon country={selectedCountry} />}
