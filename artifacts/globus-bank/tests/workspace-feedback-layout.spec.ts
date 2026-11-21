@@ -22,6 +22,7 @@ const support = source('../src/components/support-messaging.tsx');
 const app = source('../src/App.tsx');
 const adminSupportRoutes = source('../../api-server/src/routes/bankAdmin.ts');
 const customerSupportRoutes = source('../../api-server/src/routes/bank.ts');
+const adminVaultAccess = source('../src/components/admin-vault-access-page.tsx');
 const contactPage = source('../src/pages/bank-pages.tsx');
 
 test('transfer workspace uses the available width and allows the page to scroll vertically', () => {
@@ -95,6 +96,15 @@ test('Vault fills the page and keeps long service content in its internal scroll
   expect(vault).toContain('Read-only preview. Defaults are examples, not your saved policies.');
   expect(vault).toContain('required to load saved choices and make changes');
   expect(vault).toContain('disabled={!vaultAccessActive}');
+});
+
+test('admin Vault grants display expiry and offer the approved durations', () => {
+  expect(adminVaultAccess).toContain('select-admin-vault-grant-duration');
+  expect(adminVaultAccess).toContain('<option value="7d">7 days</option>');
+  expect(adminVaultAccess).toContain('<option value="30d">30 days</option>');
+  expect(adminVaultAccess).toContain('<option value="90d">90 days</option>');
+  expect(adminVaultAccess).toContain('<option value="permanent">No expiry</option>');
+  expect(adminVaultAccess).toContain('record.adminGrantExpiresAt');
 });
 
 test('inactive Vault access previews services while keeping changes disabled', () => {

@@ -18,6 +18,12 @@ const buttonClass =
   "inline-flex items-center justify-center gap-2 rounded-[9px] bg-[#173b50] px-4 py-2.5 text-[11px] font-bold text-white transition hover:bg-[#24576a] disabled:cursor-not-allowed disabled:opacity-50";
 const quietButtonClass =
   "inline-flex items-center justify-center gap-2 rounded-[9px] border border-[#dbe4e5] bg-[#fffefa] px-3 py-2.5 text-[11px] font-semibold text-[#425d69] hover:bg-[#f3f7f5] disabled:opacity-50";
+const grantDurationLabels = {
+  "7d": "7 days",
+  "30d": "30 days",
+  "90d": "90 days",
+  permanent: "no expiry",
+} as const;
 
 function dateTime(value?: string | null) {
   return value ? new Date(value).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" }) : "—";
@@ -115,7 +121,7 @@ export function AdminVaultAccessPage() {
       });
       setMessage(
         action === "grant"
-          ? `Admin-granted Vault access was granted to ${target.email}.`
+          ? `Admin-granted Vault access was granted to ${target.email} for ${grantDurationLabels[duration]}.`
           : `The Admin-granted access for ${target.email} was revoked. Any paid subscription remains unchanged.`,
       );
       setTarget(null);

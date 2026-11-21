@@ -479,6 +479,7 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
       body: JSON.stringify({
         transactionPin: adminPin,
         confirmed: true,
+        duration: "30d",
       }),
     });
     assert.equal(paidGrant.status, 200);
