@@ -1206,17 +1206,8 @@ export function ClerkSignUpForm() {
         }
       }
 
-      if (signUp.status === 'complete' && signUp.createdSessionId) {
-        persistSignupProgress(signUp.id, 'optional-profile');
-        setStage('optional-profile');
-        setNotice('Your account is ready. Continue to profile setup.');
-        return;
-      }
-      if (signUp.status === 'complete' && !signUp.createdSessionId) {
-        const readiness = getSignupFinalizationBlocker(finalizationState);
-        setError(readiness.ready
-          ? 'Your email is verified, but Clerk did not create a sign-in session. Try signing in or use account recovery.'
-          : readiness.message);
+      if (signUp.status === 'complete') {
+        await continueToVerification(undefined, false, true);
         return;
       }
 
@@ -1247,7 +1238,7 @@ export function ClerkSignUpForm() {
           setError(requiredSignupDetailsMessage(missingRequired, true));
           return;
         }
-        await finalizeVerifiedAccount(true, readCurrentSignupState());
+        await continueToVerification(undefined, false, true);
         return;
       }
 
@@ -1318,9 +1309,7 @@ export function ClerkSignUpForm() {
         return;
       }
 
-      persistSignupProgress(signUp.id, 'optional-profile');
-      setStage('optional-profile');
-      setNotice('Your account details are ready. The profile information on the next page is optional.');
+      await continueToVerification(undefined, false, true);
     } finally {
       operationRef.current = false;
       setSubmitting(false);
@@ -1355,11 +1344,14 @@ export function ClerkSignUpForm() {
   const continueToVerification = async (
     event?: FormEvent<HTMLFormElement>,
     skipProfileDetails = false,
+    alreadyLocked = false,
   ) => {
     event?.preventDefault();
-    if (operationRef.current) return;
-    operationRef.current = true;
-    setSubmitting(true);
+    if (!alreadyLocked) {
+      if (operationRef.current) return;
+      operationRef.current = true;
+      setSubmitting(true);
+    }
     setError('');
     setNotice('');
 
@@ -1473,8 +1465,10 @@ export function ClerkSignUpForm() {
         : 'Optional details may not be restored after a browser refresh. ';
       setNotice(`${storageNote}Enter the verification code sent to ${draft.emailAddress}.`);
     } finally {
-      operationRef.current = false;
-      setSubmitting(false);
+      if (!alreadyLocked) {
+        operationRef.current = false;
+        setSubmitting(false);
+      }
     }
   };
 
@@ -1559,6 +1553,7 @@ export function ClerkSignUpForm() {
     persistSignupProgress(signUp.id, 'optional-profile');
     setError('');
     setNotice('');
+    setVerificationCode('');
     setStage('optional-profile');
   };
 
@@ -1586,17 +1581,40 @@ export function ClerkSignUpForm() {
     setStage('details');
   };
 
+  const verificationInProgress = stage === 'verify' && !emailVerified;
+  const clerkNamesMissing =
+    signUp.missingFields.includes('first_name') ||
+    signUp.missingFields.includes('last_name');
+  const requiredFieldsDisabled =
+    verificationInProgress ||
+    (Boolean(signUp.id) &&
+      signUp.status !== 'abandoned' &&
+      !emailVerified &&
+      !clerkNamesMissing);
+
   return (
     <div className="gb-signup-form-wrap">
-      {stage === 'details' && (
+      {stage !== 'finishing' && (
         <>
           <div className="gb-form-heading gb-signup-heading">
-            <span className="gb-step-label">STEP 1 OF 2 <i /></span>
+            <span className="gb-step-label">SECURE REGISTRATION <i /></span>
             <h1>Create your account</h1>
-            <p>Enter your details to get started.</p>
+            <p>Enter your account details and verify your email.</p>
           </div>
-          <form className="gb-auth-form gb-signup-form" onSubmit={startSignUp}>
-            <div className="gb-signup-fields">
+          <form
+            className="gb-auth-form gb-signup-form gb-signup-main-form"
+            onSubmit={
+              stage === 'verify'
+                ? verifyEmail
+                : stage === 'optional-profile'
+                  ? continueToVerification
+                  : startSignUp
+            }
+          >
+            <fieldset
+              className="gb-signup-fields gb-signup-required-fields"
+              disabled={requiredFieldsDisabled}
+            >
               <div className="gb-field">
                 <label className="gb-field-label" htmlFor="gb-signup-first-name">First name</label>
                 <input id="gb-signup-first-name" data-testid="input-signup-first-name" className="gb-input" type="text" autoComplete="given-name" maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} required />
@@ -1605,113 +1623,95 @@ export function ClerkSignUpForm() {
                 <label className="gb-field-label" htmlFor="gb-signup-last-name">Last name</label>
                 <input id="gb-signup-last-name" data-testid="input-signup-last-name" className="gb-input" type="text" autoComplete="family-name" maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} required />
               </div>
-              <div className="gb-field">
+              <div className="gb-field gb-field-wide">
                 <label className="gb-field-label" htmlFor="gb-signup-username">Username</label>
                 <input id="gb-signup-username" data-testid="input-signup-username" className="gb-input" type="text" autoComplete="username" autoCapitalize="off" spellCheck={false} minLength={6} maxLength={12} pattern="(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}" value={username} onChange={event => setUsername(event.target.value.replace(/[^A-Za-z0-9_-]/g, '').slice(0, 12))} required />
                 <p className="gb-password-hint">6–12 characters with a letter; letters, numbers, hyphens, underscores.</p>
               </div>
-              <div className="gb-field">
+              <div className="gb-field gb-field-wide">
                 <label className="gb-field-label" htmlFor="gb-signup-email">Email address</label>
                 <input id="gb-signup-email" data-testid="input-signup-email" className="gb-input" type="email" autoComplete="email" maxLength={254} value={email} onChange={event => setEmail(event.target.value)} required />
               </div>
-              <div className="gb-field">
+              <div className="gb-field gb-field-wide">
                 <label className="gb-field-label" htmlFor="gb-signup-password">Password</label>
                 <input id="gb-signup-password" data-testid="input-signup-password" className="gb-input" type="password" autoComplete="new-password" minLength={8} value={password} onChange={event => setPassword(event.target.value)} required />
               </div>
-            </div>
+              <p className="gb-password-hint gb-field-wide">8+ characters; Clerk checks additional requirements.</p>
+            </fieldset>
 
-            <p className="gb-password-hint">8+ characters; Clerk checks additional requirements.</p>
+            <section className="gb-signup-profile-section" aria-labelledby="gb-signup-profile-title">
+              <h2 id="gb-signup-profile-title" className="gb-signup-section-title">Profile information</h2>
+              <fieldset
+                className="gb-signup-fields gb-signup-optional-fields"
+                disabled={verificationInProgress}
+              >
+                <SignupOptionalProfileFields
+                  values={{ phone, country, cityOfOrigin, dateOfBirth, occupation }}
+                  onChange={updateOptionalField}
+                />
+              </fieldset>
+            </section>
+
             {legalAcceptanceRequired && (
               <label className="gb-terms-check gb-signup-terms">
-                <input data-testid="checkbox-signup-terms" type="checkbox" checked={acceptedTerms} onChange={event => setAcceptedTerms(event.target.checked)} required />
+                <input data-testid="checkbox-signup-terms" type="checkbox" checked={acceptedTerms} onChange={event => setAcceptedTerms(event.target.checked)} disabled={verificationInProgress} required />
                 <span>I accept the account terms required by this Clerk account.</span>
               </label>
             )}
-            {error && <p role="alert" className="gb-auth-error">{error}</p>}
-            {notice && <p role="status" className="gb-auth-notice">{notice}</p>}
-            <button data-testid="button-signup-continue" className="gb-primary-button gb-signup-continue" type="submit" disabled={busy}>
-              <span>{busy ? 'Creating your account…' : 'Continue'}</span>
-            </button>
-          </form>
-          {(canResetSignupAttempt || error) && (
-            <button className="gb-recovery-secondary" type="button" onClick={() => void startOver()} disabled={busy}>
-              Start over
-            </button>
-          )}
-          <p className="gb-switch-copy gb-signup-switch">Already have an account? <Link data-testid="link-signup-sign-in" href="/sign-in">Sign in</Link></p>
-        </>
-      )}
 
-      {stage === 'optional-profile' && (
-        <>
-          <div className="gb-form-heading gb-signup-heading">
-            <span className="gb-step-label">STEP 2 OF 2 <i /></span>
-            <h1>Optional profile details</h1>
-            <p>Add any details you want to share. You can skip every field.</p>
-          </div>
-          <form className="gb-auth-form gb-signup-form" onSubmit={continueToVerification}>
-            <div className="gb-signup-fields gb-signup-optional-fields">
-              <SignupOptionalProfileFields
-                values={{ phone, country, cityOfOrigin, dateOfBirth, occupation }}
-                onChange={updateOptionalField}
-              />
-            </div>
-            {error && <p role="alert" className="gb-auth-error">{error}</p>}
-            {notice && <p role="status" className="gb-auth-notice">{notice}</p>}
-            <button data-testid="button-signup-profile-continue" className="gb-primary-button gb-signup-continue" type="submit" disabled={busy}>
-              <span>{busy ? 'Preparing verification…' : 'Continue to email verification'}</span>
-            </button>
-            <button data-testid="button-signup-profile-skip" className="gb-optional-skip" type="button" disabled={busy} onClick={() => void continueToVerification(undefined, true)}>
-              Skip for now
-            </button>
-            {canResetSignupAttempt && (
-              <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={() => void startOver()}>
-                Start over
-              </button>
+            {stage === 'verify' && !emailVerified && (
+              <section className="gb-signup-verify-fields" aria-labelledby="gb-signup-verification-title">
+                <h2 id="gb-signup-verification-title" className="gb-signup-section-title">Email verification</h2>
+                <p className="gb-signup-verification-copy">
+                  Code sent to <strong>{email || signUp.emailAddress}</strong>
+                </p>
+                <div className="gb-signup-fields">
+                  <div className="gb-field">
+                    <label className="gb-field-label" htmlFor="gb-verification-code">Email verification code</label>
+                    <input id="gb-verification-code" data-testid="input-signup-verification-code" className="gb-input gb-code-input" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={12} value={verificationCode} onChange={event => setVerificationCode(event.target.value)} required />
+                  </div>
+                </div>
+              </section>
             )}
-          </form>
-        </>
-      )}
 
-      {stage === 'verify' && (
-        <>
-          <div className="gb-form-heading">
-            <span className="gb-step-label">SECURE YOUR ACCOUNT <i /></span>
-            <h1>Check your email</h1>
-            <p>Enter the code we sent to <strong>{email || signUp.emailAddress}</strong> to verify your address.</p>
-          </div>
-          <form className="gb-auth-form" onSubmit={verifyEmail}>
-            {!emailVerified && (
-              <>
-                <label className="gb-field-label" htmlFor="gb-verification-code">Email verification code</label>
-                <input id="gb-verification-code" data-testid="input-signup-verification-code" className="gb-input gb-code-input" type="text" inputMode="numeric" autoComplete="one-time-code" maxLength={12} value={verificationCode} onChange={event => setVerificationCode(event.target.value)} required />
-              </>
-            )}
-            {signUp.missingFields.includes('legal_accepted') && (
-              <label className="gb-terms-check gb-signup-terms">
-                <input data-testid="checkbox-signup-terms" type="checkbox" checked={acceptedTerms} onChange={event => setAcceptedTerms(event.target.checked)} required />
-                <span>I accept the account terms required by this Clerk account.</span>
-              </label>
-            )}
             {error && <p role="alert" className="gb-auth-error">{error}</p>}
             {notice && <p role="status" className="gb-auth-notice">{notice}</p>}
-            {emailVerified && signUp.status !== 'complete' && canReviewSignupDetails && (
+            {stage === 'verify' && emailVerified && signUp.status !== 'complete' && canReviewSignupDetails && (
               <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={reviewRequiredSignupDetails}>
                 Review required details
               </button>
             )}
-            {(!emailVerified || canSubmitVerifiedSignup) && (
-              <button className="gb-primary-button" type="submit" disabled={busy || (!emailVerified && verificationCode.trim().length < 4)}>
-                <span>{busy ? 'Verifying…' : emailVerified ? 'Finish account setup' : 'Verify email'}</span>
-                <span aria-hidden="true">→</span>
+            {stage !== 'verify' || !emailVerified || canSubmitVerifiedSignup ? (
+              <button
+                data-testid="button-signup-continue"
+                className="gb-primary-button gb-signup-continue"
+                type="submit"
+                disabled={busy || (verificationInProgress && verificationCode.trim().length < 4)}
+              >
+                <span>
+                  {busy
+                    ? stage === 'verify'
+                      ? 'Checking…'
+                      : stage === 'optional-profile'
+                        ? 'Sending code…'
+                        : 'Creating account…'
+                    : stage === 'verify'
+                      ? emailVerified
+                        ? 'Finish account setup'
+                        : 'Verify email and continue'
+                      : stage === 'optional-profile'
+                        ? 'Send verification code'
+                        : 'Create account and send code'}
+                </span>
               </button>
-            )}
+            ) : null}
           </form>
+
           <div className="gb-verification-actions">
-            {!emailVerified && signUp.status !== 'complete' && (
+            {stage === 'verify' && !emailVerified && signUp.status !== 'complete' && (
               <>
                 <button type="button" onClick={() => void resendCode()} disabled={busy}>Resend code</button>
-                <button type="button" onClick={returnToOptionalProfile} disabled={busy}>Back to profile details</button>
+                <button type="button" onClick={returnToOptionalProfile} disabled={busy}>Edit profile details</button>
                 <button type="button" onClick={() => void changeEmail()} disabled={busy}>Use a different email</button>
                 {canResetSignupAttempt && (
                   <button type="button" onClick={() => void startOver()} disabled={busy}>Start over</button>
@@ -1719,11 +1719,15 @@ export function ClerkSignUpForm() {
               </>
             )}
           </div>
-          {emailVerified && (
-            <p className="gb-switch-copy gb-signup-switch">
-              Need account access? <Link href="/sign-in">Sign in</Link> or <Link href="/sign-in/email">recover it</Link>.
-            </p>
+          {stage !== 'verify' && (canResetSignupAttempt || Boolean(error)) && (
+            <button className="gb-recovery-secondary" type="button" onClick={() => void startOver()} disabled={busy}>
+              Start over
+            </button>
           )}
+          <p className="gb-switch-copy gb-signup-switch">
+            Already have an account? <Link data-testid="link-signup-sign-in" href="/sign-in">Sign in</Link>
+            {stage === 'verify' && emailVerified && <> · <Link href="/sign-in/email">Recover it</Link></>}
+          </p>
         </>
       )}
 

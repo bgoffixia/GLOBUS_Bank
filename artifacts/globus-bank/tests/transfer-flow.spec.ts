@@ -5,6 +5,10 @@ const wizard = readFileSync(
   new URL('../src/components/transfer/transfer-wizard.tsx', import.meta.url),
   'utf8',
 );
+const receipt = readFileSync(
+  new URL('../src/components/transfer/transfer-receipt.tsx', import.meta.url),
+  'utf8',
+);
 
 test('transfer flow groups destination and recipient into the first step', () => {
   expect(wizard).toContain("const STEPS = ['Details', 'Amount & review', 'PIN'] as const");
@@ -33,6 +37,12 @@ test('transfer history preview is removed while receipt creation remains', () =>
   expect(wizard).not.toContain('useListInternationalTransferRequests');
   expect(wizard).toContain('getListInternationalTransferRequestsQueryKey()');
   expect(wizard).toContain('<TransferReceiptModal');
+});
+
+test('transfer receipt hides the underlying wizard Continue action', () => {
+  expect(wizard).toContain('{!receipt && <div className="mt-auto flex items-center');
+  expect(wizard).toContain('<TransferReceiptModal transaction={receipt}');
+  expect(receipt).not.toContain('>Continue<');
 });
 
 test('form fields and selector controls have compact transfer-only sizing', () => {

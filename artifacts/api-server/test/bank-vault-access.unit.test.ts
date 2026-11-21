@@ -9,6 +9,7 @@ import {
   hasActiveVaultAccess,
   hasActiveVaultSubscription,
   isVaultTestingMode,
+  normalizeFutureTransferMode,
   resolveEffectiveAccountTier,
   resolveFutureTransferStatus,
 } from "../src/lib/bank-vault";
@@ -281,6 +282,27 @@ test("separate transfer grant bypasses transfer controls only", () => {
     "completed",
     "successful transfers post immediately without Vault access",
   );
+  assert.equal(normalizeFutureTransferMode("unrecognized"), "successful");
+  assert.equal(
+    resolveFutureTransferStatus("unrecognized"),
+    "completed",
+    "an unset or legacy policy defaults to successful without requiring Vault access",
+  );
+  assert.equal(
+    resolveFutureTransferStatus("failed", false),
+    "completed",
+    "a saved failed mode does not restrict transfers while Vault access is inactive",
+  );
+  assert.equal(
+    resolveFutureTransferStatus("pending", false),
+    "completed",
+    "a saved pending mode does not hold transfers while Vault access is inactive",
+  );
+  assert.equal(
+    resolveFutureTransferStatus("failed", true),
+    "failed",
+    "an active Vault policy can still explicitly select failed",
+  );
 });
 
 test("deposit and transfer routes do not require a terms timestamp but retain access checks", () => {
@@ -321,6 +343,11 @@ test("deposit and transfer routes do not require a terms timestamp but retain ac
   assert.match(internationalTransferRoute, /sender\.accountStatus !== "active"/);
   assert.match(internationalTransferRoute, /verifyTransactionPin/);
   assert.match(internationalTransferRoute, /transferAccessGranted/);
+  assert.match(
+    internationalTransferRoute,
+    /resolveFutureTransferStatus\(\s*lockedWallet\.futureTransferMode,\s*await hasActiveVaultAccess\(lockedSender, tx\)/,
+    "wallet status overrides apply only while the user has active Vault access",
+  );
   assert.match(
     internationalTransferRoute,
     /requestedRecipientEmail\s*\?\s*await vaultTransferEmailAlertsEnabled\(sender\)\s*:\s*false/,

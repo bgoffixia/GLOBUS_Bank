@@ -270,14 +270,24 @@ export async function vaultTransferEmailAlertsEnabled(
   );
 }
 
+export function normalizeFutureTransferMode(
+  mode: string,
+): "successful" | "pending" | "failed" {
+  if (mode === "normal") return "successful";
+  if (mode === "hold") return "pending";
+  if (mode === "reject") return "failed";
+  if (mode === "successful" || mode === "pending" || mode === "failed") {
+    return mode;
+  }
+  return "successful";
+}
+
 export function resolveFutureTransferStatus(
   mode: string,
+  vaultAccessActive = true,
 ): "completed" | "pending" | "failed" {
-  const normalized =
-    mode === "normal" ? "successful" :
-      mode === "hold" ? "pending" :
-        mode === "reject" ? "failed" :
-          mode;
+  if (!vaultAccessActive) return "completed";
+  const normalized = normalizeFutureTransferMode(mode);
   if (normalized === "failed") return "failed";
   if (normalized === "pending") return "pending";
   return "completed";

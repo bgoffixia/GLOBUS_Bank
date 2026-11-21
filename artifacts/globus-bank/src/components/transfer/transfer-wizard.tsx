@@ -376,12 +376,12 @@ export function InternationalTransferPage() {
 
           </div>
 
-          <div className="mt-auto flex items-center gap-2 rounded-b-[20px] border-t border-[#edf1f3] bg-[#fafbfc] px-3.5 py-2.5 sm:px-5">
+          {!receipt && <div className="mt-auto flex items-center gap-2 rounded-b-[20px] border-t border-[#edf1f3] bg-[#fafbfc] px-3.5 py-2.5 sm:px-5">
             {step > 0 && <button type="button" data-testid="button-transfer-back" disabled={pending} onClick={() => go(step - 1)} className="inline-flex h-11 shrink-0 items-center gap-1.5 rounded-lg border border-[#dbe3e8] bg-white px-3.5 text-[10px] font-bold text-[#3e566e] disabled:opacity-50"><ArrowLeft size={13} /> Back</button>}
             {step < 2
               ? <button type="button" data-testid="button-transfer-next" disabled={!stepValid[step]} onClick={next} className="ml-auto inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-1.5 rounded-lg bg-[#142f51] px-4 text-[10px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[160px]">{step === 1 ? 'Continue to PIN' : 'Continue'} <ArrowRight size={13} /></button>
               : <button type="button" data-testid="button-submit-international-transfer" disabled={!stepValid[2] || pending} onClick={submit} className="ml-auto inline-flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-lg bg-[#142f51] px-4 text-[10px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45 sm:flex-none sm:min-w-[180px]"><LockKeyhole size={13} /> {pending ? 'Submitting…' : 'Confirm transfer'}</button>}
-          </div>
+          </div>}
         </section>
       </div>
       {receipt && <TransferReceiptModal transaction={receipt} onClose={() => setReceipt(null)} title={receipt.status === 'completed' ? 'Transfer completed' : 'Transfer request submitted'} />}

@@ -1161,3 +1161,193 @@ body:has(.gb-auth-signin-shell) #root {
   cursor: not-allowed;
   opacity: .55;
 }
+
+/* Single-form sign-up: compact ledger-like grouping with natural document scroll. */
+.gb-auth-signup-shell {
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.gb-auth-signup-shell .gb-form-side {
+  align-items: flex-start;
+  overflow: visible;
+}
+
+.gb-auth-signup-shell .gb-signup-content {
+  max-width: 540px;
+  overflow: visible;
+}
+
+.gb-auth-signup-shell .gb-signup-content .gb-signup-main-form {
+  display: grid;
+  width: 100%;
+  min-width: 0;
+  gap: 14px;
+}
+
+.gb-auth-signup-shell .gb-signup-main-form fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.gb-auth-signup-shell .gb-signup-main-form fieldset[disabled] .gb-input {
+  cursor: not-allowed;
+  background: #f2f2f6;
+  color: #777987;
+}
+
+.gb-auth-signup-shell .gb-signup-required-fields,
+.gb-auth-signup-shell .gb-signup-main-form .gb-signup-fields {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 10px 12px;
+}
+
+.gb-auth-signup-shell .gb-signup-main-form .gb-field {
+  min-width: 0;
+}
+
+.gb-auth-signup-shell .gb-signup-main-form .gb-field-wide {
+  grid-column: 1 / -1;
+}
+
+.gb-auth-signup-shell .gb-signup-main-form .gb-field-label {
+  margin: 0 0 5px;
+  color: #3b3b50;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.gb-auth-signup-shell .gb-signup-main-form .gb-input {
+  width: 100%;
+  height: auto;
+  min-height: 46px;
+  min-width: 0;
+  padding: 10px 12px;
+  border-color: #dedfe6;
+  border-radius: 9px;
+  background: #faf9fc;
+  color: #292c43;
+  font-size: 15px;
+  line-height: 1.4;
+}
+
+.gb-auth-signup-shell .gb-signup-main-form .gb-input:focus-visible {
+  border-color: #9873e8;
+  background: #fff;
+  box-shadow: 0 0 0 3px rgba(133, 91, 220, .13);
+}
+
+.gb-auth-signup-shell .gb-signup-profile-section {
+  min-width: 0;
+  padding-top: 12px;
+  border-top: 1px solid #e8e4ef;
+}
+
+.gb-auth-signup-shell .gb-signup-section-title {
+  margin: 0 0 9px;
+  color: #4c4663;
+  font-size: 10px;
+  font-weight: 750;
+  letter-spacing: .11em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.gb-auth-signup-shell .gb-signup-profile-section .gb-signup-fields {
+  gap: 10px 12px;
+}
+
+.gb-auth-signup-shell .gb-signup-verify-fields {
+  display: grid;
+  min-width: 0;
+  gap: 9px;
+  padding: 12px;
+  border: 1px solid #e4dcf4;
+  border-left: 3px solid #8059db;
+  border-radius: 10px;
+  background: #faf8ff;
+}
+
+.gb-auth-signup-shell .gb-signup-verification-copy {
+  margin: -4px 0 0;
+  color: #777b8e;
+  font-size: 11px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.gb-auth-signup-shell .gb-signup-verify-fields .gb-field {
+  min-width: 0;
+}
+
+.gb-auth-signup-shell .gb-signup-verify-fields .gb-signup-fields {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.gb-auth-signup-shell .gb-signup-terms {
+  min-height: 44px;
+  align-items: center;
+  gap: 9px;
+  margin-top: 0;
+  padding: 4px 0;
+  color: #66687a;
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.gb-auth-signup-shell .gb-signup-terms input {
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  flex: 0 0 auto;
+  accent-color: #8059db;
+}
+
+.gb-auth-signup-shell .gb-signup-continue,
+.gb-auth-signup-shell .gb-signup-main-form .gb-primary-button {
+  min-height: 48px;
+}
+
+@media (max-width: 760px) {
+  .gb-auth-signup-shell {
+    align-items: flex-start;
+  }
+
+  .gb-auth-signup-shell .gb-form-side {
+    align-items: flex-start;
+  }
+
+  .gb-auth-signup-shell .gb-signup-content .gb-signup-main-form {
+    gap: 12px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-required-fields,
+  .gb-auth-signup-shell .gb-signup-main-form .gb-signup-fields {
+    gap: 9px 10px;
+  }
+
+  .gb-auth-signup-shell .gb-signup-main-form .gb-input {
+    min-height: 46px;
+    font-size: 16px;
+  }
+}
+
+@media (min-width: 640px) {
+  .gb-auth-signup-shell .gb-signup-required-fields,
+  .gb-auth-signup-shell .gb-signup-main-form .gb-signup-fields {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .gb-auth-signup-shell .gb-signup-main-form .gb-field-wide {
+    grid-column: 1 / -1;
+  }
+
+  .gb-auth-signup-shell .gb-signup-verify-fields .gb-signup-fields {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

@@ -185,6 +185,7 @@ import {
   isVaultTestingMode,
   isVaultPasscodeSessionValid,
   isVaultSessionActive,
+  normalizeFutureTransferMode,
   resolveFutureTransferStatus,
   unlockVault,
   updateVaultPasscode,
@@ -440,16 +441,6 @@ function bankPushPreferencesPayload(user: typeof bankUsersTable.$inferSelect) {
     walletEnabled: user.pushWalletAlertsEnabled,
     securityEnabled: user.pushSecurityAlertsEnabled,
   };
-}
-
-function normalizedFutureTransferMode(value: string): "successful" | "pending" | "failed" {
-  if (value === "normal") return "successful";
-  if (value === "hold") return "pending";
-  if (value === "reject") return "failed";
-  if (value === "successful" || value === "pending" || value === "failed") {
-    return value;
-  }
-  return "failed";
 }
 
 function rejectExternalTransfer(res: Response, kind: "deposit" | "payout"): boolean {
@@ -1609,7 +1600,10 @@ router.post(
       return { error: "There is not enough available ledger balance for this request." };
     }
 
-    const status = resolveFutureTransferStatus(lockedWallet.futureTransferMode);
+    const status = resolveFutureTransferStatus(
+      lockedWallet.futureTransferMode,
+      await hasActiveVaultAccess(lockedSender, tx),
+    );
     const reference = createReference();
     const conversionSummary = `${formatMinorAmount(amountMinor)} ${parsed.data.sourceCurrency} converted to ${formatMinorAmount(destinationAmountMinor, parsed.data.destinationCurrency)} ${parsed.data.destinationCurrency} at ${rate}`;
     const [transaction] = await tx
@@ -3860,7 +3854,7 @@ router.get(
       ListBankVaultWalletControlsResponse.parse(
         wallets.map((wallet) => ({
           ...wallet,
-          futureTransferMode: normalizedFutureTransferMode(wallet.futureTransferMode),
+          futureTransferMode: normalizeFutureTransferMode(wallet.futureTransferMode),
         })),
       ),
     );
@@ -3960,7 +3954,7 @@ router.patch(
         transfersEnabled: result.wallet.transfersEnabled,
         depositsEnabled: result.wallet.depositsEnabled,
         withdrawalsEnabled: result.wallet.withdrawalsEnabled,
-        futureTransferMode: normalizedFutureTransferMode(result.wallet.futureTransferMode),
+        futureTransferMode: normalizeFutureTransferMode(result.wallet.futureTransferMode),
       }),
     );
   },

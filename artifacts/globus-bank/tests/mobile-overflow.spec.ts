@@ -290,9 +290,10 @@ test.describe('Globus sign-up design', () => {
       await expect(shell).toBeVisible();
       await expect(page.getByRole('img', { name: 'Globus Bank' })).toBeVisible();
       await expect(page.getByRole('heading', { name: 'Create your account' })).toBeVisible();
-      await expect(page.getByText('Enter your details to get started.')).toBeVisible();
+      await expect(page.getByText('Enter your account details and verify your email.')).toBeVisible();
       await expect(page.getByText('6–12 characters with a letter; letters, numbers, hyphens, underscores.')).toBeVisible();
       await expect(page.getByText('8+ characters; Clerk checks additional requirements.')).toBeVisible();
+      await expect(page.getByRole('heading', { name: 'Profile information' })).toBeVisible();
 
       await expect(page.locator('.gb-signup-fields .gb-field-label')).toHaveText([
         'First name',
@@ -300,7 +301,24 @@ test.describe('Globus sign-up design', () => {
         'Username',
         'Email address',
         'Password',
+        'Country of origin',
+        'City of origin',
+        'Date of birth',
+        'Occupation / employment status',
+        'Phone number',
       ]);
+      const form = page.locator('form.gb-signup-form');
+      await expect(form).toHaveCount(1);
+      for (const field of [
+        'input-signup-country',
+        'input-signup-city',
+        'input-signup-date-of-birth',
+        'input-signup-occupation',
+        'input-signup-phone',
+      ]) {
+        await expect(form.getByTestId(field)).not.toHaveAttribute('required', '');
+      }
+      await expect(form.getByTestId('input-signup-verification-code')).toHaveCount(0);
       await expect(page.getByTestId('input-signup-first-name')).toHaveAttribute('required', '');
       await expect(page.getByTestId('input-signup-last-name')).toHaveAttribute('required', '');
       await expect(page.getByTestId('input-signup-username')).toHaveAttribute('required', '');
@@ -311,8 +329,7 @@ test.describe('Globus sign-up design', () => {
       await expect(page.getByTestId('input-signup-password')).toHaveAttribute('required', '');
       await expect(page.getByTestId('input-signup-password')).toHaveAttribute('minlength', '8');
 
-      const form = page.locator('form.gb-signup-form');
-      const button = form.getByRole('button', { name: 'Continue' });
+      const button = form.getByRole('button', { name: 'Create account and send code' });
       await expect(button).toBeVisible();
       await expect(button).toHaveCSS('background-image', /linear-gradient/);
       await expect(button).toHaveCSS('color', 'rgb(255, 255, 255)');
@@ -333,7 +350,7 @@ test.describe('Globus sign-up design', () => {
       expect(inputStyle.height).toBeLessThanOrEqual(50);
       expect(buttonBox!.height).toBeGreaterThanOrEqual(44);
       expect(buttonBox!.height).toBeLessThanOrEqual(52);
-      expect(inputStyle.borderRadius).toBe('10px');
+      expect(inputStyle.borderRadius).toBe('9px');
       expect(shellStyle).toBe('rgb(255, 255, 255)');
       await expect(page.getByText('Already have an account?')).toBeVisible();
       await expect(page.getByTestId('link-signup-sign-in')).toHaveText('Sign in');
@@ -597,6 +614,7 @@ test.describe('signed-in member pages at phone widths', () => {
     '/financial-overview',
     '/home',
     '/wallets',
+    '/wallets/viewport-check',
     '/transactions',
     '/send',
     '/receive',

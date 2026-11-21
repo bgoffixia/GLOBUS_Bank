@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test';
+import { readFileSync } from 'node:fs';
 import {
   clearSignupProfileDraft,
   clearSignupProgress,
@@ -23,6 +24,11 @@ import {
   verifyEmailCode,
 } from '../src/lib/signup-flow';
 
+const signupPageSource = readFileSync(
+  new URL('../src/components/auth-pages.tsx', import.meta.url),
+  'utf8',
+);
+
 function createStorage() {
   const values = new Map<string, string>();
   return {
@@ -32,7 +38,7 @@ function createStorage() {
   };
 }
 
-test('step one advances to optional details before email verification', () => {
+test('signup resume state preserves legacy checkpoints without a second visible form', () => {
   expect(
     resolveSignupResumeStage({
       isSignedIn: false,
@@ -59,6 +65,30 @@ test('step one advances to optional details before email verification', () => {
       persistedStage: 'verify',
     }),
   ).toBe('verify');
+});
+
+test('required fields, profile details, and email code render inside one signup form', () => {
+  const formStart = signupPageSource.indexOf(
+    'className="gb-auth-form gb-signup-form gb-signup-main-form"',
+  );
+  const formEnd = signupPageSource.indexOf('</form>', formStart);
+  expect(formStart).toBeGreaterThanOrEqual(0);
+  expect(formEnd).toBeGreaterThan(formStart);
+  const form = signupPageSource.slice(formStart, formEnd);
+
+  for (const field of [
+    'gb-signup-first-name',
+    'gb-signup-last-name',
+    'gb-signup-username',
+    'gb-signup-email',
+    'gb-signup-password',
+    'SignupOptionalProfileFields',
+    'gb-verification-code',
+  ]) {
+    expect(form).toContain(field);
+  }
+  expect(signupPageSource).not.toContain('STEP 2 OF 2');
+  expect(signupPageSource).not.toContain('Optional profile details</h1>');
 });
 
 test('verified signup missing first and last name returns to step one and recovers in order', async () => {

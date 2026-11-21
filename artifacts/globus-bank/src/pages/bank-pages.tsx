@@ -156,15 +156,13 @@ export function HomePage() {
             <span className="h-1.5 w-1.5 rounded-full bg-[#55a5a9]" />
             A multi-currency account workspace
           </div>
-          <h1 className="bank-display max-w-full text-[clamp(2.75rem,14vw,6.5rem)] font-semibold leading-[.98] tracking-[-.07em] text-[#142c49] sm:max-w-[700px] sm:text-[clamp(3.2rem,7.3vw,6.5rem)]">
-            Your Money.
+          <h1 className="max-w-full font-serif text-[clamp(2.25rem,10vw,5.6rem)] font-medium leading-[1.04] tracking-[-.055em] text-[#142c49] sm:max-w-[700px] sm:text-[clamp(3.2rem,6.5vw,5.8rem)]">
+            A clear record.
             <br />
-            <span className="text-[#438f98]">Your World.</span>
-            <br />
-            One Wallet.
+            <span className="text-[#9a7840]">For every currency.</span>
           </h1>
           <p className="mt-7 max-w-[510px] text-[16px] leading-7 text-[#64758a] sm:text-[18px] sm:leading-8">
-            Bring your currencies together, understand every movement, and manage routed transfers and eligible wallet top-ups in one focused workspace.
+            Review your currency balances and the entries recorded in your Globus account, all in one considered workspace.
           </p>
           <div className="mt-8 flex flex-col items-stretch gap-2 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
             <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#152f50] px-5 py-3.5 text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(18,43,75,.16)] transition hover:-translate-y-0.5 hover:bg-[#1b4168] sm:w-auto sm:px-6 sm:py-4">
@@ -176,71 +174,74 @@ export function HomePage() {
             <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#478b8e]" /> Four supported wallet currencies</span>
           </div>
         </div>
-        <div className="relative mx-auto w-full min-w-0 max-w-[560px]">
-          <div className="absolute right-0 top-0 h-48 w-48 rounded-full bg-[#dfeef0] blur-3xl sm:-right-12 sm:-top-14 sm:h-72 sm:w-72" />
-          <div className="absolute -bottom-8 left-0 h-48 w-48 rounded-full bg-[#eae5d6] blur-3xl sm:-bottom-10 sm:-left-10 sm:h-64 sm:w-64" />
-          <div className="relative min-w-0 max-w-full rotate-0 rounded-[24px] border border-white/80 bg-white p-3 shadow-[0_34px_90px_rgba(31,56,83,.17)] sm:rotate-[1.2deg] sm:rounded-[28px] sm:p-6">
-            <div className="min-w-0 rounded-[20px] bg-[#f4f7f9] p-4 sm:rounded-[22px] sm:p-7">
-              <div className="flex min-w-0 flex-wrap items-center justify-between gap-3">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#78889a]">Illustrative interface</p>
-                  <p className="mt-1 text-[11px] text-[#8492a2]">No account or balance data shown</p>
-                </div>
-                <span className="rounded-lg border border-[#d5e6e7] bg-[#edf7f7] px-2.5 py-1.5 text-[9px] font-bold uppercase tracking-[.12em] text-[#43868b]">Globus account</span>
+        <figure data-testid="landing-hero-institute-illustration" className="relative mx-auto w-full min-w-0 max-w-[560px]">
+          <div className="absolute -right-3 top-8 h-32 w-32 rounded-full bg-[#e7dcc0]/70 sm:-right-5 sm:h-44 sm:w-44" />
+          <div className="absolute -bottom-3 -left-3 h-28 w-28 rounded-full bg-[#dce9e6]/80 sm:-left-6 sm:h-40 sm:w-40" />
+          <div className="relative overflow-hidden rounded-[22px] border border-[#d9cfb9] bg-[#f4f0e6] p-3 shadow-[0_24px_60px_rgba(31,56,83,.12)] sm:rounded-[28px] sm:p-5">
+            <div className="flex items-center justify-between gap-2 border-b border-[#dcd2bd] px-1 pb-3 sm:px-2 sm:pb-4">
+              <div className="flex min-w-0 items-center gap-2.5">
+                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#b99a5b]/60 bg-[#e9e0cc] text-[#173651]"><Building2 size={17} strokeWidth={1.6} /></span>
+                <span className="min-w-0"><span className="block font-serif text-[12px] font-semibold tracking-[.08em] text-[#173651] sm:text-[14px]">GLOBUS BANK</span><span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[.18em] text-[#8b7953] sm:text-[8px]">Currency account records</span></span>
               </div>
-              <div className="balance-panel mt-5 overflow-hidden rounded-[19px] px-5 py-6 text-white sm:px-7 sm:py-7">
-                <div className="flex items-center justify-between text-[11px] text-[#d4e1eb]">
-                  <span>Wallet balance</span>
-                  <span className="inline-flex items-center gap-1.5"><span className="h-1.5 w-1.5 rounded-full bg-[#e4c876]" /> USD reference</span>
-                </div>
-                <div className="bank-display mt-3 max-w-full break-words text-[clamp(1.2rem,6vw,1.875rem)] font-semibold tracking-[-.05em] sm:text-[38px]">View after sign-in</div>
-                <div className="mt-5 flex flex-wrap gap-2">
-                  {currencies.map((code, i) => <span key={code} className={`shrink-0 rounded-full px-3 py-1.5 text-[10px] font-bold ${i === 0 ? 'bg-white/15 text-white' : 'bg-white/[.07] text-[#cedce6]'}`}>{code}</span>)}
-                </div>
-              </div>
-              <div className="mt-5 grid min-w-0 grid-cols-2 gap-2 sm:gap-3">
-                {[
-                  ['US dollar', 'Wallet balance after sign-in', 'USD'],
-                  ['Euro', 'Wallet balance after sign-in', 'EUR'],
-                ].map(([name, value, code]) => (
-                  <div key={code} className="min-w-0 rounded-2xl border border-[#e6ebef] bg-white p-3 sm:p-4">
-                    <div className="flex items-center justify-between"><span className="grid h-8 w-8 place-items-center rounded-full bg-[#edf5f6] text-[10px] font-bold text-[#43878e]">{code.slice(0, 2)}</span><span className="text-[9px] font-semibold text-[#8b98a7]">{code}</span></div>
-                    <p className="mt-4 text-[10px] text-[#8290a0]">{name}</p>
-                    <p className="mt-1 break-words text-[12px] font-semibold text-[#1e3653] sm:text-[14px]">{value}</p>
-                  </div>
-                ))}
-              </div>
-              <div className="mt-5 flex min-w-0 items-center gap-3 rounded-xl bg-white px-3 py-3 sm:px-4">
-                <span className="grid h-9 w-9 place-items-center rounded-full bg-[#eef5f5] text-[#4b898e]"><ArrowUpRight size={16} /></span>
-                <div className="min-w-0 flex-1"><p className="text-[11px] font-semibold text-[#334b66]">No account activity yet</p><p className="mt-0.5 break-words text-[10px] text-[#8b98a7]">Approved and recorded activity appears here</p></div>
-                <p className="text-[12px] font-semibold text-[#2e665f]">—</p>
-              </div>
+              <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">Illustrative artwork</span>
             </div>
-            <div className="absolute -left-7 top-[38%] hidden -rotate-[4deg] items-center gap-3 rounded-2xl border border-[#e8edf0] bg-white px-4 py-3 shadow-lg sm:flex">
-              <span className="grid h-9 w-9 place-items-center rounded-xl bg-[#e8f3f4] text-[#4b8f94]"><LockKeyhole size={16} /></span>
-              <span><b className="block text-[11px] text-[#30465f]">Clear by design</b><small className="mt-1 block text-[9px] text-[#8391a1]">Each record is clearly identified</small></span>
-            </div>
+            <svg className="relative mx-auto block h-auto w-full max-w-[500px]" viewBox="0 0 560 365" role="img" aria-labelledby="globus-institute-title globus-institute-description">
+              <title id="globus-institute-title">Illustration of a classical financial institute</title>
+              <desc id="globus-institute-description">A stylized neoclassical bank facade, drawn in Globus navy, parchment and brass. This is an illustration, not a photograph or account statement.</desc>
+              <rect x="8" y="8" width="544" height="349" rx="15" fill="#f7f4eb" />
+              <path d="M29 325H531M45 336H515" stroke="#c6b890" strokeWidth="1" />
+              <circle cx="280" cy="174" r="139" fill="none" stroke="#ded4bf" strokeWidth="1" />
+              <circle cx="280" cy="174" r="125" fill="none" stroke="#e7dfce" strokeWidth="1" strokeDasharray="2 6" />
+              <path d="M280 38V25M280 323V310M143 174H130M430 174H417M183 77L173 67M387 281L377 271M377 77L387 67M173 281L183 271" stroke="#b79a5e" strokeWidth="1.4" />
+              <path d="M126 134L280 61L434 134H126Z" fill="#183653" />
+              <path d="M155 126L280 69L405 126H155Z" fill="none" stroke="#d1b979" strokeWidth="1.5" />
+              <path d="M139 139H421V151H139ZM128 268H432V282H128Z" fill="#d6c7a4" stroke="#183653" strokeWidth="2" />
+              <path d="M147 152H413V263H147Z" fill="#eee7d7" stroke="#183653" strokeWidth="2" />
+              <g fill="#f8f5ed" stroke="#183653" strokeWidth="2">
+                <path d="M162 161H184V252H162Z" /><path d="M215 161H237V252H215Z" />
+                <path d="M323 161H345V252H323Z" /><path d="M376 161H398V252H376Z" />
+              </g>
+              <g fill="#d6c7a4" stroke="#183653" strokeWidth="1.4">
+                <path d="M157 157H189V163H157ZM210 157H242V163H210Z" />
+                <path d="M318 157H350V163H318ZM371 157H403V163H371Z" />
+                <path d="M157 250H189V256H157ZM210 250H242V256H210Z" />
+                <path d="M318 250H350V256H318ZM371 250H403V256H371Z" />
+              </g>
+              <path d="M253 261V205C253 190 265 178 280 178C295 178 307 190 307 205V261Z" fill="#183653" />
+              <path d="M264 261V207C264 198 271 191 280 191C289 191 296 198 296 207V261" fill="none" stroke="#d1b979" strokeWidth="1.5" />
+              <circle cx="288" cy="232" r="2" fill="#d8bd7d" />
+              <path d="M120 284H440V292H120ZM111 297H449V306H111ZM100 311H460V320H100Z" fill="#d6c7a4" stroke="#183653" strokeWidth="1.6" />
+              <path d="M267 105H293" stroke="#d8bd7d" strokeWidth="2" />
+              <circle cx="280" cy="104" r="13" fill="none" stroke="#d8bd7d" strokeWidth="1.5" />
+              <path d="M280 96V112M274 101H286M274 107H286" stroke="#d8bd7d" strokeWidth="1" />
+              <path d="M78 327H482" stroke="#dcd2bd" strokeWidth="1" />
+              <text x="280" y="346" textAnchor="middle" fill="#7f745b" fontSize="8" fontFamily="Georgia, serif" letterSpacing="2.1">A CLEAR VIEW OF EVERY CURRENCY</text>
+            </svg>
+            <figcaption className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[#dcd2bd] px-1 pt-3 sm:px-2 sm:pt-4">
+              <span className="text-[8px] leading-4 text-[#7d786b] sm:text-[9px]">Illustrative institute artwork · no account data shown</span>
+              <span className="flex flex-wrap gap-1.5" aria-label="Supported wallet currencies">{currencies.map(code => <span key={code} className="rounded-md border border-[#d6cbb3] bg-[#f9f6ef] px-1.5 py-1 text-[8px] font-bold tracking-[.04em] text-[#37566c]">{code}</span>)}</span>
+            </figcaption>
           </div>
-        </div>
+        </figure>
       </section>
 
-      <section className="mx-auto grid max-w-[1320px] gap-12 px-6 py-20 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-28">
+      <section className="mx-auto grid max-w-[1320px] gap-7 px-4 py-10 sm:gap-9 sm:px-6 sm:py-14 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-20">
         <div>
-          <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#528f95]">Globus account records, clearly scoped</p>
-          <h2 className="bank-display mt-4 max-w-[450px] text-[42px] font-semibold leading-[1.08] text-[#17304f] sm:text-[52px]">Know what Globus records.<br />Know what it doesn’t.</h2>
+          <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#528f95] sm:text-[10px]">A clearer view of your account</p>
+          <h2 className="bank-display mt-3 max-w-[450px] text-[32px] font-semibold leading-[1.08] text-[#17304f] sm:mt-4 sm:text-[52px]">Your balances.<br />Your ledger.</h2>
         </div>
-        <div data-testid="landing-feature-grid" className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
-          <FeatureBlock number="01" title="See the whole picture" copy="Review individual currency wallets, pending amounts and recent transactions in one focused workspace." />
-          <FeatureBlock number="02" title="Route transfers with clarity" copy="Choose local routing or an international wire, review the currency conversion, and follow the recorded status in your account." />
+        <div data-testid="landing-feature-grid" className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-8">
+          <FeatureBlock number="01" title="See each currency clearly" copy="Review available, pending and reserved amounts separately in each Globus wallet." />
+          <FeatureBlock number="02" title="Follow account entries" copy="Search internal Globus ledger activity by currency, description or transaction reference." />
           <div className="sm:col-span-2 lg:col-span-1">
-            <FeatureBlock number="03" title="Keep a clear record" copy="Every transaction has a reference, status and timestamp for straightforward review." />
+            <FeatureBlock number="03" title="Keep a clear record" copy="Every entry has a reference, status and timestamp for straightforward review." />
           </div>
         </div>
       </section>
-      <section className="mx-4 mb-16 rounded-[28px] bg-[#132f51] px-5 py-10 text-white sm:mx-10 sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1240px] lg:px-16 lg:py-16">
-        <div className="grid items-center gap-8 md:grid-cols-[1fr_auto]">
-          <div><p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#a6d5d8]">Make your next step clearer</p><h2 className="bank-display mt-3 max-w-[640px] text-[34px] font-semibold leading-tight sm:text-[45px]">Your Globus account workspace, ready to use.</h2></div>
-          <Link href="/sign-up" className="inline-flex items-center justify-center gap-3 rounded-xl bg-[#d5b765] px-6 py-4 text-[13px] font-bold text-[#17304d] hover:bg-[#e0c879]">Create your account <ArrowRight size={15} /></Link>
+      <section className="mx-3 mb-10 rounded-[22px] bg-[#132f51] px-4 py-7 text-white sm:mx-10 sm:mb-16 sm:rounded-[28px] sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1240px] lg:px-16 lg:py-16">
+        <div className="grid items-center gap-5 sm:gap-8 md:grid-cols-[1fr_auto]">
+          <div><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#a6d5d8] sm:text-[10px]">Make your next step clearer</p><h2 className="bank-display mt-2 max-w-[640px] text-[25px] font-semibold leading-tight sm:mt-3 sm:text-[45px]">Your Globus account workspace, ready to use.</h2></div>
+          <Link href="/sign-up" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#d5b765] px-5 py-3 text-[11px] font-bold text-[#17304d] hover:bg-[#e0c879] sm:gap-3 sm:px-6 sm:py-4 sm:text-[13px]">Create your account <ArrowRight size={15} /></Link>
         </div>
       </section>
       <footer className="border-t border-[#e1e7ec] bg-white">
@@ -349,7 +350,7 @@ export function DashboardPage() {
             <Link href={currencyActionHref('/transactions', actionCurrency)} aria-label="View all activity" className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#397d83]">View all <ChevronRight size={12} /></Link>
           </div>
           <div className="min-w-0">
-            {recentTransactions.length ? <TransactionList transactions={recentTransactions.slice(0, 3)} /> : <EmptyState title="Nothing recorded yet" text="Your latest activity will appear here." />}
+            {recentTransactions.length ? <TransactionList transactions={recentTransactions.slice(0, 3)} showReceipt={false} /> : <EmptyState title="Nothing recorded yet" text="Your latest Globus ledger entries will appear here." />}
           </div>
         </section>
       </div>
@@ -364,8 +365,8 @@ export function WalletsPage() {
   if (query.isError) return <Failure title="Wallets could not be loaded" retry={() => query.refetch()} />;
   return (
     <>
-      <PageHeading eyebrow="Currencies" title="Your wallets" subtitle="Available, pending and reserved amounts, shown separately." />
-      <div className="mt-6 grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+      <PageHeading eyebrow="Globus account" title="Your wallets" subtitle="A separate record for each currency. Available, pending and reserved amounts stay distinct." />
+      <div data-testid="wallet-list" className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {(query.data ?? []).map((wallet) => (
           <Link key={wallet.id} href={`/wallets/${encodeURIComponent(wallet.id)}`} aria-label={`View ${wallet.currency} wallet details`} className="group block min-w-0 rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#65a4a7] focus-visible:ring-offset-2">
             <WalletCard wallet={wallet} />
@@ -447,7 +448,7 @@ export function WalletDetailsPage() {
             </div>
           </dl>
           <button type="button" onClick={copyReference} data-testid="button-copy-wallet-reference" className="mt-2 inline-flex h-9 items-center gap-2 rounded-lg border border-[#dfe6eb] px-3 text-[9px] font-bold text-[#355570] hover:bg-[#f5f8f9]"><Copy size={13} />{copied ? 'Copied' : 'Copy reference'}</button>
-          <p className="mt-3 rounded-lg bg-[#f5f8f8] px-3 py-2 text-[9px] leading-4 text-[#71858b]">This unique reference identifies your wallet inside Globus. It is not a bank account or a destination for outside payments.</p>
+          <p data-testid="wallet-detail-reference-disclosure" className="mt-3 rounded-lg bg-[#f5f8f8] px-3 py-2 text-[9px] leading-4 text-[#71858b]">This reference identifies your wallet inside Globus; it is not a bank account or payment destination.</p>
         </section>
         <section className="rounded-[20px] border border-[#e1e8ee] bg-white p-4 sm:p-5 xl:col-span-2">
           <p className="text-[9px] font-bold uppercase tracking-[.15em] text-[#548d92]">Current balances</p>
@@ -495,13 +496,13 @@ export function TransactionsPage() {
   const query = useListBankTransactions(params, { query: { queryKey: getListBankTransactionsQueryKey(params) } });
   return (
     <>
-      <PageHeading eyebrow="Account activity" title="Activity" subtitle="Search transactions recorded in your Globus account." />
-      <div className="mt-7 flex flex-col gap-3 sm:flex-row">
-        <label className="relative flex-1"><Search size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-[#8695a5]" /><input aria-label="Search transactions" data-testid="input-transaction-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search description, reference or recipient" className="h-12 w-full rounded-xl border border-[#dfe6ec] bg-white pl-11 pr-4 text-[12px] outline-none transition focus:border-[#6aa6aa]" /></label>
-        <select aria-label="Filter by currency" data-testid="select-transaction-currency" value={currency} onChange={event => setCurrency(event.target.value)} className="h-12 rounded-xl border border-[#dfe6ec] bg-white px-4 text-[12px] text-[#435872] outline-none focus:border-[#6aa6aa]"><option value="">All currencies</option>{historicalCurrencies.map(item => <option key={item} value={item}>{item} · {currencyNames[item]}</option>)}</select>
+      <PageHeading eyebrow="Globus account ledger" title="Activity" subtitle="A searchable history of entries recorded in your Globus account." />
+      <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
+        <label className="relative min-w-0"><Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8695a5]" /><input aria-label="Search transactions" data-testid="input-transaction-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search description or reference" className="h-11 w-full rounded-xl border border-[#dfe6ec] bg-white pl-10 pr-3 text-[12px] outline-none transition focus:border-[#6aa6aa]" /></label>
+        <select aria-label="Filter by currency" data-testid="select-transaction-currency" value={currency} onChange={event => setCurrency(event.target.value)} className="h-11 min-w-0 rounded-xl border border-[#dfe6ec] bg-white px-3 text-[12px] text-[#435872] outline-none focus:border-[#6aa6aa]"><option value="">All currencies</option>{historicalCurrencies.map(item => <option key={item} value={item}>{item} · {currencyNames[item]}</option>)}</select>
       </div>
-      <section className="mt-5 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
-        <div className="flex items-center justify-between border-b border-[#edf0f3] px-5 py-4 sm:px-7"><p className="text-[13px] font-bold text-[#28405c]">Transaction history</p><span className="text-[10px] font-semibold text-[#8291a1]">{query.data?.length ?? 0} entries</span></div>
+      <section data-testid="transaction-history" className="mt-4 overflow-hidden rounded-[18px] border border-[#e1e8ee] bg-white">
+        <div className="flex items-center justify-between gap-3 border-b border-[#edf0f3] px-4 py-3 sm:px-5"><div><p className="text-[12px] font-bold text-[#28405c]">Transaction history</p><p className="mt-0.5 text-[9px] text-[#8291a1]">Globus ledger entries</p></div><span className="shrink-0 rounded-full bg-[#f3f6f7] px-2.5 py-1 text-[9px] font-semibold text-[#718397]">{query.data?.length ?? 0} entries</span></div>
         {query.isLoading ? <ListSkeleton /> : query.isError ? <Failure title="Transaction history isn’t available" retry={() => query.refetch()} /> : query.data?.length ? <TransactionList transactions={query.data} /> : <EmptyState title="No matching activity" text="Try a different search or check back when an account transaction is recorded." />}
       </section>
     </>
@@ -863,9 +864,6 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
             <p className="mb-2 text-[9px] font-bold uppercase tracking-[.14em] text-[#72859b]">Source wallet</p>
             <WalletMini wallet={selectedWallet} />
             <div className="mt-2"><WalletReference customerId={profileQuery.data?.customerId ?? ''} wallet={selectedWallet} /></div>
-            <div className="mt-3 rounded-xl border border-[#eadfbe] bg-[#fbf7eb] p-3">
-              <div className="flex gap-2.5"><Clock3 size={14} className="mt-0.5 shrink-0 text-[#a17e36]" /><div><p className="text-[9px] font-bold text-[#715b2c]">Administrator review required</p><p className="mt-1 text-[8px] leading-4 text-[#89784f]">The amount is reserved while pending. Approval updates your Globus activity; no outside payout is made.</p></div></div>
-            </div>
             <p className="mt-3 text-[9px] text-[#768696]">Available to withdraw: <b className="text-[#40576f]">{formatMoney(available, selectedWallet.currency)}</b></p>
           </section>
           <form onSubmit={submit} className="min-w-0 rounded-2xl border border-[#e1e8ee] bg-white p-3.5 sm:p-4" data-testid="withdrawal-request-form">
@@ -1781,11 +1779,11 @@ function Field({ label, children }: { label: string; children: ReactNode }) {
 function WalletCard({ wallet }: { wallet: Wallet }) {
   const accents: Record<string, string> = { USD: '#41878d', EUR: '#6881a3', GBP: '#a58b4e', NGN: '#598a70', CAD: '#a16964', AUD: '#6d7ea4' };
   return (
-    <article className="rounded-[20px] border border-[#e1e8ed] bg-white p-5 transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(27,51,78,.06)] sm:p-6">
+    <article data-testid={`wallet-card-${wallet.currency.toLowerCase()}`} className="rounded-[18px] border border-[#e1e8ed] bg-white p-4 transition hover:-translate-y-0.5 hover:shadow-[0_12px_30px_rgba(27,51,78,.06)] sm:p-5">
       <div className="flex items-center justify-between"><span className="grid h-10 w-10 place-items-center rounded-xl bg-[#eff5f6] text-[11px] font-bold" style={{ color: accents[wallet.currency] }}>{wallet.currency}</span><span className={`rounded-full px-2.5 py-1 text-[9px] font-bold capitalize ${wallet.status === 'active' ? 'bg-[#eef7f3] text-[#4b826d]' : 'bg-[#fff4e7] text-[#a0793b]'}`}>{humanize(wallet.status)}</span></div>
-      <p className="mt-5 text-[11px] text-[#8291a0]">{currencyNames[wallet.currency]}</p>
-      <p className="bank-display mt-1 text-[27px] font-semibold tracking-[-.04em] text-[#1c3551]">{formatMoney(Number(wallet.available), wallet.currency)}</p>
-      <div className="mt-5 border-t border-[#edf0f2] pt-4">
+      <p className="mt-4 text-[10px] text-[#8291a0]">{currencyNames[wallet.currency]} · available</p>
+      <p className="bank-display mt-1 break-words text-[clamp(1.35rem,5vw,1.7rem)] font-semibold tracking-[-.04em] text-[#1c3551]">{formatMoney(Number(wallet.available), wallet.currency)}</p>
+      <div className="mt-4 border-t border-[#edf0f2] pt-3">
         <WalletAmount label="Pending" amount={wallet.pending} currency={wallet.currency} />
         <WalletAmount label="Reserved" amount={wallet.reserved} currency={wallet.currency} />
       </div>
@@ -1814,7 +1812,7 @@ function transactionDisplayType(transaction: BankTransaction) {
     case 'transfer_out':
       return 'Member transfer sent';
     case 'external_transfer':
-      return transaction.status === 'pending' ? 'Transfer request' : 'Routed transfer';
+      return transaction.status === 'pending' ? 'Globus transfer request' : 'Recorded transfer';
     case 'external_transfer_in':
       return 'Prior account record';
     default:
@@ -1825,24 +1823,26 @@ function TransactionList({
   transactions,
   onStatusOverride,
   statusPending = false,
+  showReceipt = true,
 }: {
   transactions: BankTransaction[];
   onStatusOverride?: (transaction: BankTransaction) => void;
   statusPending?: boolean;
+  showReceipt?: boolean;
 }) {
   const [receipt, setReceipt] = useState<BankTransaction | null>(null);
   const [historyTarget, setHistoryTarget] = useState<BankTransaction | null>(null);
   return <>
     <div>{transactions.map(transaction => {
       const isIncoming = transaction.type === 'transfer_in' || transaction.type === 'external_transfer_in' || transaction.type === 'simulation_credit' || transaction.type === 'admin_funding';
-      const isInternationalRequest = transaction.type === 'external_transfer' && transaction.status === 'pending';
+      const isPendingTransferRecord = transaction.type === 'external_transfer' && transaction.status === 'pending';
       const canPrintReceipt = transaction.status === 'completed';
       return <div key={transaction.id} className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-[#edf0f2] px-4 py-4 last:border-0 sm:flex-nowrap sm:gap-4 sm:px-7">
-        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${isIncoming ? 'bg-[#edf7f3] text-[#4d8c72]' : isInternationalRequest ? 'bg-[#fbf7eb] text-[#a0793b]' : 'bg-[#f0f4f7] text-[#658097]'}`}>{isInternationalRequest ? <Globe2 size={16} /> : isIncoming ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</span>
+        <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${isIncoming ? 'bg-[#edf7f3] text-[#4d8c72]' : isPendingTransferRecord ? 'bg-[#fbf7eb] text-[#a0793b]' : 'bg-[#f0f4f7] text-[#658097]'}`}>{isPendingTransferRecord ? <ArrowLeftRight size={16} /> : isIncoming ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</span>
         <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-[#334a63]">{transaction.description || transactionDisplayType(transaction)}</p><p className="mt-1 truncate text-[9px] text-[#8996a4]">{transaction.counterparty || 'Globus account'} · {customerTransactionDate(transaction.transactionDate, transaction.createdAt)} · Globus record</p></div>
-        <div className="shrink-0 text-right"><p className={`text-[11px] font-bold ${isIncoming ? 'text-[#417f69]' : isInternationalRequest ? 'text-[#a0793b]' : 'text-[#3c5269]'}`}>{isInternationalRequest ? 'Request · ' : isIncoming ? '+' : '−'}{formatMoney(Number(transaction.amount), transaction.currency)}</p><p className={`mt-1 text-[9px] capitalize ${transaction.status === 'completed' ? 'text-[#4f8c75]' : 'text-[#9b8050]'}`}>{humanize(transaction.status)}</p></div>
-        {(canPrintReceipt || onStatusOverride) && <div className="flex w-full flex-wrap justify-end gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
-          {canPrintReceipt && <button type="button" onClick={() => setReceipt(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={`View receipt ${transaction.reference}`}><FileText size={13} /><span className="hidden sm:inline">Receipt</span></button>}
+        <div className="shrink-0 text-right"><p className={`text-[11px] font-bold ${isIncoming ? 'text-[#417f69]' : isPendingTransferRecord ? 'text-[#a0793b]' : 'text-[#3c5269]'}`}>{isPendingTransferRecord ? 'Request · ' : isIncoming ? '+' : '−'}{formatMoney(Number(transaction.amount), transaction.currency)}</p><p className={`mt-1 text-[9px] capitalize ${transaction.status === 'completed' ? 'text-[#4f8c75]' : 'text-[#9b8050]'}`}>{humanize(transaction.status)}</p></div>
+          {((canPrintReceipt && showReceipt) || onStatusOverride) && <div className="flex w-full flex-wrap justify-end gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
+          {canPrintReceipt && showReceipt && <button type="button" onClick={() => setReceipt(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={`View receipt ${transaction.reference}`}><FileText size={13} /><span className="hidden sm:inline">Receipt</span></button>}
           {onStatusOverride && <button type="button" onClick={() => setHistoryTarget(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={`View status history for ${transaction.reference}`}><History size={13} /><span className="hidden sm:inline">History</span></button>}
           {onStatusOverride && transaction.type !== 'deposit_request' && transaction.type !== 'withdrawal_request' && <button type="button" disabled={statusPending} onClick={() => onStatusOverride(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9] disabled:cursor-not-allowed disabled:opacity-50" aria-label={`Override status for ${transaction.reference}`}><RefreshCw size={13} /><span className="hidden sm:inline">Status</span></button>}
         </div>}
