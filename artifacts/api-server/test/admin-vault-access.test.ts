@@ -191,8 +191,7 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
         body: JSON.stringify({
           testingModeDisabled: true,
           transferAccessGranted: true,
-          reason: "        ",
-          transactionPin: adminPin,
+          transactionPin: "123",
           confirmed: true,
         }),
       },
@@ -206,7 +205,6 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
         body: JSON.stringify({
           testingModeDisabled: true,
           transferAccessGranted: true,
-          reason: "Approved transfer access for this customer.",
           transactionPin: adminPin,
           confirmed: true,
         }),
@@ -240,12 +238,12 @@ test("only an allowlisted administrator with a transaction PIN can grant or revo
     assert.equal(accessAudit?.targetUserId, targetId);
     assert.match(
       accessAudit?.reason ?? "",
-      /^Approved transfer access for this customer\./,
+      /^Automatically generated audit reason for customer access controls update/,
     );
-    assert.match(accessAudit?.reason ?? "", /Testing Mode disabled: true/);
+    assert.match(accessAudit?.reason ?? "", /testingModeDisabled=true/);
     assert.match(
       accessAudit?.reason ?? "",
-      /separate transfer access granted: true/,
+      /transferAccessGranted=true/,
     );
 
     const revokeControls = await request(

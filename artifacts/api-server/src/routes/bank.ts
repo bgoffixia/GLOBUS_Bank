@@ -1393,10 +1393,6 @@ router.post(
     res.status(409).json({ error: "This account is currently restricted." });
     return;
   }
-  if (!sender.acceptedTermsAt) {
-    res.status(409).json({ error: "Complete account setup before requesting a transfer." });
-    return;
-  }
   let amountMinor: bigint;
   try {
     amountMinor = parseAmountToMinor(parsed.data.amount);
@@ -1800,11 +1796,6 @@ router.post("/bank/external-transfers", async (req, res): Promise<void> => {
     res.status(409).json({ error: "This account is currently restricted." });
     return;
   }
-  if (!sender.acceptedTermsAt) {
-    res.status(409).json({ error: "Complete account setup before simulating a transfer." });
-    return;
-  }
-
   let amountMinor: bigint;
   try {
     amountMinor = parseAmountToMinor(parsed.data.amount);
@@ -1927,11 +1918,6 @@ router.post("/bank/incoming-external-transfers", async (req, res): Promise<void>
     res.status(409).json({ error: "This account is currently restricted." });
     return;
   }
-  if (!user.acceptedTermsAt) {
-    res.status(409).json({ error: "Complete account setup before simulating a transfer." });
-    return;
-  }
-
   let amountMinor: bigint;
   try {
     amountMinor = parseAmountToMinor(parsed.data.amount);
@@ -2062,10 +2048,6 @@ router.post("/bank/ledger-requests", async (req, res): Promise<void> => {
   const userId = user.id;
   if (user.accountStatus !== "active") {
     res.status(409).json({ error: "This account is currently restricted." });
-    return;
-  }
-  if (!user.acceptedTermsAt) {
-    res.status(409).json({ error: "Complete account setup before continuing." });
     return;
   }
   let amountMinor: bigint;

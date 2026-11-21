@@ -32,6 +32,13 @@ function fakeEntitlementLookup(granted: boolean) {
   } as never;
 }
 
+function routeBlockFrom(source: string, routePath: string): string {
+  const start = source.indexOf(routePath);
+  assert.notEqual(start, -1, `expected route ${routePath}`);
+  const nextRoute = source.indexOf("\nrouter.", start + routePath.length);
+  return source.slice(start, nextRoute === -1 ? source.length : nextRoute);
+}
+
 test("admin entitlement grants Vault access without changing paid subscription state", async () => {
   const expiredMember = {
     id: "member-1",
@@ -277,6 +284,41 @@ test("separate transfer grant bypasses transfer controls only", () => {
     "an administrator's explicit no-posting mode remains authoritative",
   );
   assert.equal(resolveFutureTransferStatus("pending", true), "pending");
+});
+
+test("deposit and transfer routes do not require a terms timestamp but retain access checks", () => {
+  const routes = readFileSync(
+    new URL("../src/routes/bank.ts", import.meta.url),
+    "utf8",
+  );
+  const ledgerFundingRoute = routeBlockFrom(
+    routes,
+    'router.post("/bank/ledger-requests"',
+  );
+  const internationalTransferRoute = routeBlockFrom(
+    routes,
+    'router.post(\n  "/bank/international-transfer-requests"',
+  );
+  const adminRoutes = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  const adminVaultGrantRoute = routeBlockFrom(
+    adminRoutes,
+    'router.post(\n  "/bank/admin/users/:userId/vault-access/grant"',
+  );
+
+  assert.doesNotMatch(ledgerFundingRoute, /acceptedTermsAt|Complete account setup/i);
+  assert.match(ledgerFundingRoute, /user\.accountStatus !== "active"/);
+  assert.match(ledgerFundingRoute, /hasActiveVaultAccess\(user\)/);
+  assert.match(ledgerFundingRoute, /verifyTransactionPin/);
+  assert.doesNotMatch(internationalTransferRoute, /acceptedTermsAt|Complete account setup/i);
+  assert.match(internationalTransferRoute, /sender\.accountStatus !== "active"/);
+  assert.match(internationalTransferRoute, /verifyTransactionPin/);
+  assert.match(internationalTransferRoute, /transferAccessGranted/);
+  assert.match(adminVaultGrantRoute, /requireAdmin/);
+  assert.match(adminVaultGrantRoute, /verifyTransactionPin/);
+  assert.match(adminVaultGrantRoute, /applyAdminVaultEntitlementAction/);
 });
 
 test("failed Paystack charges are matched to the correct initial or renewal payment", () => {

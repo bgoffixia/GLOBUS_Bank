@@ -151,6 +151,12 @@ test("a separate admin entitlement permits Vault top-ups and revocation removes 
     id: grantorId,
     email: `${grantorId}@example.test`,
   });
+  await db.update(bankUsersTable)
+    .set({
+      vaultSubscriptionStatus: "expired",
+      vaultSubscriptionExpiresAt: new Date(Date.now() - 1000),
+    })
+    .where(eq(bankUsersTable.id, userId));
   await db.insert(bankVaultAdminEntitlementsTable).values({
     userId,
     grantedByUserId: grantorId,
