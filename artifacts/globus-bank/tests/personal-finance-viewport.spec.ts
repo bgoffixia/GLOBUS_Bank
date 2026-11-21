@@ -209,6 +209,7 @@ test.describe("personal finance responsive workspace", () => {
 
       await expect(page.getByTestId("dashboard-workspace")).toBeVisible();
       await expect(page.getByTestId("dashboard-testing-mode-warning")).toBeVisible();
+      await expect(page.getByTestId("link-dashboard-setup-vault")).toHaveAttribute("href", "/private-vault");
       await expect(page.getByTestId("dashboard-account-tier-badge")).toContainText("Standard");
       await expect(page.getByRole("heading", { name: "Financial overview" })).toBeVisible();
       await expect(page.getByTestId("dashboard-workspace").getByRole("heading", { name: "Account activity · income & expenses" })).toBeVisible();
@@ -276,7 +277,7 @@ test.describe("personal finance responsive workspace", () => {
         const ledgerBox = await ledgerScroller.boundingBox();
         expect(lastSummary).not.toBeNull();
         expect(ledgerBox).not.toBeNull();
-        expect(lastSummary!.bottom).toBeLessThanOrEqual(ledgerBox!.bottom + 1);
+        expect(lastSummary!.y + lastSummary!.height).toBeLessThanOrEqual(ledgerBox!.y + ledgerBox!.height + 1);
       }
 
       const record = page.locator(".pf-record-card").first();

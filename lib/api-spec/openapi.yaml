@@ -742,7 +742,7 @@ paths:
     get:
       operationId: listBankSupportMessages
       tags: [bank]
-      summary: List messages in an owned conversation and mark them read
+      summary: List messages in an owned conversation
       parameters:
         - name: conversationId
           in: path
@@ -2492,13 +2492,13 @@ components:
     BankSupportConversationInput:
       type: object
       properties:
-        subject: { type: string, minLength: 1, maxLength: 120 }
-        message: { type: string, minLength: 1, maxLength: 4000 }
+        subject: { type: string, minLength: 1, maxLength: 120, pattern: "\\S" }
+        message: { type: string, minLength: 1, maxLength: 4000, pattern: "\\S" }
       required: [subject, message]
     BankSupportMessageInput:
       type: object
       properties:
-        body: { type: string, minLength: 1, maxLength: 4000 }
+        body: { type: string, minLength: 1, maxLength: 4000, pattern: "\\S" }
       required: [body]
     BankSupportConversationList:
       type: object

@@ -167,6 +167,32 @@ test('Vault remembers a device only by explicit choice and exposes guarded attem
   expect(bankSource).toContain('clear_incomplete_private_vault_subscription');
 });
 
+test('Vault entitlement and administrator access refresh from guarded APIs every three seconds', () => {
+  const vaultSource = readFileSync(
+    new URL('../src/components/private-vault-panel.tsx', import.meta.url),
+    'utf8',
+  );
+  const shellSource = readFileSync(
+    new URL('../src/components/bank-shell.tsx', import.meta.url),
+    'utf8',
+  );
+  const adminSource = readFileSync(
+    new URL('../src/pages/admin-workspace.tsx', import.meta.url),
+    'utf8',
+  );
+  const adminRoutes = readFileSync(
+    new URL('../../api-server/src/routes/bankAdmin.ts', import.meta.url),
+    'utf8',
+  );
+  expect(vaultSource).toMatch(/useGetBankVaultStatus\(\{ query: \{[^}]*refetchInterval: 3_000/);
+  expect(vaultSource).toMatch(/useGetBankVaultSession\(\{[\s\S]*?refetchInterval: 3_000/);
+  expect(shellSource).toMatch(/useGetAdminAccess\(\{[\s\S]*?refetchInterval: 3_000/);
+  expect(adminSource).toMatch(/useGetAdminAccess\(\{[\s\S]*?refetchInterval: 3_000/);
+  expect(adminSource).toContain("queryKey[0].startsWith('/api/bank/admin/')");
+  expect(adminRoutes).toMatch(/const requireAdmin:\s*RequestHandler/);
+  expect(adminRoutes).toMatch(/allowed = await isAllowlistedAdmin\(userId\)/);
+});
+
 async function openAndCheck(page: Page, path: string, width: number, context: string) {
   await page.setViewportSize({ width, height: 850 });
   await page.goto(path, { waitUntil: 'domcontentloaded' });
@@ -1055,6 +1081,16 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
           plans: [],
         },
       }));
+      await page.route('**/api/bank/wallets', route => route.fulfill({
+        json: [{
+          id: 'vault-preview-wallet',
+          currency: 'USD',
+          available: '100.00',
+          pending: '0.00',
+          reserved: '0.00',
+          status: 'active',
+        }],
+      }));
       await page.route('**/api/bank/push/preferences', route => route.fulfill({
         json: { transferEnabled: false, walletEnabled: false, securityEnabled: false },
       }));
@@ -1074,6 +1110,7 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       await page.getByTestId('input-vault-unlock-passcode').fill('1234');
       await page.getByTestId('button-vault-unlock').click();
       await expect(page.getByTestId('vault-workspace-layout')).toBeVisible();
+      await expect(page.getByTestId('vault-readonly-preview-banner')).toBeVisible();
       await expect(page.getByTestId('vault-page-navigation')).toBeVisible();
       await expectVaultContentToScroll(page, width);
       await expect(page.getByTestId('vault-subscription-card')).toBeVisible();
@@ -1092,6 +1129,9 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
 
       await page.getByTestId('link-vault-page-funding').click();
       await expect(page.getByTestId('vault-wallet-funding')).toBeVisible();
+      await expect(page.getByTestId('select-funding-currency')).toBeDisabled();
+      await expect(page.getByTestId('input-funding-amount')).toBeDisabled();
+      await expect(page.getByTestId('input-funding-pin')).toBeDisabled();
       await expect(page.getByTestId('vault-subscription-access')).toBeHidden();
       await expectVaultContentToScroll(page, width);
 
@@ -1144,6 +1184,9 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       }
 
       await expect(page.locator('#vault-workspace-wallets')).toBeVisible();
+      await expect(page.getByTestId('vault-wallet-policy-preview-vault-preview-wallet')).toBeVisible();
+      await expect(page.getByTestId('vault-wallet-policy-preview-vault-preview-wallet').locator('input').first()).toBeDisabled();
+      await expect(page.getByTestId('vault-wallet-policy-preview-vault-preview-wallet').locator('select')).toBeDisabled();
       await expect(page.getByTestId('vault-receipt-preferences')).toBeHidden();
       await page.getByTestId('link-vault-page-security').click();
       await expect(page.getByText('Vault settings are read-only')).toBeVisible();
@@ -1152,14 +1195,18 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
       await page.getByTestId('link-vault-page-alerts').click();
       await expect(page.getByTestId('vault-browser-alert-settings')).toBeVisible();
       await expect(page.getByText('Choose which account alerts can reach linked devices.')).toBeVisible();
+      await expect(page.getByTestId('vault-toggle-push-transferEnabled')).toBeDisabled();
       await expectVaultContentToScroll(page, width);
       await page.getByTestId('link-vault-page-notes').click();
       await expect(page.getByTestId('vault-personal-transaction-notes')).toBeVisible();
       await expect(page.getByText('Personal transaction notes')).toBeVisible();
+      await expect(page.locator('#vault-personal-notes textarea')).toBeDisabled();
       await expectVaultContentToScroll(page, width);
       await page.getByTestId('link-vault-page-email-preferences').click();
       await expect(page.getByTestId('vault-email-banner-settings')).toBeVisible();
       await expect(page.getByText('Choose whether to email recipients, then customize the banner and optional support footer link.')).toBeVisible();
+      await expect(page.getByTestId('input-vault-email-banner-headline')).toBeDisabled();
+      await expect(page.getByTestId('button-save-vault-email-banner')).toHaveCount(0);
       await expectVaultContentToScroll(page, width);
       await page.getByTestId('link-vault-page-overview').click();
       await expect(page.getByTestId('vault-overview-actions')).toBeVisible();

@@ -15,6 +15,7 @@ import {
   getGetBankPushConfigQueryKey,
   getGetBankPushPreferencesQueryKey,
   getListBankTransactionsQueryKey,
+  getListBankWalletsQueryKey,
   getListBankVaultTransactionNotesQueryKey,
   getListBankVaultWalletControlsQueryKey,
   useDeleteBankPushSubscription,
@@ -30,6 +31,7 @@ import {
   useInitializeBankVaultPaystackPayment,
   useInitializeBankVaultPasscode,
   useListBankTransactions,
+  useListBankWallets,
   useListBankVaultTransactionNotes,
   useListBankVaultWalletControls,
   useSaveBankPushSubscription,
@@ -100,12 +102,14 @@ export function PrivateVaultPanel() {
   const { user } = useUser();
   const { t } = useLanguage();
   const vaultSessionQueryKey = [...getGetBankVaultSessionQueryKey(), user?.id] as const;
-  const status = useGetBankVaultStatus({ query: { queryKey: getGetBankVaultStatusQueryKey(), retry: false, refetchInterval: 60_000 } });
+  const status = useGetBankVaultStatus({ query: { queryKey: getGetBankVaultStatusQueryKey(), retry: false, refetchInterval: 3_000, refetchIntervalInBackground: false } });
   const rememberedSession = useGetBankVaultSession({
     query: {
       queryKey: vaultSessionQueryKey,
       retry: false,
       refetchOnWindowFocus: true,
+      refetchInterval: 3_000,
+      refetchIntervalInBackground: false,
       refetchOnMount: 'always',
       staleTime: 0,
       enabled: !!user?.id,
@@ -202,7 +206,7 @@ export function PrivateVaultPanel() {
   const browserPushPreferences = useGetBankPushPreferences({
     query: {
       queryKey: getGetBankPushPreferencesQueryKey(),
-      enabled: vaultSessionActive,
+      enabled: privateVaultDataEnabled,
       retry: false,
     },
   });
@@ -231,6 +235,14 @@ export function PrivateVaultPanel() {
       retry: false,
     },
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+  });
+  const previewWallets = useListBankWallets({
+    query: {
+      queryKey: getListBankWalletsQueryKey(),
+      enabled: vaultSessionActive,
+      staleTime: 30_000,
+      refetchOnWindowFocus: true,
+    },
   });
   const emailPreferences = useGetBankVaultEmailPreferences({
     query: {
@@ -1010,6 +1022,10 @@ export function PrivateVaultPanel() {
                 </p>
                 <button type="button" disabled={updatePasscode.isPending || updateControl.isPending || billingBusy} data-testid="button-vault-lock" onClick={lockVault} className="rounded-md border border-[#d4e1e4] bg-white px-3 py-1.5 text-[9px] font-bold text-[#466577] disabled:opacity-50">Lock vault</button>
               </div>
+              {!vaultAccessActive && <div role="status" data-testid="vault-readonly-preview-banner" className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-[#ead9a8] bg-[#fff9e9] px-3 py-2 text-[9px] leading-4 text-[#765e2d]">
+                <p className="min-w-0 flex-1">Preview Vault services and settings. An active subscription or administrator grant is required to use protected services or save changes.</p>
+                <Link href="/private-vault/subscription" className="shrink-0 font-bold text-[#315f63] underline underline-offset-2">View subscription options</Link>
+              </div>}
               <div data-vault-view="overview" className="grid grid-cols-2 gap-2 sm:grid-cols-4" data-testid="vault-overview-actions" aria-label="Vault overview actions">
                 {([
                   ['vault-workspace-funding', 'Add funds', WalletCards],
@@ -1111,7 +1127,24 @@ export function PrivateVaultPanel() {
                   <div className="flex items-center justify-between gap-2"><h3 className="text-[10px] font-bold text-[#344b64]">Wallet policies</h3><button type="button" disabled={!vaultAccessActive} onClick={() => void controls.refetch()} data-testid="button-refresh-wallet-controls" className="text-[9px] font-bold text-[#397b80] disabled:cursor-not-allowed disabled:opacity-50">Refresh</button></div>
                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Policy choices apply to future requests only. Existing transactions keep their recorded status.</p>
                   <p className="mt-1 text-[9px] leading-4 text-[#8190a0]">Add funds above; withdrawal requests remain on their dedicated page. Subscription, wallet, and account restrictions still apply.</p>
-                  {!vaultAccessActive ? <p role="status" className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] leading-4 text-[#8492a1]">The future transfer status defaults to Successful without active Vault access. Active access is required to view or change wallet policies.</p> :
+                   {!vaultAccessActive ? <div role="status" className="mt-2 space-y-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-[9px] leading-4 text-[#8492a1]">
+                     <p>Read-only preview. Defaults are examples, not your saved policies. An active subscription or administrator grant is required to load saved choices and make changes.</p>
+                     {previewWallets.isLoading ? <div className="h-9 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
+                       previewWallets.isError ? <p>Wallet details are unavailable for this preview.</p> :
+                         previewWallets.data?.length ? <div className="grid gap-2 sm:grid-cols-2">
+                           {previewWallets.data.map(wallet => <article key={wallet.id} data-testid={`vault-wallet-policy-preview-${wallet.id}`} className="rounded-lg bg-[#f8fafb] p-2.5">
+                             <div className="flex items-center justify-between gap-2"><strong className="text-[10px] text-[#324962]">{wallet.currency} wallet</strong><span className="rounded-full bg-white px-2 py-0.5 text-[8px] font-bold uppercase tracking-wide">Preview</span></div>
+                             <div className="mt-2 grid grid-cols-2 gap-2">
+                               <label className="flex items-center gap-1.5"><input type="checkbox" checked disabled readOnly />Transfers</label>
+                               <label className="flex items-center gap-1.5"><input type="checkbox" checked disabled readOnly />Deposits</label>
+                               <label className="flex items-center gap-1.5"><input type="checkbox" checked disabled readOnly />Withdrawals</label>
+                             </div>
+                             <label className="mt-2 flex items-center gap-2 font-semibold">Future transfer requests
+                               <select value="successful" disabled className="h-7 flex-1 rounded-md border border-[#dfe6eb] bg-white px-2 text-[9px]"><option value="successful">Successful</option><option value="pending">Pending</option><option value="failed">Failed</option></select>
+                             </label>
+                           </article>)}
+                         </div> : <p>No wallet controls are available to preview.</p>}
+                   </div> :
                     controls.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> : controls.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Wallet policies could not be loaded. Refresh to try again.</p> : controls.data?.length ? (
                     <div className="mt-2 space-y-2">{controls.data.map(control => <article key={control.walletId} data-testid={`vault-wallet-control-${control.walletId}`} className="rounded-lg bg-[#f8fafb] p-2.5">
                       <div className="flex items-center justify-between gap-2"><strong className="text-[10px] text-[#324962]">{control.currency} wallet</strong><label className="flex items-center gap-1.5 text-[8px] text-[#64798d]"><input type="checkbox" checked={control.transfersEnabled} disabled={!vaultAccessActive || busyWallet === control.walletId} onChange={event => void changeControl(control, { transfersEnabled: event.target.checked })} data-testid={`toggle-vault-transfers-${control.walletId}`} />Transfers</label></div>
@@ -1132,6 +1165,7 @@ export function PrivateVaultPanel() {
               <details id="vault-browser-alerts" open={location === '/private-vault/alerts'} data-vault-view="alerts" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-browser-alert-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Browser alerts</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose which account alerts can reach linked devices. In-app notifications remain available in the notification center.</p>
+                {!vaultAccessActive && <p role="status" className="mt-2 text-[9px] font-semibold text-[#8a784c]">Preview only. Saved alert choices load after you have an active subscription or administrator grant.</p>}
                 {browserPushConfig.isError && <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Browser alert setup is unavailable. Try again later.</p>}
                 {browserPushPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
                   browserPushPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Alert choices could not be loaded.</p> :
@@ -1157,8 +1191,15 @@ export function PrivateVaultPanel() {
               <details id="vault-personal-notes" open={location === '/private-vault/notes'} data-vault-view="notes" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-personal-transaction-notes">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Personal transaction notes</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">These notes are private to your Vault. They never change balances, official transaction details, receipts, or notifications.</p>
-                {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Activate Private Vault access to load personal notes.</p>}
-                {!vaultAccessActive ? null : transactions.isLoading || transactionNotes.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
+                {!vaultAccessActive && <p className="mt-2 text-[9px] font-semibold text-[#8a784c]">Preview only. Your transactions and saved personal notes stay private and load after you have active Vault access.</p>}
+                {!vaultAccessActive ? <div className="mt-3 grid gap-2">
+                  <label className="text-[9px] font-semibold text-[#5c7085]">Choose a transaction
+                    <select disabled className={`${fieldClass} mt-1`}><option>Available after Vault access</option></select>
+                  </label>
+                  <label className="text-[9px] font-semibold text-[#5c7085]">Your private note
+                    <textarea disabled rows={3} placeholder="Private notes are available with Vault access" className="mt-1 w-full resize-y rounded-lg border border-[#dfe6eb] bg-[#f3f5f5] px-3 py-2 text-[10px] leading-4 text-[#344b64]" />
+                  </label>
+                </div> : transactions.isLoading || transactionNotes.isLoading ? <div className="mt-2 h-10 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
                   transactions.isError || transactionNotes.isError ? <div className="mt-2 rounded-lg border border-[#eadfda] bg-[#fff8f6] p-3 text-[9px] text-[#a24940]"><p>Transaction notes could not be loaded.</p><button type="button" onClick={() => { void transactions.refetch(); void transactionNotes.refetch(); }} className="mt-1 font-bold underline">Try again</button></div> :
                     !transactions.data?.length ? <p className="mt-2 rounded-lg border border-dashed border-[#dfe6eb] p-3 text-center text-[9px] text-[#8492a1]">Your transactions will appear here when available.</p> :
                       <div className="mt-3 grid gap-2">
@@ -1184,8 +1225,9 @@ export function PrivateVaultPanel() {
               <details id="vault-email-preferences" open={location === '/private-vault/email-preferences'} data-vault-view="email-preferences" className="mt-3 scroll-mt-24 rounded-xl border border-[#e7ecef] bg-[#fbfcfd] p-3" data-testid="vault-email-banner-settings">
                 <summary className="cursor-pointer text-[10px] font-bold text-[#344b64]">Transaction email banner</summary>
                 <p className="mt-2 text-[9px] leading-4 text-[#8190a0]">Choose whether to email recipients, then customize the banner and optional support footer link.</p>
-                {!vaultAccessActive ? <p role="status" className="mt-2 text-[9px] font-semibold text-[#8a784c]">Activate Private Vault access to load these settings.</p> :
-                  emailPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> : emailPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Email alert settings could not be loaded.</p> : <form onSubmit={submitEmailPreferences} className="mt-3 grid gap-3 sm:grid-cols-2">
+                {!vaultAccessActive && <p role="status" className="mt-2 text-[9px] font-semibold text-[#8a784c]">Preview only. Your saved settings load after you have an active subscription or administrator grant.</p>}
+                {vaultAccessActive && emailPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
+                  vaultAccessActive && emailPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Email alert settings could not be loaded.</p> : <form onSubmit={submitEmailPreferences} className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="flex items-start gap-2 rounded-lg border border-[#e4eaee] bg-white px-3 py-2 text-[9px] leading-4 text-[#64798d] sm:col-span-2">
                     <input disabled={!vaultAccessActive} type="checkbox" checked={transactionEmailAlertsEnabled} onChange={event => setTransactionEmailAlertsEnabled(event.currentTarget.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-transaction-email-alerts" />
                     <span><strong className="text-[#344b64]">Send recipient transaction email alerts.</strong> When off, the recipient email field is hidden from the transfer form and no recipient email is stored or sent.</span>

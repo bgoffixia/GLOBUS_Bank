@@ -77,11 +77,13 @@ export interface BankSupportConversationInput {
   /**
      * @minLength 1
      * @maxLength 120
+     * @pattern \S
      */
   subject: string;
   /**
      * @minLength 1
      * @maxLength 4000
+     * @pattern \S
      */
   message: string;
 }
@@ -90,6 +92,7 @@ export interface BankSupportMessageInput {
   /**
      * @minLength 1
      * @maxLength 4000
+     * @pattern \S
      */
   body: string;
 }

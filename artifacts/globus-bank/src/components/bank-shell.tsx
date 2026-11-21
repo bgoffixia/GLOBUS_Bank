@@ -66,7 +66,12 @@ export function BankShell({ children }: { children: ReactNode }) {
   const isProfile = location === '/profile' || location === '/settings';
   const isSingleViewportPage = location === '/add-money' || location === '/calculator' || location === '/private-vault' || isProfile;
   const adminAccess = useGetAdminAccess({
-    query: { queryKey: getGetAdminAccessQueryKey(), retry: false },
+    query: {
+      queryKey: getGetAdminAccessQueryKey(),
+      retry: false,
+      refetchInterval: 3_000,
+      refetchIntervalInBackground: false,
+    },
   });
   const initials = (user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'G').toUpperCase();
 

@@ -10,6 +10,7 @@ export interface BankSupportMessageInput {
   /**
      * @minLength 1
      * @maxLength 4000
+     * @pattern \S
      */
   body: string;
 }

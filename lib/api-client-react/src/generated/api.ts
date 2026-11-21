@@ -3275,7 +3275,7 @@ export const getListBankSupportMessagesUrl = (conversationId: string,) => {
 }
 
 /**
- * @summary List messages in an owned conversation and mark them read
+ * @summary List messages in an owned conversation
  */
 export const listBankSupportMessages = async (conversationId: string, options?: Parameters<typeof customFetch>[1]): Promise<BankSupportMessageList> => {
 
@@ -3322,7 +3322,7 @@ export type ListBankSupportMessagesQueryError = ErrorType<UnauthorizedResponse |
 
 
 /**
- * @summary List messages in an owned conversation and mark them read
+ * @summary List messages in an owned conversation
  */
 
 export function useListBankSupportMessages<TData = Awaited<ReturnType<typeof listBankSupportMessages>>, TError = ErrorType<UnauthorizedResponse | NotFoundResponse | ServiceUnavailableResponse>>(

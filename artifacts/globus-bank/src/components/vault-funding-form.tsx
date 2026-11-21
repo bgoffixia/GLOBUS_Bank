@@ -116,18 +116,18 @@ export function VaultFundingForm({ vaultAccessActive }: { vaultAccessActive: boo
         wallets.isError ? <div className="mt-3 flex items-center justify-between rounded-lg border border-[#eadfda] bg-white px-3 py-2 text-[10px] text-[#a24940]" role="alert"><span>Wallets could not be loaded.</span><button type="button" onClick={() => void wallets.refetch()} className="font-bold underline">Retry</button></div> :
           <form onSubmit={submit} className="mt-4 grid gap-3 sm:grid-cols-2" data-testid="form-vault-funding">
             <label className="text-[9px] font-bold text-[#5c7085]">Wallet currency
-              <select required value={currency} onChange={event => setCurrency(event.target.value)} className={`${field} mt-1`} data-testid="select-funding-currency">
+              <select required value={currency} disabled={!vaultAccessActive} onChange={event => setCurrency(event.target.value)} className={`${field} mt-1 disabled:bg-[#f3f5f5]`} data-testid="select-funding-currency">
                 {(wallets.data ?? []).filter(wallet => ['USD', 'EUR', 'GBP', 'CAD'].includes(wallet.currency)).map(wallet => <option key={wallet.id} value={wallet.currency} disabled={wallet.status !== 'active'}>{wallet.currency}{wallet.status !== 'active' ? ' · restricted' : ''}</option>)}
               </select>
             </label>
             <label className="text-[9px] font-bold text-[#5c7085]">Amount
-              <input required type="number" min="0.01" step="0.01" inputMode="decimal" value={amount} onChange={event => setAmount(event.target.value)} className={`${field} mt-1`} data-testid="input-funding-amount" />
+              <input required type="number" min="0.01" step="0.01" inputMode="decimal" value={amount} disabled={!vaultAccessActive} onChange={event => setAmount(event.target.value)} className={`${field} mt-1 disabled:bg-[#f3f5f5]`} data-testid="input-funding-amount" />
             </label>
             <label className="text-[9px] font-bold text-[#5c7085] sm:col-span-2">Label or note
-              <input maxLength={140} value={description} onChange={event => setDescription(event.target.value)} className={`${field} mt-1`} placeholder="Add a label for your ledger history" data-testid="input-funding-description" />
+              <input maxLength={140} value={description} disabled={!vaultAccessActive} onChange={event => setDescription(event.target.value)} className={`${field} mt-1 disabled:bg-[#f3f5f5]`} placeholder="Add a label for your ledger history" data-testid="input-funding-description" />
             </label>
             <label className="text-[9px] font-bold text-[#5c7085] sm:col-span-2">Six-digit transaction PIN
-              <input required type="password" inputMode="numeric" autoComplete="current-password" pattern="[0-9]{6}" maxLength={6} value={pin} onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={`${field} mt-1 sm:max-w-[260px]`} data-testid="input-funding-pin" />
+              <input required type="password" inputMode="numeric" autoComplete="current-password" pattern="[0-9]{6}" maxLength={6} value={pin} disabled={!vaultAccessActive} onChange={event => setPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={`${field} mt-1 disabled:bg-[#f3f5f5] sm:max-w-[260px]`} data-testid="input-funding-pin" />
             </label>
             {!fundableWallets.length && <p className="text-[10px] text-[#a24940] sm:col-span-2">No eligible active wallet is available for funding.</p>}
             {error && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940] sm:col-span-2">{error}</p>}

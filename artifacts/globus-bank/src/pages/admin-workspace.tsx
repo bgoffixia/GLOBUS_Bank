@@ -116,7 +116,28 @@ function StatusPill({ status }: { status: string }) { const tone = ['active', 'a
 export function AdminWorkspace() {
   const [path] = useLocation();
   const { t } = useLanguage();
-  const access = useGetAdminAccess({ query: { queryKey: getGetAdminAccessQueryKey(), retry: false } });
+  const queryClient = useQueryClient();
+  const access = useGetAdminAccess({
+    query: {
+      queryKey: getGetAdminAccessQueryKey(),
+      retry: false,
+      refetchInterval: 3_000,
+      refetchIntervalInBackground: false,
+    },
+  });
+  useEffect(() => {
+    if (access.data?.allowed !== false && !access.isError) return;
+    void queryClient.cancelQueries({
+      predicate: query =>
+        typeof query.queryKey[0] === 'string' &&
+        query.queryKey[0].startsWith('/api/bank/admin/'),
+    });
+    queryClient.removeQueries({
+      predicate: query =>
+        typeof query.queryKey[0] === 'string' &&
+        query.queryKey[0].startsWith('/api/bank/admin/'),
+    });
+  }, [access.data?.allowed, access.isError, queryClient]);
   const isDetail = /^\/admin\/users\/[^/]+$/.test(path);
   const page = path === '/admin' ? 'overview' : isDetail ? 'member-detail' : path.split('/')[2] || 'overview';
   const pageTitles: Record<string, string> = { overview: t('Operations overview'), users: t('Member directory'), 'vault-access': t('Private Vault access'), support: t('Support inbox'), accounts: t('Currency accounts'), transactions: t('Transaction activity'), funding: t('User funding'), wallets: t('Wallet controls'), restrictions: t('Restrictions'), audit: t('Audit trail'), settings: t('Operations settings'), 'member-detail': t('Member record') };

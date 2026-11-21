@@ -835,13 +835,17 @@ export const ListBankSupportConversationsResponse = zod.object({
  */
 export const createBankSupportConversationBodySubjectMax = 120;
 
+
+export const createBankSupportConversationBodySubjectRegExp = new RegExp('\\S');
 export const createBankSupportConversationBodyMessageMax = 4000;
 
 
+export const createBankSupportConversationBodyMessageRegExp = new RegExp('\\S');
+
 
 export const CreateBankSupportConversationBody = zod.object({
-  "subject": zod.string().min(1).max(createBankSupportConversationBodySubjectMax),
-  "message": zod.string().min(1).max(createBankSupportConversationBodyMessageMax)
+  "subject": zod.string().min(1).max(createBankSupportConversationBodySubjectMax).regex(createBankSupportConversationBodySubjectRegExp),
+  "message": zod.string().min(1).max(createBankSupportConversationBodyMessageMax).regex(createBankSupportConversationBodyMessageRegExp)
 })
 
 export const CreateBankSupportConversationResponse = zod.object({
@@ -859,7 +863,7 @@ export const CreateBankSupportConversationResponse = zod.object({
 
 
 /**
- * @summary List messages in an owned conversation and mark them read
+ * @summary List messages in an owned conversation
  */
 export const ListBankSupportMessagesParams = zod.object({
   "conversationId": zod.coerce.string().uuid()
@@ -887,9 +891,11 @@ export const SendBankSupportMessageParams = zod.object({
 export const sendBankSupportMessageBodyBodyMax = 4000;
 
 
+export const sendBankSupportMessageBodyBodyRegExp = new RegExp('\\S');
+
 
 export const SendBankSupportMessageBody = zod.object({
-  "body": zod.string().min(1).max(sendBankSupportMessageBodyBodyMax)
+  "body": zod.string().min(1).max(sendBankSupportMessageBodyBodyMax).regex(sendBankSupportMessageBodyBodyRegExp)
 })
 
 export const SendBankSupportMessageResponse = zod.object({
@@ -974,9 +980,11 @@ export const ReplyAdminSupportMessageParams = zod.object({
 export const replyAdminSupportMessageBodyBodyMax = 4000;
 
 
+export const replyAdminSupportMessageBodyBodyRegExp = new RegExp('\\S');
+
 
 export const ReplyAdminSupportMessageBody = zod.object({
-  "body": zod.string().min(1).max(replyAdminSupportMessageBodyBodyMax)
+  "body": zod.string().min(1).max(replyAdminSupportMessageBodyBodyMax).regex(replyAdminSupportMessageBodyBodyRegExp)
 })
 
 export const ReplyAdminSupportMessageResponse = zod.object({

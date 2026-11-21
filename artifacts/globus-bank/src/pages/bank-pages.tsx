@@ -270,9 +270,10 @@ export function DashboardPage() {
   if (query.isError) return <Failure title={t('Your overview isn’t available')} retry={() => query.refetch()} />;
   return (
     <div data-testid="dashboard-workspace" className="flex min-h-full w-full flex-col">
-      {dash?.profile.testingMode && <div role="status" data-testid="dashboard-testing-mode-warning" className="mt-3 flex items-start gap-2 rounded-xl border border-[#ead9a8] bg-[#fff9e9] px-3.5 py-2.5 text-[10px] leading-4 text-[#765e2d]">
-        <ShieldCheck size={14} className="mt-0.5 shrink-0" />
-        <p><strong className="font-bold">{t('Testing Mode')}</strong> · {t('Private Vault is not active for this account.')}</p>
+      {dash?.profile.testingMode && <div role="status" data-testid="dashboard-testing-mode-warning" className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-[#ead9a8] bg-[#fff9e9] px-3.5 py-2.5 text-[10px] leading-4 text-[#765e2d]">
+        <ShieldCheck size={14} className="shrink-0" />
+        <p className="min-w-0 flex-1"><strong className="font-bold">{t('Testing Mode')}</strong> · {t('Private Vault is inactive. Set it up and choose a subscription to unlock its services.')}</p>
+        <Link href="/private-vault" data-testid="link-dashboard-setup-vault" className="shrink-0 font-bold text-[#315f63] underline underline-offset-2">{t('Set up Private Vault')}</Link>
       </div>}
       <section data-testid="dashboard-sticky-balance" className="balance-panel sticky top-0 z-10 min-w-0 self-start overflow-hidden rounded-[16px] p-3 text-white sm:p-3.5">
           <div className="absolute -right-10 -top-12 h-48 w-48 rounded-full border border-white/[.08]" />
