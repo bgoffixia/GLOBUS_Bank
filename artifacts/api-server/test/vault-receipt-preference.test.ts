@@ -82,6 +82,7 @@ test("receipt preference endpoints deny unauthenticated reads and writes", async
   try {
     const read = await fetch(url);
     assert.equal(read.status, 401);
+    assert.equal(read.headers.get("cache-control"), "no-store");
     const update = await fetch(url, {
       method: "PATCH",
       headers: { "content-type": "application/json" },

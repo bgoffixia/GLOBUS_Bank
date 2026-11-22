@@ -261,8 +261,14 @@ export function PrivateVaultPanel() {
       queryKey: getGetBankVaultReceiptPreferenceQueryKey(),
       enabled: privateVaultDataEnabled,
       retry: false,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: true,
+      staleTime: 0,
     },
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: {
+      cache: 'no-store',
+      ...(sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : {}),
+    },
   });
   const saveReceiptPreference = useUpdateBankVaultReceiptPreference({
     request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,

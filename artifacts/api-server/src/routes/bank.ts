@@ -647,6 +647,10 @@ router.post(
   },
 );
 
+router.use("/bank/vault/receipt-preference", (_req, res, next): void => {
+  res.setHeader("Cache-Control", "no-store");
+  next();
+});
 router.use("/bank", requireSignedIn);
 router.use("/bank", (req, _res, next): void => {
   if (req.get("X-Globus-Vault-Session")) {
