@@ -9,6 +9,10 @@ const receipt = readFileSync(
   new URL('../src/components/transfer/transfer-receipt.tsx', import.meta.url),
   'utf8',
 );
+const vaultPanel = readFileSync(
+  new URL('../src/components/private-vault-panel.tsx', import.meta.url),
+  'utf8',
+);
 
 test('transfer flow groups destination and recipient into the first step', () => {
   expect(wizard).toContain("const STEPS = ['Details', 'Amount & review', 'PIN'] as const");
@@ -58,6 +62,15 @@ test('form fields and selector controls have compact transfer-only sizing', () =
   );
   expect(bankSelect).toContain('compact ?');
   expect(countrySelect).toContain('compact ?');
+});
+
+test('recipient email alert toggle saves immediately and refreshes transfer eligibility', () => {
+  expect(vaultPanel).toContain('saveRecipientEmailAlertPreference');
+  expect(vaultPanel).toContain('data: { transactionEmailAlertsEnabled: enabled }');
+  expect(vaultPanel).toContain('onChange={event => void saveRecipientEmailAlertPreference(event.currentTarget.checked)}');
+  expect(vaultPanel).toContain('setQueryData(\n        getGetBankVaultTransferEmailAlertQueryKey()');
+  expect(vaultPanel).toContain('status-recipient-email-alert-saved');
+  expect(wizard).toContain("refetchOnMount: 'always'");
 });
 
 test('professional transfer preview has no horizontal overflow on supported screens', async ({ page }) => {

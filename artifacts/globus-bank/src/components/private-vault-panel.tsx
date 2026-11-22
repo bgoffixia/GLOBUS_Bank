@@ -10,6 +10,7 @@ import {
   getGetBankVaultBillingQueryKey,
   getGetBankVaultEmailPreferencesQueryKey,
   getGetBankVaultReceiptPreferenceQueryKey,
+  getGetBankVaultTransferEmailAlertQueryKey,
   getGetBankVaultSessionQueryKey,
   getGetBankVaultStatusQueryKey,
   getGetBankPushConfigQueryKey,
@@ -140,6 +141,9 @@ export function PrivateVaultPanel() {
   const [supportLabel, setSupportLabel] = useState('Contact support');
   const [senderLocalPart, setSenderLocalPart] = useState('');
   const [transactionEmailAlertsEnabled, setTransactionEmailAlertsEnabled] = useState(false);
+  const [emailAlertPreferenceSaving, setEmailAlertPreferenceSaving] = useState(false);
+  const [emailAlertPreferenceMessage, setEmailAlertPreferenceMessage] = useState('');
+  const [emailAlertPreferenceError, setEmailAlertPreferenceError] = useState('');
   const [preferredReceiptTemplate, setPreferredReceiptTemplate] = useState<ReceiptTemplateId>('standard');
   const subscriptionStorageKey = user?.id ? `globus-push-subscription-id:${user.id}` : '';
   const [savedPushSubscriptionId, setSavedPushSubscriptionId] = useState('');
@@ -659,6 +663,45 @@ export function PrivateVaultPanel() {
     paymentCallbackHandled.current = callbackReference;
     void checkPaystackPayment(callbackReference);
   }, [vaultSessionActive, callbackReference, status.data?.paymentReference]);
+  const saveRecipientEmailAlertPreference = async (enabled: boolean) => {
+    const previous = transactionEmailAlertsEnabled;
+    setTransactionEmailAlertsEnabled(enabled);
+    setEmailAlertPreferenceMessage('');
+    setEmailAlertPreferenceError('');
+    setEmailAlertPreferenceSaving(true);
+    try {
+      const saved = await saveEmailPreferences.mutateAsync({
+        data: { transactionEmailAlertsEnabled: enabled },
+      });
+      setTransactionEmailAlertsEnabled(saved.transactionEmailAlertsEnabled);
+      queryClient.setQueryData(
+        getGetBankVaultEmailPreferencesQueryKey(),
+        saved,
+      );
+      queryClient.setQueryData(
+        getGetBankVaultTransferEmailAlertQueryKey(),
+        { enabled: saved.transactionEmailAlertsEnabled },
+      );
+      await queryClient.invalidateQueries({
+        queryKey: getGetBankVaultTransferEmailAlertQueryKey(),
+      });
+      setEmailAlertPreferenceMessage(
+        saved.transactionEmailAlertsEnabled
+          ? 'Saved. Recipient email is available on your next transfer.'
+          : 'Recipient email alerts are off.',
+      );
+    } catch (err) {
+      setTransactionEmailAlertsEnabled(previous);
+      setEmailAlertPreferenceError(
+        err instanceof Error
+          ? err.message
+          : 'The recipient email preference could not be saved.',
+      );
+    } finally {
+      setEmailAlertPreferenceSaving(false);
+    }
+  };
+
   const submitEmailPreferences = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
@@ -668,7 +711,7 @@ export function PrivateVaultPanel() {
       return;
     }
     try {
-      await saveEmailPreferences.mutateAsync({
+      const saved = await saveEmailPreferences.mutateAsync({
         data: {
           transactionEmailAlertsEnabled,
           bannerTheme,
@@ -681,7 +724,14 @@ export function PrivateVaultPanel() {
         },
       });
       await queryClient.invalidateQueries({ queryKey: getGetBankVaultEmailPreferencesQueryKey() });
-       setMessage('Transfer email banner and sender preferences saved for future alerts.');
+      queryClient.setQueryData(
+        getGetBankVaultTransferEmailAlertQueryKey(),
+        { enabled: saved.transactionEmailAlertsEnabled },
+      );
+      await queryClient.invalidateQueries({
+        queryKey: getGetBankVaultTransferEmailAlertQueryKey(),
+      });
+      setMessage('Transfer email banner and sender preferences saved for future alerts.');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'The email preferences could not be saved.');
     }
@@ -1229,9 +1279,12 @@ export function PrivateVaultPanel() {
                 {vaultAccessActive && emailPreferences.isLoading ? <div className="mt-2 h-8 animate-pulse rounded-lg bg-[#f0f4f6]" /> :
                   vaultAccessActive && emailPreferences.isError ? <p role="alert" className="mt-2 text-[9px] text-[#a24940]">Email alert settings could not be loaded.</p> : <form onSubmit={submitEmailPreferences} className="mt-3 grid gap-3 sm:grid-cols-2">
                   <label className="flex items-start gap-2 rounded-lg border border-[#e4eaee] bg-white px-3 py-2 text-[9px] leading-4 text-[#64798d] sm:col-span-2">
-                    <input disabled={!vaultAccessActive} type="checkbox" checked={transactionEmailAlertsEnabled} onChange={event => setTransactionEmailAlertsEnabled(event.currentTarget.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-transaction-email-alerts" />
+                    <input disabled={!vaultAccessActive || emailAlertPreferenceSaving || saveEmailPreferences.isPending} type="checkbox" checked={transactionEmailAlertsEnabled} onChange={event => void saveRecipientEmailAlertPreference(event.currentTarget.checked)} className="mt-0.5 accent-[#438481]" data-testid="toggle-vault-transaction-email-alerts" />
                     <span><strong className="text-[#344b64]">Send recipient transaction email alerts.</strong> When off, the recipient email field is hidden from the transfer form and no recipient email is stored or sent.</span>
                   </label>
+                  {emailAlertPreferenceSaving && <p role="status" className="text-[9px] text-[#71869a] sm:col-span-2">Saving recipient email preference…</p>}
+                  {emailAlertPreferenceError && <p role="alert" data-testid="status-recipient-email-alert-error" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940] sm:col-span-2">{emailAlertPreferenceError}</p>}
+                  {emailAlertPreferenceMessage && <p role="status" data-testid="status-recipient-email-alert-saved" className="rounded-lg bg-[#eef7f1] px-3 py-2 text-[9px] text-[#41755f] sm:col-span-2">{emailAlertPreferenceMessage}</p>}
                   <label className="text-[9px] font-semibold text-[#5c7085]">Banner color
                     <select disabled={!vaultAccessActive} value={bannerTheme} onChange={event => setBannerTheme(event.target.value as BankVaultEmailPreferences['bannerTheme'])} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="select-vault-email-banner-theme">
                       <option value="navy">Globus navy</option><option value="teal">Globus teal</option><option value="gold">Globus gold</option>
