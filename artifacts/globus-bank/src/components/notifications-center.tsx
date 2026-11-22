@@ -29,6 +29,8 @@ export function NotificationsCenter() {
   const triggerRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
   const [panelTop, setPanelTop] = useState(56);
+  const [browserPermission, setBrowserPermission] = useState<NotificationPermission | 'unsupported'>('default');
+  const [savedSubscriptionId, setSavedSubscriptionId] = useState('');
   const seenNotificationsRef = useRef<{ userId: string | null; ids: Set<string> }>({
     userId: null,
     ids: new Set(),
@@ -75,6 +77,23 @@ export function NotificationsCenter() {
   const supported = typeof window !== 'undefined' && 'Notification' in window && 'serviceWorker' in navigator && 'PushManager' in window;
 
   useEffect(() => {
+    if (!supported) {
+      setBrowserPermission('unsupported');
+      return;
+    }
+    const syncPermission = () => setBrowserPermission(Notification.permission);
+    syncPermission();
+    window.addEventListener('focus', syncPermission);
+    return () => window.removeEventListener('focus', syncPermission);
+  }, [supported]);
+
+  useEffect(() => {
+    setSavedSubscriptionId(subscriptionStorageKey
+      ? localStorage.getItem(subscriptionStorageKey) ?? ''
+      : '');
+  }, [subscriptionStorageKey]);
+
+  useEffect(() => {
     if (!user?.id || notifications.isLoading || notifications.isError || !notifications.data) return;
     const seen = seenNotificationsRef.current;
     if (seen.userId !== user.id) {
@@ -111,6 +130,7 @@ export function NotificationsCenter() {
         if (cancelled) return;
         if (result.id && subscriptionStorageKey) {
           localStorage.setItem(subscriptionStorageKey, result.id);
+          setSavedSubscriptionId(result.id);
         }
         await queryClient.invalidateQueries({ queryKey: getGetBankPushConfigQueryKey() });
       } catch {
@@ -127,6 +147,83 @@ export function NotificationsCenter() {
     supported,
     user?.id,
   ]);
+
+  const enableBrowserNotifications = async () => {
+    if (!supported) {
+      toast({
+        title: 'Browser alerts unavailable',
+        description: 'Notifications are not supported on this device.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+      return;
+    }
+    const siteKey = push.data?.siteKey;
+    if (!push.data?.configured || !siteKey) {
+      toast({
+        title: 'Browser alerts unavailable',
+        description: 'Alert setup is not available right now. Try again later.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+      return;
+    }
+    if (Notification.permission === 'denied') {
+      setBrowserPermission('denied');
+      toast({
+        title: 'Notifications are blocked',
+        description: 'Allow notifications for this site in your browser settings, then try again.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+      return;
+    }
+    try {
+      const permission = Notification.permission === 'default'
+        ? await Notification.requestPermission()
+        : Notification.permission;
+      setBrowserPermission(permission);
+      if (permission !== 'granted') {
+        toast({
+          title: 'Permission not granted',
+          description: 'Allow browser notifications to receive account alerts.',
+          variant: 'destructive',
+          duration: 5000,
+        });
+        return;
+      }
+      const api = await loadWebpushr(siteKey);
+      const subscriberId = await fetchWebpushrSubscriberId(api);
+      if (!subscriberId) {
+        toast({
+          title: 'Finish browser setup',
+          description: 'Complete the browser permission prompt, then try enabling alerts again.',
+          duration: 5000,
+        });
+        return;
+      }
+      const result = await saveSubscriber({ data: { subscriberId } });
+      if (result.id && subscriptionStorageKey) {
+        localStorage.setItem(subscriptionStorageKey, result.id);
+        setSavedSubscriptionId(result.id);
+      }
+      await queryClient.invalidateQueries({ queryKey: getGetBankPushConfigQueryKey() });
+      toast({
+        title: 'Browser alerts enabled',
+        description: 'This device is linked to your account activity alerts.',
+        duration: 5000,
+      });
+    } catch (error) {
+      toast({
+        title: 'Browser alerts could not be enabled',
+        description: error instanceof Error && error.message.trim()
+          ? error.message
+          : 'Try again from this device.',
+        variant: 'destructive',
+        duration: 5000,
+      });
+    }
+  };
 
   const readOne = async (id: string) => {
     try {
@@ -176,6 +273,28 @@ export function NotificationsCenter() {
             <button type="button" aria-label="Close notifications" onClick={() => setOpen(false)} data-testid="button-close-notifications" className="rounded-md px-2 py-1 text-[9px] font-bold text-[#61758a] hover:bg-[#f2f6f7]">Close</button>
           </div>
         </div>
+        {supported && push.data?.configured && <div className="flex shrink-0 flex-col gap-2 border-b border-[#edf0f3] bg-[#f7fafb] px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-[10px] font-bold text-[#344b64]">Browser alerts</p>
+            <p className="mt-0.5 text-[9px] leading-4 text-[#7d8c9b]">
+              {savedSubscriptionId
+                ? 'This device is linked to account activity alerts.'
+                : browserPermission === 'denied'
+                  ? 'Notifications are blocked. Allow them in your browser or site settings.'
+                  : browserPermission === 'granted'
+                    ? 'Permission is allowed. Link this device to receive alerts.'
+                    : 'Allow browser notifications for account activity updates.'}
+            </p>
+          </div>
+          {!savedSubscriptionId && browserPermission !== 'denied' && <button
+            type="button"
+            disabled={saveSubscription.isPending}
+            onClick={() => void enableBrowserNotifications()}
+            data-testid="button-enable-browser-notifications"
+            className="h-8 shrink-0 rounded-lg bg-[#173858] px-3 text-[9px] font-bold text-white disabled:opacity-50"
+          >{saveSubscription.isPending ? 'Linking…' : browserPermission === 'granted' ? 'Link this device' : 'Enable browser alerts'}</button>}
+        </div>}
+        {push.isError && <p role="alert" className="shrink-0 border-b border-[#edf0f3] px-4 py-2 text-[9px] text-[#a24940]">Browser alert setup could not be checked.</p>}
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
           {notifications.isLoading ? <div className="space-y-2 p-4" aria-label="Loading notifications" data-testid="notifications-loading">{[0, 1, 2].map(item => <div key={item} className="h-14 animate-pulse rounded-lg bg-[#f1f4f6]" />)}</div> :
             notifications.isError ? <div className="p-4 text-center"><p className="text-[10px] text-[#8d5b51]">Notifications could not be loaded.</p><button type="button" onClick={() => void notifications.refetch()} data-testid="button-retry-notifications" className="mt-2 text-[9px] font-bold text-[#397b80] underline">Try again</button></div> :
