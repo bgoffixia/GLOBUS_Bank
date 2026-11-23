@@ -163,7 +163,7 @@ export function HomePage() {
             <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#478b8e]" /> {t('Four supported wallet currencies')}</span>
           </div>
         </div>
-        <figure data-testid="landing-hero-institute-illustration" className="relative mx-auto w-full min-w-0 max-w-[560px]">
+        <figure data-testid="landing-hero-institute-photo" className="relative mx-auto w-full min-w-0 max-w-[560px]">
           <div className="absolute -right-3 top-8 h-32 w-32 rounded-full bg-[#e7dcc0]/70 sm:-right-5 sm:h-44 sm:w-44" />
           <div className="absolute -bottom-3 -left-3 h-28 w-28 rounded-full bg-[#dce9e6]/80 sm:-left-6 sm:h-40 sm:w-40" />
           <div className="relative overflow-hidden rounded-[22px] border border-[#d9cfb9] bg-[#f4f0e6] p-3 shadow-[0_24px_60px_rgba(31,56,83,.12)] sm:rounded-[28px] sm:p-5">
@@ -172,42 +172,18 @@ export function HomePage() {
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#b99a5b]/60 bg-[#e9e0cc] text-[#173651]"><Building2 size={17} strokeWidth={1.6} /></span>
               <span className="min-w-0"><span className="block font-serif text-[12px] font-semibold tracking-[.08em] text-[#173651] sm:text-[14px]">GLOBUS BANK</span><span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[.18em] text-[#8b7953] sm:text-[8px]">{t('Currency account records')}</span></span>
               </div>
-              <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">{t('Illustrative artwork')}</span>
+              <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">{t('Globus institute')}</span>
             </div>
-            <svg className="relative mx-auto block h-auto w-full max-w-[500px]" viewBox="0 0 560 365" role="img" aria-labelledby="globus-institute-title globus-institute-description">
-              <title id="globus-institute-title">{t('Illustration of a classical financial institute')}</title>
-              <desc id="globus-institute-description">{t('A stylized neoclassical bank facade, drawn in Globus navy, parchment and brass. This is an illustration, not a photograph or account statement.')}</desc>
-              <rect x="8" y="8" width="544" height="349" rx="15" fill="#f7f4eb" />
-              <path d="M29 325H531M45 336H515" stroke="#c6b890" strokeWidth="1" />
-              <circle cx="280" cy="174" r="139" fill="none" stroke="#ded4bf" strokeWidth="1" />
-              <circle cx="280" cy="174" r="125" fill="none" stroke="#e7dfce" strokeWidth="1" strokeDasharray="2 6" />
-              <path d="M280 38V25M280 323V310M143 174H130M430 174H417M183 77L173 67M387 281L377 271M377 77L387 67M173 281L183 271" stroke="#b79a5e" strokeWidth="1.4" />
-              <path d="M126 134L280 61L434 134H126Z" fill="#183653" />
-              <path d="M155 126L280 69L405 126H155Z" fill="none" stroke="#d1b979" strokeWidth="1.5" />
-              <path d="M139 139H421V151H139ZM128 268H432V282H128Z" fill="#d6c7a4" stroke="#183653" strokeWidth="2" />
-              <path d="M147 152H413V263H147Z" fill="#eee7d7" stroke="#183653" strokeWidth="2" />
-              <g fill="#f8f5ed" stroke="#183653" strokeWidth="2">
-                <path d="M162 161H184V252H162Z" /><path d="M215 161H237V252H215Z" />
-                <path d="M323 161H345V252H323Z" /><path d="M376 161H398V252H376Z" />
-              </g>
-              <g fill="#d6c7a4" stroke="#183653" strokeWidth="1.4">
-                <path d="M157 157H189V163H157ZM210 157H242V163H210Z" />
-                <path d="M318 157H350V163H318ZM371 157H403V163H371Z" />
-                <path d="M157 250H189V256H157ZM210 250H242V256H210Z" />
-                <path d="M318 250H350V256H318ZM371 250H403V256H371Z" />
-              </g>
-              <path d="M253 261V205C253 190 265 178 280 178C295 178 307 190 307 205V261Z" fill="#183653" />
-              <path d="M264 261V207C264 198 271 191 280 191C289 191 296 198 296 207V261" fill="none" stroke="#d1b979" strokeWidth="1.5" />
-              <circle cx="288" cy="232" r="2" fill="#d8bd7d" />
-              <path d="M120 284H440V292H120ZM111 297H449V306H111ZM100 311H460V320H100Z" fill="#d6c7a4" stroke="#183653" strokeWidth="1.6" />
-              <path d="M267 105H293" stroke="#d8bd7d" strokeWidth="2" />
-              <circle cx="280" cy="104" r="13" fill="none" stroke="#d8bd7d" strokeWidth="1.5" />
-              <path d="M280 96V112M274 101H286M274 107H286" stroke="#d8bd7d" strokeWidth="1" />
-              <path d="M78 327H482" stroke="#dcd2bd" strokeWidth="1" />
-              <text x="280" y="346" textAnchor="middle" fill="#7f745b" fontSize="8" fontFamily="Georgia, serif" letterSpacing="2.1">{t('A CLEAR VIEW OF EVERY CURRENCY')}</text>
-            </svg>
+            <div className="relative mt-3 overflow-hidden rounded-[15px] border border-[#d9cfb9] bg-[#e8e4d9] shadow-[0_8px_20px_rgba(31,56,83,.10)] sm:mt-4 sm:rounded-[18px]">
+              <img
+                src={`${import.meta.env.BASE_URL}globus-public-hero.jpg`}
+                alt={t('Illustrative pale-stone financial institute with a navy entrance and brass details')}
+                className="block aspect-[1.18] w-full object-cover object-[64%_center] sm:aspect-[1.5] sm:object-[60%_center]"
+              />
+              <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(20,44,73,.02)_45%,rgba(20,44,73,.19)_100%)]" />
+            </div>
             <figcaption className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[#dcd2bd] px-1 pt-3 sm:px-2 sm:pt-4">
-              <span className="text-[8px] leading-4 text-[#7d786b] sm:text-[9px]">{t('Illustrative institute artwork · no account data shown')}</span>
+              <span className="text-[8px] leading-4 text-[#7d786b] sm:text-[9px]">{t('Illustrative financial institute exterior · no account data shown')}</span>
               <span className="flex flex-wrap gap-1.5" aria-label="Supported wallet currencies">{currencies.map(code => <span key={code} className="rounded-md border border-[#d6cbb3] bg-[#f9f6ef] px-1.5 py-1 text-[8px] font-bold tracking-[.04em] text-[#37566c]">{code}</span>)}</span>
             </figcaption>
           </div>

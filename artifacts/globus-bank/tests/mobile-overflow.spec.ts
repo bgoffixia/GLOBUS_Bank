@@ -270,6 +270,25 @@ test.describe('public and authentication pages at phone widths', () => {
 
 });
 
+test('public hero photo loads and remains visible at mobile and desktop widths', async ({ page }) => {
+  await page.addInitScript(() => {
+    localStorage.setItem('globus:pwa-prompt-shown-at', String(Date.now()));
+  });
+
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    const hero = page.getByTestId('landing-hero-institute-photo');
+    const image = hero.locator('img');
+    await expect(image).toBeVisible();
+    await expect.poll(() => image.evaluate((element: HTMLImageElement) => element.naturalWidth)).toBeGreaterThan(0);
+    const box = await image.boundingBox();
+    expect(box?.width).toBeGreaterThan(0);
+    expect(box?.height).toBeGreaterThan(0);
+    await expectNoHorizontalOverflow(page, `Public hero image at ${width}px`);
+  }
+});
+
 test('compact language picker follows the country-selector pattern and translates the landing page', async ({ page }) => {
   await page.addInitScript(() => {
     localStorage.setItem('globus-bank-language', 'en');

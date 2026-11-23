@@ -14,10 +14,11 @@ const adminWorkspace = readFileSync(
   'utf8',
 );
 
-test('landing stays illustrative and describes Globus account records accurately', () => {
-  expect(pages).toContain('data-testid="landing-hero-institute-illustration"');
-  expect(pages).toContain('Illustrative institute artwork');
-  expect(pages).toContain('A stylized neoclassical bank facade');
+test('landing uses realistic institute artwork and describes Globus account records accurately', () => {
+  expect(pages).toContain('data-testid="landing-hero-institute-photo"');
+  expect(pages).toContain('globus-public-hero.jpg');
+  expect(pages).toContain('Illustrative pale-stone financial institute');
+  expect(pages).toContain('Illustrative financial institute exterior · no account data shown');
   expect(pages).toContain('Review your currency balances and the entries recorded in your Globus account');
   expect(pages).toContain('Search internal Globus ledger activity');
   expect(pages).toContain(`Standard ${String.fromCodePoint(0x1f3e6)}`);
