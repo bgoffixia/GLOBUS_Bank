@@ -157,7 +157,6 @@ function FlagIcon({ country }: { country: (typeof countries)[number] }) {
         src={country.flagUrl}
         alt=""
         aria-hidden="true"
-        loading="lazy"
         className="h-[16px] w-[23px] shrink-0 rounded-[3px] border border-black/5 object-cover"
         onError={() => setImageAvailable(false)}
       />
