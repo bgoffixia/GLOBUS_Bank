@@ -146,7 +146,6 @@ import {
   normalizeCustomerEmailSenderDisplayName,
 } from "../lib/customer-email-sender";
 import { sendPasswordResetEmail } from "../lib/password-reset-email";
-import { sendResendEmail } from "../lib/resend-email";
 import {
   balanceForWallet,
   bankOperationRestrictionError,
@@ -2810,19 +2809,19 @@ router.post(
       return;
     }
 
-    let recipient: string | undefined;
+    let recipientEmailAddressId: string | undefined;
     try {
       const identity = await clerkClient.users.getUser(target.id);
       const primary = identity.emailAddresses.find(
         (email) => email.id === identity.primaryEmailAddressId,
       );
       if (primary?.verification?.status === "verified") {
-        recipient = primary.emailAddress.trim();
+        recipientEmailAddressId = primary.id;
       }
     } catch {
-      recipient = undefined;
+      recipientEmailAddressId = undefined;
     }
-    if (!recipient) {
+    if (!recipientEmailAddressId) {
       res.status(409).json({ error: "The customer has no verified primary email address. No reset link was sent." });
       return;
     }
@@ -2836,14 +2835,13 @@ router.post(
       process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
       process.env.REPLIT_DEV_DOMAIN?.trim() ||
       "www.global-internetbanking.globus.website";
-    const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "";
     let resetUrl: URL;
     try {
       const originUrl = new URL(
         configuredOrigin.includes("://") ? configuredOrigin : `https://${configuredOrigin}`,
       );
-      if (originUrl.protocol !== "https:" || !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(senderAddress)) {
-        throw new Error("Secure reset email configuration is unavailable.");
+      if (originUrl.protocol !== "https:") {
+        throw new Error("Secure reset application origin is unavailable.");
       }
       resetUrl = new URL("/private-vault/reset-passcode", originUrl.origin);
       resetUrl.searchParams.set("token", rawToken);
@@ -2890,13 +2888,18 @@ router.post(
       return;
     }
 
-    const emailSent = await sendResendEmail({
-      from: `GLOBUS BANK Security <${senderAddress}>`,
-      to: recipient,
-      subject: "Reset your GLOBUS BANK Private Vault passcode",
-      text: `A Private Vault passcode reset was requested for your account. Use this one-time link within 30 minutes: ${resetUrl.toString()} If you did not expect this email, contact GLOBUS BANK support. This reset does not change your Private Vault access status.`,
-      html: `<p>A Private Vault passcode reset was requested for your account.</p><p><a href="${resetUrl.toString()}">Reset Private Vault passcode</a></p><p>This one-time link expires in 30 minutes. If you did not expect this email, contact GLOBUS BANK support. Resetting the passcode does not change your Private Vault access status.</p>`,
-    }, `vault-passcode-reset-${tokenHash}`);
+    let emailSent = false;
+    try {
+      await clerkClient.emails.createEmail({
+        fromEmailName: "security",
+        emailAddressId: recipientEmailAddressId,
+        subject: "Reset your GLOBUS BANK Private Vault passcode",
+        body: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not expect this email, contact GLOBUS BANK support. Resetting the passcode does not change your Private Vault access status.`,
+      });
+      emailSent = true;
+    } catch (error) {
+      req.log.error({ error }, "Clerk could not deliver the Private Vault passcode reset email");
+    }
 
     if (!emailSent) {
       await db
