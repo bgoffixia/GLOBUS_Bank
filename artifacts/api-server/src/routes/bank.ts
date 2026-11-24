@@ -219,6 +219,7 @@ import {
   VAULT_REMEMBERED_SESSION_DURATION_MS,
 } from "../lib/vault-session-policy";
 import { decryptPrivateData, encryptPrivateData } from "../lib/private-data";
+import { getVaultPasscodeResetSenderAddress } from "../lib/vault-passcode-reset-email";
 import {
   normalizeSupportLabel,
   normalizeSupportUrl,
@@ -728,6 +729,18 @@ router.post(
       return;
     }
 
+    // Validate all delivery configuration before creating or storing a reset token.
+    const resendApiKey = process.env.RESEND_API_KEY?.trim();
+    let senderAddress: string;
+    try {
+      senderAddress = getVaultPasscodeResetSenderAddress();
+      if (!resendApiKey) throw new Error("RESEND_API_KEY is not configured.");
+    } catch (error) {
+      req.log.error({ error }, "Private Vault passcode reset email configuration is invalid");
+      res.status(503).json({ error: "Secure reset email delivery is not configured correctly. No reset link was created or sent." });
+      return;
+    }
+
     const customer = await ensureBankUser(clerkUserId);
     const rawToken = randomBytes(32).toString("base64url");
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
@@ -786,12 +799,6 @@ router.post(
 
     let emailSent = false;
     try {
-      const resendApiKey = process.env.RESEND_API_KEY?.trim();
-      const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "security@globus.website";
-      if (!resendApiKey) throw new Error("Resend API key is not configured.");
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderAddress)) {
-        throw new Error("The configured security sender address is invalid.");
-      }
       const emailResponse = await fetch("https://api.resend.com/emails", {
         method: "POST",
         headers: {
