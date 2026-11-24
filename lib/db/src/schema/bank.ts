@@ -718,3 +718,35 @@ export const bankPushSubscriptionsTable = pgTable(
   },
   (table) => [index("bank_push_subscription_user_idx").on(table.userId)],
 );
+
+
+/**
+ * Short-lived, single-use tokens for administrator-initiated Private Vault
+ * passcode recovery. Only token hashes are stored; this table has no access
+ * entitlement fields and cannot change a customer's vault access status.
+ */
+export const bankVaultPasscodeResetTokensTable = pgTable(
+  "bank_vault_passcode_reset_tokens",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    userId: text("user_id")
+      .notNull()
+      .references(() => bankUsersTable.id, { onDelete: "cascade" }),
+    tokenHash: text("token_hash").notNull().unique(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    usedAt: timestamp("used_at", { withTimezone: true }),
+    requestedByUserId: text("requested_by_user_id")
+      .notNull()
+      .references(() => bankUsersTable.id),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("bank_vault_passcode_reset_user_created_idx").on(
+      table.userId,
+      table.createdAt,
+    ),
+    index("bank_vault_passcode_reset_expiry_idx").on(table.expiresAt),
+  ],
+);
