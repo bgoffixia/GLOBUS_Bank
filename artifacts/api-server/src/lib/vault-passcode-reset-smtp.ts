@@ -49,7 +49,7 @@ async function command(socket: SmtpSocket, value: string, expected: number[]): P
 
 function assertMailbox(value: string, label: string): string {
   const address = value.trim();
-  const pattern = /^[A-Za-z0-9!#$%&'*+\/= ?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+\/= ?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+  const pattern = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+\/= ?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
   if (address.length > 254 || !pattern.test(address) || /[\r\n<>]/.test(address)) {
     throw new Error(`Invalid ${label} email address for SMTP delivery.`);
   }
