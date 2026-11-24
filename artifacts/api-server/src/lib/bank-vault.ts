@@ -592,7 +592,7 @@ export async function completeVaultPasscodeReset(
       actorUserId: resetToken.requestedByUserId,
       targetUserId: user.id,
       action: "complete_private_vault_passcode_reset",
-      reason: "Customer completed a single-use administrator-initiated Private Vault passcode reset. Vault access status, subscription, entitlements, and account access controls were not modified.",
+      reason: "Customer completed a single-use Private Vault passcode reset using a verified reset link. Vault access status, subscription, entitlements, and account access controls were not modified.",
     });
 
     return true;
