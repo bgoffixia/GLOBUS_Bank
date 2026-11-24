@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type RequestHandler } from "express";
+import { randomBytes, createHash } from "node:crypto";
 import { clerkClient, getAuth } from "@clerk/express";
 import { rateLimit } from "express-rate-limit";
 import {
@@ -129,6 +130,7 @@ import {
   bankUsersTable,
   bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
+  bankVaultPasscodeResetTokensTable,
   bankSupportConversationsTable,
   bankSupportMessagesTable,
   bankWalletsTable,
@@ -144,6 +146,7 @@ import {
   normalizeCustomerEmailSenderDisplayName,
 } from "../lib/customer-email-sender";
 import { sendPasswordResetEmail } from "../lib/password-reset-email";
+import { sendResendEmail } from "../lib/resend-email";
 import {
   balanceForWallet,
   bankOperationRestrictionError,
@@ -2770,6 +2773,128 @@ router.post(
       return;
     }
     res.json(ResetAdminUserTransactionPinResponse.parse({ configured: false }));
+  },
+);
+
+
+router.post(
+  "/bank/admin/users/:userId/vault-passcode-reset",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    const userId = typeof req.params.userId === "string" ? req.params.userId.trim() : "";
+    if (!userId || userId.length > 256 || req.body?.confirmed !== true) {
+      res.status(400).json({ error: "Confirm the Private Vault passcode reset request." });
+      return;
+    }
+
+    const authenticatedClerkId = getAuth(req).userId;
+    if (!authenticatedClerkId) {
+      res.status(401).json({ error: "Sign in to access administrative controls." });
+      return;
+    }
+    if (authenticatedClerkId === userId) {
+      res.status(400).json({ error: "Administrators cannot send themselves a customer reset link." });
+      return;
+    }
+
+    const actorUserId = (await ensureBankUser(authenticatedClerkId)).id;
+    const [target] = await db
+      .select({ id: bankUsersTable.id })
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, userId))
+      .limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Customer account not found." });
+      return;
+    }
+
+    let recipient: string | undefined;
+    try {
+      const identity = await clerkClient.users.getUser(target.id);
+      const primary = identity.emailAddresses.find(
+        (email) => email.id === identity.primaryEmailAddressId,
+      );
+      if (primary?.verification?.status === "verified") {
+        recipient = primary.emailAddress.trim();
+      }
+    } catch {
+      recipient = undefined;
+    }
+    if (!recipient) {
+      res.status(409).json({ error: "The customer has no verified primary email address. No reset link was sent." });
+      return;
+    }
+
+    const rawToken = randomBytes(32).toString("base64url");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+    const origin = process.env.GLOBUS_PUBLIC_APP_URL?.trim()
+      || "https://www.global-internetbanking.globus.website";
+    const resetUrl = new URL("/private-vault/reset-passcode", origin);
+    resetUrl.searchParams.set("token", rawToken);
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(bankVaultPasscodeResetTokensTable)
+          .set({ usedAt: now })
+          .where(
+            and(
+              eq(bankVaultPasscodeResetTokensTable.userId, target.id),
+              isNull(bankVaultPasscodeResetTokensTable.usedAt),
+            ),
+          );
+        await tx.insert(bankVaultPasscodeResetTokensTable).values({
+          userId: target.id,
+          tokenHash,
+          expiresAt,
+          requestedByUserId: actorUserId,
+          createdAt: now,
+        });
+        await tx.insert(bankAuditLogsTable).values({
+          actorUserId,
+          targetUserId: target.id,
+          action: "request_private_vault_passcode_reset",
+          reason: "Administrator issued a single-use Private Vault passcode reset link to the customer's verified primary email. Vault access status and entitlements were not modified.",
+        });
+      });
+    } catch {
+      res.status(503).json({ error: "The reset request could not be recorded. No email was sent." });
+      return;
+    }
+
+    const emailSent = await sendResendEmail({
+      from: '"GLOBUS BANK" <security@globus.website>',
+      to: recipient,
+      subject: "Reset your GLOBUS BANK Private Vault passcode",
+      text: `A Private Vault passcode reset was requested for your account. Use this one-time link within 30 minutes: ${resetUrl.toString()} If you did not expect this email, contact GLOBUS BANK support. This reset does not change your Private Vault access status.`,
+      html: `<p>A Private Vault passcode reset was requested for your account.</p><p><a href="${resetUrl.toString()}">Reset Private Vault passcode</a></p><p>This one-time link expires in 30 minutes. If you did not expect this email, contact GLOBUS BANK support. Resetting the passcode does not change your Private Vault access status.</p>`,
+    }, `vault-passcode-reset-${tokenHash}`);
+
+    if (!emailSent) {
+      await db
+        .update(bankVaultPasscodeResetTokensTable)
+        .set({ usedAt: new Date() })
+        .where(eq(bankVaultPasscodeResetTokensTable.tokenHash, tokenHash));
+      await db.insert(bankAuditLogsTable).values({
+        actorUserId,
+        targetUserId: target.id,
+        action: "private_vault_passcode_reset_email_failed",
+        reason: "Reset-link email delivery failed; the token was invalidated.",
+      });
+      res.status(503).json({ error: "The reset link could not be delivered. Request a new link after checking email delivery configuration." });
+      return;
+    }
+
+    await db.insert(bankAuditLogsTable).values({
+      actorUserId,
+      targetUserId: target.id,
+      action: "private_vault_passcode_reset_email_sent",
+      reason: "Reset link sent to the verified primary email address; token expires in 30 minutes.",
+    });
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ sent: true, expiresAt: expiresAt.toISOString() });
   },
 );
 
