@@ -748,10 +748,10 @@ router.post(
       !/^[A-Z0-9]{7}$/.test(customerId) ||
       !suppliedEmail ||
       suppliedEmail.length > 254 ||
-      !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(suppliedEmail) ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(suppliedEmail) ||
       !suppliedUsername ||
       suppliedUsername.length > 128 ||
-      !/^\\d{4}$/.test(newPasscode)
+      !/^\d{4}$/.test(newPasscode)
     ) {
       res.status(403).json({ error: "Complete Clerk email verification and confirm your account details before resetting your Vault PIN." });
       return;
