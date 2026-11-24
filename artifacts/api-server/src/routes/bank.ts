@@ -742,8 +742,11 @@ router.post(
         const primary = candidate.emailAddresses.find(
           (address) => address.id === candidate.primaryEmailAddressId,
         );
-        return primary?.emailAddress.toLowerCase() === email &&
-          primary.verification?.status === "verified";
+        return Boolean(
+          primary &&
+          primary.emailAddress.toLowerCase() === email &&
+          primary.verification?.status === "verified",
+        );
       });
       if (!identity || identity.id !== customer.id) {
         res.json(genericResponse);
