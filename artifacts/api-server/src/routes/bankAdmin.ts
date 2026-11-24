@@ -2893,7 +2893,7 @@ router.post(
       const resendApiKey = process.env.RESEND_API_KEY?.trim();
       const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "security@globus.website";
       if (!resendApiKey) throw new Error("Resend API key is not configured.");
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(senderAddress)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderAddress)) {
         throw new Error("The configured security sender address is invalid.");
       }
       const emailResponse = await fetch("https://api.resend.com/emails", {
