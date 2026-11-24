@@ -745,7 +745,7 @@ router.post(
         return primary?.emailAddress.toLowerCase() === email &&
           primary.verification?.status === "verified";
       });
-      if (!identity) {
+      if (!identity || identity.id !== customer.id) {
         res.json(genericResponse);
         return;
       }
