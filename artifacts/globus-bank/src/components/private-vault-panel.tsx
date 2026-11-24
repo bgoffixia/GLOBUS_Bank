@@ -1002,12 +1002,17 @@ export function PrivateVaultPanel() {
               </form>
             )}
             {status.data?.configured === true && !status.isLoading && (
-              <div className="mt-4 border-t border-[#e8eef0] pt-3">
-                <button type="button" onClick={() => void requestVaultPasscodeReset()} disabled={resetRequestPending} data-testid="button-vault-forgot-passcode" className="text-[10px] font-bold text-[#397b80] underline underline-offset-2 disabled:opacity-50">
-                  {resetRequestPending ? 'Sending reset link…' : 'Forgot your passcode? Email me a reset link'}
-                </button>
-                <p className="mt-1 text-[9px] leading-4 text-[#849397]">We’ll send a single-use link to your verified primary email. Your Vault access and subscription will not change.</p>
-                {resetRequestMessage && <p role="status" data-testid="status-vault-reset-request" className="mt-2 rounded-lg bg-[#eef7f1] px-3 py-2 text-[10px] text-[#41755f]">{resetRequestMessage}</p>}
+              <div className="mt-4 border-t border-[#e8eef0] pt-3" data-testid="vault-pin-reset-entry">
+                <Link
+                  href="/private-vault/reset-passcode"
+                  data-testid="button-vault-forgot-passcode"
+                  className="inline-flex min-h-9 items-center text-[10px] font-bold text-[#397b80] underline underline-offset-2"
+                >
+                  Forgot your PIN? Reset with Clerk email OTP
+                </Link>
+                <p className="mt-1 text-[9px] leading-4 text-[#849397]">
+                  Verify your Clerk email and GLOBUS account ownership before choosing a new PIN. Your current PIN and Vault access stay unchanged unless verification succeeds.
+                </p>
               </div>
             )}
             {error && <p role="alert" data-testid="status-vault-unlock-error" className="mt-3 rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{error}</p>}
