@@ -39,7 +39,7 @@ test("rejects malformed, display-name, and header-injection sender values", () =
     ".security@globus.website",
     "security@-globus.website",
     "security@globus-.website",
-    "security@globus.website\\r\\nBcc:attacker@example.com",
+    "security@globus.website" + String.fromCharCode(13, 10) + "Bcc:attacker@example.com",
   ]) {
     assert.throws(() => validateVaultPasscodeResetSenderAddress(address));
   }
