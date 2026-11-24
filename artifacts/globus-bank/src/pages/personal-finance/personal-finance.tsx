@@ -557,11 +557,19 @@ export function CompactExpenseTracker() {
         <Link data-testid="link-financial-overview" href="/financial-overview" className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#357b83]">Full report <ChevronRight size={12} /></Link>
       </div>
       {reportQuery.isError ? <div className="flex items-center justify-between gap-3 px-4 py-4 text-[10px] text-[#a24940]"><span>Account activity is unavailable.</span><button type="button" data-testid="button-retry-dashboard-ledger" onClick={() => void reportQuery.refetch()} className="pf-button min-h-[32px]">Try again</button></div> : reportQuery.isLoading ? <div className="grid gap-2 p-3 sm:grid-cols-2"><div className="pf-skeleton h-14" /><div className="pf-skeleton h-14" /></div> : (
-         <div data-testid="dashboard-ledger-summary-scroll" className="dashboard-ledger-summary-scroll grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
-           {reportQuery.data?.ledgerSummaries.length ? reportQuery.data.ledgerSummaries.map(summary => <div data-testid={`dashboard-ledger-${summary.currency}-${summary.walletId.slice(-4)}`} key={summary.walletId} className="flex min-w-0 items-center justify-between gap-3 rounded-xl border border-[#e5ebed] bg-[#fbfcfc] px-3 py-2.5">
-             <div><span className="text-[10px] font-extrabold">{summary.currency}</span><p className="mt-0.5 text-[8px] text-[#85929b]">Wallet ····{summary.walletId.slice(-4)}</p></div>
-            <div className="grid grid-cols-2 gap-x-3 text-right"><span className="text-[8px] text-[#82909a]">Income</span><span className="text-[8px] text-[#82909a]">Expenses</span><strong className="text-[10px] font-bold tabular-nums text-[#3f766b]">{formatMinor(summary.inflowMinor, summary.currency)}</strong><strong className="text-[10px] font-bold tabular-nums text-[#8d7043]">{formatMinor(summary.outflowMinor, summary.currency)}</strong></div>
-          </div>) : <p className="rounded-xl bg-[#f7f9f9] px-3 py-3 text-[10px] text-[#718196] sm:col-span-2 xl:col-span-3">No posted account activity this month.</p>}
+         <div data-testid="dashboard-ledger-summary-scroll" className="dashboard-ledger-summary-scroll grid min-w-0 gap-2 p-2.5 sm:grid-cols-2 sm:gap-2.5 sm:p-3 xl:grid-cols-3">
+          {reportQuery.data?.ledgerSummaries.length ? reportQuery.data.ledgerSummaries.map(summary => (
+            <article data-testid={`dashboard-ledger-${summary.currency}-${summary.walletId.slice(-4)}`} key={summary.walletId} className="dashboard-ledger-summary-card grid min-w-0 grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)] items-center gap-2 rounded-xl border border-[#e5ebed] bg-[#fbfcfc] px-2.5 py-2 sm:px-3 sm:py-2.5">
+              <div className="min-w-0">
+                <span className="text-[10px] font-extrabold tracking-wide">{summary.currency}</span>
+                <p className="mt-0.5 truncate text-[8px] text-[#85929b]">Wallet ····{summary.walletId.slice(-4)}</p>
+              </div>
+              <dl className="grid min-w-0 grid-cols-2 gap-x-2 text-right">
+                <div className="min-w-0"><dt className="text-[8px] font-medium text-[#82909a]">Income</dt><dd className="mt-0.5 break-words text-[10px] font-bold tabular-nums text-[#3f766b]">{formatMinor(summary.inflowMinor, summary.currency)}</dd></div>
+                <div className="min-w-0"><dt className="text-[8px] font-medium text-[#82909a]">Expenses</dt><dd className="mt-0.5 break-words text-[10px] font-bold tabular-nums text-[#8d7043]">{formatMinor(summary.outflowMinor, summary.currency)}</dd></div>
+              </dl>
+            </article>
+          )) : <p className="rounded-xl bg-[#f7f9f9] px-3 py-3 text-[10px] text-[#718196] sm:col-span-2 xl:col-span-3">No posted account activity this month.</p>}
         </div>
       )}
     </section>
