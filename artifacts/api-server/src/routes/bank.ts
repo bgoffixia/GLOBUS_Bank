@@ -220,6 +220,7 @@ import {
 } from "../lib/vault-session-policy";
 import { decryptPrivateData, encryptPrivateData } from "../lib/private-data";
 import { getVaultPasscodeResetSenderAddress } from "../lib/vault-passcode-reset-email";
+import { sendVaultPasscodeResetEmail } from "../lib/vault-passcode-reset-smtp";
 import {
   normalizeSupportLabel,
   normalizeSupportUrl,
@@ -799,24 +800,13 @@ router.post(
 
     let emailSent = false;
     try {
-      const emailResponse = await fetch("https://api.resend.com/emails", {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${resendApiKey}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          from: `GLOBUS BANK Security <${senderAddress}>`,
-          to: [recipientEmail],
-          subject: "Reset your GLOBUS BANK Private Vault passcode",
-          text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not request this email, you can ignore it. Resetting your passcode does not change your Private Vault access status.`,
-        }),
-        signal: AbortSignal.timeout(15_000),
+      await sendVaultPasscodeResetEmail({
+        apiKey: resendApiKey,
+        senderAddress,
+        recipientAddress: recipientEmail,
+        subject: "Reset your GLOBUS BANK Private Vault passcode",
+        text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not request this email, you can ignore it. Resetting your passcode does not change your Private Vault access status.`,
       });
-      if (!emailResponse.ok) {
-        const errorBody = await emailResponse.text().catch(() => "");
-        throw new Error(`Resend rejected the reset email (${emailResponse.status}): ${errorBody.slice(0, 300)}`);
-      }
       emailSent = true;
     } catch (error) {
       req.log.error({ error }, "Resend could not deliver the customer's Private Vault passcode reset email");
