@@ -789,7 +789,7 @@ router.post(
       const resendApiKey = process.env.RESEND_API_KEY?.trim();
       const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "security@globus.website";
       if (!resendApiKey) throw new Error("Resend API key is not configured.");
-      if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(senderAddress)) {
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderAddress)) {
         throw new Error("The configured security sender address is invalid.");
       }
       const emailResponse = await fetch("https://api.resend.com/emails", {
@@ -802,7 +802,7 @@ router.post(
           from: `GLOBUS BANK Security <${senderAddress}>`,
           to: [recipientEmail],
           subject: "Reset your GLOBUS BANK Private Vault passcode",
-          text: `A Private Vault passcode reset was requested for your account.\\n\\nUse this one-time link within 30 minutes:\\n${resetUrl.toString()}\\n\\nIf you did not request this email, you can ignore it. Resetting your passcode does not change your Private Vault access status.`,
+          text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not request this email, you can ignore it. Resetting your passcode does not change your Private Vault access status.`,
         }),
         signal: AbortSignal.timeout(15_000),
       });
