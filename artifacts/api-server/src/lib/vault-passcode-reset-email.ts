@@ -1,18 +1,14 @@
 const DEFAULT_VAULT_PASSCODE_RESET_SENDER = "security@globus.website";
 
 const EMAIL_ADDRESS_PATTERN =
-  /^(?=.{3,254}$)(?=.{1,64}@)[A-Za-z0-9!#$%&'*+\\/=?^`{|}~.-]+@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+  /^[A-Za-z0-9!#$%&'*+=?^_{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+=?^_{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 
 export function validateVaultPasscodeResetSenderAddress(value: string): string {
   const address = value.trim();
   if (
-    address !== value.trim() ||
-    !EMAIL_ADDRESS_PATTERN.test(address) ||
-    address.includes("..") ||
-    address.startsWith(".") ||
-    address.includes("@.") ||
-    address.includes(".@") ||
-    address.endsWith(".")
+    !address ||
+    address.length > 254 ||
+    !EMAIL_ADDRESS_PATTERN.test(address)
   ) {
     throw new Error(
       "GLOBUS_VAULT_PIN_RESET_EMAIL_FROM must be a valid mailbox address (for example, security@globus.website).",
