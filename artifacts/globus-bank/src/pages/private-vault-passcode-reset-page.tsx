@@ -57,16 +57,15 @@ export function PrivateVaultPasscodeResetPage() {
     setBusy(true);
     try {
       const verification = await session.startVerification({ level: 'first_factor' });
-      const emailFactor = verification.supportedFirstFactors?.find(
-        factor => factor.strategy === 'email_code' &&
-          factor.emailAddressId === user.primaryEmailAddressId,
+      const hasEmailCodeFactor = verification.supportedFirstFactors?.some(
+        factor => factor.strategy === 'email_code',
       );
-      if (!emailFactor) {
+      if (!hasEmailCodeFactor) {
         throw new Error('Email verification codes are not enabled for your Clerk account. Contact support to enable email-code verification.');
       }
       await session.prepareFirstFactorVerification({
         strategy: 'email_code',
-        emailAddressId: emailFactor.emailAddressId,
+        emailAddressId: user.primaryEmailAddressId,
       });
       setOtpSent(true);
       setNotice(`A Clerk verification code has been sent to ${primaryEmail}.`);
