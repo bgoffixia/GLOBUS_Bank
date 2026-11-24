@@ -2898,10 +2898,32 @@ router.post(
         typeof error === "object" && error !== null
           ? error as Record<string, unknown>
           : {};
+      const rootCause =
+        typeof dbError.cause === "object" && dbError.cause !== null
+          ? dbError.cause as Record<string, unknown>
+          : {};
+      const rootCauseMessage =
+        typeof rootCause.message === "string"
+          ? rootCause.message
+              .replace(/'[^']{1,300}'/g, "'[redacted]'")
+              .replace(/(?:postgres(?:ql)?:\\/\\/)[^\\s]+/gi, "[database-url-redacted]")
+              .slice(0, 240)
+          : undefined;
       const safeDiagnostic = {
         diagnosticId,
         operation: failedOperation,
         errorName: error instanceof Error ? error.name : "UnknownError",
+        errorMessage:
+          error instanceof Error && !error.message.startsWith("Failed query:")
+            ? error.message
+                .replace(/'[^']{1,300}'/g, "'[redacted]'")
+                .slice(0, 240)
+            : undefined,
+        causeName:
+          typeof rootCause.name === "string" ? rootCause.name : undefined,
+        causeCode:
+          typeof rootCause.code === "string" ? rootCause.code : undefined,
+        causeMessage: rootCauseMessage,
         code: typeof dbError.code === "string" ? dbError.code : undefined,
         constraint: typeof dbError.constraint === "string" ? dbError.constraint : undefined,
         table: typeof dbError.table === "string" ? dbError.table : undefined,
