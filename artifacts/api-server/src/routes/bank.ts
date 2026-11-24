@@ -1,7 +1,7 @@
 import { Router, type IRouter, type Request, type RequestHandler, type Response } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import { rateLimit } from "express-rate-limit";
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { and, asc, count, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   DeleteBankVaultTransactionNoteHeader,
@@ -699,6 +699,146 @@ router.post(
 );
 
 router.use("/bank", requireSignedIn);
+
+router.post(
+  "/bank/vault/passcode-reset/request",
+  passwordResetLimiter,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const clerkUserId = getAuth(req).userId;
+    if (!clerkUserId) {
+      res.status(401).json({ error: "Sign in to request a Private Vault passcode reset." });
+      return;
+    }
+
+    let recipientEmail: string | undefined;
+    try {
+      const identity = await clerkClient.users.getUser(clerkUserId);
+      const primary = identity.emailAddresses.find(
+        (email) => email.id === identity.primaryEmailAddressId,
+      );
+      if (primary?.verification?.status === "verified") {
+        recipientEmail = primary.emailAddress;
+      }
+    } catch (error) {
+      req.log.error({ error }, "Could not retrieve the signed-in customer's verified email");
+    }
+    if (!recipientEmail) {
+      res.status(409).json({ error: "Add and verify a primary email address to receive a Private Vault reset link." });
+      return;
+    }
+
+    const customer = await ensureBankUser(clerkUserId);
+    const rawToken = randomBytes(32).toString("base64url");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+    const configuredOrigin =
+      process.env.GLOBUS_APP_ORIGIN?.trim() ||
+      process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
+      process.env.REPLIT_DEV_DOMAIN?.trim() ||
+      "www.global-internetbanking.globus.website";
+
+    let resetUrl: URL;
+    try {
+      const originUrl = new URL(
+        configuredOrigin.includes("://") ? configuredOrigin : `https://${configuredOrigin}`,
+      );
+      if (originUrl.protocol !== "https:") throw new Error("Secure reset application origin is unavailable.");
+      resetUrl = new URL("/private-vault/reset-passcode", originUrl.origin);
+      resetUrl.searchParams.set("token", rawToken);
+    } catch (error) {
+      req.log.error({ error }, "Private Vault reset application origin is invalid");
+      res.status(503).json({ error: "Secure reset email configuration is unavailable. No reset link was sent." });
+      return;
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(bankVaultPasscodeResetTokensTable)
+          .set({ usedAt: now })
+          .where(
+            and(
+              eq(bankVaultPasscodeResetTokensTable.userId, customer.id),
+              isNull(bankVaultPasscodeResetTokensTable.usedAt),
+            ),
+          );
+        await tx.insert(bankVaultPasscodeResetTokensTable).values({
+          userId: customer.id,
+          tokenHash,
+          expiresAt,
+          requestedByUserId: customer.id,
+          createdAt: now,
+        });
+        await tx.insert(bankAuditLogsTable).values({
+          actorUserId: customer.id,
+          targetUserId: customer.id,
+          action: "request_private_vault_passcode_reset",
+          reason: "Customer requested a single-use Private Vault passcode reset link for their verified primary email. Vault access status and entitlements were not modified.",
+        });
+      });
+    } catch (error) {
+      req.log.error({ error }, "Could not record the customer's Private Vault passcode reset request");
+      res.status(503).json({ error: "Your reset request could not be recorded. Please try again." });
+      return;
+    }
+
+    let emailSent = false;
+    try {
+      const resendApiKey = process.env.RESEND_API_KEY?.trim();
+      const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "security@globus.website";
+      if (!resendApiKey) throw new Error("Resend API key is not configured.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderAddress)) {
+        throw new Error("The configured security sender address is invalid.");
+      }
+      const emailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `GLOBUS BANK Security <${senderAddress}>`,
+          to: [recipientEmail],
+          subject: "Reset your GLOBUS BANK Private Vault passcode",
+          text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not request this email, you can ignore it. Resetting your passcode does not change your Private Vault access status.`,
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!emailResponse.ok) {
+        const errorBody = await emailResponse.text().catch(() => "");
+        throw new Error(`Resend rejected the reset email (${emailResponse.status}): ${errorBody.slice(0, 300)}`);
+      }
+      emailSent = true;
+    } catch (error) {
+      req.log.error({ error }, "Resend could not deliver the customer's Private Vault passcode reset email");
+    }
+
+    if (!emailSent) {
+      await db
+        .update(bankVaultPasscodeResetTokensTable)
+        .set({ usedAt: new Date() })
+        .where(eq(bankVaultPasscodeResetTokensTable.tokenHash, tokenHash));
+      await db.insert(bankAuditLogsTable).values({
+        actorUserId: customer.id,
+        targetUserId: customer.id,
+        action: "private_vault_passcode_reset_email_failed",
+        reason: "Customer-requested reset-link email delivery failed; the token was invalidated.",
+      });
+      res.status(503).json({ error: "The reset link could not be delivered. Please try again later." });
+      return;
+    }
+
+    await db.insert(bankAuditLogsTable).values({
+      actorUserId: customer.id,
+      targetUserId: customer.id,
+      action: "private_vault_passcode_reset_email_sent",
+      reason: "Customer's reset link was sent to their verified primary email address; token expires in 30 minutes.",
+    });
+    res.json({ sent: true, expiresAt: expiresAt.toISOString() });
+  },
+);
 router.use("/bank", (req, _res, next): void => {
   if (req.get("X-Globus-Vault-Session")) {
     next();

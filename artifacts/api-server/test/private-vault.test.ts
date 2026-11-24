@@ -1,14 +1,16 @@
 import assert from "node:assert/strict";
-import { randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 import { after, test } from "node:test";
 import { eq } from "drizzle-orm";
 import {
   bankUsersTable,
+  bankVaultPasscodeResetTokensTable,
   db,
   pool,
 } from "@workspace/db";
 import {
   initializeVaultPasscode,
+  completeVaultPasscodeReset,
   expireVaultSubscriptions,
   hasActiveVaultSubscription,
   isVaultPasscodeSessionValid,
@@ -174,6 +176,32 @@ test("private vault passcodes unlock a short session and revoke it when changed"
   const reopened = await unlockVault(userId, "2468");
   assert.equal(reopened.result, "valid");
   if (reopened.result !== "valid") return;
+
+  const resetToken = randomBytes(32).toString("base64url");
+  const resetTokenHash = createHash("sha256").update(resetToken).digest("hex");
+  const resetAt = new Date();
+  await db.insert(bankVaultPasscodeResetTokensTable).values({
+    userId,
+    tokenHash: resetTokenHash,
+    expiresAt: new Date(resetAt.getTime() + 30 * 60 * 1000),
+    requestedByUserId: userId,
+    createdAt: resetAt,
+  });
+  assert.equal(await completeVaultPasscodeReset(resetToken, "3579"), true);
+  assert.equal(await isVaultPasscodeSessionValid(userId, reopened.sessionToken), false);
+  assert.equal((await unlockVault(userId, "2468")).result, "invalid");
+  const resetUnlocked = await unlockVault(userId, "3579");
+  assert.equal(resetUnlocked.result, "valid");
+  const [afterReset] = await db
+    .select({
+      subscriptionStatus: bankUsersTable.vaultSubscriptionStatus,
+      subscriptionExpiresAt: bankUsersTable.vaultSubscriptionExpiresAt,
+    })
+    .from(bankUsersTable)
+    .where(eq(bankUsersTable.id, userId));
+  assert.equal(afterReset?.subscriptionStatus, "active");
+  assert.equal(afterReset?.subscriptionExpiresAt, null);
+  if (resetUnlocked.result !== "valid") return;
 
   await db
     .update(bankUsersTable)
