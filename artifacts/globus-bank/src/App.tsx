@@ -30,6 +30,7 @@ import { PersonalFinancePage } from '@/pages/personal-finance/personal-finance';
 import { useLanguage } from '@/lib/i18n';
 import { AdminWorkspace } from '@/pages/admin-workspace';
 import { PrivateVaultPasscodeResetPage } from '@/pages/private-vault-passcode-reset-page';
+import { SettingsPage } from '@/pages/settings-page';
 import { CustomerSupportPage } from '@/components/support-messaging';
 import {
   Redirect,
@@ -282,6 +283,7 @@ function ClerkRoutes() {
         <Route path="/customer-id"><Redirect to="/profile" /></Route>
         <Route path="/receive"><Redirect to="/profile" /></Route>
         <Route path="/profile"><ProtectedPage><ProfilePage /></ProtectedPage></Route>
+        <Route path="/settings"><ProtectedPage><SettingsPage /></ProtectedPage></Route>
         <Route path="/private-vault"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/private-vault/subscription"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/private-vault/funding"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
@@ -292,7 +294,6 @@ function ClerkRoutes() {
         <Route path="/private-vault/alerts"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/private-vault/notes"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/private-vault/email-preferences"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
-        <Route path="/settings"><Redirect to="/profile" /></Route>
         <Route path="/admin/vault-acces"><Redirect to="/admin/vault-access" /></Route>
         <Route path="/admin/vault-access"><ProtectedAdminPage /></Route>
         <Route path="/admin/support"><ProtectedAdminPage /></Route>

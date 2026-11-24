@@ -10,6 +10,7 @@ import {
   MessageSquareText,
   Menu,
   ShieldCheck,
+  Settings,
   UserRound,
   WalletCards,
   TrendingUp,
@@ -33,6 +34,7 @@ const primaryLinks = [
   { href: '/financial-overview', label: 'Financial overview', icon: TrendingUp },
   { href: '/private-vault', label: 'Private Vault', icon: LockKeyhole },
   { href: '/support', label: 'Support', icon: MessageSquareText },
+  { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
 const dashboardTools = [
@@ -63,7 +65,7 @@ export function BankShell({ children }: { children: ReactNode }) {
       enabled: isDashboard,
     },
   });
-  const isProfile = location === '/profile' || location === '/settings';
+  const isProfile = location === '/profile';
   const isSingleViewportPage = location === '/add-money' || location === '/calculator' || location === '/private-vault' || isProfile;
   const adminAccess = useGetAdminAccess({
     query: {
@@ -207,6 +209,7 @@ function pageLabel(path: string) {
     '/add-money': 'Deposit request',
     '/withdraw': 'Withdrawal request',
     '/profile': 'Profile',
+    '/settings': 'Settings',
     '/private-vault': 'Private Vault',
     '/settings': 'Profile',
     '/admin': 'Operations',
