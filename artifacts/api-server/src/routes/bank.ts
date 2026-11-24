@@ -693,12 +693,6 @@ router.post(
       return;
     }
 
-    await db.insert(bankAuditLogsTable).values({
-      actorUserId: tokenRecord.requestedByUserId,
-      targetUserId: tokenRecord.userId,
-      action: "complete_private_vault_passcode_reset",
-      reason: "Customer completed a single-use administrator-initiated Private Vault passcode reset. Vault access status, subscription, entitlements, and account access controls were not modified.",
-    });
     res.setHeader("Cache-Control", "no-store");
     res.json({ reset: true, message: "Your Private Vault passcode has been reset. Sign in and unlock your vault using the new passcode." });
   },
