@@ -9,6 +9,7 @@ import {
   bankUsersTable,
   bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
+  bankVaultPasscodeResetTokensTable,
   db,
 } from "@workspace/db";
 import { getVaultSubscriptionPlan } from "./vault-subscription";
@@ -523,6 +524,70 @@ export async function isVaultSessionActive(
     .limit(1);
   if (!user || !(await hasActiveVaultAccess(user))) return false;
   return hasValidVaultPasscodeSession(userId, sessionToken);
+}
+
+
+/**
+ * Completes an administrator-initiated passcode reset using a single-use,
+ * expiring token. Deliberately updates only the passcode hash and its
+ * brute-force lockout counters; vault access/subscription/entitlement fields
+ * are never read or written here.
+ */
+export async function completeVaultPasscodeReset(
+  rawToken: string,
+  newPasscode: string,
+): Promise<boolean> {
+  const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+  const newHash = await hashPasscode(newPasscode);
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [resetToken] = await tx
+      .select({
+        id: bankVaultPasscodeResetTokensTable.id,
+        userId: bankVaultPasscodeResetTokensTable.userId,
+      })
+      .from(bankVaultPasscodeResetTokensTable)
+      .where(
+        and(
+          eq(bankVaultPasscodeResetTokensTable.tokenHash, tokenHash),
+          isNull(bankVaultPasscodeResetTokensTable.usedAt),
+          gt(bankVaultPasscodeResetTokensTable.expiresAt, now),
+        ),
+      )
+      .limit(1)
+      .for("update");
+
+    if (!resetToken) return false;
+
+    const [user] = await tx
+      .select({ id: bankUsersTable.id })
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, resetToken.userId))
+      .for("update");
+    if (!user) return false;
+
+    await tx
+      .update(bankUsersTable)
+      .set({
+        vaultPasscodeHash: newHash,
+        vaultPasscodeFailedAttempts: 0,
+        vaultPasscodeLockedUntil: null,
+        updatedAt: now,
+      })
+      .where(eq(bankUsersTable.id, user.id));
+
+    await tx
+      .delete(bankVaultSessionsTable)
+      .where(eq(bankVaultSessionsTable.userId, user.id));
+
+    await tx
+      .update(bankVaultPasscodeResetTokensTable)
+      .set({ usedAt: now })
+      .where(eq(bankVaultPasscodeResetTokensTable.id, resetToken.id));
+
+    return true;
+  });
 }
 
 export async function updateVaultPasscode(
