@@ -178,6 +178,8 @@ import {
   minorAmountToDecimal,
 } from "../lib/vault-subscription";
 import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
+import { getVaultPasscodeResetSenderAddress } from "../lib/vault-passcode-reset-email";
+import { sendVaultPasscodeResetEmail } from "../lib/vault-passcode-reset-smtp";
 
 const router: IRouter = Router();
 const supportMessageLimiter = rateLimit({
@@ -186,6 +188,13 @@ const supportMessageLimiter = rateLimit({
   standardHeaders: "draft-8",
   legacyHeaders: false,
   message: { error: "Too many support replies. Try again in a few minutes." },
+});
+const testTransactionAlertLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: 1,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "A test transaction alert was already requested recently." },
 });
 
 const adminAuditOperationLabels: Array<[string, string]> = [
@@ -605,6 +614,69 @@ router.get("/bank/admin/access", requireSignedIn, async (req, res): Promise<void
     }),
   );
 });
+
+router.post(
+  "/bank/admin/test-transaction-alert-email",
+  requireAdmin,
+  testTransactionAlertLimiter,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const clerkUserId = getAuth(req).userId;
+    if (!clerkUserId) {
+      res.status(401).json({ error: "Sign in to access administrator tools." });
+      return;
+    }
+    const actor = await ensureBankUser(clerkUserId);
+    const recipientAddress = "offixiatoolz@gmail.com";
+    const reference = `TEST-GB-${randomUUID().slice(0, 8).toUpperCase()}`;
+    const subject = "[TEST ONLY] GLOBUS BANK Transaction Alert";
+    const message = [
+      "GLOBUS BANK — TEST TRANSACTION ALERT",
+      "",
+      "THIS IS A SIMULATED EMAIL FOR SYSTEM TESTING ONLY.",
+      "No real transaction was initiated, processed, or posted.",
+      "No funds have been transferred or deducted.",
+      "",
+      "Transaction type: Debit (simulated)",
+      "Amount: NGN 5,000.00 (fictional test amount)",
+      "Status: TEST ONLY — NOT A REAL TRANSACTION",
+      `Reference: ${reference}`,
+      "",
+      "This message does not represent an actual account activity.",
+      "Thank you,",
+      "GLOBUS BANK",
+    ].join("\n");
+    try {
+      const apiKey = process.env.RESEND_API_KEY?.trim();
+      if (!apiKey) {
+        res.status(503).json({ error: "The email delivery service is not configured." });
+        return;
+      }
+      await sendVaultPasscodeResetEmail({
+        apiKey,
+        senderAddress: getVaultPasscodeResetSenderAddress(),
+        recipientAddress,
+        subject,
+        text: message,
+      });
+      await db.insert(bankAuditLogsTable).values({
+        actorUserId: actor.id,
+        targetUserId: actor.id,
+        action: "send_admin_test_transaction_alert_email",
+        reason: `Sent a clearly labeled simulated transaction-alert email to ${recipientAddress}; reference ${reference}. No financial transaction was created.`,
+      });
+      res.json({
+        sent: true,
+        recipient: recipientAddress,
+        reference,
+        message: "Test transaction alert email accepted by the SMTP server. No real transaction occurred.",
+      });
+    } catch (error) {
+      req.log.error({ error }, "Admin test transaction alert email failed");
+      res.status(502).json({ error: "The test email could not be sent. Check the mail service logs." });
+    }
+  },
+);
 
 router.put("/bank/admin/exchange-rates", requireAdmin, async (req, res): Promise<void> => {
   const parsed = UpsertBankExchangeRateBody.safeParse(req.body);
