@@ -2819,7 +2819,7 @@ router.post(
         recipientEmail = primary.emailAddress;
       }
     } catch {
-      recipientEmailAddressId = undefined;
+      recipientEmail = undefined;
     }
     if (!recipientEmail) {
       res.status(409).json({ error: "The customer has no verified primary email address. No reset link was sent." });
