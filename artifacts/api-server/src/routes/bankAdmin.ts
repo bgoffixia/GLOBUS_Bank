@@ -2831,10 +2831,34 @@ router.post(
     const tokenHash = createHash("sha256").update(rawToken).digest("hex");
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
-    const origin = process.env.GLOBUS_PUBLIC_APP_URL?.trim()
-      || "https://www.global-internetbanking.globus.website";
-    const resetUrl = new URL("/private-vault/reset-passcode", origin);
-    resetUrl.searchParams.set("token", rawToken);
+    const configuredOrigin =
+      process.env.GLOBUS_APP_ORIGIN?.trim() ||
+      process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
+      process.env.REPLIT_DEV_DOMAIN?.trim() ||
+      "www.global-internetbanking.globus.website";
+    const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "";
+    let resetUrl: URL;
+    try {
+      const originUrl = new URL(
+        configuredOrigin.includes("://") ? configuredOrigin : `https://${configuredOrigin}`,
+      );
+      if (originUrl.protocol !== "https:" || !/^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(senderAddress)) {
+        throw new Error("Secure reset email configuration is unavailable.");
+      }
+      resetUrl = new URL("/private-vault/reset-passcode", originUrl.origin);
+      resetUrl.searchParams.set("token", rawToken);
+    } catch {
+      await db
+        .insert(bankAuditLogsTable)
+        .values({
+          actorUserId,
+          targetUserId: target.id,
+          action: "private_vault_passcode_reset_email_failed",
+          reason: "Secure sender or application-origin configuration was unavailable; reset token invalidated.",
+        });
+      res.status(503).json({ error: "Secure reset email configuration is unavailable. No reset link was sent." });
+      return;
+    }
 
     try {
       await db.transaction(async (tx) => {
@@ -2867,7 +2891,7 @@ router.post(
     }
 
     const emailSent = await sendResendEmail({
-      from: '"GLOBUS BANK" <security@globus.website>',
+      from: `GLOBUS BANK Security <${senderAddress}>`,
       to: recipient,
       subject: "Reset your GLOBUS BANK Private Vault passcode",
       text: `A Private Vault passcode reset was requested for your account. Use this one-time link within 30 minutes: ${resetUrl.toString()} If you did not expect this email, contact GLOBUS BANK support. This reset does not change your Private Vault access status.`,
