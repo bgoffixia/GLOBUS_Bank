@@ -132,6 +132,8 @@ export function PrivateVaultPanel() {
   const [newPasscode, setNewPasscode] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const [resetRequestPending, setResetRequestPending] = useState(false);
+  const [resetRequestMessage, setResetRequestMessage] = useState('');
   const [busyWallet, setBusyWallet] = useState('');
   const [bannerTheme, setBannerTheme] = useState<BankVaultEmailPreferences['bannerTheme']>('navy');
   const [bannerHeadline, setBannerHeadline] = useState('A Globus transfer notice');
@@ -478,6 +480,31 @@ export function PrivateVaultPanel() {
     setLocation(path);
     setMobileNavigationOpen(false);
   };
+  const requestVaultPasscodeReset = async () => {
+    setError('');
+    setMessage('');
+    setResetRequestMessage('');
+    setResetRequestPending(true);
+    try {
+      const response = await fetch('/api/bank/vault/passcode-reset/request', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        cache: 'no-store',
+        credentials: 'same-origin',
+        body: JSON.stringify({}),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) {
+        throw new Error(typeof result.error === 'string' ? result.error : 'A reset link could not be sent.');
+      }
+      setResetRequestMessage('A one-time reset link has been sent to your verified primary email. It expires in 30 minutes.');
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'A reset link could not be sent. Please try again.');
+    } finally {
+      setResetRequestPending(false);
+    }
+  };
+
   const changeVaultPasscode = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     setError('');
@@ -973,6 +1000,15 @@ export function PrivateVaultPanel() {
                 </label>
                 <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-unlock" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50"><LockKeyhole size={13} />{unlock.isPending ? 'Unlocking…' : 'Unlock Vault'}</button>
               </form>
+            )}
+            {status.data?.configured === true && !status.isLoading && (
+              <div className="mt-4 border-t border-[#e8eef0] pt-3">
+                <button type="button" onClick={() => void requestVaultPasscodeReset()} disabled={resetRequestPending} data-testid="button-vault-forgot-passcode" className="text-[10px] font-bold text-[#397b80] underline underline-offset-2 disabled:opacity-50">
+                  {resetRequestPending ? 'Sending reset link…' : 'Forgot your passcode? Email me a reset link'}
+                </button>
+                <p className="mt-1 text-[9px] leading-4 text-[#849397]">We’ll send a single-use link to your verified primary email. Your Vault access and subscription will not change.</p>
+                {resetRequestMessage && <p role="status" data-testid="status-vault-reset-request" className="mt-2 rounded-lg bg-[#eef7f1] px-3 py-2 text-[10px] text-[#41755f]">{resetRequestMessage}</p>}
+              </div>
             )}
             {error && <p role="alert" data-testid="status-vault-unlock-error" className="mt-3 rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{error}</p>}
             {message && <p role="status" className="mt-3 rounded-lg bg-[#eef7f1] px-3 py-2 text-[10px] text-[#41755f]">{message}</p>}
