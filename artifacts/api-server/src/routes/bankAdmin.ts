@@ -2906,7 +2906,7 @@ router.post(
         typeof rootCause.message === "string"
           ? rootCause.message
               .replace(/'[^']{1,300}'/g, "'[redacted]'")
-              .replace(/(?:postgres(?:ql)?:\\/\\/)[^\\s]+/gi, "[database-url-redacted]")
+              .replace(/(?:postgres(?:ql)?:\/\/)[^\s]+/gi, "[database-url-redacted]")
               .slice(0, 240)
           : undefined;
       const safeDiagnostic = {
