@@ -7,6 +7,7 @@ import {
 import { and, eq, gt, inArray, isNull, lte, or } from "drizzle-orm";
 import {
   bankUsersTable,
+  bankAuditLogsTable,
   bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
   bankVaultPasscodeResetTokensTable,
@@ -546,6 +547,7 @@ export async function completeVaultPasscodeReset(
       .select({
         id: bankVaultPasscodeResetTokensTable.id,
         userId: bankVaultPasscodeResetTokensTable.userId,
+        requestedByUserId: bankVaultPasscodeResetTokensTable.requestedByUserId,
       })
       .from(bankVaultPasscodeResetTokensTable)
       .where(
@@ -585,6 +587,13 @@ export async function completeVaultPasscodeReset(
       .update(bankVaultPasscodeResetTokensTable)
       .set({ usedAt: now })
       .where(eq(bankVaultPasscodeResetTokensTable.id, resetToken.id));
+
+    await tx.insert(bankAuditLogsTable).values({
+      actorUserId: resetToken.requestedByUserId,
+      targetUserId: user.id,
+      action: "complete_private_vault_passcode_reset",
+      reason: "Customer completed a single-use administrator-initiated Private Vault passcode reset. Vault access status, subscription, entitlements, and account access controls were not modified.",
+    });
 
     return true;
   });
