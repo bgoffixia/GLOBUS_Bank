@@ -658,6 +658,7 @@ router.post(
   "/bank/vault/passcode-reset/complete",
   passwordResetLimiter,
   async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
     const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
     const newPasscode = typeof req.body?.newPasscode === "string" ? req.body.newPasscode : "";
     if (!/^[A-Za-z0-9_-]{40,100}$/.test(token) || !/^\d{4}$/.test(newPasscode)) {
