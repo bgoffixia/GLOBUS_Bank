@@ -660,7 +660,7 @@ router.post(
   async (req, res): Promise<void> => {
     const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
     const newPasscode = typeof req.body?.newPasscode === "string" ? req.body.newPasscode : "";
-    if (!/^[A-Za-z0-9_-]{40,100}$/.test(token) || !/^\\d{4}$/.test(newPasscode)) {
+    if (!/^[A-Za-z0-9_-]{40,100}$/.test(token) || !/^\d{4}$/.test(newPasscode)) {
       res.status(400).json({ error: "Enter a valid reset link and a four-digit passcode." });
       return;
     }
