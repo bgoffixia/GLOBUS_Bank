@@ -1,8 +1,8 @@
 import { Router, type IRouter, type Request, type RequestHandler, type Response } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
 import { rateLimit } from "express-rate-limit";
-import { randomUUID } from "node:crypto";
-import { and, asc, count, desc, eq, inArray, isNull, or, sql } from "drizzle-orm";
+import { createHash, randomUUID } from "node:crypto";
+import { and, asc, count, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   DeleteBankVaultTransactionNoteHeader,
   DeleteBankVaultTransactionNoteParams,
@@ -113,6 +113,7 @@ import {
   bankNotificationsTable,
   bankPushSubscriptionsTable,
   bankVaultTransactionNotesTable,
+  bankVaultPasscodeResetTokensTable,
   bankExchangeRatesTable,
   bankInternationalTransferRequestsTable,
   bankLedgerEntriesTable,
