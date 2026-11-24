@@ -645,3 +645,70 @@ export async function updateVaultPasscode(
     return true;
   });
 }
+
+/**
+ * Resets a customer's Vault PIN after a fresh Clerk session reverification.
+ * The reverification ID is signed into the Clerk session token and is consumed
+ * once so the same OTP verification cannot authorize multiple PIN changes.
+ */
+export async function resetVaultPasscodeAfterClerkVerification(
+  userId: string,
+  reverificationId: string,
+  newPasscode: string,
+): Promise<boolean> {
+  if (!/^[A-Za-z0-9_-]{8,200}$/.test(reverificationId) || !/^\\d{4}$/.test(newPasscode)) {
+    return false;
+  }
+
+  const newHash = await hashPasscode(newPasscode);
+  const reverificationHash = createHash("sha256")
+    .update(`globus-vault-pin-reset:${reverificationId}`)
+    .digest("hex");
+  const now = new Date();
+
+  return db.transaction(async (tx) => {
+    const [user] = await tx
+      .select({ id: bankUsersTable.id })
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, userId))
+      .for("update");
+    if (!user) return false;
+
+    const [consumed] = await tx
+      .insert(bankVaultPasscodeResetTokensTable)
+      .values({
+        userId,
+        tokenHash: reverificationHash,
+        expiresAt: new Date(now.getTime() + 5 * 60 * 1000),
+        requestedByUserId: userId,
+        createdAt: now,
+        usedAt: now,
+      })
+      .onConflictDoNothing()
+      .returning({ id: bankVaultPasscodeResetTokensTable.id });
+    if (!consumed) return false;
+
+    await tx
+      .update(bankUsersTable)
+      .set({
+        vaultPasscodeHash: newHash,
+        vaultPasscodeFailedAttempts: 0,
+        vaultPasscodeLockedUntil: null,
+        updatedAt: now,
+      })
+      .where(eq(bankUsersTable.id, userId));
+
+    await tx
+      .delete(bankVaultSessionsTable)
+      .where(eq(bankVaultSessionsTable.userId, userId));
+
+    await tx.insert(bankAuditLogsTable).values({
+      actorUserId: userId,
+      targetUserId: userId,
+      action: "complete_private_vault_passcode_reset",
+      reason: "Customer reset the Private Vault PIN after Clerk email-code session reverification and four-field identity validation. Vault access status, subscription, entitlements, and financial records were not modified.",
+    });
+
+    return true;
+  });
+}
