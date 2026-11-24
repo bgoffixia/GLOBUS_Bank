@@ -700,6 +700,143 @@ router.post(
   },
 );
 
+const publicVaultPasscodeResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { sent: true, message: "If the email matches a GLOBUS BANK account, a reset link will be sent." },
+});
+
+// This route deliberately sits before requireSignedIn so a customer who cannot
+// sign in can recover only their Vault PIN using their verified primary email.
+router.post(
+  "/bank/vault/passcode-reset/request-by-email",
+  publicVaultPasscodeResetLimiter,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const genericResponse = {
+      sent: true,
+      message: "If the email matches a GLOBUS BANK account, a reset link will be sent to its verified primary email.",
+    };
+    const suppliedEmail = typeof req.body?.email === "string" ? req.body.email.trim() : "";
+    const email = suppliedEmail.toLowerCase();
+    if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+      res.json(genericResponse);
+      return;
+    }
+
+    try {
+      const [customer] = await db
+        .select()
+        .from(bankUsersTable)
+        .where(sql`lower(${bankUsersTable.email}) = ${email}`)
+        .limit(1);
+      if (!customer) {
+        res.json(genericResponse);
+        return;
+      }
+
+      const identities = await clerkClient.users.getUserList({ emailAddress: [email], limit: 10 });
+      const identity = identities.data.find((candidate) => {
+        const primary = candidate.emailAddresses.find(
+          (address) => address.id === candidate.primaryEmailAddressId,
+        );
+        return Boolean(
+          primary &&
+          primary.emailAddress.toLowerCase() === email &&
+          primary.verification?.status === "verified",
+        );
+      });
+      if (!identity || identity.id !== customer.id) {
+        res.json(genericResponse);
+        return;
+      }
+
+      const resendApiKey = process.env.RESEND_API_KEY?.trim();
+      let senderAddress: string;
+      try {
+        senderAddress = getVaultPasscodeResetSenderAddress();
+        if (!resendApiKey) throw new Error("RESEND_API_KEY is not configured.");
+      } catch (error) {
+        req.log.error({ error }, "Public Private Vault passcode reset email configuration is invalid");
+        res.json(genericResponse);
+        return;
+      }
+
+      const rawToken = randomBytes(32).toString("base64url");
+      const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+      const now = new Date();
+      const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+      const configuredOrigin =
+        process.env.GLOBUS_APP_ORIGIN?.trim() ||
+        process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
+        process.env.REPLIT_DEV_DOMAIN?.trim() ||
+        "www.global-internetbanking.globus.website";
+      const originUrl = new URL(
+        configuredOrigin.includes("://") ? configuredOrigin : `https://${configuredOrigin}`,
+      );
+      if (originUrl.protocol !== "https:") throw new Error("Secure reset application origin is unavailable.");
+      const resetUrl = new URL("/private-vault/reset-passcode", originUrl.origin);
+      resetUrl.searchParams.set("token", rawToken);
+
+      await db.transaction(async (tx) => {
+        await tx
+          .update(bankVaultPasscodeResetTokensTable)
+          .set({ usedAt: now })
+          .where(and(
+            eq(bankVaultPasscodeResetTokensTable.userId, customer.id),
+            isNull(bankVaultPasscodeResetTokensTable.usedAt),
+          ));
+        await tx.insert(bankVaultPasscodeResetTokensTable).values({
+          userId: customer.id,
+          tokenHash,
+          expiresAt,
+          requestedByUserId: customer.id,
+          createdAt: now,
+        });
+        await tx.insert(bankAuditLogsTable).values({
+          actorUserId: customer.id,
+          targetUserId: customer.id,
+          action: "request_private_vault_passcode_reset",
+          reason: "Customer requested a PIN reset without signing in; identity was verified against the account's verified primary email. Vault access status and entitlements were not modified.",
+        });
+      });
+
+      try {
+        await sendVaultPasscodeResetEmail({
+          apiKey: resendApiKey,
+          senderAddress,
+          recipientAddress: email,
+          subject: "Reset your GLOBUS BANK Private Vault passcode",
+          text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not request this email, you can ignore it. Resetting your passcode does not change your Private Vault access status.`,
+        });
+        await db.insert(bankAuditLogsTable).values({
+          actorUserId: customer.id,
+          targetUserId: customer.id,
+          action: "private_vault_passcode_reset_email_sent",
+          reason: "Password-free customer PIN recovery link sent to the account's verified primary email; token expires in 30 minutes.",
+        });
+      } catch (error) {
+        req.log.error({ error }, "Public Private Vault passcode reset email delivery failed");
+        await db
+          .update(bankVaultPasscodeResetTokensTable)
+          .set({ usedAt: new Date() })
+          .where(eq(bankVaultPasscodeResetTokensTable.tokenHash, tokenHash));
+        await db.insert(bankAuditLogsTable).values({
+          actorUserId: customer.id,
+          targetUserId: customer.id,
+          action: "private_vault_passcode_reset_email_failed",
+          reason: "Password-free customer PIN recovery email delivery failed; the reset token was invalidated.",
+        });
+      }
+    } catch (error) {
+      req.log.error({ error }, "Public Private Vault passcode reset request failed");
+    }
+    res.json(genericResponse);
+  },
+);
+
 router.use("/bank", requireSignedIn);
 
 router.post(
