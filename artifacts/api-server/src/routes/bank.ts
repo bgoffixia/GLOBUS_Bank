@@ -721,7 +721,7 @@ router.post(
     };
     const suppliedEmail = typeof req.body?.email === "string" ? req.body.email.trim() : "";
     const email = suppliedEmail.toLowerCase();
-    if (!email || email.length > 254 || !/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!email || email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       res.json(genericResponse);
       return;
     }
@@ -806,7 +806,7 @@ router.post(
           senderAddress,
           recipientAddress: email,
           subject: "Reset your GLOBUS BANK Private Vault passcode",
-          text: `A Private Vault passcode reset was requested for your account.\\n\\nUse this one-time link within 30 minutes:\\n${resetUrl.toString()}\\n\\nIf you did not request this email, you can ignore it. Resetting your passcode does not change your Private Vault access status.`,
+          text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not request this email, you can ignore it. Resetting your passcode does not change your Private Vault access status.`,
         });
         await db.insert(bankAuditLogsTable).values({
           actorUserId: customer.id,
