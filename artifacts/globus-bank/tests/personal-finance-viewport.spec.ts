@@ -274,6 +274,40 @@ test.describe("personal finance responsive workspace", () => {
       }));
       expect(dashboardSummaryState.overflowY).toBe("auto");
       expect(dashboardSummaryState.scrollHeight).toBeGreaterThan(dashboardSummaryState.clientHeight);
+
+      // Regression guard: every compact currency card stays inside the scroll viewport
+      // and its wallet label and income/expense columns never overlap at phone widths.
+      const summaryLayout = await dashboardSummaryScroller.evaluate((container) => {
+        const viewport = container.getBoundingClientRect();
+        const cards = Array.from(container.querySelectorAll<HTMLElement>(".dashboard-ledger-summary-card"));
+        return {
+          viewport: { left: viewport.left, right: viewport.right, top: viewport.top, bottom: viewport.bottom },
+          cards: cards.map((card) => {
+            const rect = card.getBoundingClientRect();
+            const children = Array.from(card.children).map((child) => {
+              const childRect = child.getBoundingClientRect();
+              return { left: childRect.left, right: childRect.right, top: childRect.top, bottom: childRect.bottom };
+            });
+            return {
+              rect: { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom },
+              children,
+            };
+          }),
+        };
+      });
+      expect(summaryLayout.cards.length).toBeGreaterThan(0);
+      for (const [index, card] of summaryLayout.cards.entries()) {
+        expect(card.rect.left, `summary card ${index} clips on the left at ${viewport.width}px`).toBeGreaterThanOrEqual(summaryLayout.viewport.left - 1);
+        expect(card.rect.right, `summary card ${index} clips on the right at ${viewport.width}px`).toBeLessThanOrEqual(summaryLayout.viewport.right + 1);
+        for (let first = 0; first < card.children.length; first += 1) {
+          for (let second = first + 1; second < card.children.length; second += 1) {
+            const a = card.children[first];
+            const b = card.children[second];
+            const overlaps = a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+            expect(overlaps, `summary card ${index} content overlaps at ${viewport.width}px`).toBe(false);
+          }
+        }
+      }
       await dashboardSummaryScroller.evaluate((element) => {
         element.scrollTop = element.scrollHeight;
       });
