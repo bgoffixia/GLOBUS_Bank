@@ -1,5 +1,5 @@
 import { Router, type IRouter, type Request, type RequestHandler } from "express";
-import { randomBytes, createHash } from "node:crypto";
+import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { clerkClient, getAuth } from "@clerk/express";
 import { rateLimit } from "express-rate-limit";
 import {
@@ -2858,8 +2858,13 @@ router.post(
       return;
     }
 
+    let failedOperation:
+      | "invalidate_previous_tokens"
+      | "insert_reset_token"
+      | "insert_audit_log" = "invalidate_previous_tokens";
     try {
       await db.transaction(async (tx) => {
+        failedOperation = "invalidate_previous_tokens";
         await tx
           .update(bankVaultPasscodeResetTokensTable)
           .set({ usedAt: now })
@@ -2869,6 +2874,8 @@ router.post(
               isNull(bankVaultPasscodeResetTokensTable.usedAt),
             ),
           );
+
+        failedOperation = "insert_reset_token";
         await tx.insert(bankVaultPasscodeResetTokensTable).values({
           userId: target.id,
           tokenHash,
@@ -2876,6 +2883,8 @@ router.post(
           requestedByUserId: actorUserId,
           createdAt: now,
         });
+
+        failedOperation = "insert_audit_log";
         await tx.insert(bankAuditLogsTable).values({
           actorUserId,
           targetUserId: target.id,
@@ -2883,8 +2892,27 @@ router.post(
           reason: "Administrator issued a single-use Private Vault passcode reset link to the customer's verified primary email. Vault access status and entitlements were not modified.",
         });
       });
-    } catch {
-      res.status(503).json({ error: "The reset request could not be recorded. No email was sent." });
+    } catch (error: unknown) {
+      const diagnosticId = randomUUID();
+      const dbError =
+        typeof error === "object" && error !== null
+          ? error as Record<string, unknown>
+          : {};
+      const safeDiagnostic = {
+        diagnosticId,
+        operation: failedOperation,
+        errorName: error instanceof Error ? error.name : "UnknownError",
+        code: typeof dbError.code === "string" ? dbError.code : undefined,
+        constraint: typeof dbError.constraint === "string" ? dbError.constraint : undefined,
+        table: typeof dbError.table === "string" ? dbError.table : undefined,
+        column: typeof dbError.column === "string" ? dbError.column : undefined,
+        schema: typeof dbError.schema === "string" ? dbError.schema : undefined,
+      };
+      console.error("[vault-passcode-reset] transaction failed", safeDiagnostic);
+      res.status(503).json({
+        error: "The reset request could not be recorded. No email was sent.",
+        diagnosticId,
+      });
       return;
     }
 
