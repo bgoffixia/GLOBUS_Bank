@@ -200,6 +200,7 @@ const adminAuditOperationLabels: Array<[string, string]> = [
   ["/bank/admin/users/:userId/vault-access/grant", "Private Vault admin grant"],
   ["/bank/admin/users/:userId/vault-access/revoke", "Private Vault admin grant revocation"],
   ["/bank/admin/users/:userId/transaction-pin/reset", "customer transaction PIN reset"],
+  ["/bank/admin/users/:userId/vault-passcode-reset", "Private Vault passcode reset-link request"],
   ["/bank/admin/users/:userId/password-reset", "customer password reset"],
   ["/bank/admin/users/:userId/status", "customer account status change"],
   ["/bank/admin/users/:userId/profile", "customer profile update"],
@@ -2781,6 +2782,7 @@ router.post(
   "/bank/admin/users/:userId/vault-passcode-reset",
   requireAdmin,
   async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
     const userId = typeof req.params.userId === "string" ? req.params.userId.trim() : "";
     if (!userId || userId.length > 256 || req.body?.confirmed !== true) {
       res.status(400).json({ error: "Confirm the Private Vault passcode reset request." });
