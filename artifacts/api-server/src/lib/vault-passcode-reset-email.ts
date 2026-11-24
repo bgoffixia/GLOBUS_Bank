@@ -1,13 +1,18 @@
 const DEFAULT_VAULT_PASSCODE_RESET_SENDER = "security@globus.website";
 
 const EMAIL_ADDRESS_PATTERN =
-  /^[A-Za-z0-9!#$%&'*+=?^_{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+=?^_{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+  /^[A-Za-z0-9!#$%&'*+=?^_{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+=?^_{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
 
 export function validateVaultPasscodeResetSenderAddress(value: string): string {
   const address = value.trim();
+  const [localPart, domain] = address.split("@");
   if (
     !address ||
     address.length > 254 ||
+    !localPart ||
+    localPart.length > 64 ||
+    !domain ||
+    domain.length > 253 ||
     !EMAIL_ADDRESS_PATTERN.test(address)
   ) {
     throw new Error(
