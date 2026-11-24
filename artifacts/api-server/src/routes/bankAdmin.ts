@@ -1,4 +1,5 @@
 import { Router, type IRouter, type Request, type RequestHandler } from "express";
+import { randomBytes, createHash } from "node:crypto";
 import { clerkClient, getAuth } from "@clerk/express";
 import { rateLimit } from "express-rate-limit";
 import {
@@ -129,6 +130,7 @@ import {
   bankUsersTable,
   bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
+  bankVaultPasscodeResetTokensTable,
   bankSupportConversationsTable,
   bankSupportMessagesTable,
   bankWalletsTable,
@@ -197,6 +199,7 @@ const adminAuditOperationLabels: Array<[string, string]> = [
   ["/bank/admin/users/:userId/vault-access/grant", "Private Vault admin grant"],
   ["/bank/admin/users/:userId/vault-access/revoke", "Private Vault admin grant revocation"],
   ["/bank/admin/users/:userId/transaction-pin/reset", "customer transaction PIN reset"],
+  ["/bank/admin/users/:userId/vault-passcode-reset", "Private Vault passcode reset-link request"],
   ["/bank/admin/users/:userId/password-reset", "customer password reset"],
   ["/bank/admin/users/:userId/status", "customer account status change"],
   ["/bank/admin/users/:userId/profile", "customer profile update"],
@@ -2770,6 +2773,175 @@ router.post(
       return;
     }
     res.json(ResetAdminUserTransactionPinResponse.parse({ configured: false }));
+  },
+);
+
+
+router.post(
+  "/bank/admin/users/:userId/vault-passcode-reset",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const userId = typeof req.params.userId === "string" ? req.params.userId.trim() : "";
+    if (!userId || userId.length > 256 || req.body?.confirmed !== true) {
+      res.status(400).json({ error: "Confirm the Private Vault passcode reset request." });
+      return;
+    }
+
+    const authenticatedClerkId = getAuth(req).userId;
+    if (!authenticatedClerkId) {
+      res.status(401).json({ error: "Sign in to access administrative controls." });
+      return;
+    }
+    if (authenticatedClerkId === userId) {
+      res.status(400).json({ error: "Administrators cannot send themselves a customer reset link." });
+      return;
+    }
+
+    const actorUserId = (await ensureBankUser(authenticatedClerkId)).id;
+    const [target] = await db
+      .select({ id: bankUsersTable.id })
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, userId))
+      .limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Customer account not found." });
+      return;
+    }
+
+    let recipientEmail: string | undefined;
+    try {
+      const identity = await clerkClient.users.getUser(target.id);
+      const primary = identity.emailAddresses.find(
+        (email) => email.id === identity.primaryEmailAddressId,
+      );
+      if (primary?.verification?.status === "verified") {
+        recipientEmail = primary.emailAddress;
+      }
+    } catch {
+      recipientEmail = undefined;
+    }
+    if (!recipientEmail) {
+      res.status(409).json({ error: "The customer has no verified primary email address. No reset link was sent." });
+      return;
+    }
+
+    const rawToken = randomBytes(32).toString("base64url");
+    const tokenHash = createHash("sha256").update(rawToken).digest("hex");
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
+    const configuredOrigin =
+      process.env.GLOBUS_APP_ORIGIN?.trim() ||
+      process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
+      process.env.REPLIT_DEV_DOMAIN?.trim() ||
+      "www.global-internetbanking.globus.website";
+    let resetUrl: URL;
+    try {
+      const originUrl = new URL(
+        configuredOrigin.includes("://") ? configuredOrigin : `https://${configuredOrigin}`,
+      );
+      if (originUrl.protocol !== "https:") {
+        throw new Error("Secure reset application origin is unavailable.");
+      }
+      resetUrl = new URL("/private-vault/reset-passcode", originUrl.origin);
+      resetUrl.searchParams.set("token", rawToken);
+    } catch {
+      await db
+        .insert(bankAuditLogsTable)
+        .values({
+          actorUserId,
+          targetUserId: target.id,
+          action: "private_vault_passcode_reset_email_failed",
+          reason: "Secure sender or application-origin configuration was unavailable; no reset token was issued.",
+        });
+      res.status(503).json({ error: "Secure reset email configuration is unavailable. No reset link was sent." });
+      return;
+    }
+
+    try {
+      await db.transaction(async (tx) => {
+        await tx
+          .update(bankVaultPasscodeResetTokensTable)
+          .set({ usedAt: now })
+          .where(
+            and(
+              eq(bankVaultPasscodeResetTokensTable.userId, target.id),
+              isNull(bankVaultPasscodeResetTokensTable.usedAt),
+            ),
+          );
+        await tx.insert(bankVaultPasscodeResetTokensTable).values({
+          userId: target.id,
+          tokenHash,
+          expiresAt,
+          requestedByUserId: actorUserId,
+          createdAt: now,
+        });
+        await tx.insert(bankAuditLogsTable).values({
+          actorUserId,
+          targetUserId: target.id,
+          action: "request_private_vault_passcode_reset",
+          reason: "Administrator issued a single-use Private Vault passcode reset link to the customer's verified primary email. Vault access status and entitlements were not modified.",
+        });
+      });
+    } catch {
+      res.status(503).json({ error: "The reset request could not be recorded. No email was sent." });
+      return;
+    }
+
+    let emailSent = false;
+    try {
+      const resendApiKey = process.env.RESEND_API_KEY?.trim();
+      const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "security@globus.website";
+      if (!resendApiKey) throw new Error("Resend API key is not configured.");
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderAddress)) {
+        throw new Error("The configured security sender address is invalid.");
+      }
+      const emailResponse = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          from: `GLOBUS BANK Security <${senderAddress}>`,
+          to: [recipientEmail],
+          subject: "Reset your GLOBUS BANK Private Vault passcode",
+          text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not expect this email, contact GLOBUS BANK support. Resetting the passcode does not change your Private Vault access status.`,
+        }),
+        signal: AbortSignal.timeout(15_000),
+      });
+      if (!emailResponse.ok) {
+        const errorBody = await emailResponse.text().catch(() => "");
+        throw new Error(`Resend rejected the reset email (${emailResponse.status}): ${errorBody.slice(0, 500)}`);
+      }
+      emailSent = true;
+    } catch (error) {
+      req.log.error({ error }, "Resend could not deliver the Private Vault passcode reset email");
+    }
+
+    if (!emailSent) {
+      await db
+        .update(bankVaultPasscodeResetTokensTable)
+        .set({ usedAt: new Date() })
+        .where(eq(bankVaultPasscodeResetTokensTable.tokenHash, tokenHash));
+      await db.insert(bankAuditLogsTable).values({
+        actorUserId,
+        targetUserId: target.id,
+        action: "private_vault_passcode_reset_email_failed",
+        reason: "Reset-link email delivery failed; the token was invalidated.",
+      });
+      res.status(503).json({ error: "The reset link could not be delivered. Request a new link after checking email delivery configuration." });
+      return;
+    }
+
+    await db.insert(bankAuditLogsTable).values({
+      actorUserId,
+      targetUserId: target.id,
+      action: "private_vault_passcode_reset_email_sent",
+      reason: "Reset link sent to the verified primary email address; token expires in 30 minutes.",
+    });
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ sent: true, expiresAt: expiresAt.toISOString() });
   },
 );
 

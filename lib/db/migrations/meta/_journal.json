@@ -92,6 +92,13 @@
       "when": 1795283641154,
       "tag": "20261121_admin_vault_access_duration",
       "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1795615200000,
+      "tag": "20261125_private_vault_passcode_reset_tokens",
+      "breakpoints": true
     }
   ]
 }

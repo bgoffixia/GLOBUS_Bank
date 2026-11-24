@@ -416,6 +416,8 @@ function MemberDetail({ userId }: { userId: string }) {
   const [accountTierConfirmed, setAccountTierConfirmed] = useState(false);
   const [accountTierError, setAccountTierError] = useState('');
   const [message, setMessage] = useState(''); const [error, setError] = useState('');
+  const [vaultResetBusy, setVaultResetBusy] = useState(false);
+  const [vaultResetError, setVaultResetError] = useState('');
   useEffect(() => {
     if (!detail.data) return;
     setTestingModeDisabled(detail.data.user.testingModeDisabled);
@@ -494,6 +496,29 @@ function MemberDetail({ userId }: { userId: string }) {
       setAccountTierError(err instanceof Error ? err.message : 'The account tier could not be updated.');
     }
   };
+
+  const sendVaultResetLink = async () => {
+    if (!u || vaultResetBusy) return;
+    if (!window.confirm(`Send a 30-minute Private Vault passcode reset link to ${u.email}?`)) return;
+    setVaultResetBusy(true);
+    setVaultResetError('');
+    try {
+      const response = await fetch(`/api/bank/admin/users/${encodeURIComponent(userId)}/vault-passcode-reset`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirmed: true }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : 'The reset link could not be sent.');
+      setMessage('A one-time Private Vault passcode reset link was sent to the customer’s verified primary email. It expires in 30 minutes. Vault access status was not changed.');
+    } catch (err) {
+      setVaultResetError(err instanceof Error ? err.message : 'The reset link could not be sent.');
+    } finally {
+      setVaultResetBusy(false);
+    }
+  };
+
   if (detail.isLoading) return <><Heading kicker="Member management" title="Loading member record" subtitle="Fetching the authorized account record." /><div className={box}><Skeleton /></div></>;
   if (detail.isError || !detail.data || !u) return <><Heading kicker="Member management" title="Member record unavailable" subtitle="The member record could not be loaded." /><InlineError text="Try loading this member record again." retry={() => detail.refetch()} /></>;
   const fullName = nameOf(u);
@@ -549,6 +574,14 @@ function MemberDetail({ userId }: { userId: string }) {
               {accountTierError && <p role="alert" data-testid="error-admin-account-tier" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{accountTierError}</p>}
               <button data-testid="button-save-admin-account-tier" type="submit" disabled={accountTierMutation.isPending || accountTierPin.length !== 6 || !accountTierConfirmed} className={button}>{accountTierMutation.isPending ? 'Saving tier…' : 'Save account tier'}</button>
             </form>
+          </Panel>
+
+          <Panel title="Private Vault passcode recovery" eyebrow="Credential reset only">
+            <div className="space-y-3 p-4 sm:p-5">
+              <p className="text-[10px] leading-5 text-[#718588]">Send a single-use reset link to the customer’s verified primary email. The link expires after 30 minutes. Completing the reset changes only the passcode credential and lockout counters; it does not grant, revoke, activate, suspend, or otherwise change Private Vault access or subscription status.</p>
+              {vaultResetError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{vaultResetError}</p>}
+              <button type="button" data-testid="button-send-vault-passcode-reset" onClick={sendVaultResetLink} disabled={vaultResetBusy} className={button}>{vaultResetBusy ? 'Sending reset link…' : 'Send Vault passcode reset link'}</button>
+            </div>
           </Panel>
           <Panel title="Customer access controls" eyebrow="Independent from Private Vault">
             <form data-testid="admin-access-control-form" onSubmit={saveAccessControls} className="grid gap-3 p-4 sm:p-5">

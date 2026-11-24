@@ -29,6 +29,7 @@ import { CurrencyCalculatorPage } from '@/pages/currency-calculator-page';
 import { PersonalFinancePage } from '@/pages/personal-finance/personal-finance';
 import { useLanguage } from '@/lib/i18n';
 import { AdminWorkspace } from '@/pages/admin-workspace';
+import { PrivateVaultPasscodeResetPage } from '@/pages/private-vault-passcode-reset-page';
 import { CustomerSupportPage } from '@/components/support-messaging';
 import {
   Redirect,
@@ -261,6 +262,7 @@ function ClerkRoutes() {
         </Route>
         <Route path="/sign-in/email" component={EmailRecoveryPage} />
         <Route path="/sign-in/recover" component={PasswordResetLinkPage} />
+        <Route path="/private-vault/reset-passcode" component={PrivateVaultPasscodeResetPage} />
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />
         <Route path="/dashboard"><ProtectedPage><DashboardPage /></ProtectedPage></Route>
