@@ -133,6 +133,7 @@ export function PrivateVaultPanel() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [resetRequestPending, setResetRequestPending] = useState(false);
+  const [failedVaultPinAttempts, setFailedVaultPinAttempts] = useState(0);
   const [resetRequestMessage, setResetRequestMessage] = useState('');
   const [busyWallet, setBusyWallet] = useState('');
   const [bannerTheme, setBannerTheme] = useState<BankVaultEmailPreferences['bannerTheme']>('navy');
@@ -456,6 +457,7 @@ export function PrivateVaultPanel() {
         setMessage('Vault passcode set. Unlock to view plans and Vault settings.');
       } else {
         const result = await unlock.mutateAsync({ data: { passcode, rememberDevice } });
+        setFailedVaultPinAttempts(0);
         setSessionToken(result.sessionToken ?? '');
         setRememberedDeviceSession(result.rememberedDevice);
         setExpiresAt(result.expiresAt);
@@ -471,6 +473,9 @@ export function PrivateVaultPanel() {
         await queryClient.invalidateQueries({ queryKey: getGetBankVaultReceiptPreferenceQueryKey() });
       }
     } catch (err) {
+      if (status.data?.configured === true) {
+        setFailedVaultPinAttempts(attempts => Math.min(attempts + 1, 3));
+      }
       setError(err instanceof Error ? err.message : 'The vault request could not be completed.');
     }
   };
@@ -1001,7 +1006,7 @@ export function PrivateVaultPanel() {
                 <button type="submit" disabled={loading || passcode.length !== 4} data-testid="button-vault-unlock" className="inline-flex h-9 items-center justify-center gap-2 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50"><LockKeyhole size={13} />{unlock.isPending ? 'Unlocking…' : 'Unlock Vault'}</button>
               </form>
             )}
-            {status.data?.configured === true && !status.isLoading && (
+            {status.data?.configured === true && !status.isLoading && failedVaultPinAttempts >= 3 && (
               <div className="mt-4 border-t border-[#e8eef0] pt-3" data-testid="vault-pin-reset-entry">
                 <Link
                   href="/private-vault/reset-passcode"
@@ -1011,7 +1016,7 @@ export function PrivateVaultPanel() {
                   Forgot your PIN? Reset with Clerk email OTP
                 </Link>
                 <p className="mt-1 text-[9px] leading-4 text-[#849397]">
-                  Verify your Clerk email and GLOBUS account ownership before choosing a new PIN. Your current PIN and Vault access stay unchanged unless verification succeeds.
+                  After 3 unsuccessful PIN attempts, verify your Clerk email and GLOBUS account ownership before choosing a new PIN. Your current PIN and Vault access stay unchanged unless verification succeeds.
                 </p>
               </div>
             )}
