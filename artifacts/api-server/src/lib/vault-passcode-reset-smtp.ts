@@ -1,5 +1,5 @@
-import net from "node:net";
-import tls from "node:tls";
+import { createConnection, type Socket } from "node:net";
+import { connect, type TLSSocket } from "node:tls";
 
 type ResetEmailInput = {
   apiKey: string;
@@ -13,7 +13,7 @@ const SMTP_HOST = "smtp.resend.com";
 const SMTP_PORT = 587;
 const SMTP_TIMEOUT_MS = 15_000;
 
-type SmtpSocket = net.Socket | tls.TLSSocket;
+type SmtpSocket = Socket | TLSSocket;
 
 function readReply(socket: SmtpSocket): Promise<{ code: number; message: string }> {
   return new Promise((resolve, reject) => {
@@ -49,8 +49,20 @@ async function command(socket: SmtpSocket, value: string, expected: number[]): P
 
 function assertMailbox(value: string, label: string): string {
   const address = value.trim();
-  const pattern = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\.[A-Za-z0-9!#$%&'*+\/= ?^_`{|}~-]+)*@[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
-  if (address.length > 254 || !pattern.test(address) || /[\r\n<>]/.test(address)) {
+  const [localPart, domain, ...extra] = address.split("@");
+  const localPattern = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/;
+  const domainPattern = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?(?:\\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)+$/;
+  if (
+    address.length > 254 ||
+    extra.length > 0 ||
+    !localPart ||
+    localPart.length > 64 ||
+    !domain ||
+    domain.length > 253 ||
+    !localPattern.test(localPart) ||
+    !domainPattern.test(domain) ||
+    /[\\r\\n<>]/.test(address)
+  ) {
     throw new Error(`Invalid ${label} email address for SMTP delivery.`);
   }
   return address;
@@ -76,7 +88,7 @@ export async function sendVaultPasscodeResetEmail(input: ResetEmailInput): Promi
 
   let socket: SmtpSocket | undefined;
   try {
-    const plainSocket = net.createConnection({ host: SMTP_HOST, port: SMTP_PORT });
+    const plainSocket = createConnection({ host: SMTP_HOST, port: SMTP_PORT });
     socket = plainSocket;
     plainSocket.setTimeout(SMTP_TIMEOUT_MS);
     await new Promise<void>((resolve, reject) => {
@@ -89,7 +101,7 @@ export async function sendVaultPasscodeResetEmail(input: ResetEmailInput): Promi
     await command(plainSocket, "EHLO globus.website", [250]);
     await command(plainSocket, "STARTTLS", [220]);
 
-    const secureSocket = tls.connect({ socket: plainSocket, servername: SMTP_HOST, minVersion: "TLSv1.2" });
+    const secureSocket = connect({ socket: plainSocket, servername: SMTP_HOST, minVersion: "TLSv1.2" });
     socket = secureSocket;
     secureSocket.setTimeout(SMTP_TIMEOUT_MS);
     await new Promise<void>((resolve, reject) => {
