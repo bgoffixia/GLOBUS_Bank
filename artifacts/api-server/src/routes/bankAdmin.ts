@@ -2842,7 +2842,7 @@ router.post(
       const originUrl = new URL(
         configuredOrigin.includes("://") ? configuredOrigin : `https://${configuredOrigin}`,
       );
-      if (originUrl.protocol !== "https:" || !/^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(senderAddress)) {
+      if (originUrl.protocol !== "https:" || !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(senderAddress)) {
         throw new Error("Secure reset email configuration is unavailable.");
       }
       resetUrl = new URL("/private-vault/reset-passcode", originUrl.origin);
@@ -2854,7 +2854,7 @@ router.post(
           actorUserId,
           targetUserId: target.id,
           action: "private_vault_passcode_reset_email_failed",
-          reason: "Secure sender or application-origin configuration was unavailable; reset token invalidated.",
+          reason: "Secure sender or application-origin configuration was unavailable; no reset token was issued.",
         });
       res.status(503).json({ error: "Secure reset email configuration is unavailable. No reset link was sent." });
       return;
