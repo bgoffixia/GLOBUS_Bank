@@ -194,6 +194,7 @@ import {
 import {
   classifyVaultPaystackChargeFailure,
   initializeVaultPasscode,
+  completeVaultPasscodeReset,
   getEffectiveAccountTier,
   getVaultAccessSource,
   hasActiveVaultAccess,
@@ -651,6 +652,56 @@ router.use("/bank/vault/receipt-preference", (_req, res, next): void => {
   res.setHeader("Cache-Control", "no-store");
   next();
 });
+
+router.post(
+  "/bank/vault/passcode-reset/complete",
+  passwordResetLimiter,
+  async (req, res): Promise<void> => {
+    const token = typeof req.body?.token === "string" ? req.body.token.trim() : "";
+    const newPasscode = typeof req.body?.newPasscode === "string" ? req.body.newPasscode : "";
+    if (!/^[A-Za-z0-9_-]{40,100}$/.test(token) || !/^\\d{4}$/.test(newPasscode)) {
+      res.status(400).json({ error: "Enter a valid reset link and a four-digit passcode." });
+      return;
+    }
+
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const [tokenRecord] = await db
+      .select({
+        userId: bankVaultPasscodeResetTokensTable.userId,
+        requestedByUserId: bankVaultPasscodeResetTokensTable.requestedByUserId,
+      })
+      .from(bankVaultPasscodeResetTokensTable)
+      .where(
+        and(
+          eq(bankVaultPasscodeResetTokensTable.tokenHash, tokenHash),
+          isNull(bankVaultPasscodeResetTokensTable.usedAt),
+          gt(bankVaultPasscodeResetTokensTable.expiresAt, new Date()),
+        ),
+      )
+      .limit(1);
+
+    if (!tokenRecord) {
+      res.status(400).json({ error: "This reset link is invalid, expired, or has already been used. Request a new link." });
+      return;
+    }
+
+    const completed = await completeVaultPasscodeReset(token, newPasscode);
+    if (!completed) {
+      res.status(400).json({ error: "This reset link is invalid, expired, or has already been used. Request a new link." });
+      return;
+    }
+
+    await db.insert(bankAuditLogsTable).values({
+      actorUserId: tokenRecord.requestedByUserId,
+      targetUserId: tokenRecord.userId,
+      action: "complete_private_vault_passcode_reset",
+      reason: "Customer completed a single-use administrator-initiated Private Vault passcode reset. Vault access status, subscription, entitlements, and account access controls were not modified.",
+    });
+    res.setHeader("Cache-Control", "no-store");
+    res.json({ reset: true, message: "Your Private Vault passcode has been reset. Sign in and unlock your vault using the new passcode." });
+  },
+);
+
 router.use("/bank", requireSignedIn);
 router.use("/bank", (req, _res, next): void => {
   if (req.get("X-Globus-Vault-Session")) {
