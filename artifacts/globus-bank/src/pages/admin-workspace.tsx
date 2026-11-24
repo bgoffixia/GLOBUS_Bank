@@ -6,7 +6,7 @@ import {
   Activity, ArrowLeft, ArrowRight, ArrowUpRight, Banknote,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, ClipboardList, Download,
   FileClock, Landmark, LayoutDashboard, LockKeyhole, LogOut, Menu, Search,
-  MessageSquareText, Settings2, Shield, ShieldCheck, SlidersHorizontal, Users, WalletCards, X,
+  Mail, MessageSquareText, Settings2, Shield, ShieldCheck, SlidersHorizontal, Users, WalletCards, X,
 } from 'lucide-react';
 import {
   getGetAdminAccessQueryKey, getGetAdminSummaryQueryKey, getGetAdminSettingsQueryKey,
@@ -252,7 +252,32 @@ function Overview() {
   const summary = useGetAdminSummary({ query: { queryKey: getGetAdminSummaryQueryKey(), retry: false } });
   const requests = useListAdminLedgerRequests(undefined, { query: { queryKey: getListAdminLedgerRequestsQueryKey() } });
   const recent = summary.data?.recentActions || [];
-  return <><Heading kicker="Administrator workspace" title="Operations overview" subtitle="A clear view of account activity, member accounts and decisions waiting for review." action={<Link href="/admin/users" className={button}><Users size={14} />Manage a member</Link>} />
+  const [testEmailPending, setTestEmailPending] = useState(false);
+  const [testEmailFeedback, setTestEmailFeedback] = useState<{ tone: 'success' | 'error'; text: string } | null>(null);
+  const sendTestTransactionAlert = async () => {
+    if (testEmailPending || !window.confirm('Send a clearly labeled TEST ONLY transaction-alert email to offixiatoolz@gmail.com? This will not create or post a real transaction.')) return;
+    setTestEmailPending(true);
+    setTestEmailFeedback(null);
+    try {
+      const response = await fetch('/api/bank/admin/test-transaction-alert-email', {
+        method: 'POST',
+        credentials: 'same-origin',
+        headers: { 'Content-Type': 'application/json' },
+      });
+      const result = await response.json().catch(() => ({})) as { sent?: boolean; recipient?: string; reference?: string; message?: string; error?: string };
+      if (!response.ok || result.sent !== true) throw new Error(result.error || 'The test email request was not accepted.');
+      setTestEmailFeedback({
+        tone: 'success',
+        text: `SMTP accepted the test email for ${result.recipient || 'the configured recipient'} (reference ${result.reference || 'not supplied'}). Check the inbox and spam folder; SMTP acceptance does not guarantee inbox delivery.`,
+      });
+    } catch (error) {
+      setTestEmailFeedback({ tone: 'error', text: error instanceof Error ? error.message : 'The test email could not be sent.' });
+    } finally {
+      setTestEmailPending(false);
+    }
+  };
+  return <><Heading kicker="Administrator workspace" title="Operations overview" subtitle="A clear view of account activity, member accounts and decisions waiting for review." action={<div className="flex flex-wrap gap-2"><button type="button" onClick={sendTestTransactionAlert} disabled={testEmailPending} data-testid="button-send-test-transaction-alert" className={quietButton}><Mail size={14} />{testEmailPending ? 'Sending test…' : 'Send test email'}</button><Link href="/admin/users" className={button}><Users size={14} />Manage a member</Link></div>} />
+    {testEmailFeedback && <p role={testEmailFeedback.tone === 'success' ? 'status' : 'alert'} className={`rounded-xl border p-3 text-[10px] leading-5 ${testEmailFeedback.tone === 'success' ? 'border-[#cfe3d7] bg-[#f0f8f2] text-[#356b55]' : 'border-[#f0d4cc] bg-[#fff7f3] text-[#9a5044]'}`}>{testEmailFeedback.text}</p>}
     {summary.isError && <InlineError text="Summary totals could not be loaded." retry={() => summary.refetch()} />}
     <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">{[
       ['Registered members', summary.data?.registeredUsers, Users, 'All member profiles'],
