@@ -211,7 +211,6 @@ function pageLabel(path: string) {
     '/profile': 'Profile',
     '/settings': 'Settings',
     '/private-vault': 'Private Vault',
-    '/settings': 'Profile',
     '/admin': 'Operations',
   };
   if (path.startsWith('/admin/users/')) return 'Member management';

@@ -43,7 +43,7 @@ export function SettingsPage() {
         </SettingsGroup>
         <SettingsGroup title={t('Security & access')} description={t('Keep your account and private vault protected')} icon={ShieldCheck}>
           <SettingsLink href="/sign-in/email" icon={KeyRound} title={t('Account password')} description={t('Open the secure account password recovery flow.')} />
-          <SettingsLink href="/private-vault/reset-passcode" icon={LockKeyhole} title={t('Private Vault PIN')} description={t('Reset your Vault PIN using your verified email address.')} />
+          <SettingsLink href="/private-vault/reset-passcode" icon={LockKeyhole} title={t('Private Vault PIN')} description={t('Update or reset your Vault PIN after Clerk email OTP and account identity verification.')} />
         </SettingsGroup>
         <SettingsGroup title={t('Preferences')} description={t('Choose how you use Globus Bank')} icon={Globe2}>
           <div className="flex items-center gap-3 px-4 py-4">

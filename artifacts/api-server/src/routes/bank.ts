@@ -196,6 +196,7 @@ import {
   classifyVaultPaystackChargeFailure,
   initializeVaultPasscode,
   completeVaultPasscodeReset,
+  resetVaultPasscodeAfterClerkVerification,
   getEffectiveAccountTier,
   getVaultAccessSource,
   hasActiveVaultAccess,
@@ -697,6 +698,115 @@ router.post(
 
     res.setHeader("Cache-Control", "no-store");
     res.json({ reset: true, message: "Your Private Vault passcode has been reset. Sign in and unlock your vault using the new passcode." });
+  },
+);
+
+
+const clerkOtpVaultPasscodeResetLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 5,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many PIN reset attempts. Try again later." },
+});
+
+// Authenticated recovery uses Clerk session reverification. The signed session
+// token must contain a fresh fva claim and the configured reverification_id claim.
+router.post(
+  "/bank/vault/passcode-reset/complete-otp",
+  requireSignedIn,
+  clerkOtpVaultPasscodeResetLimiter,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const auth = getAuth(req);
+    const userId = auth.userId;
+    const claims = auth.sessionClaims as Record<string, unknown> | undefined;
+    const fva = claims?.fva;
+    const reverificationId = claims?.reverification_id;
+    const customerId = typeof req.body?.customerId === "string"
+      ? req.body.customerId.trim().toUpperCase()
+      : "";
+    const suppliedEmail = typeof req.body?.email === "string"
+      ? req.body.email.trim().toLowerCase()
+      : "";
+    const suppliedUsername = typeof req.body?.username === "string"
+      ? req.body.username.trim()
+      : "";
+    const newPasscode = typeof req.body?.newPasscode === "string"
+      ? req.body.newPasscode
+      : "";
+
+    if (
+      !userId ||
+      !auth.sessionId ||
+      !Array.isArray(fva) ||
+      typeof fva[0] !== "number" ||
+      fva[0] < 0 ||
+      fva[0] > 1 ||
+      typeof reverificationId !== "string" ||
+      !/^[A-Za-z0-9_-]{8,200}$/.test(reverificationId) ||
+      !/^[A-Z0-9]{7}$/.test(customerId) ||
+      !suppliedEmail ||
+      suppliedEmail.length > 254 ||
+      !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(suppliedEmail) ||
+      !suppliedUsername ||
+      suppliedUsername.length > 128 ||
+      !/^\d{4}$/.test(newPasscode)
+    ) {
+      res.status(403).json({ error: "Complete Clerk email verification and confirm your account details before resetting your Vault PIN." });
+      return;
+    }
+
+    try {
+      const [customer] = await db
+        .select({
+          id: bankUsersTable.id,
+          customerId: bankUsersTable.customerId,
+          email: bankUsersTable.email,
+        })
+        .from(bankUsersTable)
+        .where(eq(bankUsersTable.id, userId))
+        .limit(1);
+      if (!customer || customer.customerId?.toUpperCase() !== customerId ||
+          customer.email.trim().toLowerCase() !== suppliedEmail) {
+        res.status(403).json({ error: "The account details could not be verified." });
+        return;
+      }
+
+      const identity = await clerkClient.users.getUser(userId);
+      const primaryEmail = identity.emailAddresses.find(
+        (address) => address.id === identity.primaryEmailAddressId,
+      );
+      if (
+        identity.id !== userId ||
+        !identity.username ||
+        identity.username.toLowerCase() !== suppliedUsername.toLowerCase() ||
+        !primaryEmail ||
+        primaryEmail.verification?.status !== "verified" ||
+        primaryEmail.emailAddress.trim().toLowerCase() !== suppliedEmail
+      ) {
+        res.status(403).json({ error: "The account details could not be verified." });
+        return;
+      }
+
+      const reset = await resetVaultPasscodeAfterClerkVerification(
+        userId,
+        reverificationId,
+        newPasscode,
+      );
+      if (!reset) {
+        res.status(409).json({ error: "This verification has already been used. Request a new email code and try again." });
+        return;
+      }
+
+      res.json({
+        reset: true,
+        message: "Your Private Vault PIN has been updated. Unlock your Vault using the new PIN.",
+      });
+    } catch (error) {
+      req.log.error({ error, userId }, "Clerk-verified Private Vault PIN reset failed");
+      res.status(503).json({ error: "Your Vault PIN could not be updated right now. Please try again." });
+    }
   },
 );
 
