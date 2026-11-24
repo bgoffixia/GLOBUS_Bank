@@ -656,7 +656,7 @@ export async function resetVaultPasscodeAfterClerkVerification(
   reverificationId: string,
   newPasscode: string,
 ): Promise<boolean> {
-  if (!/^[A-Za-z0-9_-]{8,200}$/.test(reverificationId) || !/^\\d{4}$/.test(newPasscode)) {
+  if (!/^[A-Za-z0-9_-]{8,200}$/.test(reverificationId) || !/^\d{4}$/.test(newPasscode)) {
     return false;
   }
 
