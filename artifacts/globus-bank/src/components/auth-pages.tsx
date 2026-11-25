@@ -101,9 +101,8 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
           <div className="gb-auth-language-position">
             <AppLanguageSelector />
           </div>
-          <div className={`gb-signup-brand gb-auth-brand-lockup${isSignUp ? '' : ' gb-signin-brand'}`}>
-            <img src={asset('globus-mark-transparent.png')} alt="" className="gb-auth-brand-mark" />
-            <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" className="gb-auth-brand-wordmark" />
+          <div className={`gb-signup-brand${isSignUp ? '' : ' gb-signin-brand'}`}>
+            <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
           </div>
           {children}
           <div className="gb-signup-footer">
