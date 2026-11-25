@@ -205,10 +205,14 @@ export async function sendTransferAlertEmail(input: {
       }
     | undefined;
   let senderDisplayName = CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
+  let globalSupportUrl: string | null = null;
+  let globalSupportEmail: string | null = null;
   try {
     const [settings] = await db
       .select({
         displayName: bankAdminSettingsTable.customerEmailSenderDisplayName,
+        defaultSupportUrl: bankAdminSettingsTable.defaultSupportUrl,
+        supportEmail: bankAdminSettingsTable.supportEmail,
       })
       .from(bankAdminSettingsTable)
       .where(eq(bankAdminSettingsTable.id, "operations"))
@@ -216,6 +220,8 @@ export async function sendTransferAlertEmail(input: {
     senderDisplayName =
       normalizeCustomerEmailSenderDisplayName(settings?.displayName) ??
       CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
+    globalSupportUrl = settings?.defaultSupportUrl ?? null;
+    globalSupportEmail = settings?.supportEmail ?? null;
   } catch {
     // Transfer alerts should remain deliverable with the established default identity.
   }
@@ -270,7 +276,9 @@ export async function sendTransferAlertEmail(input: {
   const bannerTextColor = backgroundLuminance > 0.62 ? "#17314f" : "#ffffff";
   const headline = senderPreferences?.headline?.trim() || "A Globus transfer notice";
   const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
-  const configuredDefaultSupportUrl = normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
+  const configuredDefaultSupportUrl =
+    normalizeSupportUrl(globalSupportUrl) ??
+    normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
   const defaultSupportUrl = new URL(configuredDefaultSupportUrl ?? "/support", origin);
   defaultSupportUrl.searchParams.set("transfer", input.reference);
   const customSupportUrl = senderPreferences?.includeSupportLink
@@ -279,7 +287,8 @@ export async function sendTransferAlertEmail(input: {
   const supportUrl = customSupportUrl
     ? (() => { const custom = new URL(customSupportUrl); custom.searchParams.set("transfer", input.reference); return custom.toString(); })()
     : defaultSupportUrl.toString();
-  const configuredSupportEmail = process.env.GLOBUS_SUPPORT_EMAIL?.trim() ?? null;
+  const configuredSupportEmail =
+    globalSupportEmail?.trim() || process.env.GLOBUS_SUPPORT_EMAIL?.trim() || null;
   const { text: supportText, html: supportHtml } = renderSupportFooter(
     supportUrl,
     senderPreferences?.supportLabel,
