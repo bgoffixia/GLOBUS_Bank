@@ -587,7 +587,8 @@ async function getOrCreateAdminSettings() {
     .values({
       id: "operations",
       customerEmailSenderDomain: CUSTOMER_EMAIL_SENDER_DOMAIN,
-      customerEmailSenderDisplayName: CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
+      customerEmailSenderDisplayName: "Incoming Transfer",
+      transferAlertEmailFrom: "transfer-comfirmation@globus.website",
     })
     .onConflictDoNothing();
   const [settings] = await db
@@ -603,6 +604,7 @@ function adminSettingsPayload(settings: Awaited<ReturnType<typeof getOrCreateAdm
   return {
     customerEmailSenderDomain: settings.customerEmailSenderDomain,
     customerEmailSenderDisplayName: settings.customerEmailSenderDisplayName,
+    transferAlertEmailFrom: settings.transferAlertEmailFrom,
     defaultSupportUrl: settings.defaultSupportUrl,
     supportEmail: settings.supportEmail,
     fundingLimit: settings.fundingLimit,
@@ -1946,7 +1948,8 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     .insert(bankAdminSettingsTable)
     .values({
       id: "operations",
-      customerEmailSenderDisplayName,
+      customerEmailSenderDisplayName: "Incoming Transfer",
+      transferAlertEmailFrom: existingSettings.transferAlertEmailFrom || "transfer-comfirmation@globus.website",
       defaultSupportUrl,
       supportEmail,
       fundingLimit: formatMinorAmount(fundingLimitMinor),
@@ -1959,7 +1962,8 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     .onConflictDoUpdate({
       target: bankAdminSettingsTable.id,
       set: {
-        customerEmailSenderDisplayName,
+        customerEmailSenderDisplayName: "Incoming Transfer",
+        transferAlertEmailFrom: existingSettings.transferAlertEmailFrom || "transfer-comfirmation@globus.website",
         defaultSupportUrl,
         supportEmail,
         fundingLimit: formatMinorAmount(fundingLimitMinor),
@@ -1976,7 +1980,7 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     actorUserId,
     targetUserId: actorUserId,
     action: "update_admin_settings",
-    reason: `Transfer-alert display name ${settings.customerEmailSenderDisplayName}; funding cap ${settings.fundingLimit}; second approval threshold ${settings.secondApprovalThreshold}; unverified dashboard notice and Paystack Vault plan pricing updated. ${reason}`,
+    reason: `Transfer-alert sender ${settings.customerEmailSenderDisplayName} <${settings.transferAlertEmailFrom}>; funding cap ${settings.fundingLimit}; second approval threshold ${settings.secondApprovalThreshold}; unverified dashboard notice and Paystack Vault plan pricing updated. ${reason}`,
   });
   res.json(
     UpdateAdminSettingsResponse.parse(adminSettingsPayload(settings)),
