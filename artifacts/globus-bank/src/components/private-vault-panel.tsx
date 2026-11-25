@@ -965,11 +965,14 @@ export function PrivateVaultPanel() {
   ];
   const serviceNavigation = (
     <nav aria-label={t('Private Vault pages')} data-testid="vault-page-navigation" className="vault-page-navigation flex min-w-0 gap-1 overflow-x-auto border-b border-[#e1e8eb] bg-[#f8faf9] px-3 py-2 sm:px-5">
-      {servicePages.map(page => (
-        <Link key={page.path} href={page.path} aria-current={location === page.path ? 'page' : undefined} data-testid={`link-vault-page-${page.page}`} className={`shrink-0 rounded-full border px-3 py-2 text-[9px] font-bold transition ${location === page.path ? 'border-[#54898b] bg-[#eaf4f2] text-[#315f63]' : 'border-transparent text-[#708397] hover:border-[#dce6e7] hover:bg-white hover:text-[#35536a]'}`}>
-          {t(page.label)}
-        </Link>
-      ))}
+      {servicePages.map(page => {
+        const locked = page.page === 'support' && !vaultAccessActive;
+        return locked
+          ? <span key={page.path} aria-disabled="true" title="Active Private Vault access is required" data-testid={`link-vault-page-${page.page}`} className="inline-flex shrink-0 items-center gap-1 rounded-full border border-transparent px-3 py-2 text-[9px] font-bold text-[#a0aaa8]"><LockKeyhole size={10} />{t(page.label)}</span>
+          : <Link key={page.path} href={page.path} aria-current={location === page.path ? 'page' : undefined} data-testid={`link-vault-page-${page.page}`} className={`shrink-0 rounded-full border px-3 py-2 text-[9px] font-bold transition ${location === page.path ? 'border-[#54898b] bg-[#eaf4f2] text-[#315f63]' : 'border-transparent text-[#708397] hover:border-[#dce6e7] hover:bg-white hover:text-[#35536a]'}`}>
+              {t(page.label)}
+            </Link>;
+      })}
     </nav>
   );
 
