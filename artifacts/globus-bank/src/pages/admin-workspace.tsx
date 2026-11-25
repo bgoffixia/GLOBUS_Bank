@@ -202,10 +202,10 @@ function WorkspaceFrame({ children, active, title, authorized }: { children: Rea
     <div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold text-white">{user?.fullName || t('Administrator')}</p><p className="truncate text-[9px] text-[#9eb5b6]">{email || t('Authorized operator')}</p></div>
   </div>;
   return <div className="admin-viewport bg-[#edf3f6] text-[#243d4b]">
-    <aside className="admin-sidebar hidden h-full w-[218px] shrink-0 flex-col bg-[#173b49] text-[#dbe8e5] lg:flex">
-      <div className="flex h-[66px] items-center gap-3 border-b border-white/[.09] px-5">
+    <aside className={`admin-sidebar hidden h-full shrink-0 flex-col bg-[#102f4d] text-[#dbe8e5] transition-[width] duration-200 lg:flex ${sidebarCollapsed ? 'w-[72px]' : 'w-[218px]'}`}>
+      <div className={`flex h-[66px] shrink-0 items-center gap-3 border-b border-white/[.09] ${sidebarCollapsed ? 'justify-center px-2' : 'px-5'}`}>
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[#d9c27f] text-[#173b49]"><span className="font-[family-name:var(--app-font-sans)] text-[19px] font-extrabold">G</span></div>
-        <div className="leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>
+        {!sidebarCollapsed && <div className="min-w-0 leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>}
       </div>
       {!sidebarCollapsed && <div className="mx-3.5 my-4 rounded-[10px] border border-white/[.09] bg-white/[.045] px-3 py-2.5">
         <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[.12em] text-[#9fcec1]"><span className={`h-1.5 w-1.5 rounded-full ${authorized ? 'bg-[#7cc6aa]' : 'bg-[#c19c50]'}`} />{authorized ? 'Operations live' : 'Access protected'}</p>
@@ -240,7 +240,7 @@ function WorkspaceFrame({ children, active, title, authorized }: { children: Rea
     </div>
     {mobileMenuOpen && <div className="fixed inset-0 z-[60] lg:hidden">
       <button type="button" aria-label="Close admin navigation" className="absolute inset-0 bg-[#183640]/35 backdrop-blur-[1px]" onClick={() => setMobileMenuOpen(false)} />
-      <aside id="admin-mobile-navigation" className="admin-sidebar absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col bg-[#173b49] text-[#dbe8e5] shadow-2xl">
+      <aside id="admin-mobile-navigation" className="admin-sidebar absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col bg-[#102f4d] text-[#dbe8e5] shadow-2xl">
         <div className="flex h-[66px] items-center gap-3 border-b border-white/[.09] px-5">
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[#d9c27f] text-[#173b49]"><span className="font-[family-name:var(--app-font-sans)] text-[19px] font-extrabold">G</span></div>
           <div className="leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>
