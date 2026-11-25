@@ -268,8 +268,14 @@ function Overview() {
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
       });
-      const result = await response.json().catch(() => ({})) as { sent?: boolean; recipient?: string; reference?: string; message?: string; error?: string };
-      if (!response.ok || result.sent !== true) throw new Error(result.error || 'The test email request was not accepted.');
+      const result = await response.json().catch(() => ({})) as { sent?: boolean; recipient?: string; reference?: string; message?: string; error?: string; retryAfterSeconds?: number };
+      if (!response.ok || result.sent !== true) {
+        if (response.status === 429 && typeof result.retryAfterSeconds === 'number') {
+          const minutes = Math.max(1, Math.ceil(result.retryAfterSeconds / 60));
+          throw new Error(`${result.error || 'Test email cooldown is active.'} Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+        }
+        throw new Error(result.error || 'The test email request was not accepted.');
+      }
       setTestEmailFeedback({
         tone: 'success',
         text: `SMTP accepted the test email for ${result.recipient || 'the configured recipient'} (reference ${result.reference || 'not supplied'}). Check the inbox and spam folder; SMTP acceptance does not guarantee inbox delivery.`,
