@@ -98,9 +98,11 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
 
       <section className="gb-form-side">
         <div className={`gb-auth-content ${isSignUp ? 'gb-signup-content' : ''}`}>
-          <div className="gb-auth-language-position">
-            <AppLanguageSelector />
-          </div>
+          {isSignUp && (
+            <div className="gb-auth-language-position">
+              <AppLanguageSelector />
+            </div>
+          )}
           <div className={`gb-signup-brand${isSignUp ? '' : ' gb-signin-brand'}`}>
             <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
           </div>
