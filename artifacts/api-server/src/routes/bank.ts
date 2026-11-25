@@ -1161,7 +1161,7 @@ router.post(
     const user = await getOrCreateBankUser(authUserId);
     const category = parsed.data.category ?? "general";
     const transferReference = parsed.data.transferReference ?? null;
-    if (category !== "general" && !hasActiveVaultAccess(user) && !user.transferAccessGranted) {
+    if (category !== "general" && !hasActiveVaultAccess(user) && !user.supportAccessGranted) {
       res.status(403).json({ error: "Active Private Vault or support access is required for this conversation." });
       return;
     }
