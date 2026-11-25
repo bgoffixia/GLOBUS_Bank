@@ -574,7 +574,14 @@ function MemberDetail({ userId }: { userId: string }) {
        </div>
        {vaultResetError && <p role="alert" className="mt-2 text-[9px] text-[#a45247]">{vaultResetError}</p>}
      </section>
-     <div role="tabpanel" className="min-h-0 flex-1 overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
+     <div className="grid min-h-0 flex-1 grid-cols-1 gap-3 overflow-hidden lg:grid-cols-[220px_minmax(0,1fr)]">
+       <aside id="member-management-navigation" className={`min-h-0 overflow-y-auto rounded-xl border border-[#dce6e0] bg-[#142f49] p-2.5 text-white shadow-sm ${memberNavOpen ? 'block' : 'hidden'} lg:block`}>
+         <div className="mb-2 flex items-center justify-between px-2"><p className="text-[8px] font-extrabold uppercase tracking-[.16em] text-[#b8d1ce]">Customer sections</p><span className="text-[8px] text-[#a8c0c1]">GLOBUS</span></div>
+         <nav aria-label="Member management sections" className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
+           {memberTabs.map(tab => { const Icon = tab.icon; const selected = activeTab === tab.id; return <button key={tab.id} type="button" role="tab" aria-selected={selected} data-testid={`tab-member-${tab.id}`} onClick={() => { setActiveTab(tab.id); setMemberNavOpen(false); }} className={`flex min-w-0 items-center gap-2 rounded-lg px-2.5 py-2.5 text-left text-[9px] font-bold transition ${selected ? 'bg-[#e6ca78] text-[#18344b] shadow-sm' : 'text-[#e2ecea] hover:bg-white/10'}`}><Icon size={14} className="shrink-0" /><span className="min-w-0 flex-1 leading-tight">{tab.label}</span>{selected && <ChevronRight size={12} className="shrink-0" />}</button>; })}
+         </nav>
+       </aside>
+       <div role="tabpanel" className="min-h-0 min-w-0 overflow-x-hidden overflow-y-auto overscroll-contain pr-1">
        {activeTab === 'overview' && <div className="space-y-3 pb-3">
          <div className="grid items-start gap-3 xl:grid-cols-[1.25fr_.75fr]">
              <Panel title="Member profile" eyebrow="Account record" action={<StatusPill status={u.accountStatus} />}><dl className="grid gap-x-5 gap-y-3 p-4 sm:grid-cols-3">{[['Email', u.email], ['Address', detail.data.address || 'Missing'], ['Phone', detail.data.phone || 'Not provided'], ['Country / region', u.country || 'Not provided'], ['City of origin', detail.data.cityOfOrigin || 'Missing'], ['Date of birth', detail.data.dateOfBirth || 'Missing'], ['Occupation / employment', detail.data.occupation || 'Missing'], ['Customer ID', u.customerId || '—'], ['Profile setup', detail.data.profileSetupCompletedAt ? `Complete · ${dateTime(detail.data.profileSetupCompletedAt)}` : 'Missing'], ['Testing mode', detail.data.testingModeDisabled ? 'Off' : 'On'], ['Transfer access', detail.data.transferAccessGranted ? 'Granted' : 'Not granted'], ['Support access', detail.data.supportAccessGranted ? 'Granted' : 'Not granted'], ['Wallet count', String(u.walletCount)], ['Total transactions', String(detail.data.transactionCount)], ['Restriction reason', u.accountRestrictionReason || '—']].map(([k, v]) => <div key={k}><dt className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849493]">{k}</dt><dd data-testid={k === 'Address' ? 'admin-member-address' : undefined} className="mt-1 break-words text-[10px] font-semibold text-[#405b63]">{v}</dd></div>)}</dl></Panel>
@@ -659,6 +666,7 @@ function MemberDetail({ userId }: { userId: string }) {
        {activeTab === 'funding' && <FundingPage memberId={userId} compact />}
        {activeTab === 'wallets' && <AccountsPage memberId={userId} controlsOnly compact />}
        {activeTab === 'restrictions' && <RestrictionsPage memberId={userId} compact />}
+       </div>
        </div>
      </div>
         {modal && <Modal title={modal === 'status' ? 'Change account status' : modal === 'profile' ? 'Edit member profile' : modal === 'pin' ? 'Reset transaction PIN' : modal === 'password-reset' ? 'Require password reset' : 'Remove Private Vault access'} close={() => setModal(null)}><form onSubmit={submit} className="space-y-3">
