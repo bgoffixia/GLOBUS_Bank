@@ -2772,6 +2772,7 @@ router.get(
           user.profileSetupCompletedAt?.toISOString() ?? null,
         testingModeDisabled: user.testingModeDisabled,
         transferAccessGranted: user.transferAccessGranted,
+        supportAccessGranted: user.supportAccessGranted,
         transactionPinConfigured: !!user.transactionPinHash,
         transactionCount: Number(transactionCountRows[0]?.value ?? 0),
         wallets,
@@ -3576,6 +3577,7 @@ router.patch(
         .set({
           testingModeDisabled: parsed.data.testingModeDisabled,
           transferAccessGranted: parsed.data.transferAccessGranted,
+          supportAccessGranted: parsed.data.supportAccessGranted,
           updatedAt: new Date(),
         })
         .where(eq(bankUsersTable.id, target.id))
@@ -3583,6 +3585,7 @@ router.patch(
           id: bankUsersTable.id,
           testingModeDisabled: bankUsersTable.testingModeDisabled,
           transferAccessGranted: bankUsersTable.transferAccessGranted,
+          supportAccessGranted: bankUsersTable.supportAccessGranted,
         });
       if (!updated) return null;
       await tx.insert(bankAuditLogsTable).values({
@@ -3602,6 +3605,7 @@ router.patch(
         userId: result.id,
         testingModeDisabled: result.testingModeDisabled,
         transferAccessGranted: result.transferAccessGranted,
+        supportAccessGranted: result.supportAccessGranted,
       }),
     );
   },
@@ -5762,6 +5766,7 @@ router.post(
           accountRestrictedByUserId: null,
           acceptedTermsAt: null,
           transferAccessGranted: false,
+          supportAccessGranted: false,
           testingModeDisabled: true,
           vaultSubscriptionStatus: "inactive",
           vaultSubscriptionPlan: null,
