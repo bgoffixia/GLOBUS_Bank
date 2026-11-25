@@ -101,8 +101,9 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
           <div className="gb-auth-language-position">
             <AppLanguageSelector />
           </div>
-          <div className={`gb-signup-brand${isSignUp ? '' : ' gb-signin-brand'}`}>
-            <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
+          <div className={`gb-signup-brand gb-auth-brand-lockup${isSignUp ? '' : ' gb-signin-brand'}`}>
+            <img src={asset('globus-mark-transparent.png')} alt="" className="gb-auth-brand-mark" />
+            <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" className="gb-auth-brand-wordmark" />
           </div>
           {children}
           <div className="gb-signup-footer">
@@ -379,9 +380,6 @@ export function ClerkSignInForm() {
       )}
       <p className="gb-recovery-link">
         <Link href="/sign-in/email">{t('Forgot username or password?')}</Link>
-      </p>
-      <p className="gb-recovery-link">
-        <Link href="/private-vault/reset-passcode">Forgot your Private Vault PIN?</Link>
       </p>
       <p className="gb-switch-copy">{t('New to Globus?')} <Link href="/sign-up">{t('Create an account')}</Link></p>
     </div>
