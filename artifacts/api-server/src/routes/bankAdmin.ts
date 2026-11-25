@@ -5690,7 +5690,11 @@ router.post(
       .split(",")
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean);
-    if (protectedAdminEmails.includes(target.email.toLowerCase())) {
+    const protectedAdminIds = (process.env.GLOBUS_ADMIN_CLERK_IDS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (protectedAdminIds.includes(target.id) || protectedAdminEmails.includes(target.email.toLowerCase())) {
       res.status(409).json({ error: "Allowlisted administrator accounts cannot be deleted through customer management." });
       return;
     }
