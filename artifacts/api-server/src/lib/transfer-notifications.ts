@@ -283,6 +283,8 @@ export async function sendTransferAlertEmail(input: {
     normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
   const defaultSupportUrl = new URL(configuredDefaultSupportUrl ?? "/support", origin);
   defaultSupportUrl.searchParams.set("transfer", input.reference);
+  const configuredSupportEmail =
+    globalSupportEmail?.trim() || process.env.GLOBUS_SUPPORT_EMAIL?.trim() || null;
   const vaultSupportUrl = new URL("/private-vault/support", origin);
   vaultSupportUrl.searchParams.set("transfer", input.reference);
   const ownerSupportFooter = renderSupportFooter(
@@ -296,8 +298,6 @@ export async function sendTransferAlertEmail(input: {
   const supportUrl = customSupportUrl
     ? (() => { const custom = new URL(customSupportUrl); custom.searchParams.set("transfer", input.reference); return custom.toString(); })()
     : defaultSupportUrl.toString();
-  const configuredSupportEmail =
-    globalSupportEmail?.trim() || process.env.GLOBUS_SUPPORT_EMAIL?.trim() || null;
   const { text: supportText, html: supportHtml } = renderSupportFooter(
     supportUrl,
     senderPreferences?.supportLabel,
