@@ -1104,6 +1104,8 @@ router.get("/bank/support/conversations", async (req, res): Promise<void> => {
     .select({
       id: bankSupportConversationsTable.id,
       subject: bankSupportConversationsTable.subject,
+      category: bankSupportConversationsTable.category,
+      transferReference: bankSupportConversationsTable.transferReference,
       status: bankSupportConversationsTable.status,
       customerUnread: bankSupportConversationsTable.customerUnread,
       lastMessagePreview: sql<string | null>`(
@@ -1126,6 +1128,8 @@ router.get("/bank/support/conversations", async (req, res): Promise<void> => {
     ListBankSupportConversationsResponse.parse({
       conversations: conversations.map((conversation) => ({
         ...conversation,
+        category: conversation.category as "general" | "private_vault" | "transfer",
+        transferReference: conversation.transferReference,
         status: conversation.status as "open" | "closed",
         lastMessageAt: conversation.lastMessageAt.toISOString(),
         createdAt: conversation.createdAt.toISOString(),
@@ -1147,12 +1151,41 @@ router.post(
     const parsed = CreateBankSupportConversationBody.safeParse({
       subject: typeof req.body?.subject === "string" ? req.body.subject.trim() : req.body?.subject,
       message: typeof req.body?.message === "string" ? req.body.message.trim() : req.body?.message,
+      category: req.body?.category,
+      transferReference: typeof req.body?.transferReference === "string" ? req.body.transferReference.trim() : req.body?.transferReference,
     });
     if (!parsed.success) {
       res.status(400).json({ error: "Enter a subject and message within the stated limits." });
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
+    const category = parsed.data.category ?? "general";
+    const transferReference = parsed.data.transferReference ?? null;
+    if (category !== "general" && !hasActiveVaultAccess(user) && !user.transferAccessGranted) {
+      res.status(403).json({ error: "Active Private Vault or support access is required for this conversation." });
+      return;
+    }
+    if (category === "transfer") {
+      if (!transferReference) {
+        res.status(400).json({ error: "Choose the transfer this conversation is about." });
+        return;
+      }
+      const [ownedTransfer] = await db
+        .select({ reference: bankTransactionsTable.reference })
+        .from(bankTransactionsTable)
+        .where(and(
+          eq(bankTransactionsTable.reference, transferReference),
+          eq(bankTransactionsTable.fromUserId, user.id),
+        ))
+        .limit(1);
+      if (!ownedTransfer) {
+        res.status(404).json({ error: "That transfer was not found in your account." });
+        return;
+      }
+    } else if (transferReference) {
+      res.status(400).json({ error: "A transfer reference is only valid for transfer support." });
+      return;
+    }
     const now = new Date();
     const created = await db.transaction(async (tx) => {
       const [conversation] = await tx
@@ -1160,6 +1193,8 @@ router.post(
         .values({
           userId: user.id,
           subject: parsed.data.subject,
+          category,
+          transferReference,
           status: "open",
           customerUnread: false,
           adminUnread: true,
