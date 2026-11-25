@@ -1838,7 +1838,7 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
       : parsed.data.supportEmail === null
         ? null
         : parsed.data.supportEmail.trim();
-  if (supportEmail && !/^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(supportEmail)) {
+  if (supportEmail && !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(supportEmail)) {
     res.status(400).json({ error: "Enter a valid support email address or leave it blank." });
     return;
   }
