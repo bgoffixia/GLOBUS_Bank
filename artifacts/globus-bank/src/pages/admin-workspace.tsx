@@ -595,6 +595,18 @@ function MemberDetail({ userId }: { userId: string }) {
         <div className="flex flex-wrap gap-1.5"><StatusPill status={u.accountStatus} /><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></div>
      </div>
      {message && <p role="status" data-testid="status-member-management" className="mb-2 shrink-0 rounded-lg border border-[#cfe4d7] bg-[#eef7f0] px-3 py-2 text-[10px] text-[#47755e]">{message}</p>}
+     <section aria-label="Quick member controls" className="mb-3 shrink-0 rounded-xl border border-[#dce6e0] bg-[#fbfcf8] p-3">
+       <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><p className="text-[9px] font-extrabold uppercase tracking-[.14em] text-[#4f8888]">Quick controls</p><p className="mt-0.5 text-[9px] text-[#71858b]">Common account actions in one place</p></div><span className="text-[8px] font-semibold text-[#849493]">Changes are audited</span></div>
+       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+         <button type="button" onClick={() => open('profile')} className={quietButton}>Edit profile</button>
+         <button type="button" onClick={() => open('status')} className={quietButton}>{u.accountStatus === 'active' ? 'Restrict account' : 'Restore account'}</button>
+         <button type="button" onClick={() => open('pin')} className={quietButton}>Reset transaction PIN</button>
+         <button type="button" onClick={() => open('password-reset')} className={quietButton}>Password recovery</button>
+         <button type="button" onClick={() => void sendVaultResetLink()} disabled={vaultResetBusy} className={quietButton}>{vaultResetBusy ? 'Sending…' : 'Vault passcode reset'}</button>
+         <button type="button" onClick={() => open('vault-subscription')} className={quietButton}>Remove Vault access</button>
+       </div>
+       {vaultResetError && <p role="alert" className="mt-2 text-[9px] text-[#a45247]">{vaultResetError}</p>}
+     </section>
      <nav aria-label="Member management sections" className="mb-3 flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-[#dce6e0] bg-[#fbfcf8] p-1">
        {memberTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} data-testid={`tab-member-${tab.id}`} onClick={() => setActiveTab(tab.id)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-[9px] font-bold transition sm:px-3 sm:text-[10px] ${activeTab === tab.id ? 'bg-[#173b50] text-white shadow-sm' : 'text-[#60777a] hover:bg-[#edf4ef]'}`}><Icon size={13} />{tab.label}</button>; })}
      </nav>
