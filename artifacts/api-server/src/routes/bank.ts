@@ -1295,7 +1295,10 @@ router.post(
     const now = new Date();
     const created = await db.transaction(async (tx) => {
       const [conversation] = await tx
-        .select({ id: bankSupportConversationsTable.id })
+        .select({
+          id: bankSupportConversationsTable.id,
+          category: bankSupportConversationsTable.category,
+        })
         .from(bankSupportConversationsTable)
         .where(
           and(
@@ -1305,6 +1308,13 @@ router.post(
         )
         .for("update");
       if (!conversation) return null;
+      if (
+        conversation.category !== "general" &&
+        !hasActiveVaultAccess(user) &&
+        !user.transferAccessGranted
+      ) {
+        return { accessDenied: true as const };
+      }
       const [message] = await tx
         .insert(bankSupportMessagesTable)
         .values({
@@ -1325,15 +1335,19 @@ router.post(
           updatedAt: now,
         })
         .where(eq(bankSupportConversationsTable.id, conversation.id));
-      return message;
+      return { message };
     });
     if (!created) {
       res.status(404).json({ error: "That support conversation was not found." });
       return;
     }
+    if ("accessDenied" in created) {
+      res.status(403).json({ error: "Active Private Vault or support access is required to reply here." });
+      return;
+    }
     res.status(201).json(
       SendBankSupportMessageResponse.parse({
-        message: bankSupportMessageResponse(created, "customer"),
+        message: bankSupportMessageResponse(created.message, "customer"),
       }),
     );
   },
