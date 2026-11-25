@@ -178,7 +178,18 @@ export function CustomerSupportPage() {
   const [compose, setCompose] = useState(false);
   const [subject, setSubject] = useState('');
   const [firstMessage, setFirstMessage] = useState('');
+  const [category, setCategory] = useState<'general' | 'private_vault' | 'transfer'>('general');
+  const [transferReference, setTransferReference] = useState('');
   const [formError, setFormError] = useState('');
+  useEffect(() => {
+    const reference = new URLSearchParams(window.location.search).get('transfer');
+    if (reference) {
+      setCategory('transfer');
+      setTransferReference(reference);
+      setSubject('Support with transfer recipient');
+      setCompose(true);
+    }
+  }, []);
   const created = useCreateBankSupportConversation();
   const send = useSendBankSupportMessage();
   const markRead = useMarkBankSupportConversationRead();
@@ -218,12 +229,20 @@ export function CustomerSupportPage() {
     if (cleanSubject.length > 120) { setFormError('Keep the subject under 120 characters.'); return; }
     if (cleanMessage.length < 5) { setFormError('Add a little more detail to your message.'); return; }
     if (cleanMessage.length > 4000) { setFormError('Keep your message under 4,000 characters.'); return; }
+    if (category === 'transfer' && !transferReference.trim()) { setFormError('Enter the transfer reference from your alert.'); return; }
     setFormError('');
     try {
-      const result = await created.mutateAsync({ data: { subject: cleanSubject, message: cleanMessage } });
+      const result = await created.mutateAsync({ data: {
+        subject: cleanSubject,
+        message: cleanMessage,
+        category,
+        ...(category === 'transfer' ? { transferReference: transferReference.trim() } : {}),
+      } });
       await queryClient.invalidateQueries({ queryKey: getListBankSupportConversationsQueryKey() });
       setSubject('');
       setFirstMessage('');
+      setCategory('general');
+      setTransferReference('');
       setCompose(false);
       setSelectedId(result.conversation.id);
       setMobileThread(true);
@@ -272,6 +291,8 @@ export function CustomerSupportPage() {
       <section role="dialog" aria-modal="true" aria-labelledby="new-support-title" className="my-auto max-h-[94dvh] w-full max-w-lg overflow-y-auto rounded-[18px] border border-[#dce5e5] bg-[#fffefa] shadow-2xl">
         <header className="border-b border-[#e7eeeb] px-5 py-4"><p className="text-[9px] font-bold uppercase tracking-[.15em] text-[#4d8581]">Private message</p><h2 id="new-support-title" className="mt-1 text-[17px] font-bold text-[#263f4b]">Start a conversation</h2><p className="mt-1 text-[10px] text-[#7c8e92]">Do not include passwords, verification codes, or full financial credentials.</p></header>
         <form onSubmit={createConversation} className="space-y-4 p-5">
+          <label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-[#71848b]">Support area</span><select value={category} onChange={event => setCategory(event.target.value as typeof category)} className={fieldClass}><option value="general">General account support</option><option value="private_vault">Private Vault support</option><option value="transfer">Transfer recipient support</option></select></label>
+          {category === 'transfer' && <label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-[#71848b]">Transfer reference</span><input value={transferReference} maxLength={100} onChange={event => setTransferReference(event.target.value)} className={fieldClass} placeholder="Enter the transfer reference from your alert" /></label>}
           <label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-[#71848b]">Subject</span><input value={subject} maxLength={120} onChange={event => { setSubject(event.target.value); setFormError(''); }} className={fieldClass} placeholder="What can we help with?" /></label>
           <label className="block"><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.1em] text-[#71848b]">Message</span><textarea value={firstMessage} maxLength={4000} onChange={event => { setFirstMessage(event.target.value); setFormError(''); }} rows={5} className={`${fieldClass} resize-y`} placeholder="Share the account-support details we need to help." /></label>
           {formError && <p role="alert" className="text-[10px] text-[#a45247]">{formError}</p>}
@@ -285,14 +306,16 @@ export function CustomerSupportPage() {
 export function AdminSupportInbox() {
   const queryClient = useQueryClient();
   const [status, setStatus] = useState<'all' | 'open' | 'closed'>('open');
+  const [categoryFilter, setCategoryFilter] = useState<'all' | 'general' | 'private_vault' | 'transfer'>('all');
   const [search, setSearch] = useState('');
   const [selectedId, setSelectedId] = useState('');
   const [mobileThread, setMobileThread] = useState(false);
   const markedRef = useRef(new Set<string>());
   const params = useMemo<ListAdminSupportConversationsParams>(() => ({
     ...(status === 'all' ? {} : { status }),
+    ...(categoryFilter === 'all' ? {} : { category: categoryFilter }),
     ...(search.trim() ? { search: search.trim() } : {}),
-  }), [status, search]);
+  }), [status, categoryFilter, search]);
   const conversations = useListAdminSupportConversations(params, { query: { queryKey: getListAdminSupportConversationsQueryKey(params), refetchInterval: 15000, refetchOnWindowFocus: true } });
   const items = conversations.data?.conversations ?? [];
   const selected = items.find(item => item.id === selectedId);
@@ -338,6 +361,9 @@ export function AdminSupportInbox() {
           <label className="relative block"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#879894]" /><span className="sr-only">Search support conversations</span><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search customers or subjects" className={`${fieldClass} h-9 pl-9 text-[10px]`} /></label>
           <div className="flex gap-1 rounded-[9px] bg-[#f0f4f0] p-1" role="group" aria-label="Filter conversation status">
             {(['open', 'closed', 'all'] as const).map(value => <button key={value} type="button" onClick={() => { setStatus(value); setSelectedId(''); }} aria-pressed={status === value} className={`flex-1 rounded-[7px] px-2 py-1.5 text-[9px] font-bold capitalize transition ${status === value ? 'bg-[#fffefa] text-[#315f5c] shadow-sm' : 'text-[#83918d] hover:text-[#426a65]'}`}>{value}</button>)}
+          </div>
+          <div className="grid grid-cols-2 gap-1 rounded-[9px] bg-[#f0f4f0] p-1 sm:grid-cols-4" role="group" aria-label="Filter support category">
+            {([{ value: 'all', label: 'All inboxes' }, { value: 'general', label: 'General' }, { value: 'private_vault', label: 'Private Vault' }, { value: 'transfer', label: 'Transfers' }] as const).map(item => <button key={item.value} type="button" onClick={() => { setCategoryFilter(item.value); setSelectedId(''); }} aria-pressed={categoryFilter === item.value} className={`rounded-[7px] px-2 py-1.5 text-[9px] font-bold transition ${categoryFilter === item.value ? 'bg-[#fffefa] text-[#315f5c] shadow-sm' : 'text-[#83918d] hover:text-[#426a65]'}`}>{item.label}</button>)}
           </div>
         </div>
         <ConversationList conversations={items} selectedId={selectedId} onSelect={id => { setSelectedId(id); setMobileThread(true); }}
