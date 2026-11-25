@@ -127,10 +127,12 @@ test("support categories enforce Vault eligibility and transfer ownership", () =
   assert.match(schema, /transferReference: text\("transfer_reference"\)/);
   assert.match(migration, /category IN \('general', 'private_vault', 'transfer'\)/);
   assert.match(routes, /hasActiveVaultAccess\(user\)/);
+  assert.match(routes, /user\.supportAccessGranted/);
   assert.match(routes, /eq\(bankTransactionsTable\.reference, transferReference\)/);
   assert.match(routes, /eq\(bankTransactionsTable\.fromUserId, user\.id\)/);
   assert.match(routes, /conversation\.category !== "general"/);
   assert.match(adminRoutes, /parsed\.data\.category/);
+  assert.match(adminRoutes, /supportAccessGranted: parsed\.data\.supportAccessGranted/);
   assert.match(adminRoutes, /bankSupportConversationsTable\.transferReference/);
 });
 
