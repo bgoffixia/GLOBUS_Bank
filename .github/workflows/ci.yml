@@ -40,3 +40,13 @@ jobs:
             exit 1
           fi
           pnpm --filter @workspace/globus-bank test:viewport
+      - name: Upload Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: globus-playwright-diagnostics
+          path: |
+            artifacts/globus-bank/test-results/
+            /tmp/globus-vite.log
+          if-no-files-found: ignore
+          retention-days: 7
