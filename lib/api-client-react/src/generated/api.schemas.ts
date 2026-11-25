@@ -2499,6 +2499,10 @@ export interface AdminSettings {
      * @maxLength 80
      */
   customerEmailSenderDisplayName: string;
+  /** @nullable */
+  defaultSupportUrl: string | null;
+  /** @nullable */
+  supportEmail: string | null;
   fundingLimit: string;
   secondApprovalThreshold: string;
   frozenIncomingPolicy: AdminSettingsFrozenIncomingPolicy;
@@ -2517,6 +2521,10 @@ export interface AdminSettingsInput {
      * @maxLength 80
      */
   customerEmailSenderDisplayName: string;
+  /** @nullable */
+  defaultSupportUrl?: string | null;
+  /** @nullable */
+  supportEmail?: string | null;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
   fundingLimit: string;
   /** @pattern ^[0-9]{1,12}(\.[0-9]{1,2})?$ */
