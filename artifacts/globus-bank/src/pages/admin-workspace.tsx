@@ -1130,6 +1130,8 @@ function SettingsPage() {
   const [vaultPlan3mPrice, setVaultPlan3mPrice] = useState<string | null>(null);
   const [vaultPlan1yPrice, setVaultPlan1yPrice] = useState<string | null>(null);
   const [customerEmailSenderDisplayName, setCustomerEmailSenderDisplayName] = useState<string | null>(null);
+  const [defaultSupportUrl, setDefaultSupportUrl] = useState<string | null>(null);
+  const [supportEmail, setSupportEmail] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -1149,15 +1151,19 @@ function SettingsPage() {
             customerEmailSenderDisplayName ??
             settings.data?.customerEmailSenderDisplayName ??
             '',
+          defaultSupportUrl: (defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? '') || null,
+          supportEmail: (supportEmail ?? settings.data?.supportEmail ?? '') || null,
           transactionPin: pin,
         },
       });
       setCustomerEmailSenderDisplayName(result.customerEmailSenderDisplayName);
+      setDefaultSupportUrl(result.defaultSupportUrl);
+      setSupportEmail(result.supportEmail);
       setVaultPlan1mPrice(result.vaultPlan1mPrice);
       setVaultPlan3mPrice(result.vaultPlan3mPrice);
       setVaultPlan1yPrice(result.vaultPlan1yPrice);
       await client.invalidateQueries({ queryKey: getGetAdminSettingsQueryKey() });
-      setMessage('Operations, transfer-alert sender name, and Vault plan settings saved.');
+      setMessage('Operations, support contacts, transfer-alert sender name, and Vault plan settings saved.');
       setPin('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Settings could not be updated.');
@@ -1217,6 +1223,17 @@ function SettingsPage() {
               <p className="mt-2 font-mono text-[13px] font-semibold">@{settings.data?.customerEmailSenderDomain || 'globus.website'}</p>
             </div>
             <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">This display name applies to customer transfer alerts only. The verified sender address and fixed Globus domain remain unchanged; password and security emails keep their existing sender identity.</p>
+          </div>
+        </Panel>
+        <Panel title="Support contact settings" eyebrow="Transfer alerts and customer support" note="These global values are used when a sender has not configured a custom support URL.">
+          <div className="grid gap-3 p-5 sm:grid-cols-2">
+            <Field label="Default support URL (HTTPS)">
+              <input className={input} type="url" placeholder="https://www.global-internetbanking.globus.website/support" value={defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? ''} onChange={event => setDefaultSupportUrl(event.target.value)} autoComplete="url" />
+            </Field>
+            <Field label="Support email address">
+              <input className={input} type="email" placeholder="support@globus.website" value={supportEmail ?? settings.data?.supportEmail ?? ''} onChange={event => setSupportEmail(event.target.value)} autoComplete="email" />
+            </Field>
+            <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">Transfer alert links automatically include the transfer reference. A sender-specific custom URL overrides the default URL. The email contact is shown as a separate secure mailto link.</p>
           </div>
         </Panel>
         <Panel title="Exchange-rate quotes" eyebrow="Current rate sources" note="Frankfurter is primary; Grey is a read-only fallback. Neither is used to move money.">
