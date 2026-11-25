@@ -1006,7 +1006,7 @@ test.describe('signed-in member pages at phone widths', () => {
     await expect(page.getByTestId('admin-metric-pending-operations')).toContainText('2');
     await expect(page.getByTestId('recent-ledger-viewport-transaction')).toContainText('TX-VIEWPORT');
     await expect(page.getByTestId('link-open-admin-funding')).toHaveAttribute('href', '/admin/funding');
-    const row = page.locator('tr').filter({ hasText: 'viewport-member@example.test' });
+    const row = page.getByTestId('row-admin-member-viewport-member');
     await expect(row).toBeVisible();
     await expect(page.getByTestId('member-profile-setup-viewport-member')).toContainText('Complete');
     await expect(row).toContainText('On');
@@ -1273,91 +1273,68 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
   }
 });
 
-test.describe('admin pages and wide tables at phone widths', () => {
-  if (validAuthenticatedState) {
-    test.use({ storageState: validAuthenticatedState });
-  }
+test.describe('compact admin overview and member directory at phone widths', () => {
+  if (validAuthenticatedState) test.use({ storageState: validAuthenticatedState });
+  test.skip(!validAuthenticatedState, 'Set GLOBUS_VIEWPORT_STORAGE_STATE to a valid Playwright storage-state file to run admin viewport checks.');
 
-  test.skip(
-    !validAuthenticatedState,
-    'Set GLOBUS_VIEWPORT_STORAGE_STATE to a valid Playwright storage-state file to run admin viewport checks.',
-  );
+  const member = {
+    id: 'viewport-member', email: 'viewport-member@example.test', firstName: 'Viewport', lastName: 'Member',
+    customerId: 'ABC1234', country: 'US', accountStatus: 'active', accountTierName: 'Standard', accountTierSource: 'default',
+    adminAccountTier: null, vaultSubscriptionStatus: 'inactive', vaultSubscriptionExpiresAt: null, testingModeDisabled: false,
+    transferAccessGranted: false, profileSetupCompletedAt: '2026-11-19T10:00:00.000Z', walletCount: 1, createdAt: '2026-11-18T10:00:00.000Z',
+  };
 
-  for (const width of viewportWidths) {
-    test(`admin view fits and confines wide-table scrolling at ${width}px`, async ({ page }) => {
-      await page.route('**/api/bank/admin/**', async (route) => {
+  for (const width of memberViewportWidths) {
+    test(`overview and five-row member cards fit without clipping or overlap at ${width}px`, async ({ page }) => {
+      await page.route('**/api/bank/admin/**', async route => {
         const pathname = new URL(route.request().url()).pathname;
-        if (pathname.endsWith('/access')) {
-          await route.fulfill({ json: { allowed: true, roles: ['operations'] } });
-        } else if (pathname.endsWith('/summary')) {
-          await route.fulfill({
-            json: {
-              registeredUsers: 1,
-              activeWallets: 1,
-              pendingLedgerRequests: 0,
-              ledgerTransactions: 0,
-            },
-          });
-        } else if (pathname.endsWith('/users')) {
-          await route.fulfill({
-            json: [
-              {
-                id: 'viewport-member',
-                email: 'viewport-member@example.test',
-                firstName: 'Viewport',
-                lastName: 'Member',
-                country: 'US',
-                verificationStatus: 'approved',
-                verificationNote: null,
-                accountStatus: 'active',
-                walletCount: 1,
-              },
-            ],
-          });
-        } else {
-          await route.fulfill({ json: [] });
-        }
+        if (pathname.endsWith('/access')) return route.fulfill({ json: { allowed: true, roles: ['operations'] } });
+        if (pathname.endsWith('/summary')) return route.fulfill({ json: { registeredUsers: 1, activeAccounts: 1, restrictedAccounts: 0, suspendedAccounts: 0, pendingOperations: 0, ledgerTransactions: 0, creditsByCurrency: [], debitsByCurrency: [], recentActions: [] } });
+        if (pathname.endsWith('/users')) return route.fulfill({ json: { items: [member], total: 1, page: 1, pageSize: 25 } });
+        return route.fulfill({ json: [] });
       });
 
       await page.setViewportSize({ width, height: 850 });
       await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-      await expect(
-        page.locator('main h1').filter({ hasText: 'Operations overview' }),
-      ).toBeVisible();
-      await expectNoHorizontalOverflow(page, `Admin page at ${width}px`);
+      await expect(page.getByTestId('admin-operations-overview')).toBeVisible();
+      await expect(page.getByTestId('admin-operations-overview').locator('article')).toHaveCount(6);
+      await expectNoHorizontalOverflow(page, `Operations overview at ${width}px`);
 
-      const wideTableContainers = await page.locator('table').evaluateAll((tables) =>
-        tables
-          .filter((table) => table.scrollWidth > table.clientWidth)
-          .map((table) => {
-            let container = table.parentElement;
-            while (container) {
-              const overflowX = window.getComputedStyle(container).overflowX;
-              if (overflowX === 'auto' || overflowX === 'scroll') break;
-              container = container.parentElement;
-            }
-            return container
-              ? {
-                  containerScrollWidth: container.scrollWidth,
-                  containerClientWidth: container.clientWidth,
-                  overflowX: window.getComputedStyle(container).overflowX,
-                }
-              : null;
-          }),
-      );
+      await page.goto('/admin/users', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('admin-member-card-grid')).toBeVisible();
+      const card = page.getByTestId('row-admin-member-viewport-member');
+      await expect(card).toBeVisible();
+      await expect(card).toHaveAttribute('data-member-card-rows', '5');
+      await expect(page.getByTestId('input-admin-member-search')).toBeVisible();
+      await expect(page.getByTestId('select-admin-account-status')).toBeVisible();
+      await expect(page.getByTestId('select-admin-vault-status')).toBeVisible();
+      await expectNoHorizontalOverflow(page, `Member directory at ${width}px`);
 
-      expect(wideTableContainers.length, 'The admin fixture should render a wide member table').toBeGreaterThan(0);
-      expect(wideTableContainers.every(Boolean), 'Every wide table must have its own scroll container').toBe(true);
-      expect(
-        wideTableContainers.every(
-          (container) =>
-            container!.overflowX === 'auto' &&
-            container!.containerScrollWidth > container!.containerClientWidth,
-        ),
-        'Wide tables should scroll within their own containers',
-      ).toBe(true);
+      const geometry = await card.evaluate(element => {
+        const cardRect = element.getBoundingClientRect();
+        const rows = Array.from(element.children).map(child => {
+          const rect = child.getBoundingClientRect();
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+        });
+        let overlap = false;
+        for (let i = 0; i < rows.length; i += 1) for (let j = i + 1; j < rows.length; j += 1) {
+          const a = rows[i], b = rows[j];
+          if (a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1) overlap = true;
+        }
+        return { cardLeft: cardRect.left, cardRight: cardRect.right, rows, overlap };
+      });
+      expect(geometry.cardLeft).toBeGreaterThanOrEqual(-1);
+      expect(geometry.cardRight).toBeLessThanOrEqual(width + 1);
+      expect(geometry.rows).toHaveLength(5);
+      expect(geometry.overlap, `Member card rows overlap at ${width}px`).toBe(false);
+      for (const row of geometry.rows) {
+        expect(row.left).toBeGreaterThanOrEqual(geometry.cardLeft - 1);
+        expect(row.right).toBeLessThanOrEqual(geometry.cardRight + 1);
+      }
     });
   }
+
+});
 
   test('member directory and detail show access state and require reasoned confirmation', async ({ page }) => {
     let savedPayload: Record<string, unknown> | null = null;
