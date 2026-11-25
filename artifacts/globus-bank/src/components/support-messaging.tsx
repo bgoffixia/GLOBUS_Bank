@@ -262,7 +262,9 @@ export function CustomerSupportPage() {
       setSelectedId(result.conversation.id);
       setMobileThread(true);
     } catch {
-      setFormError('We could not open your conversation. Check your connection and retry.');
+      setFormError(category === 'general'
+        ? 'We could not open your conversation. Check your connection and retry.'
+        : 'Active Private Vault access or dedicated support access is required for this support area. Contact Globus support if you need access.');
     }
   }
 
