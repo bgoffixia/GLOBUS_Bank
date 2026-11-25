@@ -225,7 +225,7 @@ const testTransactionAlertLimiter = rateLimit({
   // Key the cooldown to the signed-in administrator, not the shared office/mobile IP.
   keyGenerator: (req) => getAuth(req).userId || req.ip || "unknown-admin",
   handler: (req, res) => {
-    const resetTime = req.rateLimit?.resetTime;
+    const resetTime = (req as Request & { rateLimit?: { resetTime?: Date } }).rateLimit?.resetTime;
     const retryAfterSeconds = resetTime
       ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
       : 60 * 60;
