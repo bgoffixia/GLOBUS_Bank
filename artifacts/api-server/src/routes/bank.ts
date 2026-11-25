@@ -123,6 +123,7 @@ import {
   bankSavedPaymentMethodsTable,
   bankSupportConversationsTable,
   bankSupportMessagesTable,
+  bankTransferInquiryLinksTable,
   bankVaultPaystackEventsTable,
   bankVaultPaystackPlansTable,
   bankWalletsTable,
@@ -956,6 +957,120 @@ router.post(
       req.log.error({ error }, "Public Private Vault passcode reset request failed");
     }
     res.json(genericResponse);
+  },
+);
+
+const publicTransferInquiryLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 12,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { error: "Too many inquiry attempts. Try again later." },
+});
+
+// Recipient inquiry links are bearer links with 256-bit entropy. Only the SHA-256
+// token hash is stored; the recipient never receives access to the sender's account.
+router.get(
+  "/bank/transfer-inquiries/:token",
+  publicTransferInquiryLimiter,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const token = typeof req.params.token === "string" ? req.params.token : "";
+    if (!/^[A-Za-z0-9_-]{40,100}$/.test(token)) {
+      res.status(404).json({ error: "This inquiry link is invalid or expired." });
+      return;
+    }
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const [link] = await db
+      .select({
+        reference: bankTransferInquiryLinksTable.transferReference,
+        expiresAt: bankTransferInquiryLinksTable.expiresAt,
+      })
+      .from(bankTransferInquiryLinksTable)
+      .where(and(
+        eq(bankTransferInquiryLinksTable.tokenHash, tokenHash),
+        isNull(bankTransferInquiryLinksTable.revokedAt),
+        gt(bankTransferInquiryLinksTable.expiresAt, new Date()),
+      ))
+      .limit(1);
+    if (!link) {
+      res.status(404).json({ error: "This inquiry link is invalid or expired." });
+      return;
+    }
+    res.json({ valid: true, transferReference: link.reference });
+  },
+);
+
+router.post(
+  "/bank/transfer-inquiries/:token/messages",
+  publicTransferInquiryLimiter,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const token = typeof req.params.token === "string" ? req.params.token : "";
+    const body = typeof req.body?.body === "string" ? req.body.body.trim() : "";
+    if (!/^[A-Za-z0-9_-]{40,100}$/.test(token) || body.length < 1 || body.length > 4000) {
+      res.status(400).json({ error: "Enter an inquiry message of 1 to 4,000 characters." });
+      return;
+    }
+    const tokenHash = createHash("sha256").update(token).digest("hex");
+    const now = new Date();
+    const result = await db.transaction(async (tx) => {
+      const [link] = await tx
+        .select({
+          conversationId: bankTransferInquiryLinksTable.conversationId,
+          userId: bankTransferInquiryLinksTable.userId,
+          transferReference: bankTransferInquiryLinksTable.transferReference,
+        })
+        .from(bankTransferInquiryLinksTable)
+        .where(and(
+          eq(bankTransferInquiryLinksTable.tokenHash, tokenHash),
+          isNull(bankTransferInquiryLinksTable.revokedAt),
+          gt(bankTransferInquiryLinksTable.expiresAt, now),
+        ))
+        .limit(1)
+        .for("update");
+      if (!link) return null;
+      const [conversation] = await tx
+        .select({ id: bankSupportConversationsTable.id })
+        .from(bankSupportConversationsTable)
+        .where(and(
+          eq(bankSupportConversationsTable.id, link.conversationId),
+          eq(bankSupportConversationsTable.userId, link.userId),
+          eq(bankSupportConversationsTable.category, "transfer"),
+          eq(bankSupportConversationsTable.transferReference, link.transferReference),
+        ))
+        .limit(1);
+      if (!conversation) return null;
+      const [message] = await tx
+        .insert(bankSupportMessagesTable)
+        .values({
+          conversationId: conversation.id,
+          senderUserId: "external-recipient",
+          senderRole: "customer",
+          body,
+          createdAt: now,
+        })
+        .returning({ id: bankSupportMessagesTable.id });
+      await tx
+        .update(bankSupportConversationsTable)
+        .set({
+          status: "open",
+          customerUnread: true,
+          adminUnread: true,
+          lastMessageAt: now,
+          updatedAt: now,
+        })
+        .where(and(
+          eq(bankSupportConversationsTable.id, conversation.id),
+          eq(bankSupportConversationsTable.userId, link.userId),
+        ));
+      return { messageId: message.id, transferReference: link.transferReference };
+    });
+    if (!result) {
+      res.status(404).json({ error: "This inquiry link is invalid or expired." });
+      return;
+    }
+    res.status(201).json({ sent: true, message: "Your inquiry was delivered to the sender's dedicated support inbox." });
   },
 );
 
