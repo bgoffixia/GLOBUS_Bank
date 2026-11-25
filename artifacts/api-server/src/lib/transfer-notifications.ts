@@ -11,8 +11,6 @@ import {
 } from "@workspace/db";
 import { decryptPrivateData, encryptPrivateData, hashPrivateToken } from "./private-data";
 import { sendResendEmail } from "./resend-email";
-import {
-} from "./customer-email-sender";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type NotificationCategory = "transfer" | "wallet" | "security";
@@ -133,7 +131,7 @@ function transferLanguageForCountry(country: string): TransferLanguage {
 
 const transferEmailCopy: Record<TransferLanguage, Record<string, string>> = {
   en: {
-    subject: copy.subject, heading: "Transfer update",
+    subject: "Globus transfer update", heading: "Transfer update",
     completed: "The sender’s Globus account recorded this transfer.",
     pending: "The transfer is pending review in Globus.",
     failed: "The transfer was not posted to the sender’s Globus wallet.",
@@ -491,7 +489,7 @@ export async function sendTransferAlertEmail(input: {
     to: input.recipientEmail,
     subject: `${copy.subject} · ${input.reference}`,
     text: [
-      "Globus transfer update",
+      copy.subject,
       "",
       statusText,
       "",
