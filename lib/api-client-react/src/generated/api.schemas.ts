@@ -1919,6 +1919,7 @@ export interface AdminUser {
   profileSetupCompletedAt: string | null;
   testingModeDisabled: boolean;
   transferAccessGranted: boolean;
+  supportAccessGranted?: boolean;
   vaultSubscriptionStatus?: AdminUserVaultSubscriptionStatus;
   /** @nullable */
   vaultSubscriptionRequestedAt?: string | null;
@@ -2037,6 +2038,7 @@ export interface AdminUserDetail {
   profileSetupCompletedAt: string | null;
   testingModeDisabled: boolean;
   transferAccessGranted: boolean;
+  supportAccessGranted: boolean;
   transactionPinConfigured: boolean;
   transactionCount: number;
   wallets: Wallet[];
@@ -2105,6 +2107,7 @@ export interface AdminUserProfileInput {
 export interface AdminUserAccessControlsInput {
   testingModeDisabled: boolean;
   transferAccessGranted: boolean;
+  supportAccessGranted: boolean;
   /** @pattern ^[0-9]{6}$ */
   transactionPin: string;
   confirmed: true;
@@ -2165,6 +2168,7 @@ export interface AdminUserAccessControlsResult {
   userId: string;
   testingModeDisabled: boolean;
   transferAccessGranted: boolean;
+  supportAccessGranted: boolean;
 }
 
 export type AdminVaultSubscriptionInputStatus = typeof AdminVaultSubscriptionInputStatus[keyof typeof AdminVaultSubscriptionInputStatus];
