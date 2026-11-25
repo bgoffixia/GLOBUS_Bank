@@ -192,6 +192,7 @@ import {
 import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
 import { getVaultPasscodeResetSenderAddress } from "../lib/vault-passcode-reset-email";
 import { sendVaultPasscodeResetEmail } from "../lib/vault-passcode-reset-smtp";
+import { sendResendEmail } from "../lib/resend-email";
 
 async function deleteCustomerPrivateObjects(input: {
   identityDocumentPaths: string[];
@@ -218,10 +219,23 @@ const supportMessageLimiter = rateLimit({
 });
 const testTransactionAlertLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 1,
+  limit: 5,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  message: { error: "A test transaction alert was already requested recently." },
+  // Key the cooldown to the signed-in administrator, not the shared office/mobile IP.
+  keyGenerator: (req) => getAuth(req).userId || req.ip || "unknown-admin",
+  handler: (req, res) => {
+    const resetTime = (req as Request & { rateLimit?: { resetTime?: Date } }).rateLimit?.resetTime;
+    const retryAfterSeconds = resetTime
+      ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
+      : 60 * 60;
+    res.setHeader("Retry-After", String(retryAfterSeconds));
+    res.setHeader("Cache-Control", "no-store");
+    res.status(429).json({
+      error: "A test transaction alert was already requested recently.",
+      retryAfterSeconds,
+    });
+  },
 });
 
 const adminAuditOperationLabels: Array<[string, string]> = [
@@ -573,7 +587,8 @@ async function getOrCreateAdminSettings() {
     .values({
       id: "operations",
       customerEmailSenderDomain: CUSTOMER_EMAIL_SENDER_DOMAIN,
-      customerEmailSenderDisplayName: CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
+      customerEmailSenderDisplayName: "Incoming Transfer",
+      transferAlertEmailFrom: "transfer-comfirmation@globus.website",
     })
     .onConflictDoNothing();
   const [settings] = await db
@@ -589,6 +604,7 @@ function adminSettingsPayload(settings: Awaited<ReturnType<typeof getOrCreateAdm
   return {
     customerEmailSenderDomain: settings.customerEmailSenderDomain,
     customerEmailSenderDisplayName: settings.customerEmailSenderDisplayName,
+    transferAlertEmailFrom: settings.transferAlertEmailFrom,
     defaultSupportUrl: settings.defaultSupportUrl,
     supportEmail: settings.supportEmail,
     fundingLimit: settings.fundingLimit,
@@ -682,13 +698,23 @@ router.post(
         res.status(503).json({ error: "The email delivery service is not configured." });
         return;
       }
-      await sendVaultPasscodeResetEmail({
-        apiKey,
-        senderAddress: getVaultPasscodeResetSenderAddress(),
-        recipientAddress,
-        subject,
-        text: message,
-      });
+      const transferSenderSettings = await getOrCreateAdminSettings();
+      const transferSenderAddress =
+        transferSenderSettings.transferAlertEmailFrom || "transfer-comfirmation@globus.website";
+      const emailSent = await sendResendEmail(
+        {
+          from: `Incoming Transfer <${transferSenderAddress}>`,
+          to: recipientAddress,
+          subject,
+          text: message,
+          html: `<main style="font-family:Arial,sans-serif;color:#17314f"><h2>GLOBUS BANK — TEST TRANSACTION ALERT</h2><p><strong>TEST ONLY:</strong> This is a simulated email. No real transaction was initiated, processed, or posted. No funds have been transferred or deducted.</p><p>Transaction type: Debit (simulated)<br>Amount: NGN 5,000.00 (fictional test amount)<br>Status: TEST ONLY — NOT A REAL TRANSACTION<br>Reference: ${reference}</p></main>`,
+        },
+        `globus-admin-test-transfer-alert-${reference}`,
+      );
+      if (!emailSent) {
+        res.status(502).json({ error: "The test transfer-alert email was rejected or could not be delivered. Check the transfer email sender and Resend logs." });
+        return;
+      }
       await db.insert(bankAuditLogsTable).values({
         actorUserId: actor.id,
         targetUserId: actor.id,
@@ -699,7 +725,7 @@ router.post(
         sent: true,
         recipient: recipientAddress,
         reference,
-        message: "Test transaction alert email accepted by the SMTP server. No real transaction occurred.",
+        message: "Test transaction alert email accepted by Resend. No real transaction occurred.",
       });
     } catch (error) {
       req.log.error({ error }, "Admin test transaction alert email failed");
@@ -1921,7 +1947,8 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     .insert(bankAdminSettingsTable)
     .values({
       id: "operations",
-      customerEmailSenderDisplayName,
+      customerEmailSenderDisplayName: "Incoming Transfer",
+      transferAlertEmailFrom: existingSettings.transferAlertEmailFrom || "transfer-comfirmation@globus.website",
       defaultSupportUrl,
       supportEmail,
       fundingLimit: formatMinorAmount(fundingLimitMinor),
@@ -1934,7 +1961,8 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     .onConflictDoUpdate({
       target: bankAdminSettingsTable.id,
       set: {
-        customerEmailSenderDisplayName,
+        customerEmailSenderDisplayName: "Incoming Transfer",
+        transferAlertEmailFrom: existingSettings.transferAlertEmailFrom || "transfer-comfirmation@globus.website",
         defaultSupportUrl,
         supportEmail,
         fundingLimit: formatMinorAmount(fundingLimitMinor),
@@ -1951,7 +1979,7 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     actorUserId,
     targetUserId: actorUserId,
     action: "update_admin_settings",
-    reason: `Transfer-alert display name ${settings.customerEmailSenderDisplayName}; funding cap ${settings.fundingLimit}; second approval threshold ${settings.secondApprovalThreshold}; unverified dashboard notice and Paystack Vault plan pricing updated. ${reason}`,
+    reason: `Transfer-alert sender ${settings.customerEmailSenderDisplayName} <${settings.transferAlertEmailFrom}>; funding cap ${settings.fundingLimit}; second approval threshold ${settings.secondApprovalThreshold}; unverified dashboard notice and Paystack Vault plan pricing updated. ${reason}`,
   });
   res.json(
     UpdateAdminSettingsResponse.parse(adminSettingsPayload(settings)),

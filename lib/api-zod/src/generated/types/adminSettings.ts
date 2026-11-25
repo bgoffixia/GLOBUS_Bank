@@ -15,6 +15,7 @@ export interface AdminSettings {
      * @maxLength 80
      */
   customerEmailSenderDisplayName: string;
+  transferAlertEmailFrom: string;
   fundingLimit: string;
   secondApprovalThreshold: string;
   frozenIncomingPolicy: AdminSettingsFrozenIncomingPolicy;

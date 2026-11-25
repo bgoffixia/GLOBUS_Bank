@@ -268,8 +268,14 @@ function Overview() {
         credentials: 'same-origin',
         headers: { 'Content-Type': 'application/json' },
       });
-      const result = await response.json().catch(() => ({})) as { sent?: boolean; recipient?: string; reference?: string; message?: string; error?: string };
-      if (!response.ok || result.sent !== true) throw new Error(result.error || 'The test email request was not accepted.');
+      const result = await response.json().catch(() => ({})) as { sent?: boolean; recipient?: string; reference?: string; message?: string; error?: string; retryAfterSeconds?: number };
+      if (!response.ok || result.sent !== true) {
+        if (response.status === 429 && typeof result.retryAfterSeconds === 'number') {
+          const minutes = Math.max(1, Math.ceil(result.retryAfterSeconds / 60));
+          throw new Error(`${result.error || 'Test email cooldown is active.'} Try again in about ${minutes} minute${minutes === 1 ? '' : 's'}.`);
+        }
+        throw new Error(result.error || 'The test email request was not accepted.');
+      }
       setTestEmailFeedback({
         tone: 'success',
         text: `SMTP accepted the test email for ${result.recipient || 'the configured recipient'} (reference ${result.reference || 'not supplied'}). Check the inbox and spam folder; SMTP acceptance does not guarantee inbox delivery.`,
@@ -1157,7 +1163,6 @@ function SettingsPage() {
   const [vaultPlan1mPrice, setVaultPlan1mPrice] = useState<string | null>(null);
   const [vaultPlan3mPrice, setVaultPlan3mPrice] = useState<string | null>(null);
   const [vaultPlan1yPrice, setVaultPlan1yPrice] = useState<string | null>(null);
-  const [customerEmailSenderDisplayName, setCustomerEmailSenderDisplayName] = useState<string | null>(null);
   const [defaultSupportUrl, setDefaultSupportUrl] = useState<string | null>(null);
   const [supportEmail, setSupportEmail] = useState<string | null>(null);
   const [pin, setPin] = useState('');
@@ -1175,23 +1180,19 @@ function SettingsPage() {
           vaultPlan1mPrice: vaultPlan1mPrice ?? settings.data?.vaultPlan1mPrice ?? '',
           vaultPlan3mPrice: vaultPlan3mPrice ?? settings.data?.vaultPlan3mPrice ?? '',
           vaultPlan1yPrice: vaultPlan1yPrice ?? settings.data?.vaultPlan1yPrice ?? '',
-          customerEmailSenderDisplayName:
-            customerEmailSenderDisplayName ??
-            settings.data?.customerEmailSenderDisplayName ??
-            '',
+          customerEmailSenderDisplayName: 'Incoming Transfer',
           defaultSupportUrl: (defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? '') || null,
           supportEmail: (supportEmail ?? settings.data?.supportEmail ?? '') || null,
           transactionPin: pin,
         },
       });
-      setCustomerEmailSenderDisplayName(result.customerEmailSenderDisplayName);
       setDefaultSupportUrl(result.defaultSupportUrl);
       setSupportEmail(result.supportEmail);
       setVaultPlan1mPrice(result.vaultPlan1mPrice);
       setVaultPlan3mPrice(result.vaultPlan3mPrice);
       setVaultPlan1yPrice(result.vaultPlan1yPrice);
       await client.invalidateQueries({ queryKey: getGetAdminSettingsQueryKey() });
-      setMessage('Operations, support contacts, transfer-alert sender name, and Vault plan settings saved.');
+      setMessage('Operations, support contacts, server-managed transfer-alert identity, and Vault plan settings saved.');
       setPin('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Settings could not be updated.');
@@ -1243,17 +1244,17 @@ function SettingsPage() {
                 required
                 maxLength={80}
                 className={input}
-                value={customerEmailSenderDisplayName ?? settings.data?.customerEmailSenderDisplayName ?? ''}
-                onChange={event => setCustomerEmailSenderDisplayName(event.target.value)}
+                value="Incoming Transfer"
+                readOnly
                 autoComplete="organization"
                 data-testid="input-transfer-alert-display-name"
               />
             </Field>
             <div className="rounded-xl bg-[#f2f6f1] p-4">
-              <p className="text-[9px] font-bold uppercase tracking-[.1em] text-[#7d8d8e]">Fixed email domain</p>
-              <p className="mt-2 font-mono text-[13px] font-semibold">@{settings.data?.customerEmailSenderDomain || 'globus.website'}</p>
+              <p className="text-[9px] font-bold uppercase tracking-[.1em] text-[#7d8d8e]">Server-managed sender address</p>
+              <p className="mt-2 font-mono text-[13px] font-semibold">{settings.data?.transferAlertEmailFrom || 'transfer-comfirmation@globus.website'}</p>
             </div>
-            <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">This display name applies to customer transfer alerts only. The verified sender address and fixed Globus domain remain unchanged; password and security emails keep their existing sender identity.</p>
+            <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">Transfer alerts always use the server-managed address and display name shown above. Customer-specific sender addresses are not used. Vault passcode reset continues through Clerk email OTP verification.</p>
           </div>
         </Panel>
         <Panel id="settings-support" title="Support contact settings" eyebrow="Transfer alerts and customer support" note="These global values are used when a sender has not configured a custom support URL.">

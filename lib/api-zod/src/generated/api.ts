@@ -2567,6 +2567,7 @@ export const getAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0-9]
 export const GetAdminSettingsResponse = zod.object({
   "customerEmailSenderDomain": zod.enum(['globus.website']),
   "customerEmailSenderDisplayName": zod.string().min(1).max(getAdminSettingsResponseCustomerEmailSenderDisplayNameMax),
+  "transferAlertEmailFrom": zod.string().email().max(254),
   "defaultSupportUrl": zod.string().url().max(500).nullable(),
   "supportEmail": zod.string().email().max(254).nullable(),
   "fundingLimit": zod.string(),
@@ -2614,6 +2615,7 @@ export const updateAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0
 export const UpdateAdminSettingsResponse = zod.object({
   "customerEmailSenderDomain": zod.enum(['globus.website']),
   "customerEmailSenderDisplayName": zod.string().min(1).max(updateAdminSettingsResponseCustomerEmailSenderDisplayNameMax),
+  "transferAlertEmailFrom": zod.string().email().max(254),
   "defaultSupportUrl": zod.string().url().max(500).nullable(),
   "supportEmail": zod.string().email().max(254).nullable(),
   "fundingLimit": zod.string(),

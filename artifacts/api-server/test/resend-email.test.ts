@@ -276,3 +276,49 @@ test("reports Resend rejection as an unsuccessful delivery", async () => {
     else process.env[apiKeyEnv] = previousKey;
   }
 });
+
+
+test("admin test-email cooldown is per administrator and returns the remaining wait", () => {
+  const source = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /keyGenerator:\s*\(req\)\s*=>\s*getAuth\(req\)\.userId/);
+  assert.match(source, /req\.rateLimit\?\.resetTime/);
+  assert.match(source, /retryAfterSeconds/);
+  assert.match(source, /setHeader\("Retry-After"/);
+});
+
+
+test("admin test transfer-alert limiter permits five requests per hour", () => {
+  const source = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /const testTransactionAlertLimiter = rateLimit\(\{[\s\S]*?windowMs: 60 \* 60 \* 1000,[\s\S]*?limit: 5,/);
+  assert.match(source, /transferSenderSettings\.transferAlertEmailFrom/);
+  assert.match(source, /sendResendEmail\(/);
+  assert.doesNotMatch(source, /await sendVaultPasscodeResetEmail\(\{[\s\S]*?recipientAddress,\s*subject,\s*text: message/);
+});
+
+test("vault passcode reset sender does not inherit transfer security sender", () => {
+  const source = readFileSync(
+    new URL("../src/lib/vault-passcode-reset-email.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /env\.GLOBUS_VAULT_PIN_RESET_EMAIL_FROM\s*\?\?/);
+  assert.doesNotMatch(source, /GLOBUS_SECURITY_EMAIL_FROM/);
+});
+
+
+test("transfer alerts use the administrator-configured sender and destination-language copy", () => {
+  const source = readFileSync(
+    new URL("../src/lib/transfer-notifications.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /bankAdminSettingsTable\.transferAlertEmailFrom/);
+  assert.match(source, /bankAdminSettingsTable\.customerEmailSenderDisplayName/);
+  assert.doesNotMatch(source, /vaultEmailSenderLocalPart/);
+  assert.match(source, /transferLanguageForCountry\(input\.destinationCountry\)/);
+  assert.match(source, /const transferEmailCopy/);
+});

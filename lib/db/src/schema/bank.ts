@@ -567,7 +567,10 @@ export const bankAdminSettingsTable = pgTable("bank_admin_settings", {
     .default("globus.website"),
   customerEmailSenderDisplayName: text("customer_email_sender_display_name")
     .notNull()
-    .default("GLOBUS BANK"),
+    .default("Incoming Transfer"),
+  transferAlertEmailFrom: text("transfer_alert_email_from")
+    .notNull()
+    .default("transfer-comfirmation@globus.website"),
   defaultSupportUrl: text("default_support_url"),
   supportEmail: text("support_email"),
   fundingLimit: text("funding_limit").notNull().default("100000000"),
