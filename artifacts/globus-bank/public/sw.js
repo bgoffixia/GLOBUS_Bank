@@ -1,4 +1,4 @@
-const CACHE_NAME = "globus-app-shell-v4";
+const CACHE_NAME = "globus-app-shell-v5";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -100,8 +100,8 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: new URL("globus-mark-transparent.png", self.registration.scope).toString(),
-      badge: new URL("globus-mark-transparent.png", self.registration.scope).toString(),
+      icon: new URL("globus-pwa-icon.svg?v=3", self.registration.scope).toString(),
+      badge: new URL("globus-pwa-icon.svg?v=3", self.registration.scope).toString(),
       data: { url: targetUrl },
       tag: typeof payload.notificationId === "string" ? payload.notificationId : "globus-account-update",
     }),
