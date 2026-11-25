@@ -12,9 +12,6 @@ import {
 import { decryptPrivateData, encryptPrivateData, hashPrivateToken } from "./private-data";
 import { sendResendEmail } from "./resend-email";
 import {
-  CUSTOMER_EMAIL_SENDER_DISPLAY_NAME,
-  customerEmailSenderHeader,
-  normalizeCustomerEmailSenderDisplayName,
 } from "./customer-email-sender";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
@@ -278,7 +275,6 @@ export async function sendTransferAlertEmail(input: {
   let senderPreferences:
     | {
         email: string;
-        senderLocalPart: string | null;
         theme: string;
         headline: string;
         backgroundColor: string;
@@ -384,9 +380,6 @@ export async function sendTransferAlertEmail(input: {
     .map((line) => `<li>${htmlEscape(line)}</li>`)
     .join("");
   const idempotencyKey = `globus-transfer-${input.notificationId ?? `${input.reference}-${input.status}`}`;
-  const fallbackSenderHeader = validFallbackAddress
-    ? `"${senderDisplayName.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}" <${validFallbackAddress}>`
-    : null;
   const emailMessage = {
     from: senderHeader,
     to: input.recipientEmail,
@@ -402,10 +395,6 @@ export async function sendTransferAlertEmail(input: {
     ].join("\n"),
     html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">GLOBUS <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">Transfer update</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">If you do not recognize this message, ignore it. Never reply with account credentials or verification codes.</p></div>${supportHtml}</section></main>`,
   };
-  const recipientFallbackMessage =
-    fallbackSenderHeader && fallbackSenderHeader !== senderHeader
-      ? { ...emailMessage, from: fallbackSenderHeader }
-      : undefined;
   try {
     const ownerEmail = senderPreferences?.email?.trim() ?? null;
     const ownerEmailIsValid = Boolean(
@@ -424,18 +413,9 @@ export async function sendTransferAlertEmail(input: {
       ownerEmail!.toLowerCase() === input.recipientEmail.toLowerCase(),
     );
     const recipientMessage = sameAddress && ownerMessage ? ownerMessage : emailMessage;
-    const recipientFallback = recipientFallbackMessage
-      ? { ...recipientFallbackMessage, ...(sameAddress && ownerMessage
-          ? {
-              text: ownerMessage.text,
-              html: ownerMessage.html,
-            }
-          : {}) }
-      : undefined;
     const recipientSent = await sendResendEmail(
       recipientMessage,
       idempotencyKey,
-      recipientFallback,
     );
     if (!input.senderUserId || !ownerMessage) return recipientSent;
     if (sameAddress) return recipientSent;
