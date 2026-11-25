@@ -2759,6 +2759,8 @@ router.get(
     ]);
     const effectiveAccountStatus =
       user.accountStatus === "suspended" ||
+      user.accountStatus === "deletion_pending" ||
+      user.accountStatus === "deleted" ||
       activeRestrictions.some((restriction) => restriction.type === "suspend_user")
         ? "suspended"
         : user.accountStatus === "restricted" || activeRestrictions.length > 0
