@@ -1,8 +1,11 @@
 import { eq } from "drizzle-orm";
+import { randomBytes, createHash } from "node:crypto";
 import {
   bankNotificationsTable,
   bankAdminSettingsTable,
   bankPushSubscriptionsTable,
+  bankSupportConversationsTable,
+  bankTransferInquiryLinksTable,
   bankUsersTable,
   db,
 } from "@workspace/db";
@@ -172,6 +175,38 @@ export function renderSupportFooter(
   ];
   return { text, html: links.length ? `<footer style="padding:16px 28px 20px;border-top:1px solid #e7ecee;text-align:center">${links.join(" ")}</footer>` : "" };
 }
+async function createTransferInquiryUrl(userId: string, reference: string): Promise<string> {
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+  const [conversation] = await db
+    .insert(bankSupportConversationsTable)
+    .values({
+      userId,
+      subject: `Transfer inquiry · ${reference}`,
+      category: "transfer",
+      transferReference: reference,
+      status: "open",
+      customerUnread: false,
+      adminUnread: false,
+      lastMessageAt: now,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .returning({ id: bankSupportConversationsTable.id });
+  await db.insert(bankTransferInquiryLinksTable).values({
+    tokenHash,
+    conversationId: conversation.id,
+    userId,
+    transferReference: reference,
+    expiresAt,
+    createdAt: now,
+  });
+  const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
+  return new URL(`/transfer-inquiries/${token}`, origin).toString();
+}
+
 export async function sendTransferAlertEmail(input: {
   notificationId?: string;
   senderUserId?: string;
@@ -283,6 +318,14 @@ export async function sendTransferAlertEmail(input: {
     normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
   const defaultSupportUrl = new URL(configuredDefaultSupportUrl ?? "/support", origin);
   defaultSupportUrl.searchParams.set("transfer", input.reference);
+  let recipientInquiryUrl: string | null = null;
+  if (input.senderUserId) {
+    try {
+      recipientInquiryUrl = await createTransferInquiryUrl(input.senderUserId, input.reference);
+    } catch {
+      // Do not send a dead inquiry URL; preserve the established support fallback.
+    }
+  }
   const configuredSupportEmail =
     globalSupportEmail?.trim() || process.env.GLOBUS_SUPPORT_EMAIL?.trim() || null;
   const vaultSupportUrl = new URL("/private-vault/support", origin);
@@ -295,12 +338,12 @@ export async function sendTransferAlertEmail(input: {
   const customSupportUrl = senderPreferences?.includeSupportLink
     ? normalizeSupportUrl(senderPreferences.supportUrl)
     : null;
-  const supportUrl = customSupportUrl
+  const supportUrl = recipientInquiryUrl ?? (customSupportUrl
     ? (() => { const custom = new URL(customSupportUrl); custom.searchParams.set("transfer", input.reference); return custom.toString(); })()
-    : defaultSupportUrl.toString();
+    : defaultSupportUrl.toString());
   const { text: supportText, html: supportHtml } = renderSupportFooter(
     supportUrl,
-    senderPreferences?.supportLabel,
+    recipientInquiryUrl ? "Inquiries" : senderPreferences?.supportLabel,
     configuredSupportEmail,
   );
   const statusText =
