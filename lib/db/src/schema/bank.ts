@@ -772,6 +772,7 @@ export const bankTransferInquiryLinksTable = pgTable(
   {
     id: uuid("id").defaultRandom().primaryKey(),
     tokenHash: text("token_hash").notNull().unique(),
+    tokenEncrypted: text("token_encrypted").notNull(),
     conversationId: uuid("conversation_id")
       .notNull()
       .references(() => bankSupportConversationsTable.id, { onDelete: "cascade" }),
@@ -784,7 +785,7 @@ export const bankTransferInquiryLinksTable = pgTable(
     createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
-    index("bank_transfer_inquiry_owner_transfer_idx").on(table.userId, table.transferReference),
+    uniqueIndex("bank_transfer_inquiry_owner_transfer_unique").on(table.userId, table.transferReference),
     index("bank_transfer_inquiry_expiry_idx").on(table.expiresAt),
   ],
 );
