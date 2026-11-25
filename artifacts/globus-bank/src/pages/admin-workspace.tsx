@@ -452,7 +452,7 @@ function MemberDetail({ userId }: { userId: string }) {
     if (!detail.data) return;
     setTestingModeDisabled(detail.data.user.testingModeDisabled);
     setTransferAccessGranted(detail.data.user.transferAccessGranted);
-    setSupportAccessGranted(detail.data.user.supportAccessGranted);
+    setSupportAccessGranted(detail.data.user.supportAccessGranted ?? false);
     setAccountTierSelection(detail.data.user.adminAccountTier ?? 'default');
   }, [detail.data?.user.testingModeDisabled, detail.data?.user.transferAccessGranted, detail.data?.user.supportAccessGranted, detail.data?.user.adminAccountTier]);
   const refresh = async () => { await Promise.all([client.invalidateQueries({ queryKey: getGetAdminUserDetailQueryKey(userId) }), client.invalidateQueries({ queryKey: getListAdminUsersQueryKey() }), client.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() })]); };
