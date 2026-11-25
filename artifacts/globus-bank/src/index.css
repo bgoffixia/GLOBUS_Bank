@@ -476,6 +476,10 @@ img, svg, video, canvas {
   display: block;
 }
 
+.vault-page-content[data-vault-page="support"] > [data-vault-view="support"] {
+  display: block;
+}
+
 .vault-page-content #vault-workspace-layout > [data-vault-view],
 .vault-page-content #vault-workspace-overview > [data-vault-view],
 .vault-page-content #vault-account-controls > [data-vault-view] {
