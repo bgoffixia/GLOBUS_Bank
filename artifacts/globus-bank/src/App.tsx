@@ -32,6 +32,7 @@ import { AdminWorkspace } from '@/pages/admin-workspace';
 import { PrivateVaultPasscodeResetPage } from '@/pages/private-vault-passcode-reset-page';
 import { SettingsPage } from '@/pages/settings-page';
 import { CustomerSupportPage } from '@/components/support-messaging';
+import { TransferInquiryPage } from '@/components/transfer-inquiry-page';
 import {
   Redirect,
   Route,
@@ -264,6 +265,7 @@ function ClerkRoutes() {
         <Route path="/sign-in/email" component={EmailRecoveryPage} />
         <Route path="/sign-in/recover" component={PasswordResetLinkPage} />
         <Route path="/private-vault/reset-passcode" component={PrivateVaultPasscodeResetPage} />
+        <Route path="/transfer-inquiries/:token">{(params) => <TransferInquiryPage token={params.token} />}</Route>
         <Route path="/sign-in/*?" component={SignInPage} />
         <Route path="/sign-up/*?" component={SignUpPage} />
         <Route path="/dashboard"><ProtectedPage><DashboardPage /></ProtectedPage></Route>
