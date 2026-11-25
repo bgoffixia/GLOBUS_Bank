@@ -132,7 +132,8 @@ test("customer handlers enforce owner scope and message rate limits", () => {
   assert.match(routes, /router\.post\(\s*"\/bank\/support\/conversations\/:conversationId\/messages",\s*supportMessageLimiter/);
   assert.match(routes, /eq\(bankSupportConversationsTable\.userId,\s*user\.id\)/);
   assert.match(routes, /router\.post\(\s*"\/bank\/support\/conversations\/:conversationId\/read"/);
-  assert.match(customerRoutes, /where\(eq\(bankSupportConversationsTable\.userId, user\.id\)\)/);
+  assert.match(customerRoutes, /where\(canAccessRestrictedSupport/);
+  assert.match(customerRoutes, /eq\(bankSupportConversationsTable\.userId, user\.id\)/);
 });
 
 test("support categories enforce Vault eligibility and transfer ownership", () => {
