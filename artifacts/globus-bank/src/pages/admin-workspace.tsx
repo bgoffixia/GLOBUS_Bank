@@ -1197,7 +1197,7 @@ function SettingsPage() {
       setVaultPlan3mPrice(result.vaultPlan3mPrice);
       setVaultPlan1yPrice(result.vaultPlan1yPrice);
       await client.invalidateQueries({ queryKey: getGetAdminSettingsQueryKey() });
-      setMessage('Operations, support contacts, transfer-alert sender name, and Vault plan settings saved.');
+      setMessage('Operations, support contacts, server-managed transfer-alert identity, and Vault plan settings saved.');
       setPin('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Settings could not be updated.');
@@ -1249,17 +1249,17 @@ function SettingsPage() {
                 required
                 maxLength={80}
                 className={input}
-                value={customerEmailSenderDisplayName ?? settings.data?.customerEmailSenderDisplayName ?? ''}
-                onChange={event => setCustomerEmailSenderDisplayName(event.target.value)}
+                value="Incoming Transfer"
+                readOnly
                 autoComplete="organization"
                 data-testid="input-transfer-alert-display-name"
               />
             </Field>
             <div className="rounded-xl bg-[#f2f6f1] p-4">
-              <p className="text-[9px] font-bold uppercase tracking-[.1em] text-[#7d8d8e]">Fixed email domain</p>
-              <p className="mt-2 font-mono text-[13px] font-semibold">@{settings.data?.customerEmailSenderDomain || 'globus.website'}</p>
+              <p className="text-[9px] font-bold uppercase tracking-[.1em] text-[#7d8d8e]">Server-managed sender address</p>
+              <p className="mt-2 font-mono text-[13px] font-semibold">{settings.data?.transferAlertEmailFrom || 'transfer-comfirmation@globus.website'}</p>
             </div>
-            <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">This display name applies to customer transfer alerts only. The verified sender address and fixed Globus domain remain unchanged; password and security emails keep their existing sender identity.</p>
+            <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">Transfer alerts always use the server-managed address and display name shown above. Customer-specific sender addresses are not used. Vault passcode reset continues through Clerk email OTP verification.</p>
           </div>
         </Panel>
         <Panel id="settings-support" title="Support contact settings" eyebrow="Transfer alerts and customer support" note="These global values are used when a sender has not configured a custom support URL.">
