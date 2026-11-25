@@ -124,7 +124,9 @@ export function ClerkSignInForm() {
   const [, setLocation] = useLocation();
   const clerk = (window as Window & { Clerk?: ClerkRuntimeSignInSettings }).Clerk;
   const { signIn, fetchStatus } = useSignIn();
+  const lookupCustomerId = useLookupCustomerId();
   const { t } = useLanguage();
+  const [loginMethod, setLoginMethod] = useState<'username' | 'customer-id'>('username');
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [verificationCode, setVerificationCode] = useState('');
@@ -135,17 +137,20 @@ export function ClerkSignInForm() {
   const [errorField, setErrorField] = useState<SignInValidationField | null>(null);
   const userSettings = clerk?.environment?.userSettings;
   const usernameIdentifierEnabled = userSettings?.attributes?.username?.enabled === true;
+  const emailIdentifierEnabled = userSettings?.attributes?.email_address?.enabled === true;
   const passwordSignInEnabled = userSettings?.attributes?.password?.enabled === true;
   const usernameMinLength = userSettings?.usernameSettings?.min_length ?? 1;
   const usernameMaxLength = userSettings?.usernameSettings?.max_length ?? 64;
-  const busy = fetchStatus === 'fetching';
+  const busy = fetchStatus === 'fetching' || lookupCustomerId.isPending;
   const showFormUnavailable = !clerk?.loaded
     ? 'Loading secure sign-in options…'
     : !userSettings
       ? 'Secure sign-in options could not be loaded. Reload this page to try again.'
-      : !usernameIdentifierEnabled
+      : loginMethod === 'username' && !usernameIdentifierEnabled
         ? 'Username sign-in is not enabled for this Clerk account.'
-        : !passwordSignInEnabled
+        : loginMethod === 'customer-id' && !emailIdentifierEnabled
+          ? 'Email-based sign-in is not enabled for Customer ID lookup on this Clerk account.'
+          : !passwordSignInEnabled
           ? 'Password sign-in is not enabled for this Clerk account.'
           : '';
 
@@ -227,26 +232,49 @@ export function ClerkSignInForm() {
 
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
-    const validationError = validateSignInCredentials({
-      username,
-      password,
-      usernameMinLength,
-      usernameMaxLength,
-    });
-    if (validationError) {
-      showFormError(validationError.message, validationError.field);
-      const focusTarget = validationError.field === 'password'
-        ? 'gb-signin-password'
-        : 'gb-signin-username';
-      requestAnimationFrame(() => document.getElementById(focusTarget)?.focus());
-      return;
+    const normalizedIdentifier = username.trim();
+    if (loginMethod === 'username') {
+      const validationError = validateSignInCredentials({
+        username: normalizedIdentifier,
+        password,
+        usernameMinLength,
+        usernameMaxLength,
+      });
+      if (validationError) {
+        showFormError(validationError.message, validationError.field);
+        const focusTarget = validationError.field === 'password'
+          ? 'gb-signin-password'
+          : 'gb-signin-username';
+        requestAnimationFrame(() => document.getElementById(focusTarget)?.focus());
+        return;
+      }
+    } else {
+      if (!/^[A-Za-z0-9]{7}$/.test(normalizedIdentifier)) {
+        showFormError('Enter your seven-character Customer ID.', 'username');
+        requestAnimationFrame(() => document.getElementById('gb-signin-username')?.focus());
+        return;
+      }
+      if (!password) {
+        showFormError('Enter your password.', 'password');
+        requestAnimationFrame(() => document.getElementById('gb-signin-password')?.focus());
+        return;
+      }
     }
     clearFormError();
     try {
-      const result = await signIn.password({
-        identifier: username.trim(),
-        password,
-      });
+      let identifier = normalizedIdentifier;
+      if (loginMethod === 'customer-id') {
+        try {
+          const customer = await lookupCustomerId.mutateAsync({
+            data: { customerId: normalizedIdentifier.toUpperCase() },
+          });
+          identifier = customer.email;
+        } catch {
+          setError('Invalid username, Customer ID, or password.');
+          return;
+        }
+      }
+      const result = await signIn.password({ identifier, password });
       await continueSignIn(result.error, 'sign-in');
     } catch (error) {
       setError(authFailureMessage(error, 'sign-in'));
@@ -327,23 +355,46 @@ export function ClerkSignInForm() {
           <p role="status" className="gb-auth-notice">{t(showFormUnavailable)}</p>
         ) : (
           <form className="gb-auth-form" noValidate onSubmit={submit}>
+            <div className="gb-recovery-type" role="group" aria-label={t('Sign-in method')}>
+              <button
+                type="button"
+                aria-pressed={loginMethod === 'username'}
+                className={loginMethod === 'username' ? 'is-active' : ''}
+                onClick={() => { setLoginMethod('username'); clearFormError(); setUsername(''); }}
+              >
+                {t('Username')}
+              </button>
+              <button
+                type="button"
+                aria-pressed={loginMethod === 'customer-id'}
+                className={loginMethod === 'customer-id' ? 'is-active' : ''}
+                onClick={() => { setLoginMethod('customer-id'); clearFormError(); setUsername(''); }}
+              >
+                {t('Customer ID')}
+              </button>
+            </div>
             <div className="gb-field">
-              <label className="gb-field-label" htmlFor="gb-signin-username">{t('Username')}</label>
+              <label className="gb-field-label" htmlFor="gb-signin-username">
+                {t(loginMethod === 'customer-id' ? '7-character Customer ID' : 'Username')}
+              </label>
               <input
                 id="gb-signin-username"
                 className="gb-input"
                 type="text"
-                autoComplete="username"
+                autoComplete={loginMethod === 'customer-id' ? 'off' : 'username'}
                 autoCapitalize="none"
                 spellCheck={false}
-                minLength={usernameMinLength}
-                maxLength={usernameMaxLength}
+                minLength={loginMethod === 'customer-id' ? 7 : usernameMinLength}
+                maxLength={loginMethod === 'customer-id' ? 7 : usernameMaxLength}
+                placeholder={t(loginMethod === 'customer-id' ? 'Enter your 7-character Customer ID' : 'Enter your username')}
                 value={username}
                 aria-invalid={errorField === 'username' ? true : undefined}
                 aria-describedby={errorField === 'username' ? 'gb-signin-field-error' : undefined}
                 onChange={event => {
                   clearFormError();
-                  setUsername(event.target.value);
+                  setUsername(loginMethod === 'customer-id'
+                    ? event.target.value.replace(/[^A-Za-z0-9]/g, '').slice(0, 7)
+                    : event.target.value);
                 }}
                 required
               />
