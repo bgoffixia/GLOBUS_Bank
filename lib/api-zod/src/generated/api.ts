@@ -820,6 +820,8 @@ export const ListBankSupportConversationsResponse = zod.object({
   "conversations": zod.array(zod.object({
   "id": zod.string().uuid(),
   "subject": zod.string(),
+  "category": zod.enum(['general', 'private_vault', 'transfer']),
+  "transferReference": zod.string().nullable(),
   "status": zod.enum(['open', 'closed']),
   "customerUnread": zod.boolean(),
   "lastMessagePreview": zod.string().nullable(),
@@ -845,7 +847,9 @@ export const createBankSupportConversationBodyMessageRegExp = new RegExp('\\S');
 
 export const CreateBankSupportConversationBody = zod.object({
   "subject": zod.string().min(1).max(createBankSupportConversationBodySubjectMax).regex(createBankSupportConversationBodySubjectRegExp),
-  "message": zod.string().min(1).max(createBankSupportConversationBodyMessageMax).regex(createBankSupportConversationBodyMessageRegExp)
+  "message": zod.string().min(1).max(createBankSupportConversationBodyMessageMax).regex(createBankSupportConversationBodyMessageRegExp),
+  "category": zod.enum(['general', 'private_vault', 'transfer']).optional(),
+  "transferReference": zod.string().min(1).max(100).optional()
 })
 
 export const CreateBankSupportConversationResponse = zod.object({
@@ -931,7 +935,8 @@ export const listAdminSupportConversationsQuerySearchMax = 100;
 
 export const ListAdminSupportConversationsQueryParams = zod.object({
   "status": zod.enum(['open', 'closed']).optional(),
-  "search": zod.coerce.string().max(listAdminSupportConversationsQuerySearchMax).optional()
+  "search": zod.coerce.string().max(listAdminSupportConversationsQuerySearchMax).optional(),
+  "category": zod.enum(['general', 'private_vault', 'transfer']).optional()
 })
 
 export const ListAdminSupportConversationsResponse = zod.object({
@@ -941,6 +946,8 @@ export const ListAdminSupportConversationsResponse = zod.object({
   "customerName": zod.string(),
   "customerEmail": zod.string().email(),
   "subject": zod.string(),
+  "category": zod.enum(['general', 'private_vault', 'transfer']),
+  "transferReference": zod.string().nullable(),
   "status": zod.enum(['open', 'closed']),
   "adminUnread": zod.boolean(),
   "lastMessagePreview": zod.string().nullable(),
@@ -2560,6 +2567,8 @@ export const getAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0-9]
 export const GetAdminSettingsResponse = zod.object({
   "customerEmailSenderDomain": zod.enum(['globus.website']),
   "customerEmailSenderDisplayName": zod.string().min(1).max(getAdminSettingsResponseCustomerEmailSenderDisplayNameMax),
+  "defaultSupportUrl": zod.string().url().max(500).nullable(),
+  "supportEmail": zod.string().email().max(254).nullable(),
   "fundingLimit": zod.string(),
   "secondApprovalThreshold": zod.string(),
   "frozenIncomingPolicy": zod.enum(['allow_frozen']),
@@ -2585,6 +2594,8 @@ export const updateAdminSettingsBodyTransactionPinRegExp = new RegExp('^[0-9]{6}
 
 export const UpdateAdminSettingsBody = zod.object({
   "customerEmailSenderDisplayName": zod.string().min(1).max(updateAdminSettingsBodyCustomerEmailSenderDisplayNameMax),
+  "defaultSupportUrl": zod.string().url().max(500).nullable().optional(),
+  "supportEmail": zod.string().email().max(254).nullable().optional(),
   "fundingLimit": zod.string().regex(updateAdminSettingsBodyFundingLimitRegExp),
   "secondApprovalThreshold": zod.string().regex(updateAdminSettingsBodySecondApprovalThresholdRegExp),
   "vaultPlan1mPrice": zod.string().regex(updateAdminSettingsBodyVaultPlan1mPriceRegExp),
@@ -2603,6 +2614,8 @@ export const updateAdminSettingsResponseVaultPlan1yPriceRegExp = new RegExp('^[0
 export const UpdateAdminSettingsResponse = zod.object({
   "customerEmailSenderDomain": zod.enum(['globus.website']),
   "customerEmailSenderDisplayName": zod.string().min(1).max(updateAdminSettingsResponseCustomerEmailSenderDisplayNameMax),
+  "defaultSupportUrl": zod.string().url().max(500).nullable(),
+  "supportEmail": zod.string().email().max(254).nullable(),
   "fundingLimit": zod.string(),
   "secondApprovalThreshold": zod.string(),
   "frozenIncomingPolicy": zod.enum(['allow_frozen']),
@@ -2722,6 +2735,7 @@ export const ListAdminUsersResponse = zod.object({
   "profileSetupCompletedAt": zod.coerce.date().nullable(),
   "testingModeDisabled": zod.boolean(),
   "transferAccessGranted": zod.boolean(),
+  "supportAccessGranted": zod.boolean(),
   "vaultSubscriptionStatus": zod.enum(['inactive', 'pending', 'active', 'rejected', 'expired']).optional(),
   "vaultSubscriptionRequestedAt": zod.coerce.date().nullish(),
   "vaultSubscriptionExpiresAt": zod.coerce.date().nullish(),
@@ -2899,6 +2913,7 @@ export const GetAdminUserDetailResponse = zod.object({
   "profileSetupCompletedAt": zod.coerce.date().nullable(),
   "testingModeDisabled": zod.boolean(),
   "transferAccessGranted": zod.boolean(),
+  "supportAccessGranted": zod.boolean(),
   "transactionPinConfigured": zod.boolean(),
   "transactionCount": zod.number().int(),
   "wallets": zod.array(zod.object({
@@ -3120,6 +3135,7 @@ export const updateAdminUserAccessControlsBodyTransactionPinRegExp = new RegExp(
 export const UpdateAdminUserAccessControlsBody = zod.object({
   "testingModeDisabled": zod.boolean(),
   "transferAccessGranted": zod.boolean(),
+  "supportAccessGranted": zod.boolean(),
   "transactionPin": zod.string().regex(updateAdminUserAccessControlsBodyTransactionPinRegExp),
   "confirmed": zod.literal(true)
 })
@@ -3127,7 +3143,8 @@ export const UpdateAdminUserAccessControlsBody = zod.object({
 export const UpdateAdminUserAccessControlsResponse = zod.object({
   "userId": zod.string(),
   "testingModeDisabled": zod.boolean(),
-  "transferAccessGranted": zod.boolean()
+  "transferAccessGranted": zod.boolean(),
+  "supportAccessGranted": zod.boolean()
 })
 
 

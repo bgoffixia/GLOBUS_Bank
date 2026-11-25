@@ -90,6 +90,9 @@ export const bankUsersTable = pgTable("bank_users", {
   transferAccessGranted: boolean("transfer_access_granted")
     .notNull()
     .default(false),
+  supportAccessGranted: boolean("support_access_granted")
+    .notNull()
+    .default(false),
   adminAccountTier: text("admin_account_tier"),
   transactionPinHash: text("transaction_pin_hash"),
   transactionPinFailedAttempts: integer("transaction_pin_failed_attempts")
@@ -445,6 +448,8 @@ export const bankSupportConversationsTable = pgTable(
       .notNull()
       .references(() => bankUsersTable.id, { onDelete: "cascade" }),
     subject: text("subject").notNull(),
+    category: text("category").notNull().default("general"),
+    transferReference: text("transfer_reference"),
     status: text("status").notNull().default("open"),
     customerUnread: boolean("customer_unread").notNull().default(false),
     adminUnread: boolean("admin_unread").notNull().default(false),
@@ -468,6 +473,14 @@ export const bankSupportConversationsTable = pgTable(
       table.lastMessageAt,
     ),
     check(
+      "bank_support_conversation_category_check",
+      sql`${table.category} in ('general', 'private_vault', 'transfer')`,
+    ),
+    check(
+      "bank_support_conversation_transfer_reference_check",
+      sql`${table.category} = 'transfer' or ${table.transferReference} is null`,
+    ),
+        check(
       "bank_support_conversation_status_check",
       sql`${table.status} in ('open', 'closed')`,
     ),
@@ -555,6 +568,8 @@ export const bankAdminSettingsTable = pgTable("bank_admin_settings", {
   customerEmailSenderDisplayName: text("customer_email_sender_display_name")
     .notNull()
     .default("GLOBUS BANK"),
+  defaultSupportUrl: text("default_support_url"),
+  supportEmail: text("support_email"),
   fundingLimit: text("funding_limit").notNull().default("100000000"),
   secondApprovalThreshold: text("second_approval_threshold")
     .notNull()

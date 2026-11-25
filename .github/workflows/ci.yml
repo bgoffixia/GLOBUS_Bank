@@ -19,11 +19,15 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: PORT=24083 BASE_PATH=/ NODE_ENV=production pnpm run build
+      - name: Run support messaging and transfer email regression tests
+        env:
+          SUPABASE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
+        run: pnpm --filter @workspace/api-server test:support-messaging
       - name: Install Playwright Chromium
         run: pnpm --filter @workspace/globus-bank exec playwright install --with-deps chromium
       - name: Run mobile viewport and overflow regression suite
         run: |
-          pnpm --filter @workspace/globus-bank dev -- --host 127.0.0.1 > /tmp/globus-vite.log 2>&1 &
+          PORT=24083 BASE_PATH=/ NODE_ENV=test VITE_CLERK_PUBLISHABLE_KEY=pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk pnpm --filter @workspace/globus-bank dev > /tmp/globus-vite.log 2>&1 &
           echo $! > /tmp/globus-vite.pid
           for attempt in $(seq 1 60); do
             if curl --silent --fail http://127.0.0.1:24083/tests/personal-finance-harness.html > /dev/null; then
@@ -31,5 +35,18 @@ jobs:
             fi
             sleep 2
           done
-          curl --fail http://127.0.0.1:24083/tests/personal-finance-harness.html > /dev/null
+          if ! curl --silent --fail http://127.0.0.1:24083/tests/personal-finance-harness.html > /dev/null; then
+            cat /tmp/globus-vite.log
+            exit 1
+          fi
           pnpm --filter @workspace/globus-bank test:viewport
+      - name: Upload Playwright diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: globus-playwright-diagnostics
+          path: |
+            artifacts/globus-bank/test-results/
+            /tmp/globus-vite.log
+          if-no-files-found: ignore
+          retention-days: 7

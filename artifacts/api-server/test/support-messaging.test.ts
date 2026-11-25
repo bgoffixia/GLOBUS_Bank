@@ -65,6 +65,23 @@ test("support message contracts trim to bounded non-empty content and expose no 
     true,
   );
   assert.equal(
+    CreateBankSupportConversationBody.safeParse({
+      subject: "Transfer recipient question",
+      message: "Please help me with the recipient on this transfer.",
+      category: "transfer",
+      transferReference: "GLB-TRANSFER-123",
+    }).success,
+    true,
+  );
+  assert.equal(
+    CreateBankSupportConversationBody.safeParse({
+      subject: "Transfer recipient question",
+      message: "Please help me with the recipient on this transfer.",
+      category: "transfer",
+    }).success,
+    true,
+  );
+  assert.equal(
     CreateBankSupportConversationBody.safeParse({ subject: " ", message: "Help" }).success,
     false,
   );
@@ -115,7 +132,29 @@ test("customer handlers enforce owner scope and message rate limits", () => {
   assert.match(routes, /router\.post\(\s*"\/bank\/support\/conversations\/:conversationId\/messages",\s*supportMessageLimiter/);
   assert.match(routes, /eq\(bankSupportConversationsTable\.userId,\s*user\.id\)/);
   assert.match(routes, /router\.post\(\s*"\/bank\/support\/conversations\/:conversationId\/read"/);
-  assert.match(customerRoutes, /where\(eq\(bankSupportConversationsTable\.userId, user\.id\)\)/);
+  assert.match(customerRoutes, /where\(canAccessRestrictedSupport/);
+  assert.match(customerRoutes, /eq\(bankSupportConversationsTable\.userId, user\.id\)/);
+});
+
+test("support categories enforce Vault eligibility and transfer ownership", () => {
+  const routes = source("../src/routes/bank.ts");
+  const adminRoutes = source("../src/routes/bankAdmin.ts");
+  const schema = source("../../../lib/db/src/schema/bank.ts");
+  const migration = source("../../../lib/db/migrations/20261125_support_conversation_categories.sql");
+  assert.match(schema, /category: text\("category"\)\.notNull\(\)\.default\("general"\)/);
+  assert.match(schema, /transferReference: text\("transfer_reference"\)/);
+  assert.match(migration, /category IN \('general', 'private_vault', 'transfer'\)/);
+  assert.match(routes, /await hasActiveVaultAccess\(user\)/);
+  assert.match(routes, /user\.supportAccessGranted/);
+  assert.match(routes, /canAccessSupportCategory\(user, conversation\.category\)/);
+  assert.match(routes, /canAccessSupportCategory\(user, existingConversation\.category\)/);
+  assert.match(routes, /canAccessRestrictedSupport/);
+  assert.match(routes, /eq\(bankTransactionsTable\.reference, transferReference\)/);
+  assert.match(routes, /eq\(bankTransactionsTable\.fromUserId, user\.id\)/);
+  assert.match(routes, /conversation\.category !== "general"/);
+  assert.match(adminRoutes, /parsed\.data\.category/);
+  assert.match(adminRoutes, /supportAccessGranted: parsed\.data\.supportAccessGranted/);
+  assert.match(adminRoutes, /bankSupportConversationsTable\.transferReference/);
 });
 
 test("admin support handlers require allowlisting and write reply audit records", () => {
@@ -126,6 +165,42 @@ test("admin support handlers require allowlisting and write reply audit records"
   assert.match(routes, /router\.post\(\s*"\/bank\/admin\/support\/conversations\/:conversationId\/read",\s*requireAdmin/);
   assert.match(routes, /action:\s*"support_reply"/);
   assert.match(routes, /actorUserId:\s*actor\.id,\s*targetUserId:\s*conversation\.userId/);
+});
+
+test("customer erasure is admin-only, explicitly confirmed, and retains required financial history", () => {
+  const routes = source("../src/routes/bankAdmin.ts");
+  const handler = routes.slice(routes.indexOf('"/bank/admin/users/:userId/delete"'));
+  assert.match(handler, /requireAdmin/);
+  assert.match(handler, /confirmation !== "DELETE"/);
+  assert.match(handler, /reason\.length < 10/);
+  assert.match(handler, /authenticatedClerkId === userId/);
+  assert.match(handler, /GLOBUS_ADMIN_CLERK_IDS/);
+  assert.match(handler, /GLOBUS_ADMIN_EMAILS/);
+  assert.match(handler, /bankSupportMessagesTable/);
+  assert.match(handler, /bankVaultSessionsTable/);
+  assert.match(handler, /bankVaultPasscodeResetTokensTable/);
+  assert.match(handler, /bankSavedPaymentMethodsTable/);
+  assert.match(handler, /bankPersonalFinanceRecordsTable/);
+  assert.match(handler, /bankFinancialAccountsTable/);
+  assert.match(handler, /bankFinanceLoanApplicationsTable/);
+  assert.match(handler, /bankNotificationsTable/);
+  assert.match(handler, /bankPushSubscriptionsTable/);
+  assert.match(handler, /bankIdentityDocumentsTable/);
+  assert.match(handler, /bankRestrictionsTable/);
+  assert.match(handler, /bankWalletsTable/);
+  assert.match(handler, /bankSandboxRequestsTable/);
+  assert.match(handler, /paymentMethodSummary: null/);
+  assert.match(handler, /vaultSubscriptionReviewedByUserId: null/);
+  assert.match(handler, /acceptedTermsAt: null/);
+  assert.match(routes, /deleteIdentityDocumentObject/);
+  assert.match(routes, /deleteVaultSubscriptionProof/);
+  assert.match(handler, /deleteCustomerPrivateObjects\(\{/);
+  assert.ok(handler.indexOf("deleteCustomerPrivateObjects({") < handler.indexOf("clerkClient.users.deleteUser"));
+  assert.match(handler, /storageCleanupRequired: true/);
+  assert.match(handler, /clerkClient\.users\.deleteUser/);
+  assert.match(handler, /accountStatus: "deletion_pending"/);
+  assert.match(handler, /accountStatus: "deleted"/);
+  assert.match(handler, /Financial transactions\/ledger entries are intentionally retained/);
 });
 
 test("unauthenticated customers and non-allowlisted users are rejected before data access", async () => {

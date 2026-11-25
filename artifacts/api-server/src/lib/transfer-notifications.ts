@@ -158,16 +158,20 @@ export function normalizeSupportLabel(value: unknown): string | null {
 export function renderSupportFooter(
   supportUrl: string | null,
   requestedLabel: string | null | undefined,
+  supportEmail: string | null = null,
 ): { text: string; html: string } {
-  if (!supportUrl) return { text: "", html: "" };
-  const label =
-    normalizeSupportLabel(requestedLabel) ?? DEFAULT_SUPPORT_LINK_LABEL;
-  return {
-    text: `${label}: ${supportUrl}`,
-    html: `<footer style="padding:16px 28px 20px;border-top:1px solid #e7ecee;text-align:center"><a href="${htmlEscape(supportUrl)}" style="color:#356e75;font-size:13px;font-weight:700;text-decoration:none">${htmlEscape(label)}</a></footer>`,
-  };
+  const label = normalizeSupportLabel(requestedLabel) ?? DEFAULT_SUPPORT_LINK_LABEL;
+  const validEmail = supportEmail && /^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(supportEmail) ? supportEmail : null;
+  const text = [
+    ...(supportUrl ? [`${label}: ${supportUrl}`] : []),
+    ...(validEmail ? [`Email support: ${validEmail}`] : []),
+  ].join("\\n");
+  const links = [
+    ...(supportUrl ? [`<a href="${htmlEscape(supportUrl)}" style="color:#356e75;font-size:13px;font-weight:700;text-decoration:none">${htmlEscape(label)}</a>`] : []),
+    ...(validEmail ? [`<a href="mailto:${htmlEscape(validEmail)}" style="margin-left:14px;color:#356e75;font-size:13px;font-weight:700;text-decoration:none">Email support</a>`] : []),
+  ];
+  return { text, html: links.length ? `<footer style="padding:16px 28px 20px;border-top:1px solid #e7ecee;text-align:center">${links.join(" ")}</footer>` : "" };
 }
-
 export async function sendTransferAlertEmail(input: {
   notificationId?: string;
   senderUserId?: string;
@@ -201,10 +205,14 @@ export async function sendTransferAlertEmail(input: {
       }
     | undefined;
   let senderDisplayName = CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
+  let globalSupportUrl: string | null = null;
+  let globalSupportEmail: string | null = null;
   try {
     const [settings] = await db
       .select({
         displayName: bankAdminSettingsTable.customerEmailSenderDisplayName,
+        defaultSupportUrl: bankAdminSettingsTable.defaultSupportUrl,
+        supportEmail: bankAdminSettingsTable.supportEmail,
       })
       .from(bankAdminSettingsTable)
       .where(eq(bankAdminSettingsTable.id, "operations"))
@@ -212,6 +220,8 @@ export async function sendTransferAlertEmail(input: {
     senderDisplayName =
       normalizeCustomerEmailSenderDisplayName(settings?.displayName) ??
       CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
+    globalSupportUrl = settings?.defaultSupportUrl ?? null;
+    globalSupportEmail = settings?.supportEmail ?? null;
   } catch {
     // Transfer alerts should remain deliverable with the established default identity.
   }
@@ -265,13 +275,24 @@ export async function sendTransferAlertEmail(input: {
     255;
   const bannerTextColor = backgroundLuminance > 0.62 ? "#17314f" : "#ffffff";
   const headline = senderPreferences?.headline?.trim() || "A Globus transfer notice";
-  const supportUrl =
-    senderPreferences?.includeSupportLink
-      ? normalizeSupportUrl(senderPreferences.supportUrl)
-      : null;
+  const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
+  const configuredDefaultSupportUrl =
+    normalizeSupportUrl(globalSupportUrl) ??
+    normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
+  const defaultSupportUrl = new URL(configuredDefaultSupportUrl ?? "/support", origin);
+  defaultSupportUrl.searchParams.set("transfer", input.reference);
+  const customSupportUrl = senderPreferences?.includeSupportLink
+    ? normalizeSupportUrl(senderPreferences.supportUrl)
+    : null;
+  const supportUrl = customSupportUrl
+    ? (() => { const custom = new URL(customSupportUrl); custom.searchParams.set("transfer", input.reference); return custom.toString(); })()
+    : defaultSupportUrl.toString();
+  const configuredSupportEmail =
+    globalSupportEmail?.trim() || process.env.GLOBUS_SUPPORT_EMAIL?.trim() || null;
   const { text: supportText, html: supportHtml } = renderSupportFooter(
     supportUrl,
     senderPreferences?.supportLabel,
+    configuredSupportEmail,
   );
   const statusText =
     input.status === "completed"

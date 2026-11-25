@@ -99,6 +99,27 @@
       "when": 1795615200000,
       "tag": "20261125_private_vault_passcode_reset_tokens",
       "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1795566900000,
+      "tag": "20261125_support_conversation_categories",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1795566901000,
+      "tag": "20261125_customer_support_access",
+      "breakpoints": true
+    },
+    {
+      "idx": 16,
+      "version": "7",
+      "when": 1795566902000,
+      "tag": "20261125_admin_support_contact_settings",
+      "breakpoints": true
     }
   ]
 }

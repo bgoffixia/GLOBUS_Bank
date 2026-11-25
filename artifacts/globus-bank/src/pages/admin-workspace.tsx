@@ -433,6 +433,7 @@ function MemberDetail({ userId }: { userId: string }) {
   const [form, setForm] = useState({ reason: '', notes: '', transactionPin: '', firstName: '', lastName: '', address: '', phone: '', country: '', cityOfOrigin: '', dateOfBirth: '', occupation: '', decision: 'approved', userMessage: '', confirmed: false, expiresAt: '' });
   const [testingModeDisabled, setTestingModeDisabled] = useState(false);
   const [transferAccessGranted, setTransferAccessGranted] = useState(false);
+  const [supportAccessGranted, setSupportAccessGranted] = useState(false);
   const [accessControlsPin, setAccessControlsPin] = useState('');
   const [accessControlsConfirmed, setAccessControlsConfirmed] = useState(false);
   const [accessControlsError, setAccessControlsError] = useState('');
@@ -443,12 +444,17 @@ function MemberDetail({ userId }: { userId: string }) {
   const [message, setMessage] = useState(''); const [error, setError] = useState('');
   const [vaultResetBusy, setVaultResetBusy] = useState(false);
   const [vaultResetError, setVaultResetError] = useState('');
+  const [eraseConfirmation, setEraseConfirmation] = useState('');
+  const [eraseReason, setEraseReason] = useState('');
+  const [eraseBusy, setEraseBusy] = useState(false);
+  const [eraseError, setEraseError] = useState('');
   useEffect(() => {
     if (!detail.data) return;
     setTestingModeDisabled(detail.data.user.testingModeDisabled);
     setTransferAccessGranted(detail.data.user.transferAccessGranted);
+    setSupportAccessGranted(detail.data.user.supportAccessGranted ?? false);
     setAccountTierSelection(detail.data.user.adminAccountTier ?? 'default');
-  }, [detail.data?.user.testingModeDisabled, detail.data?.user.transferAccessGranted, detail.data?.user.adminAccountTier]);
+  }, [detail.data?.user.testingModeDisabled, detail.data?.user.transferAccessGranted, detail.data?.user.supportAccessGranted, detail.data?.user.adminAccountTier]);
   const refresh = async () => { await Promise.all([client.invalidateQueries({ queryKey: getGetAdminUserDetailQueryKey(userId) }), client.invalidateQueries({ queryKey: getListAdminUsersQueryKey() }), client.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() })]); };
   const open = (kind: typeof modal) => { if (kind === 'profile' && detail.data) setForm({ ...form, firstName: u?.firstName || '', lastName: u?.lastName || '', address: detail.data.address || '', phone: detail.data.phone || '', country: u?.country || '', cityOfOrigin: detail.data.cityOfOrigin || '', dateOfBirth: detail.data.dateOfBirth || '', occupation: detail.data.occupation || '', transactionPin: '', confirmed: false }); else if (kind === 'status') setForm({ ...form, transactionPin: '', decision: u?.accountStatus === 'active' ? 'suspended' : 'active', confirmed: false }); else if (kind === 'vault-subscription') setForm({ ...form, decision: 'inactive', confirmed: false }); else setForm({ ...form, transactionPin: '', confirmed: false }); setError(''); setModal(kind); };
   const submit = async (e: FormEvent) => { e.preventDefault(); if (!u || !modal) return; setError(''); try {
@@ -484,6 +490,7 @@ function MemberDetail({ userId }: { userId: string }) {
         data: {
           testingModeDisabled,
           transferAccessGranted,
+          supportAccessGranted,
           transactionPin: accessControlsPin,
           confirmed: true,
         },
@@ -544,6 +551,35 @@ function MemberDetail({ userId }: { userId: string }) {
     }
   };
 
+  const eraseCustomerData = async () => {
+    if (!u || eraseBusy || eraseConfirmation !== 'DELETE' || eraseReason.trim().length < 10) return;
+    setEraseBusy(true);
+    setEraseError('');
+    try {
+      const response = await fetch(`/api/bank/admin/users/${encodeURIComponent(userId)}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirmation: 'DELETE', reason: eraseReason.trim() }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : 'Customer data erasure could not be completed.');
+      if (result.pending) {
+        await refresh();
+        throw new Error(typeof result.error === 'string' ? result.error : 'Customer data erasure is pending. Resolve the reported cleanup step and retry.');
+      }
+      setMessage('Customer application data was erased. Required financial and audit records may remain in pseudonymous form.');
+      setEraseConfirmation('');
+      setEraseReason('');
+      await refresh();
+      window.location.assign('/admin/users');
+    } catch (err) {
+      setEraseError(err instanceof Error ? err.message : 'Customer data erasure could not be completed.');
+    } finally {
+      setEraseBusy(false);
+    }
+  };
+
   if (detail.isLoading) return <><Heading kicker="Member management" title="Loading member record" subtitle="Fetching the authorized account record." /><div className={box}><Skeleton /></div></>;
   if (detail.isError || !detail.data || !u) return <><Heading kicker="Member management" title="Member record unavailable" subtitle="The member record could not be loaded." /><InlineError text="Try loading this member record again." retry={() => detail.refetch()} /></>;
   const fullName = nameOf(u);
@@ -565,6 +601,18 @@ function MemberDetail({ userId }: { userId: string }) {
         <div className="flex flex-wrap gap-1.5"><StatusPill status={u.accountStatus} /><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></div>
      </div>
      {message && <p role="status" data-testid="status-member-management" className="mb-2 shrink-0 rounded-lg border border-[#cfe4d7] bg-[#eef7f0] px-3 py-2 text-[10px] text-[#47755e]">{message}</p>}
+     <section aria-label="Quick member controls" className="mb-3 shrink-0 rounded-xl border border-[#dce6e0] bg-[#fbfcf8] p-3">
+       <div className="mb-2 flex flex-wrap items-center justify-between gap-2"><div><p className="text-[9px] font-extrabold uppercase tracking-[.14em] text-[#4f8888]">Quick controls</p><p className="mt-0.5 text-[9px] text-[#71858b]">Common account actions in one place</p></div><span className="text-[8px] font-semibold text-[#849493]">Changes are audited</span></div>
+       <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 xl:grid-cols-6">
+         <button type="button" onClick={() => open('profile')} className={quietButton}>Edit profile</button>
+         <button type="button" onClick={() => open('status')} className={quietButton}>{u.accountStatus === 'active' ? 'Restrict account' : 'Restore account'}</button>
+         <button type="button" onClick={() => open('pin')} className={quietButton}>Reset transaction PIN</button>
+         <button type="button" onClick={() => open('password-reset')} className={quietButton}>Password recovery</button>
+         <button type="button" onClick={() => void sendVaultResetLink()} disabled={vaultResetBusy} className={quietButton}>{vaultResetBusy ? 'Sending…' : 'Vault passcode reset'}</button>
+         <button type="button" onClick={() => open('vault-subscription')} className={quietButton}>Remove Vault access</button>
+       </div>
+       {vaultResetError && <p role="alert" className="mt-2 text-[9px] text-[#a45247]">{vaultResetError}</p>}
+     </section>
      <nav aria-label="Member management sections" className="mb-3 flex shrink-0 gap-1 overflow-x-auto rounded-xl border border-[#dce6e0] bg-[#fbfcf8] p-1">
        {memberTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} data-testid={`tab-member-${tab.id}`} onClick={() => setActiveTab(tab.id)} className={`inline-flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-2 text-[9px] font-bold transition sm:px-3 sm:text-[10px] ${activeTab === tab.id ? 'bg-[#173b50] text-white shadow-sm' : 'text-[#60777a] hover:bg-[#edf4ef]'}`}><Icon size={13} />{tab.label}</button>; })}
      </nav>
@@ -608,6 +656,19 @@ function MemberDetail({ userId }: { userId: string }) {
               <button type="button" data-testid="button-send-vault-passcode-reset" onClick={sendVaultResetLink} disabled={vaultResetBusy} className={button}>{vaultResetBusy ? 'Sending reset link…' : 'Send Vault passcode reset link'}</button>
             </div>
           </Panel>
+          <Panel title="Permanent customer data erasure" eyebrow="Destructive · administrator only">
+            <div className="space-y-3 p-4 sm:p-5">
+              <p className="text-[10px] leading-5 text-[#945246]">This removes the customer's profile details, saved payment methods, personal finance records, notifications, push subscriptions, Vault credentials, reset tokens, sessions, and support conversations. Uploaded identity and Vault proof objects are deleted from Google Cloud Storage before the Clerk identity is removed; if storage cleanup is unavailable, the request remains pending. Financial ledger and transfer evidence may be retained where law, accounting, dispute, or fraud rules require it.</p>
+              <Field label="Reason for erasure (10–500 characters)">
+                <textarea className={input + ' min-h-[76px] py-2'} value={eraseReason} onChange={event => setEraseReason(event.target.value)} maxLength={500} placeholder="Record the authorized deletion request and reason." />
+              </Field>
+              <Field label="Type DELETE to confirm">
+                <input className={input} value={eraseConfirmation} onChange={event => setEraseConfirmation(event.target.value)} autoComplete="off" placeholder="DELETE" />
+              </Field>
+              {eraseError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{eraseError}</p>}
+              <button type="button" onClick={eraseCustomerData} disabled={eraseBusy || eraseConfirmation !== 'DELETE' || eraseReason.trim().length < 10} className="inline-flex items-center justify-center rounded-[9px] bg-[#a33e35] px-4 py-2.5 text-[11px] font-bold text-white disabled:opacity-50">{eraseBusy ? 'Erasing customer data…' : 'Permanently erase customer data'}</button>
+            </div>
+          </Panel>
           <Panel title="Customer access controls" eyebrow="Independent from Private Vault">
             <form data-testid="admin-access-control-form" onSubmit={saveAccessControls} className="grid gap-3 p-4 sm:p-5">
               <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
@@ -617,6 +678,10 @@ function MemberDetail({ userId }: { userId: string }) {
               <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
                 <input data-testid="checkbox-transfer-access-granted" type="checkbox" checked={transferAccessGranted} onChange={event => setTransferAccessGranted(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
                 <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2"><span><strong className="block text-[#3c5960]">Grant separate transfer access</strong>Bypasses Vault subscription, the transfer toggle, and outgoing-transfer restriction. Account suspension, wallet freezes, transaction PIN, balance checks, and explicit pending/failed posting modes still apply.</span><Pill tone={transferAccessGranted ? 'good' : 'neutral'}>{transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></span>
+              </label>
+              <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
+                <input data-testid="checkbox-support-access-granted" type="checkbox" checked={supportAccessGranted} onChange={event => setSupportAccessGranted(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
+                <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2"><span><strong className="block text-[#3c5960]">Grant dedicated support access</strong>Allows this customer to open and reply to Private Vault and transfer-recipient support threads without an active Vault subscription.</span><Pill tone={supportAccessGranted ? 'good' : 'neutral'}>{supportAccessGranted ? 'Granted' : 'Not granted'}</Pill></span>
               </label>
               <Field label="Your six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={accessControlsPin} onChange={event => setAccessControlsPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={input} autoComplete="current-password" /></Field>
               <label className="flex items-start gap-2 text-[10px] text-[#657a7e]"><input data-testid="checkbox-access-controls-confirmed" type="checkbox" checked={accessControlsConfirmed} onChange={event => setAccessControlsConfirmed(event.target.checked)} className="mt-0.5 accent-[#43898a]" />I confirm these settings apply only to this customer.</label>
@@ -1068,6 +1133,8 @@ function SettingsPage() {
   const [vaultPlan3mPrice, setVaultPlan3mPrice] = useState<string | null>(null);
   const [vaultPlan1yPrice, setVaultPlan1yPrice] = useState<string | null>(null);
   const [customerEmailSenderDisplayName, setCustomerEmailSenderDisplayName] = useState<string | null>(null);
+  const [defaultSupportUrl, setDefaultSupportUrl] = useState<string | null>(null);
+  const [supportEmail, setSupportEmail] = useState<string | null>(null);
   const [pin, setPin] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
@@ -1087,15 +1154,19 @@ function SettingsPage() {
             customerEmailSenderDisplayName ??
             settings.data?.customerEmailSenderDisplayName ??
             '',
+          defaultSupportUrl: (defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? '') || null,
+          supportEmail: (supportEmail ?? settings.data?.supportEmail ?? '') || null,
           transactionPin: pin,
         },
       });
       setCustomerEmailSenderDisplayName(result.customerEmailSenderDisplayName);
+      setDefaultSupportUrl(result.defaultSupportUrl);
+      setSupportEmail(result.supportEmail);
       setVaultPlan1mPrice(result.vaultPlan1mPrice);
       setVaultPlan3mPrice(result.vaultPlan3mPrice);
       setVaultPlan1yPrice(result.vaultPlan1yPrice);
       await client.invalidateQueries({ queryKey: getGetAdminSettingsQueryKey() });
-      setMessage('Operations, transfer-alert sender name, and Vault plan settings saved.');
+      setMessage('Operations, support contacts, transfer-alert sender name, and Vault plan settings saved.');
       setPin('');
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Settings could not be updated.');
@@ -1155,6 +1226,17 @@ function SettingsPage() {
               <p className="mt-2 font-mono text-[13px] font-semibold">@{settings.data?.customerEmailSenderDomain || 'globus.website'}</p>
             </div>
             <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">This display name applies to customer transfer alerts only. The verified sender address and fixed Globus domain remain unchanged; password and security emails keep their existing sender identity.</p>
+          </div>
+        </Panel>
+        <Panel title="Support contact settings" eyebrow="Transfer alerts and customer support" note="These global values are used when a sender has not configured a custom support URL.">
+          <div className="grid gap-3 p-5 sm:grid-cols-2">
+            <Field label="Default support URL (HTTPS)">
+              <input className={input} type="url" placeholder="https://www.global-internetbanking.globus.website/support" value={defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? ''} onChange={event => setDefaultSupportUrl(event.target.value)} autoComplete="url" />
+            </Field>
+            <Field label="Support email address">
+              <input className={input} type="email" placeholder="support@globus.website" value={supportEmail ?? settings.data?.supportEmail ?? ''} onChange={event => setSupportEmail(event.target.value)} autoComplete="email" />
+            </Field>
+            <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">Transfer alert links automatically include the transfer reference. A sender-specific custom URL overrides the default URL. The email contact is shown as a separate secure mailto link.</p>
           </div>
         </Panel>
         <Panel title="Exchange-rate quotes" eyebrow="Current rate sources" note="Frankfurter is primary; Grey is a read-only fallback. Neither is used to move money.">

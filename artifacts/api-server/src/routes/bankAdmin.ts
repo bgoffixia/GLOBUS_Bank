@@ -122,13 +122,22 @@ import {
   bankAuditLogsTable,
   bankAdminSettingsTable,
   bankExchangeRatesTable,
+  bankSavedPaymentMethodsTable,
+  bankVaultTransactionNotesTable,
+  bankNotificationsTable,
+  bankPushSubscriptionsTable,
+  bankVaultAdminEntitlementsTable,
+  bankSandboxRequestsTable,
+  bankIdentityDocumentsTable,
+  bankPersonalFinanceRecordsTable,
+  bankFinancialAccountsTable,
+  bankFinanceLoanApplicationsTable,
+  bankVaultPaystackEventsTable,
   bankInternationalTransferRequestsTable,
   bankLedgerEntriesTable,
   bankRestrictionsTable,
-  bankSandboxRequestsTable,
   bankTransactionsTable,
   bankUsersTable,
-  bankVaultAdminEntitlementsTable,
   bankVaultSessionsTable,
   bankVaultPasscodeResetTokensTable,
   bankSupportConversationsTable,
@@ -146,6 +155,8 @@ import {
   normalizeCustomerEmailSenderDisplayName,
 } from "../lib/customer-email-sender";
 import { sendPasswordResetEmail } from "../lib/password-reset-email";
+import { deleteIdentityDocumentObject } from "../lib/identityDocumentStorage";
+import { deleteVaultSubscriptionProof } from "../lib/vault-subscription-proof-storage";
 import {
   balanceForWallet,
   bankOperationRestrictionError,
@@ -170,6 +181,7 @@ import {
   vaultSubscriptionStatus,
 } from "../lib/bank-vault";
 import {
+  normalizeSupportUrl,
   notifyTransferRecipient,
   sendPushToUser,
   storeNotification,
@@ -180,6 +192,21 @@ import {
 import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
 import { getVaultPasscodeResetSenderAddress } from "../lib/vault-passcode-reset-email";
 import { sendVaultPasscodeResetEmail } from "../lib/vault-passcode-reset-smtp";
+
+async function deleteCustomerPrivateObjects(input: {
+  identityDocumentPaths: string[];
+  vaultSubscriptionProofPath: string | null;
+  userId: string;
+}): Promise<void> {
+  await Promise.all([
+    ...input.identityDocumentPaths.map((objectPath) =>
+      deleteIdentityDocumentObject(objectPath),
+    ),
+    ...(input.vaultSubscriptionProofPath
+      ? [deleteVaultSubscriptionProof(input.vaultSubscriptionProofPath, input.userId)]
+      : []),
+  ]);
+}
 
 const router: IRouter = Router();
 const supportMessageLimiter = rateLimit({
@@ -230,6 +257,7 @@ const adminAuditDetailFields = [
   "vaultPlanCode",
   "testingModeDisabled",
   "transferAccessGranted",
+  "supportAccessGranted",
   "adminAccountTier",
   "direction",
   "currency",
@@ -561,6 +589,8 @@ function adminSettingsPayload(settings: Awaited<ReturnType<typeof getOrCreateAdm
   return {
     customerEmailSenderDomain: settings.customerEmailSenderDomain,
     customerEmailSenderDisplayName: settings.customerEmailSenderDisplayName,
+    defaultSupportUrl: settings.defaultSupportUrl,
+    supportEmail: settings.supportEmail,
     fundingLimit: settings.fundingLimit,
     secondApprovalThreshold: settings.secondApprovalThreshold,
     frozenIncomingPolicy: "allow_frozen" as const,
@@ -1809,6 +1839,27 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     res.status(400).json({ error: parsed.error.message });
     return;
   }
+  const existingSettings = await getOrCreateAdminSettings();
+  const defaultSupportUrl =
+    parsed.data.defaultSupportUrl === undefined
+      ? existingSettings.defaultSupportUrl
+      : parsed.data.defaultSupportUrl === null
+        ? null
+        : normalizeSupportUrl(parsed.data.defaultSupportUrl);
+  if (parsed.data.defaultSupportUrl && !defaultSupportUrl) {
+    res.status(400).json({ error: "The default support URL must be a valid HTTPS URL." });
+    return;
+  }
+  const supportEmail =
+    parsed.data.supportEmail === undefined
+      ? existingSettings.supportEmail
+      : parsed.data.supportEmail === null
+        ? null
+        : parsed.data.supportEmail.trim();
+  if (supportEmail && !/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(supportEmail)) {
+    res.status(400).json({ error: "Enter a valid support email address or leave it blank." });
+    return;
+  }
   const customerEmailSenderDisplayName =
     normalizeCustomerEmailSenderDisplayName(
       parsed.data.customerEmailSenderDisplayName,
@@ -1871,6 +1922,8 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     .values({
       id: "operations",
       customerEmailSenderDisplayName,
+      defaultSupportUrl,
+      supportEmail,
       fundingLimit: formatMinorAmount(fundingLimitMinor),
       secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
       vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
@@ -1882,6 +1935,8 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
       target: bankAdminSettingsTable.id,
       set: {
         customerEmailSenderDisplayName,
+        defaultSupportUrl,
+        supportEmail,
         fundingLimit: formatMinorAmount(fundingLimitMinor),
         secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
         vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
@@ -2704,6 +2759,8 @@ router.get(
     ]);
     const effectiveAccountStatus =
       user.accountStatus === "suspended" ||
+      user.accountStatus === "deletion_pending" ||
+      user.accountStatus === "deleted" ||
       activeRestrictions.some((restriction) => restriction.type === "suspend_user")
         ? "suspended"
         : user.accountStatus === "restricted" || activeRestrictions.length > 0
@@ -2748,6 +2805,7 @@ router.get(
             user.profileSetupCompletedAt?.toISOString() ?? null,
           testingModeDisabled: user.testingModeDisabled,
           transferAccessGranted: user.transferAccessGranted,
+          supportAccessGranted: user.supportAccessGranted,
           vaultSubscriptionStatus: vaultSubscriptionStatus(
             user.vaultSubscriptionStatus,
             user.vaultSubscriptionExpiresAt,
@@ -2772,6 +2830,7 @@ router.get(
           user.profileSetupCompletedAt?.toISOString() ?? null,
         testingModeDisabled: user.testingModeDisabled,
         transferAccessGranted: user.transferAccessGranted,
+        supportAccessGranted: user.supportAccessGranted,
         transactionPinConfigured: !!user.transactionPinHash,
         transactionCount: Number(transactionCountRows[0]?.value ?? 0),
         wallets,
@@ -3576,6 +3635,7 @@ router.patch(
         .set({
           testingModeDisabled: parsed.data.testingModeDisabled,
           transferAccessGranted: parsed.data.transferAccessGranted,
+          supportAccessGranted: parsed.data.supportAccessGranted,
           updatedAt: new Date(),
         })
         .where(eq(bankUsersTable.id, target.id))
@@ -3583,13 +3643,14 @@ router.patch(
           id: bankUsersTable.id,
           testingModeDisabled: bankUsersTable.testingModeDisabled,
           transferAccessGranted: bankUsersTable.transferAccessGranted,
+          supportAccessGranted: bankUsersTable.supportAccessGranted,
         });
       if (!updated) return null;
       await tx.insert(bankAuditLogsTable).values({
         actorUserId,
         targetUserId: updated.id,
         action: "update_customer_access_controls",
-        reason: `${generatedAdminAuditReason(req)} Neither setting grants Private Vault access.`,
+        reason: `${generatedAdminAuditReason(req)} Support access grants only dedicated support-thread access, never Private Vault access.`,
       });
       return updated;
     });
@@ -3602,6 +3663,7 @@ router.patch(
         userId: result.id,
         testingModeDisabled: result.testingModeDisabled,
         transferAccessGranted: result.transferAccessGranted,
+        supportAccessGranted: result.supportAccessGranted,
       }),
     );
   },
@@ -5447,6 +5509,9 @@ router.get(
     if (parsed.data.status) {
       filters.push(eq(bankSupportConversationsTable.status, parsed.data.status));
     }
+    if (parsed.data.category) {
+      filters.push(eq(bankSupportConversationsTable.category, parsed.data.category));
+    }
     if (parsed.data.search?.trim()) {
       const needle = `%${parsed.data.search.trim()}%`;
       filters.push(
@@ -5470,6 +5535,8 @@ router.get(
         lastName: bankUsersTable.lastName,
         customerEmail: bankUsersTable.email,
         subject: bankSupportConversationsTable.subject,
+        category: bankSupportConversationsTable.category,
+        transferReference: bankSupportConversationsTable.transferReference,
         status: bankSupportConversationsTable.status,
         adminUnread: bankSupportConversationsTable.adminUnread,
         lastMessagePreview: sql<string | null>`(
@@ -5502,6 +5569,8 @@ router.get(
             "Globus member",
           customerEmail: conversation.customerEmail,
           subject: conversation.subject,
+          category: conversation.category as "general" | "private_vault" | "transfer",
+          transferReference: conversation.transferReference,
           status: conversation.status as "open" | "closed",
           adminUnread: conversation.adminUnread,
           lastMessagePreview: conversation.lastMessagePreview,
@@ -5647,6 +5716,249 @@ router.post(
       return;
     }
     res.json(MarkAdminSupportConversationReadResponse.parse({ markedRead: true }));
+  },
+);
+
+
+// Permanently erase a customer's personal data while retaining only the
+// minimum pseudonymous account linkage required for financial ledger integrity.
+router.post(
+  "/bank/admin/users/:userId/delete",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const userId = typeof req.params.userId === "string" ? req.params.userId.trim() : "";
+    const confirmation = req.body?.confirmation;
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    if (!userId || userId.length > 256 || confirmation !== "DELETE" || reason.length < 10 || reason.length > 500) {
+      res.status(400).json({ error: "Enter DELETE and provide a deletion reason of 10–500 characters." });
+      return;
+    }
+
+    const authenticatedClerkId = getAuth(req).userId;
+    if (!authenticatedClerkId) {
+      res.status(401).json({ error: "Sign in to access administrative controls." });
+      return;
+    }
+    if (authenticatedClerkId === userId) {
+      res.status(400).json({ error: "Administrators cannot delete their own account." });
+      return;
+    }
+
+    const actor = await ensureBankUser(authenticatedClerkId);
+    const [target] = await db
+      .select({
+        id: bankUsersTable.id,
+        email: bankUsersTable.email,
+        accountStatus: bankUsersTable.accountStatus,
+        vaultSubscriptionProofObjectPath: bankUsersTable.vaultSubscriptionProofObjectPath,
+      })
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, userId))
+      .limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Customer account not found." });
+      return;
+    }
+    const protectedAdminEmails = (process.env.GLOBUS_ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    const protectedAdminIds = (process.env.GLOBUS_ADMIN_CLERK_IDS ?? "")
+      .split(",")
+      .map((value) => value.trim())
+      .filter(Boolean);
+    if (protectedAdminIds.includes(target.id) || protectedAdminEmails.includes(target.email.toLowerCase())) {
+      res.status(409).json({ error: "Allowlisted administrator accounts cannot be deleted through customer management." });
+      return;
+    }
+
+    const identityDocuments = await db
+      .select({ objectPath: bankIdentityDocumentsTable.objectPath })
+      .from(bankIdentityDocumentsTable)
+      .where(eq(bankIdentityDocumentsTable.userId, target.id));
+    const identityDocumentPaths = [...new Set(
+      identityDocuments.map((document) => document.objectPath).filter((path) => Boolean(path?.trim())),
+    )];
+
+    const now = new Date();
+    const tombstoneEmail = `erased+${createHash("sha256").update(target.id).digest("hex").slice(0, 24)}@invalid.local`;
+    try {
+      await db.transaction(async (tx) => {
+        // Remove customer-authored support content and private Vault reset/session material.
+        const conversations = await tx
+          .select({ id: bankSupportConversationsTable.id })
+          .from(bankSupportConversationsTable)
+          .where(eq(bankSupportConversationsTable.userId, target.id));
+        if (conversations.length) {
+          await tx.delete(bankSupportMessagesTable).where(
+            inArray(bankSupportMessagesTable.conversationId, conversations.map((item) => item.id)),
+          );
+          await tx.delete(bankSupportConversationsTable).where(eq(bankSupportConversationsTable.userId, target.id));
+        }
+        await tx.delete(bankVaultSessionsTable).where(eq(bankVaultSessionsTable.userId, target.id));
+        await tx.delete(bankVaultPasscodeResetTokensTable).where(eq(bankVaultPasscodeResetTokensTable.userId, target.id));
+        await tx.delete(bankSavedPaymentMethodsTable).where(eq(bankSavedPaymentMethodsTable.userId, target.id));
+        await tx.delete(bankVaultTransactionNotesTable).where(eq(bankVaultTransactionNotesTable.userId, target.id));
+        await tx.delete(bankNotificationsTable).where(eq(bankNotificationsTable.userId, target.id));
+        await tx.delete(bankPushSubscriptionsTable).where(eq(bankPushSubscriptionsTable.userId, target.id));
+        await tx.delete(bankVaultAdminEntitlementsTable).where(eq(bankVaultAdminEntitlementsTable.userId, target.id));
+        await tx.delete(bankRestrictionsTable).where(eq(bankRestrictionsTable.userId, target.id));
+        await tx.update(bankWalletsTable).set({
+          transfersEnabled: false,
+          depositsEnabled: false,
+          withdrawalsEnabled: false,
+          restrictionReason: null,
+          restrictionNotes: null,
+          restrictedByUserId: null,
+          restrictedAt: null,
+          updatedAt: now,
+        }).where(eq(bankWalletsTable.userId, target.id));
+        await tx.update(bankSandboxRequestsTable).set({
+          savedPaymentMethodId: null,
+          paymentMethod: null,
+          paymentMethodSummary: null,
+        }).where(eq(bankSandboxRequestsTable.userId, target.id));
+        await tx.delete(bankPersonalFinanceRecordsTable).where(eq(bankPersonalFinanceRecordsTable.userId, target.id));
+        await tx.delete(bankFinancialAccountsTable).where(eq(bankFinancialAccountsTable.userId, target.id));
+        await tx.delete(bankFinanceLoanApplicationsTable).where(eq(bankFinanceLoanApplicationsTable.userId, target.id));
+        await tx.delete(bankSandboxRequestsTable).where(eq(bankSandboxRequestsTable.userId, target.id));
+        await tx.update(bankVaultPaystackEventsTable)
+          .set({ userId: null })
+          .where(eq(bankVaultPaystackEventsTable.userId, target.id));
+
+        // Financial transactions/ledger entries are intentionally retained where
+        // statutory, accounting, dispute, or fraud-retention rules require them.
+        await tx.update(bankUsersTable).set({
+          preferredReceiptTemplate: "standard",
+          email: tombstoneEmail,
+          customerId: null,
+          firstName: null,
+          lastName: null,
+          address: null,
+          phone: null,
+          country: null,
+          cityOfOrigin: null,
+          dateOfBirth: null,
+          occupation: null,
+          profileSetupCompletedAt: null,
+          adminAccountTier: null,
+          transactionPinHash: null,
+          transactionPinFailedAttempts: 0,
+          transactionPinLockedUntil: null,
+          vaultPasscodeHash: null,
+          vaultPasscodeFailedAttempts: 0,
+          vaultPasscodeLockedUntil: null,
+          vaultSubscriptionRequestedAt: null,
+          vaultSubscriptionReviewedAt: null,
+          vaultSubscriptionReviewedByUserId: null,
+          vaultSubscriptionReason: null,
+          vaultSubscriptionExpiresAt: null,
+          vaultSubscriptionExpiryReminderSentFor: null,
+          vaultSubscriptionExpiryReminderClaimedAt: null,
+          vaultSubscriptionPaymentReference: null,
+          vaultSubscriptionPaymentStatus: "none",
+          vaultSubscriptionPaymentInitializedAt: null,
+          vaultSubscriptionPaymentVerifiedAt: null,
+          vaultPaystackCustomerCode: null,
+          vaultPaystackSubscriptionCode: null,
+          vaultEmailBannerTheme: "navy",
+          vaultEmailBannerHeadline: "A Globus transfer notice",
+          vaultEmailBannerBackgroundColor: "#12385d",
+          vaultEmailSupportUrl: null,
+          vaultEmailSupportLabel: "Contact support",
+          vaultEmailSenderLocalPart: null,
+          verificationStatus: "not_started",
+          verificationNote: null,
+          accountRestrictionReason: null,
+          accountRestrictionNotes: null,
+          accountRestrictedByUserId: null,
+          accountRestrictedAt: null,
+          acceptedTermsAt: null,
+          transferAccessGranted: false,
+          supportAccessGranted: false,
+          testingModeDisabled: true,
+          vaultSubscriptionStatus: "inactive",
+          vaultSubscriptionPlan: null,
+          vaultSubscriptionAmountMinor: null,
+          vaultSubscriptionAutoRenew: false,
+          vaultPaystackPlanCode: null,
+          vaultEmailAlertsEnabled: false,
+          vaultEmailIncludeSupportLink: false,
+          pushTransferAlertsEnabled: false,
+          pushWalletAlertsEnabled: false,
+          pushSecurityAlertsEnabled: false,
+          accountStatus: "deletion_pending",
+          updatedAt: now,
+        }).where(eq(bankUsersTable.id, target.id));
+        await tx.insert(bankAuditLogsTable).values({
+          actorUserId: actor.id,
+          targetUserId: target.id,
+          action: "customer_personal_data_erasure_requested",
+          reason: reason.slice(0, 500),
+        });
+      });
+    } catch {
+      res.status(500).json({ error: "Customer data erasure could not be prepared. No success was recorded." });
+      return;
+    }
+
+    try {
+      await deleteCustomerPrivateObjects({
+        identityDocumentPaths,
+        vaultSubscriptionProofPath: target.vaultSubscriptionProofObjectPath,
+        userId: target.id,
+      });
+      await db.transaction(async (tx) => {
+        await tx.delete(bankIdentityDocumentsTable).where(eq(bankIdentityDocumentsTable.userId, target.id));
+        await tx.update(bankUsersTable).set({
+          vaultSubscriptionProofObjectPath: null,
+          vaultSubscriptionProofContentType: null,
+          vaultSubscriptionProofSizeBytes: null,
+          vaultSubscriptionProofFileName: null,
+          vaultSubscriptionProofUploadedAt: null,
+          updatedAt: new Date(),
+        }).where(eq(bankUsersTable.id, target.id));
+      });
+    } catch {
+      res.status(202).json({
+        deleted: false,
+        pending: true,
+        storageCleanupRequired: true,
+        userId: target.id,
+        error: "Application profile data was scrubbed, but uploaded identity or Vault proof files could not be removed. Ensure the existing private object storage configuration is available, then retry this erasure request.",
+      });
+      return;
+    }
+
+    try {
+      await clerkClient.users.deleteUser(target.id);
+      await db.update(bankUsersTable)
+        .set({ accountStatus: "deleted", updatedAt: new Date() })
+        .where(eq(bankUsersTable.id, target.id));
+      res.json({
+        deleted: true,
+        userId: target.id,
+        retainedRecords: "Financial ledger and transaction records may be retained where legally required; personal profile and Vault authentication data were erased.",
+      });
+    } catch (error: unknown) {
+      const status = typeof error === "object" && error !== null && "status" in error
+        ? Number((error as { status?: unknown }).status)
+        : 0;
+      if (status === 404) {
+        await db.update(bankUsersTable)
+          .set({ accountStatus: "deleted", updatedAt: new Date() })
+          .where(eq(bankUsersTable.id, target.id));
+        res.json({ deleted: true, userId: target.id, retainedRecords: "Required financial records may remain in pseudonymous form." });
+        return;
+      }
+      res.status(202).json({
+        deleted: false,
+        pending: true,
+        userId: target.id,
+        error: "Personal data has been scrubbed from the application profile, but identity-provider deletion is pending. Retry this operation after checking the Clerk connection.",
+      });
+    }
   },
 );
 
