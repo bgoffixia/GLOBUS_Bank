@@ -2,7 +2,6 @@ import { Router, type IRouter, type Request, type RequestHandler } from "express
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { clerkClient, getAuth } from "@clerk/express";
 import { rateLimit } from "express-rate-limit";
-import { Storage } from "@google-cloud/storage";
 import {
   and,
   asc,
@@ -156,6 +155,8 @@ import {
   normalizeCustomerEmailSenderDisplayName,
 } from "../lib/customer-email-sender";
 import { sendPasswordResetEmail } from "../lib/password-reset-email";
+import { deleteIdentityDocumentObject } from "../lib/identityDocumentStorage";
+import { deleteVaultSubscriptionProof } from "../lib/vault-subscription-proof-storage";
 import {
   balanceForWallet,
   bankOperationRestrictionError,
@@ -192,26 +193,19 @@ import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
 import { getVaultPasscodeResetSenderAddress } from "../lib/vault-passcode-reset-email";
 import { sendVaultPasscodeResetEmail } from "../lib/vault-passcode-reset-smtp";
 
-const privateObjectStorage = new Storage();
-
-async function deleteCustomerPrivateObjects(objectPaths: string[]): Promise<void> {
-  if (objectPaths.length === 0) return;
-  const bucketName = process.env.GLOBUS_PRIVATE_FILES_BUCKET?.trim();
-  if (!bucketName) throw new Error("GLOBUS_PRIVATE_FILES_BUCKET is not configured.");
-  const bucket = privateObjectStorage.bucket(bucketName);
-  await Promise.all(objectPaths.map(async (objectPath) => {
-    let key = objectPath.trim();
-    const gsPrefix = `gs://${bucketName}/`;
-    if (key.startsWith("gs://")) {
-      if (!key.startsWith(gsPrefix)) throw new Error("A customer object path points to another bucket.");
-      key = key.slice(gsPrefix.length);
-    }
-    while (key.startsWith("/")) key = key.slice(1);
-    if (!key || key.split("/").includes("..") || key.includes("\0")) {
-      throw new Error("A customer object path is invalid.");
-    }
-    await bucket.file(key).delete({ ignoreNotFound: true });
-  }));
+async function deleteCustomerPrivateObjects(input: {
+  identityDocumentPaths: string[];
+  vaultSubscriptionProofPath: string | null;
+  userId: string;
+}): Promise<void> {
+  await Promise.all([
+    ...input.identityDocumentPaths.map((objectPath) =>
+      deleteIdentityDocumentObject(objectPath),
+    ),
+    ...(input.vaultSubscriptionProofPath
+      ? [deleteVaultSubscriptionProof(input.vaultSubscriptionProofPath, input.userId)]
+      : []),
+  ]);
 }
 
 const router: IRouter = Router();
@@ -5783,10 +5777,9 @@ router.post(
       .select({ objectPath: bankIdentityDocumentsTable.objectPath })
       .from(bankIdentityDocumentsTable)
       .where(eq(bankIdentityDocumentsTable.userId, target.id));
-    const storageObjectPaths = [...new Set([
-      target.vaultSubscriptionProofObjectPath,
-      ...identityDocuments.map((document) => document.objectPath),
-    ].filter((path): path is string => Boolean(path?.trim())))];
+    const identityDocumentPaths = [...new Set(
+      identityDocuments.map((document) => document.objectPath).filter((path) => Boolean(path?.trim())),
+    )];
 
     const now = new Date();
     const tombstoneEmail = `erased+${createHash("sha256").update(target.id).digest("hex").slice(0, 24)}@invalid.local`;
@@ -5911,7 +5904,11 @@ router.post(
     }
 
     try {
-      await deleteCustomerPrivateObjects(storageObjectPaths);
+      await deleteCustomerPrivateObjects({
+        identityDocumentPaths,
+        vaultSubscriptionProofPath: target.vaultSubscriptionProofObjectPath,
+        userId: target.id,
+      });
       await db.transaction(async (tx) => {
         await tx.delete(bankIdentityDocumentsTable).where(eq(bankIdentityDocumentsTable.userId, target.id));
         await tx.update(bankUsersTable).set({
@@ -5929,7 +5926,7 @@ router.post(
         pending: true,
         storageCleanupRequired: true,
         userId: target.id,
-        error: "Application profile data was scrubbed, but uploaded identity or Vault proof files could not be removed. Configure GLOBUS_PRIVATE_FILES_BUCKET and Google Cloud Storage credentials, then retry this erasure request.",
+        error: "Application profile data was scrubbed, but uploaded identity or Vault proof files could not be removed. Ensure the existing private object storage configuration is available, then retry this erasure request.",
       });
       return;
     }
