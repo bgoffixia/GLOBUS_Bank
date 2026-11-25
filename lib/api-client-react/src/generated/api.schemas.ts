@@ -21,9 +21,21 @@ export const BankSupportConversationStatus = {
   closed: 'closed',
 } as const;
 
+export type SupportConversationCategory = typeof SupportConversationCategory[keyof typeof SupportConversationCategory];
+
+
+export const SupportConversationCategory = {
+  general: 'general',
+  private_vault: 'private_vault',
+  transfer: 'transfer',
+} as const;
+
 export interface BankSupportConversation {
   id: string;
   subject: string;
+  category: SupportConversationCategory;
+  /** @nullable */
+  transferReference: string | null;
   status: BankSupportConversationStatus;
   customerUnread: boolean;
   /** @nullable */
@@ -47,6 +59,9 @@ export interface AdminSupportConversation {
   customerName: string;
   customerEmail: string;
   subject: string;
+  category: SupportConversationCategory;
+  /** @nullable */
+  transferReference: string | null;
   status: AdminSupportConversationStatus;
   adminUnread: boolean;
   /** @nullable */
@@ -74,20 +89,13 @@ export interface BankSupportMessage {
 }
 
 export interface BankSupportConversationInput {
-  /**
-     * @minLength 1
-     * @maxLength 120
-     * @pattern \S
-     */
+  /** @minLength 1 @maxLength 120 @pattern \\S */
   subject: string;
-  /**
-     * @minLength 1
-     * @maxLength 4000
-     * @pattern \S
-     */
+  /** @minLength 1 @maxLength 4000 @pattern \\S */
   message: string;
+  category?: SupportConversationCategory;
+  transferReference?: string;
 }
-
 export interface BankSupportMessageInput {
   /**
      * @minLength 1
