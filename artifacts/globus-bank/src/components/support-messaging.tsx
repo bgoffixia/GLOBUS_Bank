@@ -390,7 +390,7 @@ export function AdminSupportInbox() {
           <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[12px] bg-[#edf5f0] text-[#54817e]"><UserRound size={16} /></div>
           <div className="min-w-0 flex-1">
             <p className="truncate text-[12px] font-bold text-[#2c4652]">{selected?.customerName || 'Select a conversation'}</p>
-            {selected && <p className="truncate text-[9px] text-[#83918f]">{selected.customerEmail} <span className="px-1">·</span>{selected.subject}</p>}
+            {selected && <p className="truncate text-[9px] text-[#83918f]">{selected.customerEmail} <span className="px-1">·</span>{selected.category === 'private_vault' ? 'Private Vault' : selected.category === 'transfer' ? `Transfer · ${selected.transferReference || 'reference pending'}` : 'General support'} <span className="px-1">·</span>{selected.subject}</p>}
           </div>
           {selected && <span className={`shrink-0 rounded-full px-2 py-1 text-[8px] font-bold uppercase tracking-[.06em] ${selected.status === 'open' ? 'bg-[#e7f2eb] text-[#47775e]' : 'bg-[#eef1ef] text-[#75827e]'}`}>{selected.status}</span>}
         </div>
