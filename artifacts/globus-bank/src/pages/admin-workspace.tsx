@@ -97,8 +97,8 @@ function ledgerPostingState(entries: Array<{ currency: string; side: 'debit' | '
 }
 function nameOf(user: Pick<AdminUser, 'firstName' | 'lastName'> | { firstName?: string | null; lastName?: string | null }) { return [user.firstName, user.lastName].filter(Boolean).join(' ') || 'Globus member'; }
 function Field({ label, children, className = '' }: { label: string; children: ReactNode; className?: string }) { return <label className={`block ${className}`}><span className="mb-1.5 block text-[10px] font-bold uppercase tracking-[.11em] text-[#71848b]">{label}</span>{children}</label>; }
-function Panel({ title, eyebrow, note, children, action }: { title: string; eyebrow?: string; note?: string; children: ReactNode; action?: ReactNode }) {
-  return <section className={`${box} overflow-hidden`}><div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e8eeeb] px-5 py-4 sm:px-6"><div>{eyebrow && <p className="text-[9px] font-bold uppercase tracking-[.16em] text-[#468383]">{eyebrow}</p>}<h2 className="mt-1 text-[15px] font-bold tracking-[-.02em] text-[#263e4b]">{title}</h2>{note && <p className="mt-1 text-[10px] leading-4 text-[#7c8e92]">{note}</p>}</div>{action}</div>{children}</section>;
+function Panel({ title, eyebrow, note, children, action, id }: { title: string; eyebrow?: string; note?: string; children: ReactNode; action?: ReactNode; id?: string }) {
+  return <section id={id} className={`${box} overflow-hidden`}><div className="flex flex-wrap items-start justify-between gap-4 border-b border-[#e8eeeb] px-5 py-4 sm:px-6"><div>{eyebrow && <p className="text-[9px] font-bold uppercase tracking-[.16em] text-[#468383]">{eyebrow}</p>}<h2 className="mt-1 text-[15px] font-bold tracking-[-.02em] text-[#263e4b]">{title}</h2>{note && <p className="mt-1 text-[10px] leading-4 text-[#7c8e92]">{note}</p>}</div>{action}</div>{children}</section>;
 }
 function Heading({ kicker, title, subtitle, action }: { kicker: string; title: string; subtitle: string; action?: ReactNode }) {
   return <div className="mb-6 flex flex-wrap items-end justify-between gap-4"><div><p className="text-[9px] font-bold uppercase tracking-[.2em] text-[#4f8888]">{kicker}</p><h1 className="mt-1 font-[family-name:var(--app-font-sans)] text-[28px] font-extrabold tracking-[-.055em] text-[#203b4c] sm:text-[34px]">{title}</h1><p className="mt-1 max-w-2xl text-[12px] leading-5 text-[#71858b]">{subtitle}</p></div>{action}</div>;
@@ -165,6 +165,7 @@ export function AdminWorkspace() {
 
 function WorkspaceFrame({ children, active, title, authorized }: { children: ReactNode; active: string; title: string; authorized: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [desktopNavExpanded, setDesktopNavExpanded] = useState(true);
   const { user } = useUser();
   const { t } = useLanguage();
   const email = user?.primaryEmailAddress?.emailAddress || '';
@@ -175,7 +176,7 @@ function WorkspaceFrame({ children, active, title, authorized }: { children: Rea
       : href === '/admin/users'
         ? active === 'users' || active === 'member-detail'
         : active === href.split('/')[2];
-  const navigationLink = (item: (typeof nav)[number], onNavigate?: () => void) => {
+  const navigationLink = (item: (typeof nav)[number], onNavigate?: () => void, compact = false) => {
     const Icon = item.icon;
     return (
       <Link
@@ -184,43 +185,44 @@ function WorkspaceFrame({ children, active, title, authorized }: { children: Rea
         onClick={onNavigate}
         aria-current={isActive(item.path) ? 'page' : undefined}
         data-testid={`admin-nav-${item.path === '/admin' ? 'overview' : item.path.slice('/admin/'.length).replaceAll('/', '-')}`}
-        className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-[9px] text-[11px] font-semibold transition-colors ${
+        title={compact ? t(item.label) : undefined}
+        className={`flex w-full items-center ${compact ? 'justify-center px-2' : 'gap-3 px-3'} rounded-[9px] py-[9px] text-[11px] font-semibold transition-colors ${
           isActive(item.path) ? 'bg-[#d9c27f] text-[#1d3c48]' : 'text-[#c1d2d1] hover:bg-white/[.07] hover:text-white'
         }`}
       >
         <Icon size={15} strokeWidth={1.8} />
-        <span className="flex-1">{t(item.label)}</span>
+        {!compact && <span className="flex-1">{t(item.label)}</span>}
       </Link>
     );
   };
-  const navContent = (onNavigate?: () => void) => <nav aria-label={t('Administration navigation')} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5">{nav.map(item => navigationLink(item, onNavigate))}</nav>;
+  const navContent = (onNavigate?: () => void, compact = false) => <nav aria-label={t('Administration navigation')} className={`min-h-0 flex-1 space-y-0.5 overflow-y-auto ${compact ? 'px-1.5' : 'px-2.5'}`}>{nav.map(item => navigationLink(item, onNavigate, compact))}</nav>;
   const identityCard = <div className="flex items-center gap-2.5 rounded-[9px] bg-white/[.045] p-2.5">
     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#d7e8e3] text-[10px] font-bold text-[#244a54]">{initials}</div>
     <div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold text-white">{user?.fullName || t('Administrator')}</p><p className="truncate text-[9px] text-[#9eb5b6]">{email || t('Authorized operator')}</p></div>
   </div>;
   return <div className="admin-viewport bg-[#f1f5f0] text-[#243d4b]">
-    <aside className="admin-sidebar hidden h-full w-[218px] shrink-0 flex-col bg-[#173b49] text-[#dbe8e5] lg:flex">
-      <div className="flex h-[66px] items-center gap-3 border-b border-white/[.09] px-5">
-        <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[#d9c27f] text-[#173b49]"><span className="font-[family-name:var(--app-font-sans)] text-[19px] font-extrabold">G</span></div>
-        <div className="leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>
+    <aside className={`admin-sidebar hidden h-full shrink-0 flex-col bg-[#102a43] text-[#dbe8e5] transition-[width] duration-200 lg:flex ${desktopNavExpanded ? 'w-[208px]' : 'w-[62px]'}`}>
+      <div className={`flex h-[66px] items-center border-b border-white/[.09] ${desktopNavExpanded ? 'gap-3 px-4' : 'justify-center px-2'}`}>
+        <img src={`${import.meta.env.BASE_URL}globus-mark-transparent.png`} alt="Globus Bank" className="h-9 w-10 shrink-0 object-contain" />
+        {desktopNavExpanded && <div className="leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>}
       </div>
-      <div className="mx-3.5 my-4 rounded-[10px] border border-white/[.09] bg-white/[.045] px-3 py-2.5">
+      {desktopNavExpanded && <div className="mx-3.5 my-4 rounded-[10px] border border-white/[.09] bg-white/[.045] px-3 py-2.5">
         <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[.12em] text-[#9fcec1]"><span className={`h-1.5 w-1.5 rounded-full ${authorized ? 'bg-[#7cc6aa]' : 'bg-[#c19c50]'}`} />{authorized ? 'Operations live' : 'Access protected'}</p>
         <p className="mt-1 text-[10px] text-[#a9c0c1]">Administrative workspace</p>
-      </div>
-      <p className="px-5 pb-2 text-[8px] font-bold uppercase tracking-[.17em] text-[#839fa4]">Workspace</p>
-      {navContent()}
-      <div className="mx-3.5 mb-3 rounded-[9px] border border-white/[.08] bg-white/[.035] p-3">
+      </div>}
+      {desktopNavExpanded && <p className="px-5 pb-2 text-[8px] font-bold uppercase tracking-[.17em] text-[#839fa4]">Workspace</p>}
+      {navContent(undefined, !desktopNavExpanded)}
+      {desktopNavExpanded && <div className="mx-3.5 mb-3 rounded-[9px] border border-white/[.08] bg-white/[.035] p-3">
         <div className="flex items-center gap-2 text-[#c7d6d4]"><ShieldCheck size={14} /><span className="text-[10px] font-semibold">Protected workspace</span></div>
         <p className="mt-1.5 pl-[22px] text-[9px] text-[#8fa9aa]">Financial changes are audited</p>
-      </div>
-      <div className="border-t border-white/[.09] p-3">{identityCard}</div>
+      </div>}
+      <div className="border-t border-white/[.09] p-2">{desktopNavExpanded ? identityCard : <div className="mx-auto grid h-8 w-8 place-items-center rounded-full bg-[#d7e8e3] text-[10px] font-bold text-[#244a54]">{initials}</div>}</div>
     </aside>
     <div className="admin-main-column">
       <header className="z-30 border-b border-[#e1e9e4] bg-[#f7f9f5]/95 shadow-[0_2px_10px_rgba(28,53,69,.025)] backdrop-blur">
         <div className="flex min-h-[58px] items-center justify-between gap-3 px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
-            <button type="button" aria-label="Open admin navigation" aria-expanded={mobileMenuOpen} aria-controls="admin-mobile-navigation" onClick={() => setMobileMenuOpen(true)} data-testid="button-open-admin-navigation" className="rounded-md p-1.5 text-[#3b6168] hover:bg-[#e8efea] lg:hidden"><Menu size={18} /></button>
+            <button type="button" aria-label="Toggle navigation" aria-expanded={mobileMenuOpen || desktopNavExpanded} aria-controls="admin-mobile-navigation" onClick={() => { if (window.matchMedia('(min-width: 1024px)').matches) setDesktopNavExpanded(value => !value); else setMobileMenuOpen(true); }} data-testid="button-open-admin-navigation" className="rounded-md p-1.5 text-[#173b50] hover:bg-[#e8efea]"><Menu size={18} /></button>
             <div className="min-w-0"><p className="truncate text-[10px] text-[#859492]"><span className="hidden sm:inline">Globus Bank&nbsp; / &nbsp;</span><span className="font-semibold text-[#3e575b]">{title}</span></p></div>
           </div>
           <div className="flex min-w-0 items-center gap-2.5">
@@ -234,9 +236,9 @@ function WorkspaceFrame({ children, active, title, authorized }: { children: Rea
     </div>
     {mobileMenuOpen && <div className="fixed inset-0 z-[60] lg:hidden">
       <button type="button" aria-label="Close admin navigation" className="absolute inset-0 bg-[#183640]/35 backdrop-blur-[1px]" onClick={() => setMobileMenuOpen(false)} />
-      <aside id="admin-mobile-navigation" className="admin-sidebar absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col bg-[#173b49] text-[#dbe8e5] shadow-2xl">
+      <aside id="admin-mobile-navigation" className="admin-sidebar absolute inset-y-0 left-0 flex w-[min(84vw,300px)] flex-col bg-[#102a43] text-[#dbe8e5] shadow-2xl">
         <div className="flex h-[66px] items-center gap-3 border-b border-white/[.09] px-5">
-          <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[#d9c27f] text-[#173b49]"><span className="font-[family-name:var(--app-font-sans)] text-[19px] font-extrabold">G</span></div>
+          <img src={`${import.meta.env.BASE_URL}globus-mark-transparent.png`} alt="Globus Bank" className="h-9 w-10 shrink-0 object-contain" />
           <div className="leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>
           <button type="button" aria-label="Close admin navigation" onClick={() => setMobileMenuOpen(false)} data-testid="button-close-admin-navigation" className="ml-auto rounded-md p-1.5 text-[#afc3c3] hover:bg-white/10"><X size={17} /></button>
         </div>
@@ -372,6 +374,7 @@ function UsersPage() {
 function MemberDetail({ userId }: { userId: string }) {
   const client = useQueryClient();
   const detail = useGetAdminUserDetail(userId, { query: { queryKey: getGetAdminUserDetailQueryKey(userId), enabled: !!userId } });
+  const [memberNavOpen, setMemberNavOpen] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'accounts' | 'transactions' | 'funding' | 'wallets' | 'restrictions'>(() => {
     const requestedTab = new URLSearchParams(window.location.search).get('tab');
     return ['accounts', 'transactions', 'funding', 'wallets', 'restrictions'].includes(requestedTab || '')
@@ -544,7 +547,7 @@ function MemberDetail({ userId }: { userId: string }) {
   ] as const;
   return <div className="flex h-full min-h-0 flex-col overflow-hidden">
      <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
-       <Link href="/admin/users" data-testid="link-back-member-directory" className="inline-flex items-center gap-1.5 text-[9px] font-bold text-[#54777b]"><ArrowLeft size={12} />Members</Link>
+       <div className="flex items-center gap-2"><Link href="/admin/users" data-testid="link-back-member-directory" className="inline-flex items-center gap-1.5 text-[9px] font-bold text-[#54777b]"><ArrowLeft size={12} />Members</Link><button type="button" aria-label={memberNavOpen ? 'Collapse customer navigation' : 'Expand customer navigation'} aria-expanded={memberNavOpen} onClick={() => setMemberNavOpen(value => !value)} className="inline-flex h-7 items-center gap-1.5 rounded-lg border border-[#dce6e0] bg-white px-2 text-[9px] font-bold text-[#173b50] shadow-sm hover:bg-[#f1f5f0]"><Menu size={13} />Navigation</button></div>
        <span className="text-[8px] font-semibold text-[#849493]">Customer record · audited actions</span>
      </div>
      <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-2">
@@ -552,9 +555,12 @@ function MemberDetail({ userId }: { userId: string }) {
         <div className="flex flex-wrap gap-1.5"><StatusPill status={u.accountStatus} /><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></div>
      </div>
      {message && <p role="status" data-testid="status-member-management" className="mb-2 shrink-0 rounded-lg border border-[#cfe4d7] bg-[#eef7f0] px-3 py-2 text-[10px] text-[#47755e]">{message}</p>}
-     <nav aria-label="Member management sections" className="sticky top-0 z-20 mb-2 grid shrink-0 grid-cols-3 gap-1 rounded-xl border border-[#dce6e0] bg-[#fbfcf8]/95 p-1 shadow-sm backdrop-blur sm:grid-cols-6">
-       {memberTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} data-testid={`tab-member-${tab.id}`} onClick={() => setActiveTab(tab.id)} className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-[8px] font-bold leading-tight transition sm:px-2 sm:text-[9px] ${activeTab === tab.id ? 'bg-[#173b50] text-white shadow-sm' : 'text-[#60777a] hover:bg-[#edf4ef]'}`}><Icon size={12} className="shrink-0" /><span className="truncate">{tab.label}</span></button>; })}
-     </nav>
+     <div className="flex min-h-0 flex-1 gap-3 overflow-hidden">
+       {memberNavOpen && <aside aria-label="Customer management navigation" className="flex w-[116px] shrink-0 flex-col gap-1 overflow-y-auto rounded-xl border border-[#dce6e0] bg-[#102a43] p-2 text-white shadow-sm sm:w-[158px]">
+         <p className="px-2 pb-1 pt-1 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#a9c3d2]">Customer sections</p>
+         {memberTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} data-testid={`tab-member-${tab.id}`} onClick={() => setActiveTab(tab.id)} className={`flex min-h-9 w-full items-center gap-2 rounded-lg px-2 py-2 text-left text-[8px] font-bold leading-tight transition sm:text-[9px] ${activeTab === tab.id ? 'bg-[#d9c27f] text-[#102a43] shadow-sm' : 'text-[#d6e3e8] hover:bg-white/10'}`}><Icon size={13} className="shrink-0" /><span className="min-w-0">{tab.label}</span></button>; })}
+       </aside>}
+       <div className="flex min-w-0 flex-1 flex-col overflow-hidden">
      <section aria-label="Quick member controls" className="mb-3 shrink-0 rounded-xl border border-[#dce6e0] bg-[#fbfcf8] p-2.5">
        <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[9px] font-extrabold uppercase tracking-[.14em] text-[#4f8888]">Quick controls</p><span className="text-[8px] font-semibold text-[#849493]">PIN-protected · audited</span></div>
        <div className="grid grid-cols-5 gap-1.5">
@@ -564,8 +570,8 @@ function MemberDetail({ userId }: { userId: string }) {
          <button type="button" onClick={() => open('password-reset')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><KeyRound size={13} />Password reset</button>
          <button type="button" onClick={() => void sendVaultResetLink()} disabled={vaultResetBusy} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef] disabled:opacity-50"><ShieldCheck size={13} />{vaultResetBusy ? 'Sending…' : 'Vault reset'}</button>
          <button type="button" onClick={() => open('vault-subscription')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><LockKeyhole size={13} />Remove Vault</button>
-         <button type="button" onClick={() => document.getElementById('member-account-tier')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><WalletCards size={13} />Account tier</button>
-         <button type="button" onClick={() => document.getElementById('member-access-controls')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Settings2 size={13} />Access rules</button>
+         <button type="button" onClick={() => { setActiveTab('overview'); window.setTimeout(() => document.getElementById('member-account-tier')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><WalletCards size={13} />Account tier</button>
+         <button type="button" onClick={() => { setActiveTab('overview'); window.setTimeout(() => document.getElementById('member-access-controls')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60); }} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Settings2 size={13} />Access rules</button>
          <button type="button" onClick={() => setActiveTab('transactions')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Activity size={13} />Activity</button>
          <button type="button" onClick={() => setActiveTab('restrictions')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><ShieldCheck size={13} />Restrictions</button>
        </div>
@@ -668,7 +674,7 @@ function MemberDetail({ userId }: { userId: string }) {
          </>}
         {error && <p role="alert" className="text-[10px] text-[#a45247]">{error}</p>}<div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setModal(null)} className={quietButton}>Cancel</button><button disabled={statusMutation.isPending || profileMutation.isPending || pinMutation.isPending || passwordMutation.isPending || vaultSubscriptionMutation.isPending || (modal === 'profile' && form.transactionPin.length !== 6) || ((modal === 'password-reset' || modal === 'vault-subscription') && !form.confirmed)} className={button}>{statusMutation.isPending || profileMutation.isPending || pinMutation.isPending || passwordMutation.isPending || vaultSubscriptionMutation.isPending ? 'Saving…' : 'Confirm & save'}</button></div>
      </form></Modal>}
-   </div>;
+   </div></div></div>;
 }
 
 function MemberAccountsOverview({ user, wallets }: { user: AdminUser; wallets: Wallet[] }) {
@@ -1197,12 +1203,15 @@ function SettingsPage() {
         title="Operations settings"
        subtitle="Set funding rules, customer messaging, and Paystack access-plan pricing."
       />
+      <nav aria-label="Operations settings sections" className="sticky top-0 z-20 mb-5 flex gap-1 overflow-x-auto rounded-xl border border-[#dce6e0] bg-[#f9fbf7]/95 p-1 shadow-sm backdrop-blur">
+        {[['settings-funding','Funding'],['settings-vault','Vault plans'],['settings-email','Email identity'],['settings-support','Support'],['settings-rates','Exchange rates'],['settings-save','Save']].map(([id,label]) => <a key={id} href={`#${id}`} className="shrink-0 rounded-lg px-3 py-2 text-[9px] font-bold text-[#365568] transition hover:bg-[#e9f0eb] hover:text-[#102a43]">{label}</a>)}
+      </nav>
       {settings.isError && <InlineError text="Operational settings could not be loaded." retry={() => settings.refetch()} />}
       {error && <p role="alert" className="mb-4 rounded-lg bg-[#fff2ed] p-3 text-[10px] text-[#a45247]">{error}</p>}
       {message && <p role="status" className="mb-4 rounded-lg bg-[#eef7f0] p-3 text-[10px] text-[#47755e]">{message}</p>}
       <form onSubmit={saveSettings} className="space-y-5">
         <div className="grid items-start gap-5 xl:grid-cols-2">
-          <Panel title="Funding controls" eyebrow="Global policy" note="Funding is capped at 100,000,000 per currency. Operations may set a lower maximum.">
+          <Panel id="settings-funding" title="Funding controls" eyebrow="Global policy" note="Funding is capped at 100,000,000 per currency. Operations may set a lower maximum.">
             <div className="space-y-3 p-5">
               <div className="grid gap-3 sm:grid-cols-2">
                 <div className="rounded-xl bg-[#f2f6f1] p-4"><p className="text-[9px] font-bold uppercase tracking-[.1em] text-[#7d8d8e]">Current maximum</p><p className="mt-2 font-mono text-[17px] font-semibold">{settings.data?.fundingLimit ? `${settings.data.fundingLimit} / currency` : '—'}</p></div>
@@ -1213,7 +1222,7 @@ function SettingsPage() {
               <Field label="Second administrator approval threshold"><input required className={input} inputMode="decimal" pattern="[0-9]+(\\.[0-9]{1,2})?" min="0" max="100000000" value={threshold || settings.data?.secondApprovalThreshold || ''} onChange={e => setThreshold(e.target.value)} /></Field>
             </div>
           </Panel>
-          <Panel title="Private Vault plan prices" eyebrow="Paystack checkout" note="Access activates automatically after Paystack confirms payment. Administrators cannot manually approve subscriptions.">
+          <Panel id="settings-vault" title="Private Vault plan prices" eyebrow="Paystack checkout" note="Access activates automatically after Paystack confirms payment. Administrators cannot manually approve subscriptions.">
             <div className="space-y-3 p-5">
               <div className="rounded-xl border border-[#e4e9df] bg-[#f8faf5] p-3">
                 <p className="mb-2 text-[9px] font-bold uppercase tracking-[.12em] text-[#6f817d]">Access plans · NGN</p>
@@ -1226,7 +1235,7 @@ function SettingsPage() {
             </div>
           </Panel>
         </div>
-        <Panel title="Customer transfer-email identity" eyebrow="Server-managed sender">
+        <Panel id="settings-email" title="Customer transfer-email identity" eyebrow="Server-managed sender">
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             <Field label="Transfer-alert display name">
               <input
@@ -1246,7 +1255,7 @@ function SettingsPage() {
             <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">This display name applies to customer transfer alerts only. The verified sender address and fixed Globus domain remain unchanged; password and security emails keep their existing sender identity.</p>
           </div>
         </Panel>
-        <Panel title="Support contact settings" eyebrow="Transfer alerts and customer support" note="These global values are used when a sender has not configured a custom support URL.">
+        <Panel id="settings-support" title="Support contact settings" eyebrow="Transfer alerts and customer support" note="These global values are used when a sender has not configured a custom support URL.">
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             <Field label="Default support URL (HTTPS)">
               <input className={input} type="url" placeholder="https://www.global-internetbanking.globus.website/support" value={defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? ''} onChange={event => setDefaultSupportUrl(event.target.value)} autoComplete="url" />
@@ -1257,14 +1266,14 @@ function SettingsPage() {
             <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">Transfer alert links automatically include the transfer reference. A sender-specific custom URL overrides the default URL. The email contact is shown as a separate secure mailto link.</p>
           </div>
         </Panel>
-        <Panel title="Exchange-rate quotes" eyebrow="Current rate sources" note="Frankfurter is primary; Grey is a read-only fallback. Neither is used to move money.">
+        <Panel id="settings-rates" title="Exchange-rate quotes" eyebrow="Current rate sources" note="Frankfurter is primary; Grey is a read-only fallback. Neither is used to move money.">
           <div className="space-y-3 p-5 text-[10px] leading-5 text-[#657c82]">
             <p>Globus uses Frankfurter’s published reference rates when a transfer pair is selected. Quotes are cached briefly and refreshed; the rate and retrieval time used are saved with the Globus transaction record.</p>
             <p>If Frankfurter cannot quote a pair, Globus tries Grey’s dedicated rate endpoint. If neither source can provide a valid rate, the transfer is blocked rather than using an administrator-entered or guessed value.</p>
             <p>Globus requests rates only. It does not call any Grey swap, payout, or transfer endpoints. A quote does not confirm that an outside bank received or sent money.</p>
           </div>
         </Panel>
-        <Panel title="Confirm and save" eyebrow="Audit recorded automatically">
+        <Panel id="settings-save" title="Confirm and save" eyebrow="Audit recorded automatically">
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             <div className="space-y-3 sm:col-span-2"><Field label="Six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} className={input} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} /></Field><button disabled={settings.isLoading || update.isPending || pin.length !== 6} className={`${button} w-full`}>{update.isPending ? 'Saving…' : 'Save settings'}</button></div>
           </div>
