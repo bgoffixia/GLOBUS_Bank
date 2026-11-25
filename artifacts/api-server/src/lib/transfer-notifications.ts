@@ -525,13 +525,9 @@ export async function sendTransferAlertEmail(input: {
     );
     if (!input.senderUserId || !ownerMessage) return recipientSent;
     if (sameAddress) return recipientSent;
-    const ownerFallbackMessage = fallbackSenderHeader && fallbackSenderHeader !== senderHeader
-      ? { ...ownerMessage, from: fallbackSenderHeader }
-      : undefined;
     const ownerSent = await sendResendEmail(
       ownerMessage,
       `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
-      ownerFallbackMessage,
     );
     if (!ownerSent) {
       console.warn("Transfer owner alert email could not be delivered", {
