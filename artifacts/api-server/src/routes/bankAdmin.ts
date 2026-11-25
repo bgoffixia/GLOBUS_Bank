@@ -179,6 +179,7 @@ import {
   vaultSubscriptionStatus,
 } from "../lib/bank-vault";
 import {
+  normalizeSupportUrl,
   notifyTransferRecipient,
   sendPushToUser,
   storeNotification,
@@ -570,6 +571,8 @@ function adminSettingsPayload(settings: Awaited<ReturnType<typeof getOrCreateAdm
   return {
     customerEmailSenderDomain: settings.customerEmailSenderDomain,
     customerEmailSenderDisplayName: settings.customerEmailSenderDisplayName,
+    defaultSupportUrl: settings.defaultSupportUrl,
+    supportEmail: settings.supportEmail,
     fundingLimit: settings.fundingLimit,
     secondApprovalThreshold: settings.secondApprovalThreshold,
     frozenIncomingPolicy: "allow_frozen" as const,
@@ -699,6 +702,27 @@ router.put("/bank/admin/exchange-rates", requireAdmin, async (req, res): Promise
   }
   if (!Number.isFinite(Number(parsed.data.rate)) || Number(parsed.data.rate) <= 0) {
     res.status(400).json({ error: "The rate must be greater than zero." });
+    return;
+  }
+  const existingSettings = await getOrCreateAdminSettings();
+  const defaultSupportUrl =
+    parsed.data.defaultSupportUrl === undefined
+      ? existingSettings.defaultSupportUrl
+      : parsed.data.defaultSupportUrl === null
+        ? null
+        : normalizeSupportUrl(parsed.data.defaultSupportUrl);
+  if (parsed.data.defaultSupportUrl && !defaultSupportUrl) {
+    res.status(400).json({ error: "The default support URL must be a valid HTTPS URL." });
+    return;
+  }
+  const supportEmail =
+    parsed.data.supportEmail === undefined
+      ? existingSettings.supportEmail
+      : parsed.data.supportEmail === null
+        ? null
+        : parsed.data.supportEmail.trim();
+  if (supportEmail && !/^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(supportEmail)) {
+    res.status(400).json({ error: "Enter a valid support email address or leave it blank." });
     return;
   }
   const clerkUserId = getAuth(req).userId;
@@ -1880,6 +1904,8 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
     .values({
       id: "operations",
       customerEmailSenderDisplayName,
+      defaultSupportUrl,
+      supportEmail,
       fundingLimit: formatMinorAmount(fundingLimitMinor),
       secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
       vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
@@ -1891,6 +1917,8 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
       target: bankAdminSettingsTable.id,
       set: {
         customerEmailSenderDisplayName,
+        defaultSupportUrl,
+        supportEmail,
         fundingLimit: formatMinorAmount(fundingLimitMinor),
         secondApprovalThreshold: formatMinorAmount(approvalThresholdMinor),
         vaultPlan1mPriceMinor: vaultPlan1mPriceMinor.toString(),
