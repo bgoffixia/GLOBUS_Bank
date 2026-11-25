@@ -122,6 +122,17 @@ import {
   bankAuditLogsTable,
   bankAdminSettingsTable,
   bankExchangeRatesTable,
+  bankSavedPaymentMethodsTable,
+  bankVaultTransactionNotesTable,
+  bankNotificationsTable,
+  bankPushSubscriptionsTable,
+  bankVaultAdminEntitlementsTable,
+  bankSandboxRequestsTable,
+  bankIdentityDocumentsTable,
+  bankPersonalFinanceRecordsTable,
+  bankFinancialAccountsTable,
+  bankFinanceLoanApplicationsTable,
+  bankVaultPaystackEventsTable,
   bankInternationalTransferRequestsTable,
   bankLedgerEntriesTable,
   bankRestrictionsTable,
@@ -5728,6 +5739,19 @@ router.post(
         }
         await tx.delete(bankVaultSessionsTable).where(eq(bankVaultSessionsTable.userId, target.id));
         await tx.delete(bankVaultPasscodeResetTokensTable).where(eq(bankVaultPasscodeResetTokensTable.userId, target.id));
+        await tx.delete(bankSavedPaymentMethodsTable).where(eq(bankSavedPaymentMethodsTable.userId, target.id));
+        await tx.delete(bankVaultTransactionNotesTable).where(eq(bankVaultTransactionNotesTable.userId, target.id));
+        await tx.delete(bankNotificationsTable).where(eq(bankNotificationsTable.userId, target.id));
+        await tx.delete(bankPushSubscriptionsTable).where(eq(bankPushSubscriptionsTable.userId, target.id));
+        await tx.delete(bankVaultAdminEntitlementsTable).where(eq(bankVaultAdminEntitlementsTable.userId, target.id));
+        await tx.delete(bankIdentityDocumentsTable).where(eq(bankIdentityDocumentsTable.userId, target.id));
+        await tx.delete(bankPersonalFinanceRecordsTable).where(eq(bankPersonalFinanceRecordsTable.userId, target.id));
+        await tx.delete(bankFinancialAccountsTable).where(eq(bankFinancialAccountsTable.userId, target.id));
+        await tx.delete(bankFinanceLoanApplicationsTable).where(eq(bankFinanceLoanApplicationsTable.userId, target.id));
+        await tx.delete(bankSandboxRequestsTable).where(eq(bankSandboxRequestsTable.userId, target.id));
+        await tx.update(bankVaultPaystackEventsTable)
+          .set({ userId: null })
+          .where(eq(bankVaultPaystackEventsTable.userId, target.id));
 
         // Financial transactions/ledger entries are intentionally retained where
         // statutory, accounting, dispute, or fraud-retention rules require them.
