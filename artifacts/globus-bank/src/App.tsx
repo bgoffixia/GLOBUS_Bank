@@ -294,6 +294,7 @@ function ClerkRoutes() {
         <Route path="/private-vault/alerts"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/private-vault/notes"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/private-vault/email-preferences"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
+        <Route path="/private-vault/support"><ProtectedPage><PrivateVaultPage /></ProtectedPage></Route>
         <Route path="/admin/vault-acces"><Redirect to="/admin/vault-access" /></Route>
         <Route path="/admin/vault-access"><ProtectedAdminPage /></Route>
         <Route path="/admin/support"><ProtectedAdminPage /></Route>
