@@ -252,7 +252,9 @@ export async function sendTransferAlertEmail(input: {
   status: string;
   createdAt: Date;
 }): Promise<boolean> {
-  const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim();
+  const senderAddress =
+    process.env.GLOBUS_TRANSFER_ALERT_EMAIL_FROM?.trim() ||
+    process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim();
   const validFallbackAddress =
     senderAddress && /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(senderAddress)
       ? senderAddress
