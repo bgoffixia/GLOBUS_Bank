@@ -192,6 +192,7 @@ import {
 import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
 import { getVaultPasscodeResetSenderAddress } from "../lib/vault-passcode-reset-email";
 import { sendVaultPasscodeResetEmail } from "../lib/vault-passcode-reset-smtp";
+import { sendResendEmail } from "../lib/resend-email";
 
 async function deleteCustomerPrivateObjects(input: {
   identityDocumentPaths: string[];
@@ -218,7 +219,7 @@ const supportMessageLimiter = rateLimit({
 });
 const testTransactionAlertLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  limit: 1,
+  limit: 5,
   standardHeaders: "draft-8",
   legacyHeaders: false,
   // Key the cooldown to the signed-in administrator, not the shared office/mobile IP.
@@ -695,13 +696,24 @@ router.post(
         res.status(503).json({ error: "The email delivery service is not configured." });
         return;
       }
-      await sendVaultPasscodeResetEmail({
-        apiKey,
-        senderAddress: getVaultPasscodeResetSenderAddress(),
-        recipientAddress,
-        subject,
-        text: message,
-      });
+      const transferSenderAddress =
+        process.env.GLOBUS_TRANSFER_ALERT_EMAIL_FROM?.trim() ||
+        process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() ||
+        "transfers@globus.website";
+      const emailSent = await sendResendEmail(
+        {
+          from: `GLOBUS BANK Transfers <${transferSenderAddress}>`,
+          to: recipientAddress,
+          subject,
+          text: message,
+          html: `<main style="font-family:Arial,sans-serif;color:#17314f"><h2>GLOBUS BANK — TEST TRANSACTION ALERT</h2><p><strong>TEST ONLY:</strong> This is a simulated email. No real transaction was initiated, processed, or posted. No funds have been transferred or deducted.</p><p>Transaction type: Debit (simulated)<br>Amount: NGN 5,000.00 (fictional test amount)<br>Status: TEST ONLY — NOT A REAL TRANSACTION<br>Reference: ${reference}</p></main>`,
+        },
+        `globus-admin-test-transfer-alert-${reference}`,
+      );
+      if (!emailSent) {
+        res.status(502).json({ error: "The test transfer-alert email was rejected or could not be delivered. Check the transfer email sender and Resend logs." });
+        return;
+      }
       await db.insert(bankAuditLogsTable).values({
         actorUserId: actor.id,
         targetUserId: actor.id,
@@ -712,7 +724,7 @@ router.post(
         sent: true,
         recipient: recipientAddress,
         reference,
-        message: "Test transaction alert email accepted by the SMTP server. No real transaction occurred.",
+        message: "Test transaction alert email accepted by Resend. No real transaction occurred.",
       });
     } catch (error) {
       req.log.error({ error }, "Admin test transaction alert email failed");
