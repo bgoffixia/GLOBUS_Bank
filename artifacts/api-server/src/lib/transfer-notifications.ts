@@ -1,4 +1,4 @@
-import { and, eq, gt, isNull } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { randomBytes, createHash } from "node:crypto";
 import {
   bankNotificationsTable,
