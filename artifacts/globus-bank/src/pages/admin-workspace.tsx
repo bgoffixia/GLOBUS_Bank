@@ -1138,7 +1138,11 @@ function SupportConfigurationPage() {
     event.preventDefault(); setError(''); setMessage('');
     const supportUrl = (url ?? settings.data?.defaultSupportUrl ?? '').trim();
     const supportEmailValue = (email ?? settings.data?.supportEmail ?? '').trim();
-    if (supportUrl && (new URL(supportUrl).protocol !== 'https:')) { setError('Use a secure HTTPS support URL.'); return; }
+    if (supportUrl) {
+      try {
+        if (new URL(supportUrl).protocol !== 'https:') { setError('Use a secure HTTPS support URL.'); return; }
+      } catch { setError('Enter a valid HTTPS support URL.'); return; }
+    }
     try {
       const result = await update.mutateAsync({ data: {
         fundingLimit: settings.data?.fundingLimit || '',
@@ -1178,7 +1182,7 @@ function SupportConfigurationPage() {
         </div>
       </Panel>
       <Panel title="Confirm configuration" eyebrow="Transaction PIN required">
-        <div className="space-y-3 p-4"><Field label="Six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} className={input} value={pin} onChange={e => setPin(e.target.value.replace(/\\D/g, '').slice(0, 6))} /></Field><button disabled={settings.isLoading || update.isPending || pin.length !== 6} className={button}>{update.isPending ? 'Saving…' : 'Save support configuration'}</button></div>
+        <div className="space-y-3 p-4"><Field label="Six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} className={input} value={pin} onChange={e => setPin(e.target.value.replace(/\D/g, '').slice(0, 6))} /></Field><button disabled={settings.isLoading || update.isPending || pin.length !== 6} className={button}>{update.isPending ? 'Saving…' : 'Save support configuration'}</button></div>
       </Panel>
     </form>
   </>;
