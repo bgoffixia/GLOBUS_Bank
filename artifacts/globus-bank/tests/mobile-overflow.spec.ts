@@ -194,8 +194,31 @@ test('Vault entitlement and administrator access refresh from guarded APIs every
 });
 
 async function openAndCheck(page: Page, path: string, width: number, context: string) {
+  page.on('pageerror', error => {
+    console.error(`[viewport pageerror] ${path} at ${width}px:`, error.stack || error.message);
+  });
+  page.on('console', message => {
+    if (message.type() === 'error') {
+      console.error(`[viewport console] ${path} at ${width}px:`, message.text());
+    }
+  });
+  page.on('requestfailed', request => {
+    console.error(
+      `[viewport requestfailed] ${path} at ${width}px:`,
+      request.method(),
+      request.url(),
+      request.failure()?.errorText || 'unknown failure',
+    );
+  });
   await page.setViewportSize({ width, height: 850 });
   await page.goto(path, { waitUntil: 'domcontentloaded' });
+  const snapshot = await page.evaluate(() => ({
+    url: window.location.href,
+    title: document.title,
+    rootHtml: document.getElementById('root')?.innerHTML.slice(0, 3500) ?? null,
+    bodyText: document.body.innerText.slice(0, 1500),
+  }));
+  console.log(`[viewport snapshot] ${path} at ${width}px:`, JSON.stringify(snapshot));
   if (path === '/') {
     await expect(page.locator('h1').first()).toBeVisible();
     await expect(page).toHaveURL(/\/$/);
