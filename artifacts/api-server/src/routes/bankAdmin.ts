@@ -200,7 +200,12 @@ async function deleteCustomerPrivateObjects(objectPaths: string[]): Promise<void
   if (!bucketName) throw new Error("GLOBUS_PRIVATE_FILES_BUCKET is not configured.");
   const bucket = privateObjectStorage.bucket(bucketName);
   await Promise.all(objectPaths.map(async (objectPath) => {
-    let key = objectPath;
+    let key = objectPath.trim();
+    const gsPrefix = `gs://${bucketName}/`;
+    if (key.startsWith("gs://")) {
+      if (!key.startsWith(gsPrefix)) throw new Error("A customer object path points to another bucket.");
+      key = key.slice(gsPrefix.length);
+    }
     while (key.startsWith("/")) key = key.slice(1);
     if (!key || key.split("/").includes("..") || key.includes("\0")) {
       throw new Error("A customer object path is invalid.");
