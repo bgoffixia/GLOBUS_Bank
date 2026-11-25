@@ -270,7 +270,8 @@ export async function sendTransferAlertEmail(input: {
   const bannerTextColor = backgroundLuminance > 0.62 ? "#17314f" : "#ffffff";
   const headline = senderPreferences?.headline?.trim() || "A Globus transfer notice";
   const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
-  const defaultSupportUrl = new URL("/support", origin);
+  const configuredDefaultSupportUrl = normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
+  const defaultSupportUrl = new URL(configuredDefaultSupportUrl ?? "/support", origin);
   defaultSupportUrl.searchParams.set("transfer", input.reference);
   const customSupportUrl = senderPreferences?.includeSupportLink
     ? normalizeSupportUrl(senderPreferences.supportUrl)
