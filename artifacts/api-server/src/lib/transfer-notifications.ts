@@ -252,13 +252,26 @@ export async function sendTransferAlertEmail(input: {
   status: string;
   createdAt: Date;
 }): Promise<boolean> {
-  const senderAddress =
-    process.env.GLOBUS_TRANSFER_ALERT_EMAIL_FROM?.trim() ||
-    process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim();
-  const validFallbackAddress =
-    senderAddress && /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(senderAddress)
-      ? senderAddress
-      : null;
+  let senderAddress = "transfer-comfirmation@globus.website";
+  let senderDisplayName = "Incoming Transfer";
+  let globalSupportUrl: string | null = null;
+  let globalSupportEmail: string | null = null;
+  try {
+    const [settings] = await db
+      .select({
+        senderAddress: bankAdminSettingsTable.transferAlertEmailFrom,
+        defaultSupportUrl: bankAdminSettingsTable.defaultSupportUrl,
+        supportEmail: bankAdminSettingsTable.supportEmail,
+      })
+      .from(bankAdminSettingsTable)
+      .where(eq(bankAdminSettingsTable.id, "operations"))
+      .limit(1);
+    senderAddress = settings?.senderAddress || senderAddress;
+    globalSupportUrl = settings?.defaultSupportUrl ?? null;
+    globalSupportEmail = settings?.supportEmail ?? null;
+  } catch {
+    // Use the safe, verified-domain default if the admin settings row is not readable.
+  }
   if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(input.recipientEmail)) {
     return false;
   }
@@ -274,34 +287,12 @@ export async function sendTransferAlertEmail(input: {
         supportLabel: string;
       }
     | undefined;
-  let senderDisplayName = CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
-  let globalSupportUrl: string | null = null;
-  let globalSupportEmail: string | null = null;
-  try {
-    const [settings] = await db
-      .select({
-        displayName: bankAdminSettingsTable.customerEmailSenderDisplayName,
-        defaultSupportUrl: bankAdminSettingsTable.defaultSupportUrl,
-        supportEmail: bankAdminSettingsTable.supportEmail,
-      })
-      .from(bankAdminSettingsTable)
-      .where(eq(bankAdminSettingsTable.id, "operations"))
-      .limit(1);
-    senderDisplayName =
-      normalizeCustomerEmailSenderDisplayName(settings?.displayName) ??
-      CUSTOMER_EMAIL_SENDER_DISPLAY_NAME;
-    globalSupportUrl = settings?.defaultSupportUrl ?? null;
-    globalSupportEmail = settings?.supportEmail ?? null;
-  } catch {
-    // Transfer alerts should remain deliverable with the established default identity.
-  }
   if (input.senderUserId) {
     try {
       [senderPreferences] = await db
         .select({
           email: bankUsersTable.email,
-          senderLocalPart: bankUsersTable.vaultEmailSenderLocalPart,
-          theme: bankUsersTable.vaultEmailBannerTheme,
+            theme: bankUsersTable.vaultEmailBannerTheme,
           headline: bankUsersTable.vaultEmailBannerHeadline,
           backgroundColor: bankUsersTable.vaultEmailBannerBackgroundColor,
           includeSupportLink: bankUsersTable.vaultEmailIncludeSupportLink,
@@ -315,15 +306,8 @@ export async function sendTransferAlertEmail(input: {
       return false;
     }
   }
-  const senderHeader =
-    customerEmailSenderHeader(
-      senderPreferences?.senderLocalPart ?? null,
-      senderDisplayName,
-    ) ??
-    (validFallbackAddress
-      ? `"${senderDisplayName.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}" <${validFallbackAddress}>`
-      : null);
-  if (!senderHeader) return false;
+  if (!/^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(senderAddress)) return false;
+  const senderHeader = `"${senderDisplayName}" <${senderAddress}>`;
   const emailThemes = {
     navy: { background: "#12385d", accent: "#d6b45e" },
     teal: { background: "#174b52", accent: "#8ad1c7" },
