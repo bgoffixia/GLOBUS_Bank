@@ -235,6 +235,14 @@ import {
 } from "../lib/transfer-notifications";
 
 const router: IRouter = Router();
+
+async function canAccessSupportCategory(
+  user: typeof bankUsersTable.$inferSelect,
+  category: string,
+): Promise<boolean> {
+  if (category === "general") return true;
+  return user.supportAccessGranted || await hasActiveVaultAccess(user);
+}
 const vaultDeviceCookieOptions = () => ({
   httpOnly: true,
   sameSite: "strict" as const,
@@ -1100,6 +1108,7 @@ router.get("/bank/support/conversations", async (req, res): Promise<void> => {
     return;
   }
   const user = await getOrCreateBankUser(authUserId);
+  const canAccessRestrictedSupport = await canAccessSupportCategory(user, "private_vault");
   const conversations = await db
     .select({
       id: bankSupportConversationsTable.id,
@@ -1120,7 +1129,12 @@ router.get("/bank/support/conversations", async (req, res): Promise<void> => {
       updatedAt: bankSupportConversationsTable.updatedAt,
     })
     .from(bankSupportConversationsTable)
-    .where(eq(bankSupportConversationsTable.userId, user.id))
+    .where(canAccessRestrictedSupport
+      ? eq(bankSupportConversationsTable.userId, user.id)
+      : and(
+          eq(bankSupportConversationsTable.userId, user.id),
+          eq(bankSupportConversationsTable.category, "general"),
+        ))
     .orderBy(desc(bankSupportConversationsTable.lastMessageAt))
     .limit(100);
   res.setHeader("Cache-Control", "no-store");
@@ -1161,7 +1175,7 @@ router.post(
     const user = await getOrCreateBankUser(authUserId);
     const category = parsed.data.category ?? "general";
     const transferReference = parsed.data.transferReference ?? null;
-    if (category !== "general" && !(await hasActiveVaultAccess(user)) && !user.supportAccessGranted) {
+    if (!(await canAccessSupportCategory(user, category))) {
       res.status(403).json({ error: "Active Private Vault or support access is required for this conversation." });
       return;
     }
@@ -1246,7 +1260,10 @@ router.get(
     }
     const user = await getOrCreateBankUser(authUserId);
     const [conversation] = await db
-      .select({ id: bankSupportConversationsTable.id })
+      .select({
+        id: bankSupportConversationsTable.id,
+        category: bankSupportConversationsTable.category,
+      })
       .from(bankSupportConversationsTable)
       .where(
         and(
@@ -1257,6 +1274,10 @@ router.get(
       .limit(1);
     if (!conversation) {
       res.status(404).json({ error: "That support conversation was not found." });
+      return;
+    }
+    if (!(await canAccessSupportCategory(user, conversation.category))) {
+      res.status(403).json({ error: "Active Private Vault or support access is required to view this conversation." });
       return;
     }
     const messages = await db
@@ -1292,6 +1313,7 @@ router.post(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
+    const canAccessRestrictedSupport = await canAccessSupportCategory(user, "private_vault");
     const now = new Date();
     const created = await db.transaction(async (tx) => {
       const [conversation] = await tx
@@ -1308,11 +1330,7 @@ router.post(
         )
         .for("update");
       if (!conversation) return null;
-      if (
-        conversation.category !== "general" &&
-        !hasActiveVaultAccess(user) &&
-        !user.transferAccessGranted
-      ) {
+      if (conversation.category !== "general" && !canAccessRestrictedSupport) {
         return { accessDenied: true as const };
       }
       const [message] = await tx
@@ -1367,6 +1385,22 @@ router.post(
       return;
     }
     const user = await getOrCreateBankUser(authUserId);
+    const [existingConversation] = await db
+      .select({ category: bankSupportConversationsTable.category })
+      .from(bankSupportConversationsTable)
+      .where(and(
+        eq(bankSupportConversationsTable.id, params.data.conversationId),
+        eq(bankSupportConversationsTable.userId, user.id),
+      ))
+      .limit(1);
+    if (!existingConversation) {
+      res.status(404).json({ error: "That support conversation was not found." });
+      return;
+    }
+    if (!(await canAccessSupportCategory(user, existingConversation.category))) {
+      res.status(403).json({ error: "Active Private Vault or support access is required to update this conversation." });
+      return;
+    }
     const [conversation] = await db
       .update(bankSupportConversationsTable)
       .set({ customerUnread: false, updatedAt: new Date() })
