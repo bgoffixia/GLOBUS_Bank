@@ -1006,7 +1006,7 @@ test.describe('signed-in member pages at phone widths', () => {
     await expect(page.getByTestId('admin-metric-pending-operations')).toContainText('2');
     await expect(page.getByTestId('recent-ledger-viewport-transaction')).toContainText('TX-VIEWPORT');
     await expect(page.getByTestId('link-open-admin-funding')).toHaveAttribute('href', '/admin/funding');
-    const row = page.locator('tr').filter({ hasText: 'viewport-member@example.test' });
+    const row = page.getByTestId('row-admin-member-viewport-member');
     await expect(row).toBeVisible();
     await expect(page.getByTestId('member-profile-setup-viewport-member')).toContainText('Complete');
     await expect(row).toContainText('On');
@@ -1273,89 +1273,119 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
   }
 });
 
-test.describe('admin pages and wide tables at phone widths', () => {
-  if (validAuthenticatedState) {
-    test.use({ storageState: validAuthenticatedState });
-  }
-
-  test.skip(
-    !validAuthenticatedState,
-    'Set GLOBUS_VIEWPORT_STORAGE_STATE to a valid Playwright storage-state file to run admin viewport checks.',
+test('Private Vault support inbox is linked and protected by active entitlement', () => {
+  const vaultSource = readFileSync(
+    new URL('../src/components/private-vault-panel.tsx', import.meta.url),
+    'utf8',
+  );
+  const supportSource = readFileSync(
+    new URL('../src/components/support-messaging.tsx', import.meta.url),
+    'utf8',
+  );
+  const appSource = readFileSync(
+    new URL('../src/App.tsx', import.meta.url),
+    'utf8',
+  );
+  const bankSource = readFileSync(
+    new URL('../../api-server/src/routes/bank.ts', import.meta.url),
+    'utf8',
   );
 
-  for (const width of viewportWidths) {
-    test(`admin view fits and confines wide-table scrolling at ${width}px`, async ({ page }) => {
-      await page.route('**/api/bank/admin/**', async (route) => {
+  expect(vaultSource).toContain("id: 'vault-support-inbox'");
+  expect(vaultSource).toContain("requiresVaultAccess: true");
+  expect(vaultSource).toContain("'/private-vault/support'");
+  expect(vaultSource).toContain('<CustomerSupportPage vaultContext />');
+  expect(vaultSource).toContain('!status.data?.accessActive');
+  expect(appSource).toContain('path="/private-vault/support"');
+  expect(supportSource).toContain("vaultContext ? 'private_vault' : 'general'");
+  expect(bankSource).toContain('async function canAccessSupportCategory');
+  expect(bankSource).toContain('if (category === "transfer" || category === "private_vault")');
+  expect(bankSource).toContain('return activeVaultAccess;');
+  expect(bankSource).toContain('return user.supportAccessGranted || activeVaultAccess;');
+  expect(bankSource).toContain('eq(bankSupportConversationsTable.userId, user.id)');
+});
+
+test('customer erasure mutations remain scoped to the selected member only', () => {
+  const adminSource = readFileSync(
+    new URL('../../api-server/src/routes/bankAdmin.ts', import.meta.url),
+    'utf8',
+  );
+  const start = adminSource.indexOf('"/bank/admin/users/:userId/delete"');
+  const end = adminSource.indexOf('\nexport default router;', start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  const erasureRoute = adminSource.slice(start, end);
+
+  expect(erasureRoute).toContain('eq(bankWalletsTable.userId, target.id)');
+  expect(erasureRoute).toContain('eq(bankRestrictionsTable.userId, target.id)');
+  expect(erasureRoute).toContain('eq(bankVaultSessionsTable.userId, target.id)');
+  expect(erasureRoute).toContain('eq(bankVaultAdminEntitlementsTable.userId, target.id)');
+  expect(erasureRoute).toContain('eq(bankUsersTable.id, target.id)');
+  expect(erasureRoute).toContain('inArray(bankSupportMessagesTable.conversationId, conversations.map((item) => item.id))');
+  expect(erasureRoute).toContain('eq(bankSupportConversationsTable.userId, target.id)');
+  expect(erasureRoute).not.toContain('delete(bankUsersTable)');
+  expect(erasureRoute).toContain('eq(bankUsersTable.id, target.id)');
+  expect(erasureRoute).toContain('Allowlisted administrator accounts cannot be deleted');
+});
+
+test.describe('compact admin overview and member directory at phone widths', () => {
+  if (validAuthenticatedState) test.use({ storageState: validAuthenticatedState });
+  test.skip(!validAuthenticatedState, 'Set GLOBUS_VIEWPORT_STORAGE_STATE to a valid Playwright storage-state file to run admin viewport checks.');
+
+  const member = {
+    id: 'viewport-member', email: 'viewport-member@example.test', firstName: 'Viewport', lastName: 'Member',
+    customerId: 'ABC1234', country: 'US', accountStatus: 'active', accountTierName: 'Standard', accountTierSource: 'default',
+    adminAccountTier: null, vaultSubscriptionStatus: 'inactive', vaultSubscriptionExpiresAt: null, testingModeDisabled: false,
+    transferAccessGranted: false, profileSetupCompletedAt: '2026-11-19T10:00:00.000Z', walletCount: 1, createdAt: '2026-11-18T10:00:00.000Z',
+  };
+
+  for (const width of memberViewportWidths) {
+    test(`overview and five-row member cards fit without clipping or overlap at ${width}px`, async ({ page }) => {
+      await page.route('**/api/bank/admin/**', async route => {
         const pathname = new URL(route.request().url()).pathname;
-        if (pathname.endsWith('/access')) {
-          await route.fulfill({ json: { allowed: true, roles: ['operations'] } });
-        } else if (pathname.endsWith('/summary')) {
-          await route.fulfill({
-            json: {
-              registeredUsers: 1,
-              activeWallets: 1,
-              pendingLedgerRequests: 0,
-              ledgerTransactions: 0,
-            },
-          });
-        } else if (pathname.endsWith('/users')) {
-          await route.fulfill({
-            json: [
-              {
-                id: 'viewport-member',
-                email: 'viewport-member@example.test',
-                firstName: 'Viewport',
-                lastName: 'Member',
-                country: 'US',
-                verificationStatus: 'approved',
-                verificationNote: null,
-                accountStatus: 'active',
-                walletCount: 1,
-              },
-            ],
-          });
-        } else {
-          await route.fulfill({ json: [] });
-        }
+        if (pathname.endsWith('/access')) return route.fulfill({ json: { allowed: true, roles: ['operations'] } });
+        if (pathname.endsWith('/summary')) return route.fulfill({ json: { registeredUsers: 1, activeAccounts: 1, restrictedAccounts: 0, suspendedAccounts: 0, pendingOperations: 0, ledgerTransactions: 0, creditsByCurrency: [], debitsByCurrency: [], recentActions: [] } });
+        if (pathname.endsWith('/users')) return route.fulfill({ json: { items: [member], total: 1, page: 1, pageSize: 25 } });
+        return route.fulfill({ json: [] });
       });
 
       await page.setViewportSize({ width, height: 850 });
       await page.goto('/admin', { waitUntil: 'domcontentloaded' });
-      await expect(
-        page.locator('main h1').filter({ hasText: 'Operations overview' }),
-      ).toBeVisible();
-      await expectNoHorizontalOverflow(page, `Admin page at ${width}px`);
+      await expect(page.getByTestId('admin-operations-overview')).toBeVisible();
+      await expect(page.getByTestId('admin-operations-overview').locator('article')).toHaveCount(6);
+      await expectNoHorizontalOverflow(page, `Operations overview at ${width}px`);
 
-      const wideTableContainers = await page.locator('table').evaluateAll((tables) =>
-        tables
-          .filter((table) => table.scrollWidth > table.clientWidth)
-          .map((table) => {
-            let container = table.parentElement;
-            while (container) {
-              const overflowX = window.getComputedStyle(container).overflowX;
-              if (overflowX === 'auto' || overflowX === 'scroll') break;
-              container = container.parentElement;
-            }
-            return container
-              ? {
-                  containerScrollWidth: container.scrollWidth,
-                  containerClientWidth: container.clientWidth,
-                  overflowX: window.getComputedStyle(container).overflowX,
-                }
-              : null;
-          }),
-      );
+      await page.goto('/admin/users', { waitUntil: 'domcontentloaded' });
+      await expect(page.getByTestId('admin-member-card-grid')).toBeVisible();
+      const card = page.getByTestId('row-admin-member-viewport-member');
+      await expect(card).toBeVisible();
+      await expect(card).toHaveAttribute('data-member-card-rows', '5');
+      await expect(page.getByTestId('input-admin-member-search')).toBeVisible();
+      await expect(page.getByTestId('select-admin-account-status')).toBeVisible();
+      await expect(page.getByTestId('select-admin-vault-status')).toBeVisible();
+      await expectNoHorizontalOverflow(page, `Member directory at ${width}px`);
 
-      expect(wideTableContainers.length, 'The admin fixture should render a wide member table').toBeGreaterThan(0);
-      expect(wideTableContainers.every(Boolean), 'Every wide table must have its own scroll container').toBe(true);
-      expect(
-        wideTableContainers.every(
-          (container) =>
-            container!.overflowX === 'auto' &&
-            container!.containerScrollWidth > container!.containerClientWidth,
-        ),
-        'Wide tables should scroll within their own containers',
-      ).toBe(true);
+      const geometry = await card.evaluate(element => {
+        const cardRect = element.getBoundingClientRect();
+        const rows = Array.from(element.children).map(child => {
+          const rect = child.getBoundingClientRect();
+          return { left: rect.left, right: rect.right, top: rect.top, bottom: rect.bottom };
+        });
+        let overlap = false;
+        for (let i = 0; i < rows.length; i += 1) for (let j = i + 1; j < rows.length; j += 1) {
+          const a = rows[i], b = rows[j];
+          if (a.left < b.right - 1 && a.right > b.left + 1 && a.top < b.bottom - 1 && a.bottom > b.top + 1) overlap = true;
+        }
+        return { cardLeft: cardRect.left, cardRight: cardRect.right, rows, overlap };
+      });
+      expect(geometry.cardLeft).toBeGreaterThanOrEqual(-1);
+      expect(geometry.cardRight).toBeLessThanOrEqual(width + 1);
+      expect(geometry.rows).toHaveLength(5);
+      expect(geometry.overlap, `Member card rows overlap at ${width}px`).toBe(false);
+      for (const row of geometry.rows) {
+        expect(row.left).toBeGreaterThanOrEqual(geometry.cardLeft - 1);
+        expect(row.right).toBeLessThanOrEqual(geometry.cardRight + 1);
+      }
     });
   }
 
@@ -1435,12 +1465,12 @@ test.describe('admin pages and wide tables at phone widths', () => {
 
     await page.setViewportSize({ width: 390, height: 850 });
     await page.goto('/admin/users', { waitUntil: 'domcontentloaded' });
-    const row = page.locator('tr').filter({ hasText: 'viewport-member@example.test' });
+    const row = page.getByTestId('row-admin-member-viewport-member');
     await expect(row).toBeVisible();
     await expect(page.getByTestId('member-profile-setup-viewport-member')).toContainText('Complete');
     await expect(row).toContainText('On');
     await expect(row).toContainText('Not granted');
-    await row.getByRole('link', { name: 'Open' }).click();
+    await row.getByRole('link', { name: 'Open record' }).click();
 
     await expect(page).toHaveURL(/\/admin\/users\/viewport-member$/);
     await expect(page.getByText('Profile setup')).toBeVisible();

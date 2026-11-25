@@ -1,8 +1,11 @@
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
+import { randomBytes, createHash } from "node:crypto";
 import {
   bankNotificationsTable,
   bankAdminSettingsTable,
   bankPushSubscriptionsTable,
+  bankSupportConversationsTable,
+  bankTransferInquiryLinksTable,
   bankUsersTable,
   db,
 } from "@workspace/db";
@@ -172,6 +175,70 @@ export function renderSupportFooter(
   ];
   return { text, html: links.length ? `<footer style="padding:16px 28px 20px;border-top:1px solid #e7ecee;text-align:center">${links.join(" ")}</footer>` : "" };
 }
+async function createTransferInquiryUrl(userId: string, reference: string): Promise<string> {
+  const now = new Date();
+  const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
+  const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
+  const [existing] = await db
+    .select({
+      id: bankTransferInquiryLinksTable.id,
+      conversationId: bankTransferInquiryLinksTable.conversationId,
+      tokenEncrypted: bankTransferInquiryLinksTable.tokenEncrypted,
+      expiresAt: bankTransferInquiryLinksTable.expiresAt,
+      revokedAt: bankTransferInquiryLinksTable.revokedAt,
+    })
+    .from(bankTransferInquiryLinksTable)
+    .where(and(
+      eq(bankTransferInquiryLinksTable.userId, userId),
+      eq(bankTransferInquiryLinksTable.transferReference, reference),
+    ))
+    .limit(1);
+
+  if (existing && !existing.revokedAt && existing.expiresAt > now) {
+    try {
+      const token = decryptPrivateData(existing.tokenEncrypted, "transfer-inquiry-token");
+      return new URL(`/transfer-inquiries/${token}`, origin).toString();
+    } catch {
+      // Rotate an unreadable token below rather than sending a broken link.
+    }
+  }
+
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const tokenEncrypted = encryptPrivateData(token, "transfer-inquiry-token");
+  if (existing) {
+    await db.update(bankTransferInquiryLinksTable)
+      .set({ tokenHash, tokenEncrypted, expiresAt, revokedAt: null })
+      .where(eq(bankTransferInquiryLinksTable.id, existing.id));
+  } else {
+    const [conversation] = await db
+      .insert(bankSupportConversationsTable)
+      .values({
+        userId,
+        subject: `Transfer inquiry · ${reference}`,
+        category: "transfer",
+        transferReference: reference,
+        status: "open",
+        customerUnread: false,
+        adminUnread: false,
+        lastMessageAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: bankSupportConversationsTable.id });
+    await db.insert(bankTransferInquiryLinksTable).values({
+      tokenHash,
+      tokenEncrypted,
+      conversationId: conversation.id,
+      userId,
+      transferReference: reference,
+      expiresAt,
+      createdAt: now,
+    });
+  }
+  return new URL(`/transfer-inquiries/${token}`, origin).toString();
+}
+
 export async function sendTransferAlertEmail(input: {
   notificationId?: string;
   senderUserId?: string;
@@ -195,6 +262,7 @@ export async function sendTransferAlertEmail(input: {
   }
   let senderPreferences:
     | {
+        email: string;
         senderLocalPart: string | null;
         theme: string;
         headline: string;
@@ -229,6 +297,7 @@ export async function sendTransferAlertEmail(input: {
     try {
       [senderPreferences] = await db
         .select({
+          email: bankUsersTable.email,
           senderLocalPart: bankUsersTable.vaultEmailSenderLocalPart,
           theme: bankUsersTable.vaultEmailBannerTheme,
           headline: bankUsersTable.vaultEmailBannerHeadline,
@@ -281,17 +350,32 @@ export async function sendTransferAlertEmail(input: {
     normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
   const defaultSupportUrl = new URL(configuredDefaultSupportUrl ?? "/support", origin);
   defaultSupportUrl.searchParams.set("transfer", input.reference);
+  let recipientInquiryUrl: string | null = null;
+  if (input.senderUserId) {
+    try {
+      recipientInquiryUrl = await createTransferInquiryUrl(input.senderUserId, input.reference);
+    } catch {
+      // Do not send a dead inquiry URL; preserve the established support fallback.
+    }
+  }
+  const configuredSupportEmail =
+    globalSupportEmail?.trim() || process.env.GLOBUS_SUPPORT_EMAIL?.trim() || null;
+  const vaultSupportUrl = new URL("/private-vault/support", origin);
+  vaultSupportUrl.searchParams.set("transfer", input.reference);
+  const ownerSupportFooter = renderSupportFooter(
+    vaultSupportUrl.toString(),
+    "Open your Private Vault inbox",
+    configuredSupportEmail,
+  );
   const customSupportUrl = senderPreferences?.includeSupportLink
     ? normalizeSupportUrl(senderPreferences.supportUrl)
     : null;
-  const supportUrl = customSupportUrl
+  const supportUrl = recipientInquiryUrl ?? (customSupportUrl
     ? (() => { const custom = new URL(customSupportUrl); custom.searchParams.set("transfer", input.reference); return custom.toString(); })()
-    : defaultSupportUrl.toString();
-  const configuredSupportEmail =
-    globalSupportEmail?.trim() || process.env.GLOBUS_SUPPORT_EMAIL?.trim() || null;
+    : defaultSupportUrl.toString());
   const { text: supportText, html: supportHtml } = renderSupportFooter(
     supportUrl,
-    senderPreferences?.supportLabel,
+    recipientInquiryUrl ? "Inquiries" : senderPreferences?.supportLabel,
     configuredSupportEmail,
   );
   const statusText =
@@ -314,25 +398,49 @@ export async function sendTransferAlertEmail(input: {
     .map((line) => `<li>${htmlEscape(line)}</li>`)
     .join("");
   const idempotencyKey = `globus-transfer-${input.notificationId ?? `${input.reference}-${input.status}`}`;
+  const emailMessage = {
+    from: senderHeader,
+    to: input.recipientEmail,
+    subject: `Globus transfer update · ${input.reference}`,
+    text: [
+      "Globus transfer update",
+      "",
+      statusText,
+      "",
+      ...details,
+      ...(supportText ? [supportText] : []),
+      "If you do not recognize this message, you can ignore it. Do not reply with account credentials or verification codes.",
+    ].join("\n"),
+    html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">GLOBUS <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">Transfer update</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">If you do not recognize this message, ignore it. Never reply with account credentials or verification codes.</p></div>${supportHtml}</section></main>`,
+  };
   try {
-    return await sendResendEmail(
-      {
-        from: senderHeader,
-        to: input.recipientEmail,
-        subject: `Globus transfer update · ${input.reference}`,
-        text: [
-          "Globus transfer update",
-          "",
-          statusText,
-          "",
-          ...details,
-          ...(supportText ? [supportText] : []),
-          "If you do not recognize this message, you can ignore it. Do not reply with account credentials or verification codes.",
-        ].join("\n"),
-        html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">GLOBUS <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">Transfer update</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">If you do not recognize this message, ignore it. Never reply with account credentials or verification codes.</p></div>${supportHtml}</section></main>`,
-      },
+    const ownerEmail = senderPreferences?.email?.trim() ?? null;
+    const ownerEmailIsValid = Boolean(
+      ownerEmail && /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(ownerEmail),
+    );
+    const ownerMessage = ownerEmailIsValid
+      ? {
+          ...emailMessage,
+          to: ownerEmail!,
+          text: emailMessage.text.replace(supportText, ownerSupportFooter.text),
+          html: emailMessage.html.replace(supportHtml, ownerSupportFooter.html),
+        }
+      : null;
+    const sameAddress = Boolean(
+      ownerEmailIsValid &&
+      ownerEmail!.toLowerCase() === input.recipientEmail.toLowerCase(),
+    );
+    const recipientSent = await sendResendEmail(
+      sameAddress && ownerMessage ? ownerMessage : emailMessage,
       idempotencyKey,
     );
+    if (!input.senderUserId || !ownerMessage) return recipientSent;
+    if (sameAddress) return recipientSent;
+    const ownerSent = await sendResendEmail(
+      ownerMessage,
+      `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
+    );
+    return recipientSent && ownerSent;
   } catch {
     return false;
   }
