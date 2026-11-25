@@ -221,7 +221,20 @@ const testTransactionAlertLimiter = rateLimit({
   limit: 1,
   standardHeaders: "draft-8",
   legacyHeaders: false,
-  message: { error: "A test transaction alert was already requested recently." },
+  // Key the cooldown to the signed-in administrator, not the shared office/mobile IP.
+  keyGenerator: (req) => getAuth(req).userId || req.ip || "unknown-admin",
+  handler: (req, res) => {
+    const resetTime = req.rateLimit?.resetTime;
+    const retryAfterSeconds = resetTime
+      ? Math.max(1, Math.ceil((resetTime.getTime() - Date.now()) / 1000))
+      : 60 * 60;
+    res.setHeader("Retry-After", String(retryAfterSeconds));
+    res.setHeader("Cache-Control", "no-store");
+    res.status(429).json({
+      error: "A test transaction alert was already requested recently.",
+      retryAfterSeconds,
+    });
+  },
 });
 
 const adminAuditOperationLabels: Array<[string, string]> = [
