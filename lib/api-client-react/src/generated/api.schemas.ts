@@ -2684,6 +2684,7 @@ export type ReceiveBankVaultPaystackWebhook200 = {
 
 export type ListAdminSupportConversationsParams = {
 status?: ListAdminSupportConversationsStatus;
+category?: SupportConversationCategory;
 /**
  * @maxLength 100
  */
