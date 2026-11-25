@@ -65,6 +65,23 @@ test("support message contracts trim to bounded non-empty content and expose no 
     true,
   );
   assert.equal(
+    CreateBankSupportConversationBody.safeParse({
+      subject: "Transfer recipient question",
+      message: "Please help me with the recipient on this transfer.",
+      category: "transfer",
+      transferReference: "GLB-TRANSFER-123",
+    }).success,
+    true,
+  );
+  assert.equal(
+    CreateBankSupportConversationBody.safeParse({
+      subject: "Transfer recipient question",
+      message: "Please help me with the recipient on this transfer.",
+      category: "transfer",
+    }).success,
+    true,
+  );
+  assert.equal(
     CreateBankSupportConversationBody.safeParse({ subject: " ", message: "Help" }).success,
     false,
   );
