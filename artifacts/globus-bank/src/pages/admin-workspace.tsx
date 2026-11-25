@@ -52,6 +52,7 @@ const nav = [
   { path: '/admin/users', label: 'Members', icon: Users },
   { path: '/admin/vault-access', label: 'Vault Access', icon: ShieldCheck },
   { path: '/admin/support', label: 'Support inbox', icon: MessageSquareText },
+  { path: '/admin/support-settings', label: 'Support config', icon: Settings2 },
   { path: '/admin/accounts', label: 'Accounts', icon: WalletCards },
   { path: '/admin/transactions', label: 'Transactions', icon: Activity },
   { path: '/admin/funding', label: 'Funding', icon: Banknote },
@@ -140,7 +141,7 @@ export function AdminWorkspace() {
   }, [access.data?.allowed, access.isError, queryClient]);
   const isDetail = /^\/admin\/users\/[^/]+$/.test(path);
   const page = path === '/admin' ? 'overview' : isDetail ? 'member-detail' : path.split('/')[2] || 'overview';
-  const pageTitles: Record<string, string> = { overview: t('Operations overview'), users: t('Member directory'), 'vault-access': t('Private Vault access'), support: t('Support inbox'), accounts: t('Currency accounts'), transactions: t('Transaction activity'), funding: t('User funding'), wallets: t('Wallet controls'), restrictions: t('Restrictions'), audit: t('Audit trail'), settings: t('Operations settings'), 'member-detail': t('Member record') };
+  const pageTitles: Record<string, string> = { overview: t('Operations overview'), users: t('Member directory'), 'vault-access': t('Private Vault access'), support: t('Support inbox'), 'support-settings': t('Support configuration'), accounts: t('Currency accounts'), transactions: t('Transaction activity'), funding: t('User funding'), wallets: t('Wallet controls'), restrictions: t('Restrictions'), audit: t('Audit trail'), settings: t('Operations settings'), 'member-detail': t('Member record') };
   if (path === '/admin/logout') return <WorkspaceFrame active="logout" title={t('Sign out')} authorized={access.data?.allowed === true}><LogoutPage /></WorkspaceFrame>;
   if (access.isLoading) return <WorkspaceFrame active={page} title={t('Operations workspace')} authorized={false}><div className="grid gap-4 md:grid-cols-3">{[0, 1, 2].map(x => <div key={x} className={`${box} h-36 animate-pulse bg-[#edf2ef]`} />)}</div></WorkspaceFrame>;
   if (access.isError || !access.data?.allowed) return <WorkspaceFrame active={page} title={t('Operations workspace')} authorized={false}><div className={`${box} mx-auto max-w-xl p-8 text-center`}><Shield size={28} className="mx-auto text-[#9b6157]" /><h1 className="mt-4 text-xl font-bold text-[#263e4b]">{t('Operations access restricted')}</h1><p className="mt-2 text-[12px] leading-5 text-[#7a8c91]">{t('This workspace is available to authorized Globus operations administrators.')}</p><button onClick={() => access.refetch()} className={`${button} mt-5`}>{t('Check access again')}</button></div></WorkspaceFrame>;
@@ -149,6 +150,7 @@ export function AdminWorkspace() {
     {page === 'users' && <UsersPage />}
     {page === 'vault-access' && <AdminVaultAccessPage />}
     {page === 'support' && <AdminSupportInbox />}
+    {page === 'support-settings' && <SupportConfigurationPage />}
     {page === 'member-detail' && <MemberDetail userId={path.split('/')[3] || ''} />}
     {page === 'accounts' && <AccountsPage />}
     {page === 'wallets' && <AccountsPage controlsOnly />}
@@ -1095,12 +1097,12 @@ function TransactionsPage({ memberId, compact = false }: { memberId?: string; co
     {memberId && memberDetail.data && <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#dce7e1] bg-[#f9fbf7] px-4 py-2.5 text-[9px]"><span className="font-semibold text-[#4b656b]">{nameOf(memberDetail.data.user)} · {memberDetail.data.user.customerId || memberDetail.data.user.email}</span><span className="text-[#758a8b]">{list.data?.total ?? '—'} matching records</span></div>}
     {memberId && <div className="flex justify-end"><button className={quietButton} onClick={exportReport}><Download size={13} />Export member report</button></div>}
     <Panel title="Search transactions" eyebrow={`${list.data?.total ?? 0} records`}>
-      <div className="grid gap-3 border-b border-[#e9efec] bg-[#f8f9f4] p-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-2 border-b border-[#e9efec] bg-[#f8f9f4] p-3 sm:grid-cols-2 sm:gap-3 sm:p-4 xl:grid-cols-4">
         <Field label="Search"><input data-testid="input-transaction-search" className={input} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Reference or description" /></Field>{!memberId && <Field label="Customer"><input className={input} value={customer} onChange={e => { setCustomer(e.target.value); setPage(1); }} placeholder="Name, email or ID" /></Field>}
         <Field label="Currency"><select className={input} value={currency} onChange={e => { setCurrency(e.target.value); setPage(1); }}><option value="">All currencies</option>{historicalCurrencies.map(c => <option key={c} value={c}>{c}</option>)}</select></Field><Field label="Transaction type"><select className={input} value={type} onChange={e => { setType(e.target.value); setPage(1); }}><option value="">All types</option>{txTypes.map(t => <option key={t} value={t}>{human(t)}</option>)}</select></Field>
         <Field label="Status"><select className={input} value={status} onChange={e => { setStatus(e.target.value); setPage(1); }}><option value="">All statuses</option>{['pending', 'completed', 'failed', 'rejected', 'reversed'].map(s => <option key={s} value={s}>{human(s)}</option>)}</select></Field><Field label="From date"><input type="date" className={input} value={fromDate} onChange={e => { setFromDate(e.target.value); setPage(1); }} /></Field><Field label="To date"><input type="date" className={input} value={toDate} onChange={e => { setToDate(e.target.value); setPage(1); }} /></Field><div className="grid grid-cols-2 gap-2"><Field label="Minimum amount"><input className={input} inputMode="decimal" value={min} onChange={e => { setMin(e.target.value); setPage(1); }} placeholder="0.00" /></Field><Field label="Maximum amount"><input className={input} inputMode="decimal" value={max} onChange={e => { setMax(e.target.value); setPage(1); }} placeholder="0.00" /></Field></div>
       </div>
-      {list.isLoading ? <Skeleton /> : list.isError ? <InlineError text="Transactions could not be loaded." retry={() => list.refetch()} /> : list.data?.items.length ? <><div className="overflow-x-auto"><table className="w-full min-w-[780px] text-left"><thead className="bg-[#f7f8f4] text-[9px] uppercase tracking-[.12em] text-[#829191]"><tr>{['Reference / description', 'Customer', 'Type', 'Currency & amount', 'Status', 'Recorded', ''].map(x => <th key={x} className="px-4 py-3">{x}</th>)}</tr></thead><tbody>{list.data.items.map(t => <tr key={t.id} className="border-t border-[#edf1ee] text-[10px] hover:bg-[#f8faf7]"><td className="px-4 py-3"><button onClick={() => { setDetailId(t.id); setError(''); }} className="font-mono font-bold text-[#396e73] hover:underline">{t.reference}</button><p className="mt-1 max-w-[220px] truncate text-[9px] text-[#829292]">{t.description}</p></td><td className="px-4 py-3 text-[#536d74]">{t.counterparty || 'Globus account'}</td><td className="px-4 py-3">{human(t.type)}</td><td className="px-4 py-3 font-mono font-semibold">{money(t.amount, t.currency)}</td><td className="px-4 py-3"><StatusPill status={t.status} /></td><td className="px-4 py-3 whitespace-nowrap text-[#788c8d]">{dateTime(t.createdAt)}</td><td className="px-4 py-3"><button className={quietButton} onClick={() => { setDetailId(t.id); setError(''); }}>Inspect</button></td></tr>)}</tbody></table></div><Pager page={page} pages={Math.ceil(list.data.total / list.data.pageSize)} onChange={setPage} /></> : <Empty title="No transactions found" text="The selected criteria do not match any transaction records." />}
+      {list.isLoading ? <Skeleton /> : list.isError ? <InlineError text="Transactions could not be loaded." retry={() => list.refetch()} /> : list.data?.items.length ? <><div className="grid gap-2 p-2 sm:hidden">{list.data.items.map(t => <article key={t.id} className="rounded-xl border border-[#e7ece8] bg-[#fffefa] p-3" data-testid="mobile-transaction-card"><div className="flex items-start justify-between gap-2"><button onClick={() => { setDetailId(t.id); setError(''); }} className="min-w-0 truncate text-left font-mono text-[10px] font-bold text-[#396e73]">{t.reference}</button><StatusPill status={t.status} /></div><div className="mt-2 flex items-end justify-between gap-2"><div className="min-w-0"><p className="truncate text-[10px] font-semibold text-[#435e66]">{t.description || human(t.type)}</p><p className="mt-0.5 text-[9px] text-[#829292]">{t.counterparty || 'Globus account'} · {human(t.type)}</p></div><p className="shrink-0 font-mono text-[12px] font-bold text-[#2d4653]">{money(t.amount, t.currency)}</p></div><div className="mt-2 flex items-center justify-between border-t border-[#edf1ee] pt-2"><span className="text-[9px] text-[#788c8d]">{dateTime(t.createdAt)}</span><button className={quietButton} onClick={() => { setDetailId(t.id); setError(''); }}>Inspect</button></div></article>)}</div><div className="hidden overflow-x-auto sm:block"><table className="w-full min-w-[780px] text-left"><thead className="bg-[#f7f8f4] text-[9px] uppercase tracking-[.12em] text-[#829191]"><tr>{['Reference / description', 'Customer', 'Type', 'Currency & amount', 'Status', 'Recorded', ''].map(x => <th key={x} className="px-4 py-3">{x}</th>)}</tr></thead><tbody>{list.data.items.map(t => <tr key={t.id} className="border-t border-[#edf1ee] text-[10px] hover:bg-[#f8faf7]"><td className="px-4 py-3"><button onClick={() => { setDetailId(t.id); setError(''); }} className="font-mono font-bold text-[#396e73] hover:underline">{t.reference}</button><p className="mt-1 max-w-[220px] truncate text-[9px] text-[#829292]">{t.description}</p></td><td className="px-4 py-3 text-[#536d74]">{t.counterparty || 'Globus account'}</td><td className="px-4 py-3">{human(t.type)}</td><td className="px-4 py-3 font-mono font-semibold">{money(t.amount, t.currency)}</td><td className="px-4 py-3"><StatusPill status={t.status} /></td><td className="px-4 py-3 whitespace-nowrap text-[#788c8d]">{dateTime(t.createdAt)}</td><td className="px-4 py-3"><button className={quietButton} onClick={() => { setDetailId(t.id); setError(''); }}>Inspect</button></td></tr>)}</tbody></table></div><Pager page={page} pages={Math.ceil(list.data.total / list.data.pageSize)} onChange={setPage} /></> : <Empty title="No transactions found" text="The selected criteria do not match any transaction records." />}
     </Panel>
     {detailId && <Modal title="Transaction record" close={() => { setDetailId(''); setCorrection(null); setStatusModal(false); }}><div className="space-y-4">{detail.isLoading ? <Skeleton rows={3} /> : detail.isError || !detail.data ? <InlineError text="Transaction details unavailable." retry={() => detail.refetch()} /> : <>
        <div className="rounded-xl bg-[#f3f7f1] p-4"><div className="flex flex-wrap items-start justify-between gap-3"><div><p className="font-mono text-[10px] text-[#718588]">{detail.data.transaction.reference}</p><p className="mt-1 text-[14px] font-bold">{detail.data.transaction.description || human(detail.data.transaction.type)}</p><p className="mt-1 text-[10px] text-[#768a8c]">{detail.data.customerName} · {detail.data.customerEmail}</p></div><div className="text-right"><b className="font-mono text-[16px]">{money(detail.data.transaction.amount, detail.data.transaction.currency)}</b></div></div><div className="mt-4 grid gap-2 sm:grid-cols-2"><div className="rounded-lg border border-[#e1e9e3] bg-white/70 p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849394]">Internal processing status</p><div className="mt-1"><StatusPill status={detail.data.transaction.status} /></div></div><div className="rounded-lg border border-[#e1e9e3] bg-white/70 p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#849394]">Wallet posting status</p><div className="mt-1"><StatusPill status={postingState} /></div></div></div><p className="mt-3 text-[9px] text-[#7d8f90]">Customer-facing date: <b>{customerTransactionDate(detail.data.transaction.transactionDate, detail.data.transaction.createdAt)}</b> · Recorded {dateTime(detail.data.transaction.createdAt)} · Initiated by {detail.data.initiatorName} ({detail.data.initiatorEmail})</p></div>
@@ -1121,6 +1123,65 @@ function AuditPage() {
   const params = useMemo(() => ({ ...(search.trim() ? { search: search.trim() } : {}), ...(action.trim() ? { action: action.trim() } : {}), page, pageSize: 30 }), [search, action, page]);
   const logs = useListAdminAuditLogs(params, { query: { queryKey: getListAdminAuditLogsQueryKey(params) } });
   return <><Heading kicker="Immutable record" title="Administrative audit trail" subtitle="Search decisions and changes by actor, member, action or reason. These logs are read-only." /><Panel title="Audit events" eyebrow={`${logs.data?.total ?? 0} events`}><div className="grid gap-2 border-b border-[#e9efec] bg-[#f8f9f4] p-4 sm:grid-cols-2"><Field label="Search actor, member, email or reason"><input className={input} value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} placeholder="Search audit records" /></Field><Field label="Action filter"><input className={input} value={action} onChange={e => { setAction(e.target.value); setPage(1); }} placeholder="Action name" /></Field></div>{logs.isLoading ? <Skeleton /> : logs.isError ? <InlineError text="Audit records could not be loaded." retry={() => logs.refetch()} /> : logs.data?.items.length ? <><div className="divide-y divide-[#edf0ed]">{logs.data.items.map(log => <article key={log.id} className="grid gap-2 px-5 py-4 sm:grid-cols-[minmax(0,1fr)_170px]"><div><div className="flex flex-wrap items-center gap-2"><Pill>{human(log.action)}</Pill><span className="text-[9px] text-[#849395]">Target: {log.targetName} · {log.targetEmail}</span></div><p className="mt-2 text-[10px] text-[#536e74]">Performed by <b>{log.actorName}</b> · {log.actorEmail}</p><p className="mt-1 whitespace-pre-wrap text-[10px] leading-5 text-[#718588]">{log.reason}</p></div><time className="text-[9px] text-[#89999a] sm:text-right">{dateTime(log.createdAt)}</time></article>)}</div><Pager page={page} pages={Math.ceil(logs.data.total / logs.data.pageSize)} onChange={setPage} /></> : <Empty title="No audit events match" text="Change the search or action filter to see other recorded events." />}</Panel></>;
+}
+
+function SupportConfigurationPage() {
+  const client = useQueryClient();
+  const settings = useGetAdminSettings({ query: { queryKey: getGetAdminSettingsQueryKey() } });
+  const update = useUpdateAdminSettings();
+  const [url, setUrl] = useState<string | null>(null);
+  const [email, setEmail] = useState<string | null>(null);
+  const [pin, setPin] = useState('');
+  const [message, setMessage] = useState('');
+  const [error, setError] = useState('');
+  const save = async (event: FormEvent) => {
+    event.preventDefault(); setError(''); setMessage('');
+    const supportUrl = (url ?? settings.data?.defaultSupportUrl ?? '').trim();
+    const supportEmailValue = (email ?? settings.data?.supportEmail ?? '').trim();
+    if (supportUrl && (new URL(supportUrl).protocol !== 'https:')) { setError('Use a secure HTTPS support URL.'); return; }
+    try {
+      const result = await update.mutateAsync({ data: {
+        fundingLimit: settings.data?.fundingLimit || '',
+        secondApprovalThreshold: settings.data?.secondApprovalThreshold || '',
+        vaultPlan1mPrice: settings.data?.vaultPlan1mPrice || '',
+        vaultPlan3mPrice: settings.data?.vaultPlan3mPrice || '',
+        vaultPlan1yPrice: settings.data?.vaultPlan1yPrice || '',
+        customerEmailSenderDisplayName: settings.data?.customerEmailSenderDisplayName || '',
+        defaultSupportUrl: supportUrl || null,
+        supportEmail: supportEmailValue || null,
+        transactionPin: pin,
+      }});
+      setUrl(result.defaultSupportUrl); setEmail(result.supportEmail);
+      await client.invalidateQueries({ queryKey: getGetAdminSettingsQueryKey() });
+      setPin(''); setMessage('Support configuration saved and audit recorded.');
+    } catch (err) { setError(err instanceof Error ? err.message : 'Support configuration could not be saved.'); }
+  };
+  return <>
+    <Heading kicker="Customer care operations" title="Support configuration" subtitle="Configure the secure support destination used in transfer alerts and customer support entry points." action={<Link href="/admin/support" className={quietButton}><MessageSquareText size={13}/> Open inbox</Link>} />
+    {settings.isError && <InlineError text="Support settings could not be loaded." retry={() => settings.refetch()} />}
+    {error && <p role="alert" className="mb-3 rounded-lg bg-[#fff2ed] p-3 text-[10px] text-[#a45247]">{error}</p>}
+    {message && <p role="status" className="mb-3 rounded-lg bg-[#eef7f0] p-3 text-[10px] text-[#47755e]">{message}</p>}
+    <form onSubmit={save} className="space-y-4">
+      <Panel title="Private Vault and account support" eyebrow="Customer-facing routing" note="The default destination is used when no sender-specific support URL is configured. Keep the destination on a domain controlled by Globus.">
+        <div className="grid gap-3 p-4 sm:grid-cols-2">
+          <Field label="Default support inbox URL (HTTPS)"><input type="url" className={input} placeholder="https://www.global-internetbanking.globus.website/support" value={url ?? settings.data?.defaultSupportUrl ?? ''} onChange={e => setUrl(e.target.value)} /></Field>
+          <Field label="Support email"><input type="email" className={input} placeholder="support@globus.website" value={email ?? settings.data?.supportEmail ?? ''} onChange={e => setEmail(e.target.value)} /></Field>
+          <div className="sm:col-span-2 rounded-xl bg-[#f3f7f2] p-3 text-[10px] leading-5 text-[#718588]">
+            <p className="font-bold text-[#3e6263]">Routing and access safeguards</p>
+            <ul className="mt-1 list-disc space-y-1 pl-4">
+              <li>Private Vault conversations remain visible only to authorized support operators.</li>
+              <li>Transfer alerts carry their transfer reference into the support conversation.</li>
+              <li>HTTPS is required for the web destination; the email contact is rendered as a separate mail link.</li>
+              <li>Changing these values does not grant customer Vault access or change account entitlements.</li>
+            </ul>
+          </div>
+        </div>
+      </Panel>
+      <Panel title="Confirm configuration" eyebrow="Transaction PIN required">
+        <div className="space-y-3 p-4"><Field label="Six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} className={input} value={pin} onChange={e => setPin(e.target.value.replace(/\\D/g, '').slice(0, 6))} /></Field><button disabled={settings.isLoading || update.isPending || pin.length !== 6} className={button}>{update.isPending ? 'Saving…' : 'Save support configuration'}</button></div>
+      </Panel>
+    </form>
+  </>;
 }
 
 function SettingsPage() {
