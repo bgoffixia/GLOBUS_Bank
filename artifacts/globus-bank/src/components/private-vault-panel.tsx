@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { ArrowLeft, ArrowRight, Bell, FileText, LayoutDashboard, LockKeyhole, Menu, ReceiptText, ShieldCheck, UserRound, WalletCards, X } from 'lucide-react';
+import { ArrowLeft, ArrowRight, Bell, FileText, LayoutDashboard, LifeBuoy, LockKeyhole, Menu, ReceiptText, ShieldCheck, UserRound, WalletCards, X } from 'lucide-react';
 import { Link, useLocation } from 'wouter';
 import { useQueryClient } from '@tanstack/react-query';
 import { useUser } from '@clerk/react';
@@ -54,6 +54,7 @@ import { customerTransactionDate } from '../lib/transaction-date';
 import { TransferReceiptModal, TransferReceiptPreview, type ReceiptTransaction } from './transfer/transfer-receipt';
 import { canLoadVaultPrivateData, isVaultSessionActive, isVaultSessionRejected } from '../lib/vault-error-state';
 import { VaultFundingForm } from './vault-funding-form';
+import { CustomerSupportPage } from './support-messaging';
 import { buildReceiptLayoutPreview, canSaveReceiptPreference, shouldClearSavedReceiptSelection } from '../lib/vault-receipt-preview';
 
 const fieldClass = 'h-9 w-full rounded-lg border border-[#dfe6eb] bg-white px-3 text-[11px] text-[#344b64] outline-none focus:border-[#77aeb0] focus:ring-2 focus:ring-[#77aeb0]/15';
@@ -72,6 +73,7 @@ const vaultPathBySectionId: Record<string, string> = {
   'vault-browser-alerts': '/private-vault/alerts',
   'vault-personal-notes': '/private-vault/notes',
   'vault-email-preferences': '/private-vault/email-preferences',
+  'vault-support-inbox': '/private-vault/support',
 };
 const vaultNavigationIdByPath: Record<string, string> = {
   '/private-vault': 'vault-overview',
@@ -84,6 +86,7 @@ const vaultNavigationIdByPath: Record<string, string> = {
   '/private-vault/alerts': 'vault-browser-alerts',
   '/private-vault/notes': 'vault-personal-notes',
   '/private-vault/email-preferences': 'vault-email-preferences',
+  '/private-vault/support': 'vault-support-inbox',
 };
 
 function ngnMinor(value: string) {
@@ -183,6 +186,7 @@ export function PrivateVaultPanel() {
     { id: 'vault-browser-alerts', label: 'Browser alerts', icon: Bell, requiresUnlock: true },
     { id: 'vault-personal-notes', label: 'Personal notes', icon: FileText, requiresUnlock: true },
     { id: 'vault-email-preferences', label: 'Email preferences', icon: ReceiptText, requiresUnlock: true },
+    { id: 'vault-support-inbox', label: 'Support inbox', icon: LifeBuoy, requiresUnlock: true, requiresVaultAccess: true },
   ] as const;
   const sessionCredentialActive = sessionToken.length > 0 || rememberedDeviceSession;
   const vaultSessionActive = isVaultSessionActive(sessionCredentialActive, expiresAt);
@@ -957,6 +961,7 @@ export function PrivateVaultPanel() {
     { path: '/private-vault/alerts', label: 'Alerts', page: 'alerts' },
     { path: '/private-vault/notes', label: 'Notes', page: 'notes' },
     { path: '/private-vault/email-preferences', label: 'Email preferences', page: 'email-preferences' },
+    { path: '/private-vault/support', label: 'Support inbox', page: 'support' },
   ];
   const serviceNavigation = (
     <nav aria-label={t('Private Vault pages')} data-testid="vault-page-navigation" className="vault-page-navigation flex min-w-0 gap-1 overflow-x-auto border-b border-[#e1e8eb] bg-[#f8faf9] px-3 py-2 sm:px-5">
@@ -1039,7 +1044,7 @@ export function PrivateVaultPanel() {
           <nav className="min-h-0 flex-1 space-y-1 overflow-y-auto overscroll-contain" aria-label="Vault workspace navigation">
             {vaultNavigation.map(item => {
               const Icon = item.icon;
-              const disabled = !vaultSessionActive && item.requiresUnlock;
+              const disabled = (!vaultSessionActive && item.requiresUnlock) || (('requiresVaultAccess' in item) && item.requiresVaultAccess && !status.data?.accessActive);
               return <button key={item.id} type="button" disabled={disabled} aria-current={activeNavigation === item.id ? 'page' : undefined} title={disabled ? 'Unlock your Vault to open this section' : undefined} onClick={() => navigateToSection(item.id)} className={`flex min-h-9 w-full items-center gap-2.5 rounded-lg px-2.5 text-left text-[9px] font-semibold transition ${activeNavigation === item.id ? 'bg-white/12 text-[#f1dc98]' : 'text-[#d5e2e1] hover:bg-white/[.07]'} disabled:cursor-not-allowed disabled:opacity-45`}><Icon size={14} />{item.label}{disabled && <LockKeyhole size={11} className="ml-auto" />}</button>;
             })}
           </nav>
@@ -1437,6 +1442,7 @@ export function PrivateVaultPanel() {
           </div>
         </div>
       </section>
+      <section id="vault-support-inbox" data-vault-view="support" className="min-w-0 scroll-mt-24" data-testid="vault-support-inbox">{vaultAccessActive ? <CustomerSupportPage vaultContext /> : <div className="rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4"><div className="flex items-center gap-2 text-[#806f43]"><LockKeyhole size={15} /><h3 className="text-[11px] font-bold">Active Vault access required</h3></div><p className="mt-1 text-[9px] leading-4 text-[#7b806e]">The Private Vault support inbox is available while your Vault access is active. Check your subscription or contact Globus support for assistance.</p></div>}</section>
       {(error || updateControl.isError) && <p role="alert" data-testid="status-vault-error" className="mt-3 rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940]">{error || 'A wallet policy could not be saved.'}</p>}
       {message && <p role="status" data-testid="status-vault-message" className="mt-3 rounded-lg bg-[#f0f8f4] px-3 py-2 text-[9px] text-[#41755f]">{message}</p>}
         </main>
@@ -1448,7 +1454,7 @@ export function PrivateVaultPanel() {
           <nav className="mt-4 min-h-0 space-y-1 overflow-y-auto overscroll-contain" aria-label="Vault workspace navigation">
             {vaultNavigation.map(item => {
               const Icon = item.icon;
-              const disabled = !vaultSessionActive && item.requiresUnlock;
+              const disabled = (!vaultSessionActive && item.requiresUnlock) || (('requiresVaultAccess' in item) && item.requiresVaultAccess && !status.data?.accessActive);
               return <button key={item.id} type="button" disabled={disabled} aria-current={activeNavigation === item.id ? 'page' : undefined} onClick={() => navigateToSection(item.id)} className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[10px] font-semibold ${activeNavigation === item.id ? 'bg-white/12 text-[#f1dc98]' : 'text-[#d5e2e1] hover:bg-white/[.07]'} disabled:cursor-not-allowed disabled:opacity-45`}><Icon size={15} />{item.label}{disabled && <LockKeyhole size={11} className="ml-auto" />}</button>;
             })}
           </nav>
