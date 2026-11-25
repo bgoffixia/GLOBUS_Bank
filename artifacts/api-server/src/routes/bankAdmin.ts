@@ -698,13 +698,12 @@ router.post(
         res.status(503).json({ error: "The email delivery service is not configured." });
         return;
       }
+      const transferSenderSettings = await getOrCreateAdminSettings();
       const transferSenderAddress =
-        process.env.GLOBUS_TRANSFER_ALERT_EMAIL_FROM?.trim() ||
-        process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() ||
-        "transfers@globus.website";
+        transferSenderSettings.transferAlertEmailFrom || "transfer-comfirmation@globus.website";
       const emailSent = await sendResendEmail(
         {
-          from: `GLOBUS BANK Transfers <${transferSenderAddress}>`,
+          from: `Incoming Transfer <${transferSenderAddress}>`,
           to: recipientAddress,
           subject,
           text: message,
