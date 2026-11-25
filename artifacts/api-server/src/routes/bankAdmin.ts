@@ -5810,6 +5810,22 @@ router.post(
         await tx.delete(bankNotificationsTable).where(eq(bankNotificationsTable.userId, target.id));
         await tx.delete(bankPushSubscriptionsTable).where(eq(bankPushSubscriptionsTable.userId, target.id));
         await tx.delete(bankVaultAdminEntitlementsTable).where(eq(bankVaultAdminEntitlementsTable.userId, target.id));
+        await tx.delete(bankRestrictionsTable).where(eq(bankRestrictionsTable.userId, target.id));
+        await tx.update(bankWalletsTable).set({
+          transfersEnabled: false,
+          depositsEnabled: false,
+          withdrawalsEnabled: false,
+          restrictionReason: null,
+          restrictionNotes: null,
+          restrictedByUserId: null,
+          restrictedAt: null,
+          updatedAt: now,
+        }).where(eq(bankWalletsTable.userId, target.id));
+        await tx.update(bankSandboxRequestsTable).set({
+          savedPaymentMethodId: null,
+          paymentMethod: null,
+          paymentMethodSummary: null,
+        }).where(eq(bankSandboxRequestsTable.userId, target.id));
         await tx.delete(bankPersonalFinanceRecordsTable).where(eq(bankPersonalFinanceRecordsTable.userId, target.id));
         await tx.delete(bankFinancialAccountsTable).where(eq(bankFinancialAccountsTable.userId, target.id));
         await tx.delete(bankFinanceLoanApplicationsTable).where(eq(bankFinanceLoanApplicationsTable.userId, target.id));
@@ -5821,6 +5837,7 @@ router.post(
         // Financial transactions/ledger entries are intentionally retained where
         // statutory, accounting, dispute, or fraud-retention rules require them.
         await tx.update(bankUsersTable).set({
+          preferredReceiptTemplate: "standard",
           email: tombstoneEmail,
           customerId: null,
           firstName: null,
@@ -5832,21 +5849,39 @@ router.post(
           dateOfBirth: null,
           occupation: null,
           profileSetupCompletedAt: null,
+          adminAccountTier: null,
           transactionPinHash: null,
           transactionPinFailedAttempts: 0,
           transactionPinLockedUntil: null,
           vaultPasscodeHash: null,
           vaultPasscodeFailedAttempts: 0,
           vaultPasscodeLockedUntil: null,
+          vaultSubscriptionRequestedAt: null,
+          vaultSubscriptionReviewedAt: null,
+          vaultSubscriptionReviewedByUserId: null,
           vaultSubscriptionReason: null,
+          vaultSubscriptionExpiresAt: null,
+          vaultSubscriptionExpiryReminderSentFor: null,
+          vaultSubscriptionExpiryReminderClaimedAt: null,
           vaultSubscriptionPaymentReference: null,
+          vaultSubscriptionPaymentStatus: "none",
+          vaultSubscriptionPaymentInitializedAt: null,
+          vaultSubscriptionPaymentVerifiedAt: null,
           vaultPaystackCustomerCode: null,
           vaultPaystackSubscriptionCode: null,
+          vaultEmailBannerTheme: "navy",
+          vaultEmailBannerHeadline: "A Globus transfer notice",
+          vaultEmailBannerBackgroundColor: "#12385d",
           vaultEmailSupportUrl: null,
           vaultEmailSupportLabel: "Contact support",
           vaultEmailSenderLocalPart: null,
+          verificationStatus: "not_started",
           verificationNote: null,
           accountRestrictionReason: null,
+          accountRestrictionNotes: null,
+          accountRestrictedByUserId: null,
+          accountRestrictedAt: null,
+          acceptedTermsAt: null,
           accountRestrictionNotes: null,
           accountRestrictedByUserId: null,
           acceptedTermsAt: null,
