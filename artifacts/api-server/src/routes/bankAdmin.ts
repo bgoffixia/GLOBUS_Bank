@@ -5933,6 +5933,51 @@ router.post(
       return;
     }
 
+    // Revoke only the target customer's active Clerk sessions before identity deletion.
+    // This is deliberately scoped to target.id; no other member's sessions are queried or revoked.
+    const activeSessions: Array<{ id: string }> = [];
+    let sessionOffset = 0;
+    try {
+      while (true) {
+        const sessionPage = await clerkClient.sessions.getSessionList({
+          userId: target.id,
+          status: "active",
+          limit: 500,
+          offset: sessionOffset,
+        });
+        activeSessions.push(...sessionPage.data.map((session) => ({ id: session.id })));
+        if (sessionPage.data.length < 500) break;
+        sessionOffset += sessionPage.data.length;
+      }
+    } catch {
+      res.status(202).json({
+        deleted: false,
+        pending: true,
+        userId: target.id,
+        error: "Personal data has been scrubbed, but the customer's active sessions could not be listed for revocation. Retry after checking the identity-provider connection. Other customers' sessions were not changed.",
+      });
+      return;
+    }
+
+    let sessionRevocationFailures = 0;
+    for (let index = 0; index < activeSessions.length; index += 25) {
+      const batch = activeSessions.slice(index, index + 25);
+      const outcomes = await Promise.allSettled(
+        batch.map((session) => clerkClient.sessions.revokeSession(session.id)),
+      );
+      sessionRevocationFailures += outcomes.filter((outcome) => outcome.status === "rejected").length;
+    }
+    if (sessionRevocationFailures > 0) {
+      res.status(202).json({
+        deleted: false,
+        pending: true,
+        userId: target.id,
+        sessionsRevoked: activeSessions.length - sessionRevocationFailures,
+        error: "Personal data has been scrubbed, but not all of this customer's active sessions could be revoked. Retry after checking the identity-provider connection. Other customers' sessions were not changed.",
+      });
+      return;
+    }
+
     try {
       await clerkClient.users.deleteUser(target.id);
       await db.update(bankUsersTable)
