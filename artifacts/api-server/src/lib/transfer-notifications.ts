@@ -461,7 +461,14 @@ export async function sendTransferAlertEmail(input: {
       `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
       ownerFallbackMessage,
     );
-    return recipientSent && ownerSent;
+    if (!ownerSent) {
+      console.warn("Transfer owner alert email could not be delivered", {
+        reference: input.reference,
+      });
+    }
+    // The caller reports recipient delivery; an owner-copy failure must not
+    // incorrectly tell the transfer recipient that their email was skipped.
+    return recipientSent;
   } catch {
     return false;
   }
