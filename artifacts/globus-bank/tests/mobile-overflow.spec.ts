@@ -326,7 +326,10 @@ test('compact language picker follows the country-selector pattern and translate
 
     await picker.click();
     await expect(page.getByTestId('select-language-drawer')).toBeVisible();
-    await page.getByRole('option', { name: /Français/ }).click();
+    const frenchLanguage = page.getByTestId('select-language-drawer').locator('[role="option"]').filter({ hasText: /^Français\s/ });
+    await expect(frenchLanguage).toHaveCount(1);
+    await expect(frenchLanguage).toHaveAttribute('role', 'option');
+    await frenchLanguage.click();
     await expect(page.locator('html')).toHaveAttribute('lang', 'fr-FR');
     await expect(page.locator('h1').first()).toContainText('Des relevés clairs.');
     await expectNoHorizontalOverflow(page, `Translated landing header at ${width}px`);
