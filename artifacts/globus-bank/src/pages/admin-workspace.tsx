@@ -382,6 +382,7 @@ function MemberDetail({ userId }: { userId: string }) {
       : 'overview';
   });
   const u = detail.data?.user;
+  const [memberNavOpen, setMemberNavOpen] = useState(false);
   const statusMutation = useUpdateAdminUserStatus(); const profileMutation = useUpdateAdminUserProfile(); const accessControlsMutation = useUpdateAdminUserAccessControls(); const accountTierMutation = useAssignAdminUserAccountTier(); const pinMutation = useResetAdminUserTransactionPin(); const passwordMutation = useResetAdminUserPassword(); const vaultSubscriptionMutation = useUpdateAdminUserVaultSubscription();
   const [modal, setModal] = useState<'status' | 'profile' | 'pin' | 'password-reset' | 'vault-subscription' | null>(null);
   const [form, setForm] = useState({ reason: '', notes: '', transactionPin: '', firstName: '', lastName: '', address: '', phone: '', country: '', cityOfOrigin: '', dateOfBirth: '', occupation: '', decision: 'approved', userMessage: '', confirmed: false, expiresAt: '' });
@@ -546,18 +547,17 @@ function MemberDetail({ userId }: { userId: string }) {
     { id: 'restrictions', label: 'Restrictions', icon: Shield },
   ] as const;
   return <div className="flex h-full min-h-0 flex-col overflow-hidden">
-     <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
-       <Link href="/admin/users" data-testid="link-back-member-directory" className="inline-flex items-center gap-1.5 text-[9px] font-bold text-[#54777b]"><ArrowLeft size={12} />Members</Link>
-       <span className="text-[8px] font-semibold text-[#849493]">Customer record · audited actions</span>
-     </div>
-     <div className="mb-3 flex shrink-0 flex-wrap items-end justify-between gap-2">
-       <div className="min-w-0"><p className="text-[8px] font-bold uppercase tracking-[.17em] text-[#4f8888]">Customer management · {u.customerId || 'Customer ID unavailable'}</p><h1 className="mt-0.5 truncate text-[21px] font-extrabold tracking-[-.045em] text-[#203b4c] sm:text-[24px]">{fullName}</h1><p className="truncate text-[10px] text-[#71858b]">{u.email}</p></div>
-        <div className="flex flex-wrap gap-1.5"><StatusPill status={u.accountStatus} /><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></div>
-     </div>
+     <header className="mb-3 shrink-0 rounded-xl border border-[#dce6e0] bg-[#fbfcf8] shadow-sm">
+       <div className="flex min-w-0 items-center gap-3 px-3 py-2.5 sm:px-4">
+         <Link href="/admin/users" data-testid="link-back-member-directory" className="inline-flex shrink-0 items-center gap-1.5 text-[9px] font-bold text-[#54777b]"><ArrowLeft size={13} />Members</Link>
+         <div className="h-5 w-px shrink-0 bg-[#dce6e0]" />
+         <div className="min-w-0 flex-1"><p className="truncate text-[8px] font-bold uppercase tracking-[.15em] text-[#4f8888]">Customer management · {u.customerId || 'Customer ID unavailable'}</p><h1 className="truncate text-[15px] font-extrabold tracking-[-.025em] text-[#203b4c] sm:text-[18px]">{fullName}</h1><p className="truncate text-[9px] text-[#71858b]">{u.email}</p></div>
+         <div className="hidden shrink-0 gap-1.5 sm:flex"><StatusPill status={u.accountStatus} /><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /></div>
+         <button type="button" aria-expanded={memberNavOpen} aria-controls="member-management-navigation" onClick={() => setMemberNavOpen(value => !value)} className="inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg border border-[#dce6e0] bg-white text-[#315a68] hover:bg-[#edf4ef] lg:hidden" aria-label={memberNavOpen ? 'Close customer navigation' : 'Open customer navigation'}>{memberNavOpen ? <X size={17} /> : <Menu size={17} />}</button>
+       </div>
+       <div className="flex items-center justify-between gap-2 border-t border-[#e9eeea] px-3 py-1.5 sm:hidden"><StatusPill status={u.accountStatus} /><StatusPill status={u.vaultSubscriptionStatus || 'inactive'} /><span className="text-[8px] font-semibold text-[#849493]">Audited customer record</span></div>
+     </header>
      {message && <p role="status" data-testid="status-member-management" className="mb-2 shrink-0 rounded-lg border border-[#cfe4d7] bg-[#eef7f0] px-3 py-2 text-[10px] text-[#47755e]">{message}</p>}
-     <nav aria-label="Member management sections" className="sticky top-0 z-20 mb-2 grid shrink-0 grid-cols-3 gap-1 rounded-xl border border-[#dce6e0] bg-[#fbfcf8]/95 p-1 shadow-sm backdrop-blur sm:grid-cols-6">
-       {memberTabs.map(tab => { const Icon = tab.icon; return <button key={tab.id} type="button" role="tab" aria-selected={activeTab === tab.id} data-testid={`tab-member-${tab.id}`} onClick={() => setActiveTab(tab.id)} className={`inline-flex min-w-0 items-center justify-center gap-1 rounded-lg px-1.5 py-2 text-[8px] font-bold leading-tight transition sm:px-2 sm:text-[9px] ${activeTab === tab.id ? 'bg-[#173b50] text-white shadow-sm' : 'text-[#60777a] hover:bg-[#edf4ef]'}`}><Icon size={12} className="shrink-0" /><span className="truncate">{tab.label}</span></button>; })}
-     </nav>
      <section aria-label="Quick member controls" className="mb-3 shrink-0 rounded-xl border border-[#dce6e0] bg-[#fbfcf8] p-2.5">
        <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[9px] font-extrabold uppercase tracking-[.14em] text-[#4f8888]">Quick controls</p><span className="text-[8px] font-semibold text-[#849493]">PIN-protected · audited</span></div>
        <div className="grid grid-cols-5 gap-1">
@@ -659,6 +659,7 @@ function MemberDetail({ userId }: { userId: string }) {
        {activeTab === 'funding' && <FundingPage memberId={userId} compact />}
        {activeTab === 'wallets' && <AccountsPage memberId={userId} controlsOnly compact />}
        {activeTab === 'restrictions' && <RestrictionsPage memberId={userId} compact />}
+       </div>
      </div>
         {modal && <Modal title={modal === 'status' ? 'Change account status' : modal === 'profile' ? 'Edit member profile' : modal === 'pin' ? 'Reset transaction PIN' : modal === 'password-reset' ? 'Require password reset' : 'Remove Private Vault access'} close={() => setModal(null)}><form onSubmit={submit} className="space-y-3">
        {modal === 'profile' && <><div className="grid gap-3 sm:grid-cols-2"><Field label="First name"><input className={input} value={form.firstName} onChange={e => setForm({ ...form, firstName: e.target.value })} maxLength={80} /></Field><Field label="Last name"><input className={input} value={form.lastName} onChange={e => setForm({ ...form, lastName: e.target.value })} maxLength={80} /></Field><Field label="Address"><textarea data-testid="input-admin-member-address" className={`${input} h-20 resize-y py-2`} value={form.address} onChange={e => setForm({ ...form, address: e.target.value })} maxLength={1024} autoComplete="street-address" /></Field><Field label="Phone"><input className={input} value={form.phone} onChange={e => setForm({ ...form, phone: e.target.value })} maxLength={40} /></Field><Field label="Country"><input className={input} value={form.country} onChange={e => setForm({ ...form, country: e.target.value })} maxLength={80} /></Field><Field label="City of origin"><input className={input} value={form.cityOfOrigin} onChange={e => setForm({ ...form, cityOfOrigin: e.target.value })} maxLength={80} /></Field><Field label="Date of birth"><input className={input} type="date" value={form.dateOfBirth} onChange={e => setForm({ ...form, dateOfBirth: e.target.value })} /></Field><Field label="Occupation / employment"><input className={input} value={form.occupation} onChange={e => setForm({ ...form, occupation: e.target.value })} maxLength={120} /></Field></div><Field label="Your six-digit transaction PIN"><input className={input} type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={form.transactionPin} onChange={e => setForm({ ...form, transactionPin: e.target.value.replace(/\D/g, '').slice(0, 6) })} /></Field></>}
