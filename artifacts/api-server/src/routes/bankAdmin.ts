@@ -5650,4 +5650,162 @@ router.post(
   },
 );
 
+
+// Permanently erase a customer's personal data while retaining only the
+// minimum pseudonymous account linkage required for financial ledger integrity.
+router.post(
+  "/bank/admin/users/:userId/delete",
+  requireAdmin,
+  async (req, res): Promise<void> => {
+    res.setHeader("Cache-Control", "no-store");
+    const userId = typeof req.params.userId === "string" ? req.params.userId.trim() : "";
+    const confirmation = req.body?.confirmation;
+    const reason = typeof req.body?.reason === "string" ? req.body.reason.trim() : "";
+    if (!userId || userId.length > 256 || confirmation !== "DELETE" || reason.length < 10 || reason.length > 500) {
+      res.status(400).json({ error: "Enter DELETE and provide a deletion reason of 10–500 characters." });
+      return;
+    }
+
+    const authenticatedClerkId = getAuth(req).userId;
+    if (!authenticatedClerkId) {
+      res.status(401).json({ error: "Sign in to access administrative controls." });
+      return;
+    }
+    if (authenticatedClerkId === userId) {
+      res.status(400).json({ error: "Administrators cannot delete their own account." });
+      return;
+    }
+
+    const actor = await ensureBankUser(authenticatedClerkId);
+    const [target] = await db
+      .select({ id: bankUsersTable.id, email: bankUsersTable.email, accountStatus: bankUsersTable.accountStatus })
+      .from(bankUsersTable)
+      .where(eq(bankUsersTable.id, userId))
+      .limit(1);
+    if (!target) {
+      res.status(404).json({ error: "Customer account not found." });
+      return;
+    }
+    const protectedAdminEmails = (process.env.GLOBUS_ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((value) => value.trim().toLowerCase())
+      .filter(Boolean);
+    if (protectedAdminEmails.includes(target.email.toLowerCase())) {
+      res.status(409).json({ error: "Allowlisted administrator accounts cannot be deleted through customer management." });
+      return;
+    }
+
+    const now = new Date();
+    const tombstoneEmail = `erased+${createHash("sha256").update(target.id).digest("hex").slice(0, 24)}@invalid.local`;
+    try {
+      await db.transaction(async (tx) => {
+        // Remove customer-authored support content and private Vault reset/session material.
+        const conversations = await tx
+          .select({ id: bankSupportConversationsTable.id })
+          .from(bankSupportConversationsTable)
+          .where(eq(bankSupportConversationsTable.userId, target.id));
+        if (conversations.length) {
+          await tx.delete(bankSupportMessagesTable).where(
+            inArray(bankSupportMessagesTable.conversationId, conversations.map((item) => item.id)),
+          );
+          await tx.delete(bankSupportConversationsTable).where(eq(bankSupportConversationsTable.userId, target.id));
+        }
+        await tx.delete(bankVaultSessionsTable).where(eq(bankVaultSessionsTable.userId, target.id));
+        await tx.delete(bankVaultPasscodeResetTokensTable).where(eq(bankVaultPasscodeResetTokensTable.userId, target.id));
+
+        // Financial transactions/ledger entries are intentionally retained where
+        // statutory, accounting, dispute, or fraud-retention rules require them.
+        await tx.update(bankUsersTable).set({
+          email: tombstoneEmail,
+          customerId: null,
+          firstName: null,
+          lastName: null,
+          address: null,
+          phone: null,
+          country: null,
+          cityOfOrigin: null,
+          dateOfBirth: null,
+          occupation: null,
+          profileSetupCompletedAt: null,
+          transactionPinHash: null,
+          transactionPinFailedAttempts: 0,
+          transactionPinLockedUntil: null,
+          vaultPasscodeHash: null,
+          vaultPasscodeFailedAttempts: 0,
+          vaultPasscodeLockedUntil: null,
+          vaultSubscriptionReason: null,
+          vaultSubscriptionPaymentReference: null,
+          vaultPaystackCustomerCode: null,
+          vaultPaystackSubscriptionCode: null,
+          vaultSubscriptionProofObjectPath: null,
+          vaultSubscriptionProofContentType: null,
+          vaultSubscriptionProofSizeBytes: null,
+          vaultSubscriptionProofFileName: null,
+          vaultSubscriptionProofUploadedAt: null,
+          vaultEmailSupportUrl: null,
+          vaultEmailSupportLabel: "Contact support",
+          vaultEmailSenderLocalPart: null,
+          verificationNote: null,
+          accountRestrictionReason: null,
+          accountRestrictionNotes: null,
+          accountRestrictedByUserId: null,
+          acceptedTermsAt: null,
+          transferAccessGranted: false,
+          testingModeDisabled: true,
+          vaultSubscriptionStatus: "inactive",
+          vaultSubscriptionPlan: null,
+          vaultSubscriptionAmountMinor: null,
+          vaultSubscriptionAutoRenew: false,
+          vaultPaystackPlanCode: null,
+          vaultEmailAlertsEnabled: false,
+          vaultEmailIncludeSupportLink: false,
+          pushTransferAlertsEnabled: false,
+          pushWalletAlertsEnabled: false,
+          pushSecurityAlertsEnabled: false,
+          accountStatus: "deletion_pending",
+          updatedAt: now,
+        }).where(eq(bankUsersTable.id, target.id));
+        await tx.insert(bankAuditLogsTable).values({
+          actorUserId: actor.id,
+          targetUserId: target.id,
+          action: "customer_personal_data_erasure_requested",
+          reason: reason.slice(0, 500),
+        });
+      });
+    } catch {
+      res.status(500).json({ error: "Customer data erasure could not be prepared. No success was recorded." });
+      return;
+    }
+
+    try {
+      await clerkClient.users.deleteUser(target.id);
+      await db.update(bankUsersTable)
+        .set({ accountStatus: "deleted", updatedAt: new Date() })
+        .where(eq(bankUsersTable.id, target.id));
+      res.json({
+        deleted: true,
+        userId: target.id,
+        retainedRecords: "Financial ledger and transaction records may be retained where legally required; personal profile and Vault authentication data were erased.",
+      });
+    } catch (error: unknown) {
+      const status = typeof error === "object" && error !== null && "status" in error
+        ? Number((error as { status?: unknown }).status)
+        : 0;
+      if (status === 404) {
+        await db.update(bankUsersTable)
+          .set({ accountStatus: "deleted", updatedAt: new Date() })
+          .where(eq(bankUsersTable.id, target.id));
+        res.json({ deleted: true, userId: target.id, retainedRecords: "Required financial records may remain in pseudonymous form." });
+        return;
+      }
+      res.status(202).json({
+        deleted: false,
+        pending: true,
+        userId: target.id,
+        error: "Personal data has been scrubbed from the application profile, but identity-provider deletion is pending. Retry this operation after checking the Clerk connection.",
+      });
+    }
+  },
+);
+
 export default router;
