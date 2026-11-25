@@ -564,7 +564,10 @@ function MemberDetail({ userId }: { userId: string }) {
       });
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : 'Customer data erasure could not be completed.');
-      if (result.pending) throw new Error(typeof result.error === 'string' ? result.error : 'Identity-provider deletion is pending. Retry after checking the Clerk connection.');
+      if (result.pending) {
+        await refresh();
+        throw new Error(typeof result.error === 'string' ? result.error : 'Customer data erasure is pending. Resolve the reported cleanup step and retry.');
+      }
       setMessage('Customer application data was erased. Required financial and audit records may remain in pseudonymous form.');
       setEraseConfirmation('');
       setEraseReason('');
