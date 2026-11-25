@@ -1387,8 +1387,6 @@ test.describe('compact admin overview and member directory at phone widths', () 
     });
   }
 
-});
-
   test('member directory and detail show access state and require reasoned confirmation', async ({ page }) => {
     let savedPayload: Record<string, unknown> | null = null;
     let testingModeDisabled = false;
