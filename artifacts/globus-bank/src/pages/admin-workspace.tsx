@@ -312,114 +312,63 @@ function UsersPage() {
     ...(search.trim() ? { search: search.trim() } : {}),
     ...(status ? { accountStatus: status as ListAdminUsersParams['accountStatus'] } : {}),
     ...(vaultStatus ? { vaultSubscriptionStatus: vaultStatus as ListAdminUsersParams['vaultSubscriptionStatus'] } : {}),
-    page,
-    limit: 25,
+    page, limit: 25,
   }), [search, page, status, vaultStatus]);
   const users = useListAdminUsers(params, { query: { queryKey: getListAdminUsersQueryKey(params) } });
   const summary = useGetAdminSummary({ query: { queryKey: getGetAdminSummaryQueryKey(), retry: false } });
   const recentParams: ListAdminTransactionsParams = { page: 1, pageSize: 4 };
-  const recentTransactions = useListAdminTransactions(recentParams, {
-    query: { queryKey: getListAdminTransactionsQueryKey(recentParams) },
-  });
+  const recentTransactions = useListAdminTransactions(recentParams, { query: { queryKey: getListAdminTransactionsQueryKey(recentParams) } });
   const metrics = [
-    { label: 'Total members', value: summary.data?.registeredUsers ?? users.data?.total, note: 'Registered member records', icon: Users },
-    { label: 'Pending operations', value: summary.data?.pendingOperations, note: 'Waiting for review', icon: FileClock },
-    { label: 'Active accounts', value: summary.data?.activeAccounts, note: 'Not restricted or suspended', icon: WalletCards },
-    { label: 'Ledger transactions', value: summary.data?.ledgerTransactions, note: 'Recorded account activity', icon: Activity },
+    { label: 'Total members', value: summary.data?.registeredUsers ?? users.data?.total, icon: Users },
+    { label: 'Pending operations', value: summary.data?.pendingOperations, icon: FileClock },
+    { label: 'Active accounts', value: summary.data?.activeAccounts, icon: WalletCards },
+    { label: 'Ledger transactions', value: summary.data?.ledgerTransactions, icon: Activity },
   ];
 
-  return <div data-testid="admin-member-directory" className="space-y-4">
-    <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <p className="text-[9px] font-bold uppercase tracking-[.17em] text-[#578b85]">Customer operations</p>
-        <h1 className="mt-1 font-[family-name:var(--app-font-sans)] text-[26px] font-extrabold tracking-[-.055em] text-[#1c3a47] sm:text-[29px]">Member directory</h1>
-        <p className="mt-1 text-[11px] text-[#788b89]">Review customer profiles, account standing, and access.</p>
-      </div>
-      <Link data-testid="link-open-admin-funding" href="/admin/funding" className={button}><Banknote size={14} />Funding operations</Link>
-    </div>
-
+  return <div data-testid="admin-member-directory" className="min-w-0 w-full space-y-3">
+    <header className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+      <div className="min-w-0"><p className="text-[8px] font-bold uppercase tracking-[.17em] text-[#578b85]">Customer operations</p><h1 className="mt-0.5 text-[21px] font-extrabold tracking-[-.045em] text-[#1c3a47] sm:text-[25px]">Member directory</h1><p className="mt-0.5 text-[10px] text-[#788b89]">Member profiles, account standing and access controls.</p></div>
+      <Link data-testid="link-open-admin-funding" href="/admin/funding" className={`${button} px-2.5 py-2 text-[9px]`}><Banknote size={12} />Funding</Link>
+    </header>
     {summary.isError && <InlineError text="Workspace totals could not be loaded." retry={() => summary.refetch()} />}
-    <section aria-label="Member and account totals" className="grid grid-cols-2 gap-2.5 md:grid-cols-4">
-      {metrics.map(({ label, value, note, icon: Icon }) => (
-        <article key={label} data-testid={`admin-metric-${label.toLowerCase().replaceAll(' ', '-')}`} className="rounded-[11px] border border-[#e0e8e2] bg-[#fffefa] px-3.5 py-3 shadow-[0_2px_8px_rgba(35,65,62,.025)] sm:px-4">
-          <div className="flex items-center justify-between"><span className="text-[9px] font-semibold text-[#82918d]">{label}</span><Icon size={14} className="text-[#82a19a]" /></div>
-          <div className="mt-1.5 flex items-baseline gap-2"><strong className="font-mono text-[21px] font-semibold tracking-[-.04em] text-[#24424b]">{typeof value === 'number' ? value.toLocaleString() : '—'}</strong><span className="hidden text-[9px] text-[#7d918d] sm:inline">{note}</span></div>
-        </article>
-      ))}
+    <section aria-label="Member and account totals" className="grid min-w-0 grid-cols-2 gap-1.5 sm:grid-cols-4">
+      {metrics.map(({ label, value, icon: Icon }) => <article key={label} data-testid={`admin-metric-${label.toLowerCase().replaceAll(' ', '-')}`} className="min-w-0 rounded-[10px] border border-[#e0e8e2] bg-[#fffefa] px-2.5 py-2 shadow-[0_2px_8px_rgba(35,65,62,.025)] sm:px-3 sm:py-2.5"><div className="flex min-w-0 items-center justify-between gap-1"><span className="truncate text-[8px] font-semibold text-[#82918d]">{label}</span><Icon size={12} className="shrink-0 text-[#82a19a]" /></div><strong className="mt-1 block truncate font-mono text-[18px] font-semibold tracking-[-.04em] text-[#24424b] sm:text-[20px]">{typeof value === 'number' ? value.toLocaleString() : '—'}</strong></article>)}
     </section>
-
-    <div className="grid items-start gap-4 xl:grid-cols-[minmax(0,1fr)_268px]">
+    <div className="grid min-w-0 items-start gap-2.5 xl:grid-cols-[minmax(0,1fr)_230px]">
       <section data-testid="admin-members-panel" className="min-w-0 overflow-hidden rounded-[12px] border border-[#dfe8e2] bg-[#fffefa] shadow-[0_3px_12px_rgba(35,65,62,.035)]">
-        <div className="flex flex-wrap items-center justify-between gap-3 border-b border-[#e9eeea] px-4 py-3.5 sm:px-5">
-          <div><div className="flex items-center gap-2"><h2 className="text-[13px] font-bold text-[#29434a]">Customer records</h2><span data-testid="admin-member-total" className="rounded-full bg-[#eef3ef] px-2 py-0.5 text-[9px] font-semibold text-[#70827e]">{users.data?.total ?? '—'}</span></div><p className="mt-0.5 text-[9px] text-[#879592]">Member identity and account standing · phone details are masked in this list</p></div>
-          <span className="text-[9px] text-[#879592]">Sorted by most recent</span>
+        <div className="flex min-w-0 items-center justify-between gap-2 border-b border-[#e9eeea] px-3 py-2.5"><div className="min-w-0"><div className="flex items-center gap-1.5"><h2 className="text-[12px] font-bold text-[#29434a]">Customer records</h2><span data-testid="admin-member-total" className="rounded-full bg-[#eef3ef] px-1.5 py-0.5 text-[8px] font-semibold text-[#70827e]">{users.data?.total ?? '—'}</span></div><p className="mt-0.5 truncate text-[8px] text-[#879592]">Identity, account standing and access · phone details masked</p></div><span className="shrink-0 text-[8px] text-[#879592]">Newest first</span></div>
+        <div className="grid min-w-0 grid-cols-2 gap-1.5 border-b border-[#e9eeea] bg-[#f8faf6] p-2 sm:grid-cols-[minmax(0,1fr)_minmax(130px,170px)_minmax(140px,180px)]">
+          <label className="relative col-span-2 min-w-0 sm:col-span-1"><Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-[#8a9a9b]" /><input data-testid="input-admin-member-search" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className={`${input} h-8 min-w-0 pl-8 text-[10px]`} placeholder="Name, email or Customer ID" /></label>
+          <select data-testid="select-admin-account-status" aria-label="Filter by account state" value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className={`${input} h-8 min-w-0 px-2 text-[9px]`}><option value="">All account states</option><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option></select>
+          <select data-testid="select-admin-vault-status" aria-label="Filter by Private Vault access" value={vaultStatus} onChange={e => { setVaultStatus(e.target.value); setPage(1); }} className={`${input} h-8 min-w-0 px-2 text-[9px]`}><option value="">All Vault access</option><option value="pending">Legacy pending</option><option value="active">Active Vault</option><option value="expired">Expired Vault</option><option value="rejected">Declined legacy</option><option value="inactive">No subscription</option></select>
         </div>
-        <div className="flex flex-wrap gap-2 border-b border-[#e9eeea] bg-[#f8faf6] p-3.5 sm:p-4">
-          <label className="relative min-w-[200px] flex-1">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8a9a9b]" />
-            <input data-testid="input-admin-member-search" value={search} onChange={e => { setSearch(e.target.value); setPage(1); }} className={`${input} h-9 pl-9 text-[11px]`} placeholder="Name, email or Customer ID" />
-          </label>
-          <select data-testid="select-admin-account-status" aria-label="Filter by account state" value={status} onChange={e => { setStatus(e.target.value); setPage(1); }} className={`${input} h-9 w-auto min-w-[145px] text-[10px]`}>
-            <option value="">All account states</option><option value="active">Active</option><option value="restricted">Restricted</option><option value="suspended">Suspended</option>
-          </select>
-          <select data-testid="select-admin-vault-status" aria-label="Filter by Private Vault access" value={vaultStatus} onChange={e => { setVaultStatus(e.target.value); setPage(1); }} className={`${input} h-9 w-auto min-w-[165px] text-[10px]`}>
-            <option value="">All Vault access</option><option value="pending">Legacy pending requests</option><option value="active">Active Vault access</option><option value="expired">Expired Vault access</option><option value="rejected">Declined legacy requests</option><option value="inactive">No subscription</option>
-          </select>
-        </div>
-        {users.isLoading ? <Skeleton /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <>
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1040px] text-left">
-              <thead className="bg-[#f7f9f5] text-[8px] font-bold uppercase tracking-[.11em] text-[#899792]">
-                <tr>{['Member', 'Account', 'Account tier', 'Vault', 'Testing mode', 'Transfer access', 'Profile setup', 'Wallets', 'Created', ''].map((label, index) => <th key={`${label}-${index}`} className="px-3 py-2.5 sm:px-4">{label}</th>)}</tr>
-              </thead>
-              <tbody>{users.data.items.map(member => {
-                const vaultStatus = member.vaultSubscriptionStatus === 'active' && member.vaultSubscriptionExpiresAt && Date.parse(member.vaultSubscriptionExpiresAt) <= Date.now()
-                  ? 'expired'
-                  : member.vaultSubscriptionStatus || 'inactive';
-                return <tr key={member.id} data-testid={`row-admin-member-${member.id}`} className="border-t border-[#edf1ed] text-[10px] transition hover:bg-[#fafbf8]">
-                  <td className="px-3 py-3 sm:px-4"><div className="flex items-center gap-2.5"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e6f0e9] text-[9px] font-bold text-[#47755e]">{[member.firstName?.[0], member.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'G'}</div><div className="min-w-0"><Link href={`/admin/users/${encodeURIComponent(member.id)}`} className="block truncate text-[10px] font-bold text-[#344c51] hover:text-[#2f675f] hover:underline">{nameOf(member)}</Link><p className="truncate text-[9px] text-[#899793]">{member.email}</p><p className="mt-0.5 font-mono text-[8px] text-[#96a29e]">{member.customerId || 'No Customer ID'}</p></div></div></td>
-                  <td className="px-3 py-3"><StatusPill status={member.accountStatus} /></td>
-                  <td data-testid={`member-account-tier-${member.id}`} className="whitespace-nowrap px-3 py-3"><Pill tone={member.accountTierSource === 'default' ? 'neutral' : 'good'}>{member.accountTierName}</Pill>{member.adminAccountTier && <span className="mt-1 block text-[8px] text-[#7c8e92]">Admin base tier</span>}</td>
-                  <td className="px-3 py-3"><StatusPill status={vaultStatus} /></td>
-                  <td className="px-3 py-3"><Pill tone={member.testingModeDisabled ? 'good' : 'warn'}>{member.testingModeDisabled ? 'Off' : 'On'}</Pill></td>
-                  <td className="px-3 py-3"><Pill tone={member.transferAccessGranted ? 'good' : 'neutral'}>{member.transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></td>
-                  <td data-testid={`member-profile-setup-${member.id}`} className="whitespace-nowrap px-3 py-3"><Pill tone={member.profileSetupCompletedAt ? 'good' : 'warn'}>{member.profileSetupCompletedAt ? `Complete · ${date(member.profileSetupCompletedAt)}` : 'Missing'}</Pill></td>
-                  <td className="px-3 py-3 font-mono text-[#526a67]">{member.walletCount}</td>
-                  <td className="whitespace-nowrap px-3 py-3 text-[#7a8e90]">{date(member.createdAt)}</td>
-                  <td className="whitespace-nowrap px-3 py-3"><Link href={`/admin/users/${encodeURIComponent(member.id)}`} className={quietButton}>Open record <ArrowRight size={12} /></Link></td>
-                </tr>;
-              })}</tbody>
-            </table>
+        {users.isLoading ? <Skeleton rows={5} /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <>
+          <div data-testid="admin-member-card-grid" className="grid min-w-0 grid-cols-1 gap-2 p-2 sm:grid-cols-2 xl:grid-cols-3">
+            {users.data.items.map(member => {
+              const effectiveVaultStatus = member.vaultSubscriptionStatus === 'active' && member.vaultSubscriptionExpiresAt && Date.parse(member.vaultSubscriptionExpiresAt) <= Date.now() ? 'expired' : member.vaultSubscriptionStatus || 'inactive';
+              return <article key={member.id} data-testid={`row-admin-member-${member.id}`} className="min-w-0 overflow-hidden rounded-[10px] border border-[#e4ebe5] bg-white p-2.5 shadow-[0_1px_5px_rgba(35,65,62,.025)]">
+                <div className="flex min-w-0 items-center gap-2"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e6f0e9] text-[9px] font-bold text-[#47755e]">{[member.firstName?.[0], member.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'G'}</div><div className="min-w-0 flex-1"><Link href={`/admin/users/${encodeURIComponent(member.id)}`} className="block truncate text-[10px] font-bold text-[#344c51] hover:text-[#2f675f] hover:underline">{nameOf(member)}</Link><p className="break-all text-[8px] leading-3 text-[#899793]">{member.email}</p><p className="truncate font-mono text-[7px] text-[#96a29e]">{member.customerId || 'No Customer ID'}</p></div><Link href={`/admin/users/${encodeURIComponent(member.id)}`} aria-label={`Open ${nameOf(member)} record`} className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#dbe4e5] px-2 py-1.5 text-[8px] font-semibold text-[#425d69]">Open<ArrowRight size={10} /></Link></div>
+                <div className="mt-2 grid min-w-0 grid-cols-2 gap-x-2 gap-y-1.5 border-t border-[#edf1ed] pt-2"><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Account</p><div className="mt-0.5"><StatusPill status={member.accountStatus} /></div></div><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Tier</p><p data-testid={`member-account-tier-${member.id}`} className="mt-0.5 truncate text-[8px] font-semibold text-[#4a6565]">{member.accountTierName}</p></div></div>
+                <div className="mt-1.5 grid min-w-0 grid-cols-2 gap-x-2 border-t border-[#f0f3ef] pt-1.5"><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Private Vault</p><div className="mt-0.5"><StatusPill status={effectiveVaultStatus} /></div></div><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Wallets</p><p className="mt-0.5 text-[8px] font-semibold text-[#4a6565]">{member.walletCount}</p></div></div>
+                <div className="mt-1.5 grid min-w-0 grid-cols-2 gap-x-2 border-t border-[#f0f3ef] pt-1.5"><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Testing mode</p><p className="mt-0.5 text-[8px] font-semibold text-[#4a6565]">{member.testingModeDisabled ? 'Off' : 'On'}</p></div><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Transfer access</p><p className="mt-0.5 truncate text-[8px] font-semibold text-[#4a6565]">{member.transferAccessGranted ? 'Granted' : 'Not granted'}</p></div></div>
+                <div className="mt-1.5 grid min-w-0 grid-cols-2 gap-x-2 border-t border-[#f0f3ef] pt-1.5"><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Profile setup</p><p data-testid={`member-profile-setup-${member.id}`} className="mt-0.5 truncate text-[8px] font-semibold text-[#4a6565]">{member.profileSetupCompletedAt ? `Complete · ${date(member.profileSetupCompletedAt)}` : 'Missing'}</p></div><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Created</p><p className="mt-0.5 truncate text-[8px] text-[#7a8e90]">{date(member.createdAt)}</p></div></div>
+              </article>;
+            })}
           </div>
           <Pager page={page} pages={Math.ceil(users.data.total / Math.max(1, users.data.pageSize))} onChange={setPage} />
         </> : <Empty title="No members match" text="Try another name, email, Customer ID, or access filter." />}
       </section>
-
-      <aside className="space-y-3">
-        <section data-testid="admin-recent-ledger" className="overflow-hidden rounded-[12px] border border-[#dfe8e2] bg-[#fffefa] shadow-[0_3px_12px_rgba(35,65,62,.035)]">
-          <div className="flex items-start justify-between border-b border-[#e9eeea] px-4 py-3.5">
-            <div><h2 className="text-[12px] font-bold text-[#29434a]">Recent ledger activity</h2><p className="mt-0.5 text-[9px] text-[#879592]">Latest recorded transactions</p></div>
-            <Link data-testid="link-view-admin-transactions" href="/admin/transactions" className="text-[9px] font-bold text-[#52857c] hover:text-[#315f59]">View all</Link>
-          </div>
-          {recentTransactions.isLoading ? <Skeleton rows={3} /> : recentTransactions.isError ? <div className="p-4"><InlineError text="Recent transactions could not be loaded." retry={() => recentTransactions.refetch()} /></div> : recentTransactions.data?.items.length ? <div className="divide-y divide-[#edf1ed]">
-            {recentTransactions.data.items.map(transaction => <article key={transaction.id} data-testid={`recent-ledger-${transaction.id}`} className="flex items-center gap-2.5 px-4 py-3">
-              <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#e8f2eb] text-[#57816a]"><Activity size={13} /></div>
-              <div className="min-w-0 flex-1"><p className="truncate text-[9px] font-bold text-[#425958]">{transaction.description || human(transaction.type)}</p><p className="truncate text-[8px] text-[#899793]">{transaction.counterparty || transaction.reference}</p><div className="mt-1 flex flex-wrap items-center gap-1.5"><StatusPill status={transaction.status} /><time className="text-[8px] text-[#a0aaa6]">Customer date {customerTransactionDate(transaction.transactionDate, transaction.createdAt)}</time></div></div>
-              <span className="whitespace-nowrap text-[9px] font-bold text-[#4b8067]">{money(transaction.amount, transaction.currency)}</span>
-            </article>)}
-          </div> : <Empty title="No ledger activity" text="New transaction records will appear here." />}
-          <Link href="/admin/transactions" className="block w-full border-t border-[#e9eeea] py-2.5 text-center text-[9px] font-semibold text-[#63827b] hover:bg-[#f7faf6]">Open transaction management</Link>
+      <aside className="min-w-0 space-y-2">
+        <section data-testid="admin-recent-ledger" className="min-w-0 overflow-hidden rounded-[12px] border border-[#dfe8e2] bg-[#fffefa] shadow-[0_3px_12px_rgba(35,65,62,.035)]">
+          <div className="flex min-w-0 items-start justify-between gap-2 border-b border-[#e9eeea] px-3 py-2.5"><div className="min-w-0"><h2 className="text-[11px] font-bold text-[#29434a]">Recent ledger activity</h2><p className="mt-0.5 text-[8px] text-[#879592]">Latest recorded transactions</p></div><Link data-testid="link-view-admin-transactions" href="/admin/transactions" className="shrink-0 text-[8px] font-bold text-[#52857c]">View all</Link></div>
+          {recentTransactions.isLoading ? <Skeleton rows={3} /> : recentTransactions.isError ? <div className="p-3"><InlineError text="Recent transactions could not be loaded." retry={() => recentTransactions.refetch()} /></div> : recentTransactions.data?.items.length ? <div className="divide-y divide-[#edf1ed]">{recentTransactions.data.items.map(transaction => <article key={transaction.id} data-testid={`recent-ledger-${transaction.id}`} className="flex min-w-0 items-center gap-2 px-3 py-2"><div className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-[#e8f2eb] text-[#57816a]"><Activity size={12} /></div><div className="min-w-0 flex-1"><p className="truncate text-[8px] font-bold text-[#425958]">{transaction.description || human(transaction.type)}</p><p className="truncate text-[7px] text-[#899793]">{transaction.counterparty || transaction.reference}</p><div className="mt-0.5 flex min-w-0 flex-wrap items-center gap-1"><StatusPill status={transaction.status} /><time className="text-[7px] text-[#a0aaa6]">Customer date {customerTransactionDate(transaction.transactionDate, transaction.createdAt)}</time></div></div><span className="shrink-0 text-[8px] font-bold text-[#4b8067]">{money(transaction.amount, transaction.currency)}</span></article>)}</div> : <Empty title="No ledger activity" text="New transaction records will appear here." />}
+          <Link href="/admin/transactions" className="block w-full border-t border-[#e9eeea] py-2 text-center text-[8px] font-semibold text-[#63827b]">Open transaction management</Link>
         </section>
-        <section className="rounded-[12px] border border-[#e4e9df] bg-[#f7f8f0] px-4 py-3.5">
-          <div className="flex items-center gap-2"><div className="grid h-7 w-7 place-items-center rounded-[8px] bg-[#e9eddc] text-[#7d895a]"><ShieldCheck size={14} /></div><p className="text-[10px] font-bold text-[#4b6158]">Protected operations</p></div>
-          <p className="mt-2 text-[9px] leading-[1.6] text-[#75857c]">Review member context and active restrictions before changing access. Administrative changes are recorded in the audit log.</p>
-          <Link data-testid="link-review-admin-audit" href="/admin/audit" className="mt-2 inline-flex text-[9px] font-bold text-[#63806e] hover:underline">Review audit log</Link>
-        </section>
+        <section className="rounded-[10px] border border-[#e4e9df] bg-[#f7f8f0] px-3 py-2.5"><div className="flex items-center gap-2"><ShieldCheck size={13} /><p className="text-[9px] font-bold text-[#4b6158]">Protected operations</p></div><p className="mt-1.5 text-[8px] leading-[1.5] text-[#75857c]">Review member context and active restrictions before changing access. Administrative changes are recorded in the audit log.</p><Link data-testid="link-review-admin-audit" href="/admin/audit" className="mt-1.5 inline-flex text-[8px] font-bold text-[#63806e] hover:underline">Review audit log</Link></section>
       </aside>
     </div>
   </div>;
 }
-
 function MemberDetail({ userId }: { userId: string }) {
   const client = useQueryClient();
   const detail = useGetAdminUserDetail(userId, { query: { queryKey: getGetAdminUserDetailQueryKey(userId), enabled: !!userId } });
