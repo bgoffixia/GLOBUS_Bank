@@ -180,16 +180,30 @@ export function CustomerSupportPage() {
   const [firstMessage, setFirstMessage] = useState('');
   const [category, setCategory] = useState<'general' | 'private_vault' | 'transfer'>('general');
   const [transferReference, setTransferReference] = useState('');
+  const [transferLinkReference, setTransferLinkReference] = useState('');
   const [formError, setFormError] = useState('');
   useEffect(() => {
     const reference = new URLSearchParams(window.location.search).get('transfer');
     if (reference) {
+      setTransferLinkReference(reference);
       setCategory('transfer');
       setTransferReference(reference);
       setSubject('Support with transfer recipient');
-      setCompose(true);
     }
   }, []);
+  useEffect(() => {
+    if (!transferLinkReference || conversations.isLoading) return;
+    const existing = items.find(item =>
+      item.category === 'transfer' && item.transferReference === transferLinkReference
+    );
+    if (existing) {
+      setSelectedId(existing.id);
+      setMobileThread(true);
+      setCompose(false);
+    } else {
+      setCompose(true);
+    }
+  }, [items, transferLinkReference, conversations.isLoading]);
   const created = useCreateBankSupportConversation();
   const send = useSendBankSupportMessage();
   const markRead = useMarkBankSupportConversationRead();
