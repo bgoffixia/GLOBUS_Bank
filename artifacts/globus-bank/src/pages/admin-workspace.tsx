@@ -165,6 +165,7 @@ export function AdminWorkspace() {
 
 function WorkspaceFrame({ children, active, title, authorized }: { children: ReactNode; active: string; title: string; authorized: boolean }) {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const { user } = useUser();
   const { t } = useLanguage();
   const email = user?.primaryEmailAddress?.emailAddress || '';
@@ -175,58 +176,63 @@ function WorkspaceFrame({ children, active, title, authorized }: { children: Rea
       : href === '/admin/users'
         ? active === 'users' || active === 'member-detail'
         : active === href.split('/')[2];
-  const navigationLink = (item: (typeof nav)[number], onNavigate?: () => void) => {
+  const navigationLink = (item: (typeof nav)[number], onNavigate?: () => void, compact = false) => {
     const Icon = item.icon;
     return (
       <Link
         key={item.path}
         href={item.path}
         onClick={onNavigate}
+        aria-label={compact ? t(item.label) : undefined}
+        title={compact ? t(item.label) : undefined}
         aria-current={isActive(item.path) ? 'page' : undefined}
         data-testid={`admin-nav-${item.path === '/admin' ? 'overview' : item.path.slice('/admin/'.length).replaceAll('/', '-')}`}
-        className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-[9px] text-[11px] font-semibold transition-colors ${
-          isActive(item.path) ? 'bg-[#d9c27f] text-[#1d3c48]' : 'text-[#c1d2d1] hover:bg-white/[.07] hover:text-white'
-        }`}
+        className={`flex w-full items-center gap-3 rounded-[9px] px-3 py-[10px] text-[11px] font-semibold transition-colors ${
+          compact ? 'justify-center px-2' : ''
+        } ${isActive(item.path) ? 'bg-[#d9c27f] text-[#1d3c48]' : 'text-[#c1d2d1] hover:bg-white/[.07] hover:text-white'}`}
       >
-        <Icon size={15} strokeWidth={1.8} />
-        <span className="flex-1">{t(item.label)}</span>
+        <Icon size={16} strokeWidth={1.8} />
+        {!compact && <span className="min-w-0 flex-1 truncate">{t(item.label)}</span>}
       </Link>
     );
   };
-  const navContent = (onNavigate?: () => void) => <nav aria-label={t('Administration navigation')} className="min-h-0 flex-1 space-y-0.5 overflow-y-auto px-2.5">{nav.map(item => navigationLink(item, onNavigate))}</nav>;
+  const navContent = (onNavigate?: () => void, compact = false) => <nav aria-label={t('Administration navigation')} className={`min-h-0 flex-1 space-y-1 overflow-y-auto ${compact ? 'px-2' : 'px-2.5'}`}>{nav.map(item => navigationLink(item, onNavigate, compact))}</nav>;
   const identityCard = <div className="flex items-center gap-2.5 rounded-[9px] bg-white/[.045] p-2.5">
     <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#d7e8e3] text-[10px] font-bold text-[#244a54]">{initials}</div>
     <div className="min-w-0 flex-1"><p className="truncate text-[10px] font-bold text-white">{user?.fullName || t('Administrator')}</p><p className="truncate text-[9px] text-[#9eb5b6]">{email || t('Authorized operator')}</p></div>
   </div>;
-  return <div className="admin-viewport bg-[#f1f5f0] text-[#243d4b]">
+  return <div className="admin-viewport bg-[#edf3f6] text-[#243d4b]">
     <aside className="admin-sidebar hidden h-full w-[218px] shrink-0 flex-col bg-[#173b49] text-[#dbe8e5] lg:flex">
       <div className="flex h-[66px] items-center gap-3 border-b border-white/[.09] px-5">
         <div className="grid h-9 w-9 shrink-0 place-items-center rounded-[11px] bg-[#d9c27f] text-[#173b49]"><span className="font-[family-name:var(--app-font-sans)] text-[19px] font-extrabold">G</span></div>
         <div className="leading-none"><p className="text-[15px] font-extrabold tracking-[-.06em] text-white">GLOBUS</p><p className="mt-1.5 text-[8px] font-bold tracking-[.22em] text-[#dfc87f]">BANK · OPERATIONS</p></div>
       </div>
-      <div className="mx-3.5 my-4 rounded-[10px] border border-white/[.09] bg-white/[.045] px-3 py-2.5">
+      {!sidebarCollapsed && <div className="mx-3.5 my-4 rounded-[10px] border border-white/[.09] bg-white/[.045] px-3 py-2.5">
         <p className="flex items-center gap-2 text-[9px] font-bold uppercase tracking-[.12em] text-[#9fcec1]"><span className={`h-1.5 w-1.5 rounded-full ${authorized ? 'bg-[#7cc6aa]' : 'bg-[#c19c50]'}`} />{authorized ? 'Operations live' : 'Access protected'}</p>
         <p className="mt-1 text-[10px] text-[#a9c0c1]">Administrative workspace</p>
-      </div>
-      <p className="px-5 pb-2 text-[8px] font-bold uppercase tracking-[.17em] text-[#839fa4]">Workspace</p>
-      {navContent()}
-      <div className="mx-3.5 mb-3 rounded-[9px] border border-white/[.08] bg-white/[.035] p-3">
+      </div>}
+      {!sidebarCollapsed && <p className="px-5 pb-2 text-[8px] font-bold uppercase tracking-[.17em] text-[#839fa4]">Workspace</p>}
+      {navContent(undefined, sidebarCollapsed)}
+      {!sidebarCollapsed && <div className="mx-3.5 mb-3 rounded-[9px] border border-white/[.08] bg-white/[.035] p-3">
         <div className="flex items-center gap-2 text-[#c7d6d4]"><ShieldCheck size={14} /><span className="text-[10px] font-semibold">Protected workspace</span></div>
         <p className="mt-1.5 pl-[22px] text-[9px] text-[#8fa9aa]">Financial changes are audited</p>
+      </div>}
+      <div className="border-t border-white/[.09] p-2">
+        {sidebarCollapsed ? <button type="button" aria-label="Expand sidebar" title="Expand sidebar" onClick={() => setSidebarCollapsed(false)} className="grid h-10 w-full place-items-center rounded-lg text-[#c1d2d1] hover:bg-white/[.07]"><ChevronRight size={17} /></button> : <><div className="mb-2">{identityCard}</div><button type="button" aria-label="Collapse sidebar" onClick={() => setSidebarCollapsed(true)} className="flex w-full items-center justify-center gap-2 rounded-lg px-2 py-2 text-[9px] font-semibold text-[#9eb5b6] hover:bg-white/[.07]"><ChevronLeft size={14} />Collapse sidebar</button></>}
       </div>
-      <div className="border-t border-white/[.09] p-3">{identityCard}</div>
     </aside>
     <div className="admin-main-column">
-      <header className="z-30 border-b border-[#e1e9e4] bg-[#f7f9f5]/95 shadow-[0_2px_10px_rgba(28,53,69,.025)] backdrop-blur">
-        <div className="flex min-h-[58px] items-center justify-between gap-3 px-3 sm:px-6">
+      <header className="sticky top-0 z-30 border-b border-[#dce5eb] bg-[#f7f9fb]/95 shadow-[0_2px_10px_rgba(16,47,77,.06)] backdrop-blur">
+        <div className="flex min-h-[64px] items-center justify-between gap-3 px-3 sm:px-6">
           <div className="flex min-w-0 items-center gap-2.5">
-            <button type="button" aria-label="Open admin navigation" aria-expanded={mobileMenuOpen} aria-controls="admin-mobile-navigation" onClick={() => setMobileMenuOpen(true)} data-testid="button-open-admin-navigation" className="rounded-md p-1.5 text-[#3b6168] hover:bg-[#e8efea] lg:hidden"><Menu size={18} /></button>
-            <div className="min-w-0"><p className="truncate text-[10px] text-[#859492]"><span className="hidden sm:inline">Globus Bank&nbsp; / &nbsp;</span><span className="font-semibold text-[#3e575b]">{title}</span></p></div>
+            <button type="button" aria-label="Open admin navigation" aria-expanded={mobileMenuOpen} aria-controls="admin-mobile-navigation" onClick={() => setMobileMenuOpen(true)} data-testid="button-open-admin-navigation" className="rounded-md p-1.5 text-[#173b50] hover:bg-[#e8eff4] lg:hidden"><Menu size={18} /></button>
+            <button type="button" aria-label={sidebarCollapsed ? 'Expand admin sidebar' : 'Collapse admin sidebar'} aria-expanded={!sidebarCollapsed} onClick={() => setSidebarCollapsed(value => !value)} data-testid="button-toggle-admin-sidebar" className="hidden rounded-md p-2 text-[#173b50] hover:bg-[#e8eff4] lg:inline-flex"><Menu size={18} /></button>
+            <div className="min-w-0"><p className="truncate text-[10px] text-[#859492]"><span className="hidden sm:inline">Globus Bank&nbsp; / &nbsp;</span><span className="font-semibold text-[#173b50]">{title}</span></p></div>
           </div>
           <div className="flex min-w-0 items-center gap-2.5">
             <AppLanguageSelector className="min-h-8" />
             {authorized && <div className="hidden items-center gap-1.5 rounded-full border border-[#dce7df] bg-[#f0f6f0] px-2.5 py-1.5 sm:flex"><ShieldCheck size={12} className="text-[#57816d]" /><span className="text-[9px] font-semibold text-[#557364]">Authorized</span></div>}
-            <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full border border-[#d9e3dd] bg-[#e7efea] text-[9px] font-bold text-[#365963]">{initials}</div>
+            <div className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-[#d7e3eb] bg-white text-[10px] font-bold text-[#173b50]">{initials}</div>
           </div>
         </div>
       </header>
@@ -345,13 +351,10 @@ function UsersPage() {
         {users.isLoading ? <Skeleton rows={5} /> : users.isError ? <InlineError text="Member records could not be loaded." retry={() => users.refetch()} /> : users.data?.items.length ? <>
           <div data-testid="admin-member-card-grid" className="grid min-w-0 grid-cols-1 gap-2 p-2 sm:grid-cols-2 xl:grid-cols-3">
             {users.data.items.map(member => {
-              const effectiveVaultStatus = member.vaultSubscriptionStatus === 'active' && member.vaultSubscriptionExpiresAt && Date.parse(member.vaultSubscriptionExpiresAt) <= Date.now() ? 'expired' : member.vaultSubscriptionStatus || 'inactive';
-              return <article key={member.id} data-testid={`row-admin-member-${member.id}`} data-member-card-rows="5" className="min-w-0 overflow-hidden rounded-[10px] border border-[#e4ebe5] bg-white p-2.5 shadow-[0_1px_5px_rgba(35,65,62,.025)]">
+              return <article key={member.id} data-testid={`row-admin-member-${member.id}`} data-member-card-rows="2" className="min-w-0 overflow-hidden rounded-[10px] border border-[#e4ebe5] bg-white p-2.5 shadow-[0_1px_5px_rgba(35,65,62,.025)]">
                 <div className="flex min-w-0 items-center gap-2"><div className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-[#e6f0e9] text-[9px] font-bold text-[#47755e]">{[member.firstName?.[0], member.lastName?.[0]].filter(Boolean).join('').toUpperCase() || 'G'}</div><div className="min-w-0 flex-1"><Link href={`/admin/users/${encodeURIComponent(member.id)}`} className="block truncate text-[10px] font-bold text-[#344c51] hover:text-[#2f675f] hover:underline">{nameOf(member)}</Link><p className="break-all text-[8px] leading-3 text-[#899793]">{member.email}</p><p className="truncate font-mono text-[7px] text-[#96a29e]">{member.customerId || 'No Customer ID'}</p></div><Link href={`/admin/users/${encodeURIComponent(member.id)}`} aria-label="Open record" className="inline-flex shrink-0 items-center gap-1 rounded-md border border-[#dbe4e5] px-2 py-1.5 text-[8px] font-semibold text-[#425d69]">Open<ArrowRight size={10} /></Link></div>
                 <div className="mt-2 grid min-w-0 grid-cols-2 gap-x-2 gap-y-1.5 border-t border-[#edf1ed] pt-2"><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Account</p><div className="mt-0.5"><StatusPill status={member.accountStatus} /></div></div><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Tier</p><p data-testid={`member-account-tier-${member.id}`} className="mt-0.5 truncate text-[8px] font-semibold text-[#4a6565]">{member.accountTierName}</p></div></div>
-                <div className="mt-1.5 grid min-w-0 grid-cols-2 gap-x-2 border-t border-[#f0f3ef] pt-1.5"><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Private Vault</p><div className="mt-0.5"><StatusPill status={effectiveVaultStatus} /></div></div><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Wallets</p><p className="mt-0.5 text-[8px] font-semibold text-[#4a6565]">{member.walletCount}</p></div></div>
-                <div className="mt-1.5 grid min-w-0 grid-cols-2 gap-x-2 border-t border-[#f0f3ef] pt-1.5"><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Testing mode</p><p className="mt-0.5 text-[8px] font-semibold text-[#4a6565]">{member.testingModeDisabled ? 'Off' : 'On'}</p></div><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Transfer access</p><p className="mt-0.5 truncate text-[8px] font-semibold text-[#4a6565]">{member.transferAccessGranted ? 'Granted' : 'Not granted'}</p></div></div>
-                <div className="mt-1.5 grid min-w-0 grid-cols-2 gap-x-2 border-t border-[#f0f3ef] pt-1.5"><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Profile setup</p><p data-testid={`member-profile-setup-${member.id}`} className="mt-0.5 truncate text-[8px] font-semibold text-[#4a6565]">{member.profileSetupCompletedAt ? `Complete · ${date(member.profileSetupCompletedAt)}` : 'Missing'}</p></div><div className="min-w-0"><p className="text-[7px] font-bold uppercase tracking-[.08em] text-[#8a9995]">Created</p><p className="mt-0.5 truncate text-[8px] text-[#7a8e90]">{date(member.createdAt)}</p></div></div>
+
               </article>;
             })}
           </div>
