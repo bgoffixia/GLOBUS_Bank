@@ -297,6 +297,7 @@ function ClerkRoutes() {
         <Route path="/admin/vault-acces"><Redirect to="/admin/vault-access" /></Route>
         <Route path="/admin/vault-access"><ProtectedAdminPage /></Route>
         <Route path="/admin/support"><ProtectedAdminPage /></Route>
+        <Route path="/admin/support-settings"><ProtectedAdminPage /></Route>
         <Route path="/admin/users/:userId"><ProtectedAdminPage /></Route>
         <Route path="/admin/users"><ProtectedAdminPage /></Route>
         <Route path="/admin/accounts"><ProtectedAdminPage /></Route>
