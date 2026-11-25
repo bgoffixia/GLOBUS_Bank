@@ -341,7 +341,7 @@ export async function sendTransferAlertEmail(input: {
   try {
     const ownerEmail = senderPreferences?.email?.trim() ?? null;
     const ownerEmailIsValid = Boolean(
-      ownerEmail && /^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(ownerEmail),
+      ownerEmail && /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/.test(ownerEmail),
     );
     const ownerMessage = ownerEmailIsValid
       ? {
