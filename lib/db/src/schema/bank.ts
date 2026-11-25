@@ -90,6 +90,9 @@ export const bankUsersTable = pgTable("bank_users", {
   transferAccessGranted: boolean("transfer_access_granted")
     .notNull()
     .default(false),
+  supportAccessGranted: boolean("support_access_granted")
+    .notNull()
+    .default(false),
   adminAccountTier: text("admin_account_tier"),
   transactionPinHash: text("transaction_pin_hash"),
   transactionPinFailedAttempts: integer("transaction_pin_failed_attempts")
