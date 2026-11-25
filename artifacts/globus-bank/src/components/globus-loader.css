@@ -157,3 +157,42 @@
     animation: none;
   }
 }
+
+
+/* Use the supplied full GLOBUS BANK logo artwork on the startup screen. */
+.globus-loader--fullscreen {
+  background:
+    radial-gradient(ellipse at 50% 48%, rgba(202, 157, 59, .10), transparent 38%),
+    #f3f6f7;
+  color: #173a5e;
+}
+.globus-loader--fullscreen::before,
+.globus-loader--fullscreen::after {
+  border-color: rgba(18, 54, 91, .08);
+}
+.globus-loader__stage {
+  width: min(72vw, 330px);
+  height: min(72vw, 330px);
+}
+.globus-loader__stage::before,
+.globus-loader__stage::after,
+.globus-loader__orbit {
+  display: none;
+}
+.globus-loader__mark {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  filter: drop-shadow(0 12px 24px rgba(18, 54, 91, .10));
+}
+.globus-loader__label {
+  color: #173a5e;
+  letter-spacing: .16em;
+}
+.globus-loader:not(.globus-loader--fullscreen) {
+  background: linear-gradient(145deg, #12365b 0%, #1c4c73 100%);
+}
+.globus-loader:not(.globus-loader--fullscreen) .globus-loader__mark {
+  width: 210px;
+  height: 210px;
+}
