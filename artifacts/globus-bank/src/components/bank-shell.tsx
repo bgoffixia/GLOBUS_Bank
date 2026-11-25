@@ -42,7 +42,7 @@ const dashboardTools = [
   { href: '/wallets', label: 'Wallets', ariaLabel: 'Manage wallets', icon: WalletCards },
   { href: '/transactions', label: 'Activity', ariaLabel: 'Transaction activity', icon: ArrowLeftRight },
   { href: '/calculator', label: 'Convert', ariaLabel: 'Currency converter', icon: Calculator },
-  { href: '/profile', label: 'Profile', ariaLabel: 'View your profile', icon: UserRound },
+  { href: '/settings', label: 'Settings', ariaLabel: 'Open account settings', icon: Settings },
 ];
 
 const moneyLinks = [
