@@ -704,27 +704,6 @@ router.put("/bank/admin/exchange-rates", requireAdmin, async (req, res): Promise
     res.status(400).json({ error: "The rate must be greater than zero." });
     return;
   }
-  const existingSettings = await getOrCreateAdminSettings();
-  const defaultSupportUrl =
-    parsed.data.defaultSupportUrl === undefined
-      ? existingSettings.defaultSupportUrl
-      : parsed.data.defaultSupportUrl === null
-        ? null
-        : normalizeSupportUrl(parsed.data.defaultSupportUrl);
-  if (parsed.data.defaultSupportUrl && !defaultSupportUrl) {
-    res.status(400).json({ error: "The default support URL must be a valid HTTPS URL." });
-    return;
-  }
-  const supportEmail =
-    parsed.data.supportEmail === undefined
-      ? existingSettings.supportEmail
-      : parsed.data.supportEmail === null
-        ? null
-        : parsed.data.supportEmail.trim();
-  if (supportEmail && !/^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(supportEmail)) {
-    res.status(400).json({ error: "Enter a valid support email address or leave it blank." });
-    return;
-  }
   const clerkUserId = getAuth(req).userId;
   if (!clerkUserId) {
     res.status(401).json({ error: "Sign in to access your Globus account." });
@@ -1840,6 +1819,27 @@ router.put("/bank/admin/settings", requireAdmin, async (req, res): Promise<void>
   const parsed = UpdateAdminSettingsBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: parsed.error.message });
+    return;
+  }
+  const existingSettings = await getOrCreateAdminSettings();
+  const defaultSupportUrl =
+    parsed.data.defaultSupportUrl === undefined
+      ? existingSettings.defaultSupportUrl
+      : parsed.data.defaultSupportUrl === null
+        ? null
+        : normalizeSupportUrl(parsed.data.defaultSupportUrl);
+  if (parsed.data.defaultSupportUrl && !defaultSupportUrl) {
+    res.status(400).json({ error: "The default support URL must be a valid HTTPS URL." });
+    return;
+  }
+  const supportEmail =
+    parsed.data.supportEmail === undefined
+      ? existingSettings.supportEmail
+      : parsed.data.supportEmail === null
+        ? null
+        : parsed.data.supportEmail.trim();
+  if (supportEmail && !/^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(supportEmail)) {
+    res.status(400).json({ error: "Enter a valid support email address or leave it blank." });
     return;
   }
   const customerEmailSenderDisplayName =
