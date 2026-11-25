@@ -25,9 +25,10 @@ export function validateVaultPasscodeResetSenderAddress(value: string): string {
 export function getVaultPasscodeResetSenderAddress(
   env: NodeJS.ProcessEnv = process.env,
 ): string {
+  // Vault passcode mail has its own sender identity; never inherit the
+  // transfer-alert sender configuration.
   const configured =
     env.GLOBUS_VAULT_PIN_RESET_EMAIL_FROM ??
-    env.GLOBUS_SECURITY_EMAIL_FROM ??
     DEFAULT_VAULT_PASSCODE_RESET_SENDER;
   if (!configured.trim()) {
     throw new Error("GLOBUS_VAULT_PIN_RESET_EMAIL_FROM is configured but empty.");
