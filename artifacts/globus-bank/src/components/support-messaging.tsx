@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { Link } from 'wouter';
 import {
-  ArrowLeft, CheckCheck, CircleAlert, Headphones, LockKeyhole, MessageSquareText,
+  ArrowLeft, CheckCheck, CircleAlert, Headphones, LockKeyhole, MessageSquareText, Settings2,
   Plus, RefreshCw, Search, Send, ShieldCheck, UserRound,
 } from 'lucide-react';
 import {
@@ -363,14 +364,14 @@ export function AdminSupportInbox() {
   }
   const retryAll = () => void conversations.refetch();
 
-  return <section data-testid="admin-support-inbox" className="mx-auto flex min-h-[min(760px,calc(100dvh-100px))] max-w-[1400px] flex-col gap-4">
+  return <section data-testid="admin-support-inbox" className="mx-auto flex min-h-[min(680px,calc(100dvh-100px))] max-w-[1400px] flex-col gap-4">
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div>
         <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.18em] text-[#4d8581]"><ShieldCheck size={12} /> Allowlisted operations</p>
         <h1 className="mt-1 text-[25px] font-extrabold tracking-[-.055em] text-[#203b4c] sm:text-[30px]">Support inbox</h1>
         <p className="mt-1 max-w-xl text-[11px] leading-5 text-[#71858b]">Review account-support conversations and reply from the protected operations workspace.</p>
       </div>
-      <span className="inline-flex items-center gap-1.5 rounded-full border border-[#dce7df] bg-[#f0f6f0] px-2.5 py-1.5 text-[9px] font-semibold text-[#557364]"><LockKeyhole size={11} />Customer data protected</span>
+      <div className="flex flex-wrap items-center gap-2"><Link href="/admin/support-settings" className={quietButton}><Settings2 size={13} />Support configuration</Link><span className="inline-flex items-center gap-1.5 rounded-full border border-[#dce7df] bg-[#f0f6f0] px-2.5 py-1.5 text-[9px] font-semibold text-[#557364]"><LockKeyhole size={11} />Protected</span></div>
     </header>
     <div className={`${shell} flex min-h-0 flex-1 overflow-hidden`}>
       <aside className={`flex min-h-[420px] w-full min-w-0 flex-col border-[#e8eeeb] md:w-[330px] md:shrink-0 md:border-r lg:w-[370px] ${mobileThread ? 'hidden md:flex' : 'flex'}`}>
