@@ -1273,6 +1273,59 @@ test.describe('Private Vault workspace at phone, tablet, and desktop widths', ()
   }
 });
 
+test('Private Vault support inbox is linked and protected by active entitlement', () => {
+  const vaultSource = readFileSync(
+    new URL('../src/components/private-vault-panel.tsx', import.meta.url),
+    'utf8',
+  );
+  const supportSource = readFileSync(
+    new URL('../src/components/support-messaging.tsx', import.meta.url),
+    'utf8',
+  );
+  const appSource = readFileSync(
+    new URL('../src/App.tsx', import.meta.url),
+    'utf8',
+  );
+  const bankSource = readFileSync(
+    new URL('../../api-server/src/routes/bank.ts', import.meta.url),
+    'utf8',
+  );
+
+  expect(vaultSource).toContain("id: 'vault-support-inbox'");
+  expect(vaultSource).toContain("requiresVaultAccess: true");
+  expect(vaultSource).toContain("'/private-vault/support'");
+  expect(vaultSource).toContain('<CustomerSupportPage vaultContext />');
+  expect(vaultSource).toContain('!status.data?.accessActive');
+  expect(appSource).toContain('path="/private-vault/support"');
+  expect(supportSource).toContain("vaultContext ? 'private_vault' : 'general'");
+  expect(bankSource).toContain('async function canAccessSupportCategory');
+  expect(bankSource).toContain('user.supportAccessGranted || await hasActiveVaultAccess(user)');
+  expect(bankSource).toContain('eq(bankSupportConversationsTable.userId, user.id)');
+});
+
+test('customer erasure mutations remain scoped to the selected member only', () => {
+  const adminSource = readFileSync(
+    new URL('../../api-server/src/routes/bankAdmin.ts', import.meta.url),
+    'utf8',
+  );
+  const start = adminSource.indexOf('"/bank/admin/users/:userId/delete"');
+  const end = adminSource.indexOf('\nexport default router;', start);
+  expect(start).toBeGreaterThanOrEqual(0);
+  expect(end).toBeGreaterThan(start);
+  const erasureRoute = adminSource.slice(start, end);
+
+  expect(erasureRoute).toContain('eq(bankWalletsTable.userId, target.id)');
+  expect(erasureRoute).toContain('eq(bankRestrictionsTable.userId, target.id)');
+  expect(erasureRoute).toContain('eq(bankVaultSessionsTable.userId, target.id)');
+  expect(erasureRoute).toContain('eq(bankVaultAdminEntitlementsTable.userId, target.id)');
+  expect(erasureRoute).toContain('eq(bankUsersTable.id, target.id)');
+  expect(erasureRoute).toContain('inArray(bankSupportMessagesTable.conversationId, conversations.map((item) => item.id))');
+  expect(erasureRoute).toContain('eq(bankSupportConversationsTable.userId, target.id)');
+  expect(erasureRoute).not.toContain('delete(bankUsersTable)');
+  expect(erasureRoute).toContain('eq(bankUsersTable.id, target.id)').toBeTruthy();
+  expect(erasureRoute).toContain('Allowlisted administrator accounts cannot be deleted');
+});
+
 test.describe('compact admin overview and member directory at phone widths', () => {
   if (validAuthenticatedState) test.use({ storageState: validAuthenticatedState });
   test.skip(!validAuthenticatedState, 'Set GLOBUS_VIEWPORT_STORAGE_STATE to a valid Playwright storage-state file to run admin viewport checks.');
