@@ -241,7 +241,11 @@ async function canAccessSupportCategory(
   category: string,
 ): Promise<boolean> {
   if (category === "general") return true;
-  return user.supportAccessGranted || await hasActiveVaultAccess(user);
+  const activeVaultAccess = await hasActiveVaultAccess(user);
+  if (category === "transfer" || category === "private_vault") {
+    return activeVaultAccess;
+  }
+  return user.supportAccessGranted || activeVaultAccess;
 }
 const vaultDeviceCookieOptions = () => ({
   httpOnly: true,
