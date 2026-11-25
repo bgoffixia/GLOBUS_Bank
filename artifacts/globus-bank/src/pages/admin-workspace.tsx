@@ -433,6 +433,7 @@ function MemberDetail({ userId }: { userId: string }) {
   const [form, setForm] = useState({ reason: '', notes: '', transactionPin: '', firstName: '', lastName: '', address: '', phone: '', country: '', cityOfOrigin: '', dateOfBirth: '', occupation: '', decision: 'approved', userMessage: '', confirmed: false, expiresAt: '' });
   const [testingModeDisabled, setTestingModeDisabled] = useState(false);
   const [transferAccessGranted, setTransferAccessGranted] = useState(false);
+  const [supportAccessGranted, setSupportAccessGranted] = useState(false);
   const [accessControlsPin, setAccessControlsPin] = useState('');
   const [accessControlsConfirmed, setAccessControlsConfirmed] = useState(false);
   const [accessControlsError, setAccessControlsError] = useState('');
@@ -451,8 +452,9 @@ function MemberDetail({ userId }: { userId: string }) {
     if (!detail.data) return;
     setTestingModeDisabled(detail.data.user.testingModeDisabled);
     setTransferAccessGranted(detail.data.user.transferAccessGranted);
+    setSupportAccessGranted(detail.data.user.supportAccessGranted);
     setAccountTierSelection(detail.data.user.adminAccountTier ?? 'default');
-  }, [detail.data?.user.testingModeDisabled, detail.data?.user.transferAccessGranted, detail.data?.user.adminAccountTier]);
+  }, [detail.data?.user.testingModeDisabled, detail.data?.user.transferAccessGranted, detail.data?.user.supportAccessGranted, detail.data?.user.adminAccountTier]);
   const refresh = async () => { await Promise.all([client.invalidateQueries({ queryKey: getGetAdminUserDetailQueryKey(userId) }), client.invalidateQueries({ queryKey: getListAdminUsersQueryKey() }), client.invalidateQueries({ queryKey: getGetAdminSummaryQueryKey() })]); };
   const open = (kind: typeof modal) => { if (kind === 'profile' && detail.data) setForm({ ...form, firstName: u?.firstName || '', lastName: u?.lastName || '', address: detail.data.address || '', phone: detail.data.phone || '', country: u?.country || '', cityOfOrigin: detail.data.cityOfOrigin || '', dateOfBirth: detail.data.dateOfBirth || '', occupation: detail.data.occupation || '', transactionPin: '', confirmed: false }); else if (kind === 'status') setForm({ ...form, transactionPin: '', decision: u?.accountStatus === 'active' ? 'suspended' : 'active', confirmed: false }); else if (kind === 'vault-subscription') setForm({ ...form, decision: 'inactive', confirmed: false }); else setForm({ ...form, transactionPin: '', confirmed: false }); setError(''); setModal(kind); };
   const submit = async (e: FormEvent) => { e.preventDefault(); if (!u || !modal) return; setError(''); try {
@@ -488,6 +490,7 @@ function MemberDetail({ userId }: { userId: string }) {
         data: {
           testingModeDisabled,
           transferAccessGranted,
+          supportAccessGranted,
           transactionPin: accessControlsPin,
           confirmed: true,
         },
@@ -672,6 +675,10 @@ function MemberDetail({ userId }: { userId: string }) {
               <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
                 <input data-testid="checkbox-transfer-access-granted" type="checkbox" checked={transferAccessGranted} onChange={event => setTransferAccessGranted(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
                 <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2"><span><strong className="block text-[#3c5960]">Grant separate transfer access</strong>Bypasses Vault subscription, the transfer toggle, and outgoing-transfer restriction. Account suspension, wallet freezes, transaction PIN, balance checks, and explicit pending/failed posting modes still apply.</span><Pill tone={transferAccessGranted ? 'good' : 'neutral'}>{transferAccessGranted ? 'Granted' : 'Not granted'}</Pill></span>
+              </label>
+              <label className="flex items-start gap-2 rounded-xl border border-[#e3eae5] bg-[#f9fbf7] p-3 text-[10px] leading-4 text-[#526b70]">
+                <input data-testid="checkbox-support-access-granted" type="checkbox" checked={supportAccessGranted} onChange={event => setSupportAccessGranted(event.target.checked)} className="mt-0.5 accent-[#43898a]" />
+                <span className="flex min-w-0 flex-1 flex-wrap items-center justify-between gap-2"><span><strong className="block text-[#3c5960]">Grant dedicated support access</strong>Allows this customer to open and reply to Private Vault and transfer-recipient support threads without an active Vault subscription.</span><Pill tone={supportAccessGranted ? 'good' : 'neutral'}>{supportAccessGranted ? 'Granted' : 'Not granted'}</Pill></span>
               </label>
               <Field label="Your six-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} value={accessControlsPin} onChange={event => setAccessControlsPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={input} autoComplete="current-password" /></Field>
               <label className="flex items-start gap-2 text-[10px] text-[#657a7e]"><input data-testid="checkbox-access-controls-confirmed" type="checkbox" checked={accessControlsConfirmed} onChange={event => setAccessControlsConfirmed(event.target.checked)} className="mt-0.5 accent-[#43898a]" />I confirm these settings apply only to this customer.</label>
