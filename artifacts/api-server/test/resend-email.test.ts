@@ -208,6 +208,56 @@ test("does not attempt delivery without a Resend API key", async () => {
   }
 });
 
+test("retries sender-domain rejection with the configured verified sender", async () => {
+  const previousKey = process.env[apiKeyEnv];
+  const previousFetch = globalThis.fetch;
+  process.env[apiKeyEnv] = "test-resend-secret";
+  const requests: Request[] = [];
+  globalThis.fetch = (async (input, init) => {
+    const request = new Request(input, init);
+    requests.push(request);
+    return requests.length === 1
+      ? new Response(JSON.stringify({ message: "Sender domain not authorized" }), { status: 403 })
+      : new Response(JSON.stringify({ id: "fallback-email-id" }), { status: 200 });
+  }) as typeof fetch;
+
+  try {
+    const fallback = { ...message, from: "GLOBUS BANK <verified@globus.website>" };
+    assert.equal(await sendResendEmail(message, "fallback-test-key", fallback), true);
+    assert.equal(requests.length, 2);
+    assert.equal((await requests[0].json()).from, message.from);
+    assert.equal((await requests[1].json()).from, fallback.from);
+    assert.equal(
+      requests[1].headers.get("idempotency-key"),
+      "fallback-test-key-verified-sender-fallback",
+    );
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey === undefined) delete process.env[apiKeyEnv];
+    else process.env[apiKeyEnv] = previousKey;
+  }
+});
+
+test("does not retry a Resend authentication failure with a fallback sender", async () => {
+  const previousKey = process.env[apiKeyEnv];
+  const previousFetch = globalThis.fetch;
+  process.env[apiKeyEnv] = "test-resend-secret";
+  let calls = 0;
+  globalThis.fetch = (async () => {
+    calls += 1;
+    return new Response(JSON.stringify({ message: "Invalid API key" }), { status: 401 });
+  }) as typeof fetch;
+
+  try {
+    assert.equal(await sendResendEmail(message, "fallback-auth-test", message), false);
+    assert.equal(calls, 1);
+  } finally {
+    globalThis.fetch = previousFetch;
+    if (previousKey === undefined) delete process.env[apiKeyEnv];
+    else process.env[apiKeyEnv] = previousKey;
+  }
+});
+
 test("reports Resend rejection as an unsuccessful delivery", async () => {
   const previousKey = process.env[apiKeyEnv];
   const previousFetch = globalThis.fetch;
