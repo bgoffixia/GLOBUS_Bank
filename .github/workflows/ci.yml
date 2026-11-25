@@ -19,3 +19,17 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: PORT=24083 BASE_PATH=/ NODE_ENV=production pnpm run build
+      - name: Install Playwright Chromium
+        run: pnpm --filter @workspace/globus-bank exec playwright install --with-deps chromium
+      - name: Run mobile viewport and overflow regression suite
+        run: |
+          pnpm --filter @workspace/globus-bank dev -- --host 127.0.0.1 > /tmp/globus-vite.log 2>&1 &
+          echo $! > /tmp/globus-vite.pid
+          for attempt in $(seq 1 60); do
+            if curl --silent --fail http://127.0.0.1:24083/tests/personal-finance-harness.html > /dev/null; then
+              break
+            fi
+            sleep 2
+          done
+          curl --fail http://127.0.0.1:24083/tests/personal-finance-harness.html > /dev/null
+          pnpm --filter @workspace/globus-bank test:viewport
