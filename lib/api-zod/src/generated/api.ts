@@ -820,6 +820,8 @@ export const ListBankSupportConversationsResponse = zod.object({
   "conversations": zod.array(zod.object({
   "id": zod.string().uuid(),
   "subject": zod.string(),
+  "category": zod.enum(['general', 'private_vault', 'transfer']),
+  "transferReference": zod.string().nullable(),
   "status": zod.enum(['open', 'closed']),
   "customerUnread": zod.boolean(),
   "lastMessagePreview": zod.string().nullable(),
@@ -845,7 +847,9 @@ export const createBankSupportConversationBodyMessageRegExp = new RegExp('\\S');
 
 export const CreateBankSupportConversationBody = zod.object({
   "subject": zod.string().min(1).max(createBankSupportConversationBodySubjectMax).regex(createBankSupportConversationBodySubjectRegExp),
-  "message": zod.string().min(1).max(createBankSupportConversationBodyMessageMax).regex(createBankSupportConversationBodyMessageRegExp)
+  "message": zod.string().min(1).max(createBankSupportConversationBodyMessageMax).regex(createBankSupportConversationBodyMessageRegExp),
+  "category": zod.enum(['general', 'private_vault', 'transfer']).optional(),
+  "transferReference": zod.string().min(1).max(100).optional()
 })
 
 export const CreateBankSupportConversationResponse = zod.object({
@@ -931,7 +935,8 @@ export const listAdminSupportConversationsQuerySearchMax = 100;
 
 export const ListAdminSupportConversationsQueryParams = zod.object({
   "status": zod.enum(['open', 'closed']).optional(),
-  "search": zod.coerce.string().max(listAdminSupportConversationsQuerySearchMax).optional()
+  "search": zod.coerce.string().max(listAdminSupportConversationsQuerySearchMax).optional(),
+  "category": zod.enum(['general', 'private_vault', 'transfer']).optional()
 })
 
 export const ListAdminSupportConversationsResponse = zod.object({
@@ -941,6 +946,8 @@ export const ListAdminSupportConversationsResponse = zod.object({
   "customerName": zod.string(),
   "customerEmail": zod.string().email(),
   "subject": zod.string(),
+  "category": zod.enum(['general', 'private_vault', 'transfer']),
+  "transferReference": zod.string().nullable(),
   "status": zod.enum(['open', 'closed']),
   "adminUnread": zod.boolean(),
   "lastMessagePreview": zod.string().nullable(),
