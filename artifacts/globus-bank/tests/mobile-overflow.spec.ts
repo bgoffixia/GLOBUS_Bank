@@ -326,7 +326,7 @@ test('compact language picker follows the country-selector pattern and translate
 
     await picker.click();
     await expect(page.getByTestId('select-language-drawer')).toBeVisible();
-    const frenchLanguage = page.getByTestId('select-language-drawer').locator('[role="option"]').filter({ hasText: /^Français\s/ });
+    const frenchLanguage = page.getByTestId('select-language-drawer').locator('[role="option"]').filter({ hasText: /^Français/ });
     await expect(frenchLanguage).toHaveCount(1);
     await expect(frenchLanguage).toHaveAttribute('role', 'option');
     await frenchLanguage.click();
