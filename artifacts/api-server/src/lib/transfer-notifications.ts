@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, gt, isNull } from "drizzle-orm";
 import { randomBytes, createHash } from "node:crypto";
 import {
   bankNotificationsTable,
@@ -176,34 +176,66 @@ export function renderSupportFooter(
   return { text, html: links.length ? `<footer style="padding:16px 28px 20px;border-top:1px solid #e7ecee;text-align:center">${links.join(" ")}</footer>` : "" };
 }
 async function createTransferInquiryUrl(userId: string, reference: string): Promise<string> {
-  const token = randomBytes(32).toString("base64url");
-  const tokenHash = createHash("sha256").update(token).digest("hex");
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-  const [conversation] = await db
-    .insert(bankSupportConversationsTable)
-    .values({
-      userId,
-      subject: `Transfer inquiry · ${reference}`,
-      category: "transfer",
-      transferReference: reference,
-      status: "open",
-      customerUnread: false,
-      adminUnread: false,
-      lastMessageAt: now,
-      createdAt: now,
-      updatedAt: now,
-    })
-    .returning({ id: bankSupportConversationsTable.id });
-  await db.insert(bankTransferInquiryLinksTable).values({
-    tokenHash,
-    conversationId: conversation.id,
-    userId,
-    transferReference: reference,
-    expiresAt,
-    createdAt: now,
-  });
   const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
+  const [existing] = await db
+    .select({
+      id: bankTransferInquiryLinksTable.id,
+      conversationId: bankTransferInquiryLinksTable.conversationId,
+      tokenEncrypted: bankTransferInquiryLinksTable.tokenEncrypted,
+      expiresAt: bankTransferInquiryLinksTable.expiresAt,
+      revokedAt: bankTransferInquiryLinksTable.revokedAt,
+    })
+    .from(bankTransferInquiryLinksTable)
+    .where(and(
+      eq(bankTransferInquiryLinksTable.userId, userId),
+      eq(bankTransferInquiryLinksTable.transferReference, reference),
+    ))
+    .limit(1);
+
+  if (existing && !existing.revokedAt && existing.expiresAt > now) {
+    try {
+      const token = decryptPrivateData(existing.tokenEncrypted, "transfer-inquiry-token");
+      return new URL(`/transfer-inquiries/${token}`, origin).toString();
+    } catch {
+      // Rotate an unreadable token below rather than sending a broken link.
+    }
+  }
+
+  const token = randomBytes(32).toString("base64url");
+  const tokenHash = createHash("sha256").update(token).digest("hex");
+  const tokenEncrypted = encryptPrivateData(token, "transfer-inquiry-token");
+  if (existing) {
+    await db.update(bankTransferInquiryLinksTable)
+      .set({ tokenHash, tokenEncrypted, expiresAt, revokedAt: null })
+      .where(eq(bankTransferInquiryLinksTable.id, existing.id));
+  } else {
+    const [conversation] = await db
+      .insert(bankSupportConversationsTable)
+      .values({
+        userId,
+        subject: `Transfer inquiry · ${reference}`,
+        category: "transfer",
+        transferReference: reference,
+        status: "open",
+        customerUnread: false,
+        adminUnread: false,
+        lastMessageAt: now,
+        createdAt: now,
+        updatedAt: now,
+      })
+      .returning({ id: bankSupportConversationsTable.id });
+    await db.insert(bankTransferInquiryLinksTable).values({
+      tokenHash,
+      tokenEncrypted,
+      conversationId: conversation.id,
+      userId,
+      transferReference: reference,
+      expiresAt,
+      createdAt: now,
+    });
+  }
   return new URL(`/transfer-inquiries/${token}`, origin).toString();
 }
 
