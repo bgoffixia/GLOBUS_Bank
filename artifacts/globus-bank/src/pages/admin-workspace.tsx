@@ -565,7 +565,7 @@ function MemberDetail({ userId }: { userId: string }) {
       const result = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : 'Customer data erasure could not be completed.');
       if (result.pending) throw new Error(typeof result.error === 'string' ? result.error : 'Identity-provider deletion is pending. Retry after checking the Clerk connection.');
-      setMessage('Customer personal data was erased. Required financial records may remain in pseudonymous form.');
+      setMessage('Customer application data was erased. Required financial and audit records may remain in pseudonymous form.');
       setEraseConfirmation('');
       setEraseReason('');
       await refresh();
@@ -655,7 +655,7 @@ function MemberDetail({ userId }: { userId: string }) {
           </Panel>
           <Panel title="Permanent customer data erasure" eyebrow="Destructive · administrator only">
             <div className="space-y-3 p-4 sm:p-5">
-              <p className="text-[10px] leading-5 text-[#945246]">This permanently removes the customer's profile details, Vault credentials, reset tokens, sessions, and support conversations, then deletes their Clerk identity. Financial ledger and transaction evidence may be retained where law, accounting, dispute, or fraud rules require it.</p>
+              <p className="text-[10px] leading-5 text-[#945246]">This removes the customer's profile details, saved payment methods, personal finance records, notifications, push subscriptions, Vault credentials, reset tokens, sessions, and support conversations. Uploaded identity and Vault proof objects are deleted from Google Cloud Storage before the Clerk identity is removed; if storage cleanup is unavailable, the request remains pending. Financial ledger and transfer evidence may be retained where law, accounting, dispute, or fraud rules require it.</p>
               <Field label="Reason for erasure (10–500 characters)">
                 <textarea className={input + ' min-h-[76px] py-2'} value={eraseReason} onChange={event => setEraseReason(event.target.value)} maxLength={500} placeholder="Record the authorized deletion request and reason." />
               </Field>
