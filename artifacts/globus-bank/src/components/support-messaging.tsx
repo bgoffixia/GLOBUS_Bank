@@ -170,7 +170,7 @@ function ReplyBox({ onSend, sending, disabled, label = 'Write a reply', placehol
   </form>;
 }
 
-export function CustomerSupportPage() {
+export function CustomerSupportPage({ vaultContext = false }: { vaultContext?: boolean } = {}) {
   const queryClient = useQueryClient();
   const conversations = useListBankSupportConversations({ query: { queryKey: getListBankSupportConversationsQueryKey(), refetchOnMount: 'always', refetchOnWindowFocus: true } });
   const items = conversations.data?.conversations ?? [];
@@ -179,7 +179,7 @@ export function CustomerSupportPage() {
   const [compose, setCompose] = useState(false);
   const [subject, setSubject] = useState('');
   const [firstMessage, setFirstMessage] = useState('');
-  const [category, setCategory] = useState<'general' | 'private_vault' | 'transfer'>('general');
+  const [category, setCategory] = useState<'general' | 'private_vault' | 'transfer'>(vaultContext ? 'private_vault' : 'general');
   const [transferReference, setTransferReference] = useState('');
   const [transferLinkReference, setTransferLinkReference] = useState('');
   const [formError, setFormError] = useState('');
@@ -274,9 +274,9 @@ export function CustomerSupportPage() {
   return <section data-testid="customer-support-page" className="mx-auto flex min-h-[min(760px,calc(100dvh-112px))] max-w-[1240px] flex-col gap-4">
     <header className="flex flex-wrap items-end justify-between gap-3">
       <div>
-        <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.18em] text-[#4d8581]"><LockKeyhole size={12} /> Secure account support</p>
-        <h1 className="mt-1 text-[25px] font-extrabold tracking-[-.055em] text-[#203b4c] sm:text-[30px]">Support inbox</h1>
-        <p className="mt-1 max-w-xl text-[11px] leading-5 text-[#71858b]">Talk with Globus about your account. Replies stay tied to your signed-in profile.</p>
+        <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.18em] text-[#4d8581]"><LockKeyhole size={12} /> {vaultContext ? 'Private Vault support' : 'Secure account support'}</p>
+        <h1 className="mt-1 text-[21px] font-extrabold tracking-[-.045em] text-[#203b4c] sm:text-[26px]">Support inbox</h1>
+        <p className="mt-1 max-w-xl text-[10px] leading-4 text-[#71858b]">{vaultContext ? 'Private conversations for your active Vault account. Replies remain tied to your signed-in profile.' : 'Talk with Globus about your account. Replies stay tied to your signed-in profile.'}</p>
       </div>
       <button type="button" onClick={() => { setCompose(true); setFormError(''); }} className={primaryButton}><Plus size={15} />New conversation</button>
     </header>
