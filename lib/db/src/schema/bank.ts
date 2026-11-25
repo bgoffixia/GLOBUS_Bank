@@ -568,6 +568,8 @@ export const bankAdminSettingsTable = pgTable("bank_admin_settings", {
   customerEmailSenderDisplayName: text("customer_email_sender_display_name")
     .notNull()
     .default("GLOBUS BANK"),
+  defaultSupportUrl: text("default_support_url"),
+  supportEmail: text("support_email"),
   fundingLimit: text("funding_limit").notNull().default("100000000"),
   secondApprovalThreshold: text("second_approval_threshold")
     .notNull()
