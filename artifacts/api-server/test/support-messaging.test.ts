@@ -128,6 +128,24 @@ test("admin support handlers require allowlisting and write reply audit records"
   assert.match(routes, /actorUserId:\s*actor\.id,\s*targetUserId:\s*conversation\.userId/);
 });
 
+test("customer erasure is admin-only, explicitly confirmed, and retains required financial history", () => {
+  const routes = source("../src/routes/bankAdmin.ts");
+  const handler = routes.slice(routes.indexOf('"/bank/admin/users/:userId/delete"'));
+  assert.match(handler, /requireAdmin/);
+  assert.match(handler, /confirmation !== "DELETE"/);
+  assert.match(handler, /reason\.length < 10/);
+  assert.match(handler, /authenticatedClerkId === userId/);
+  assert.match(handler, /GLOBUS_ADMIN_CLERK_IDS/);
+  assert.match(handler, /GLOBUS_ADMIN_EMAILS/);
+  assert.match(handler, /bankSupportMessagesTable/);
+  assert.match(handler, /bankVaultSessionsTable/);
+  assert.match(handler, /bankVaultPasscodeResetTokensTable/);
+  assert.match(handler, /clerkClient\.users\.deleteUser/);
+  assert.match(handler, /accountStatus: "deletion_pending"/);
+  assert.match(handler, /accountStatus: "deleted"/);
+  assert.match(handler, /Financial transactions\/ledger entries are intentionally retained/);
+});
+
 test("unauthenticated customers and non-allowlisted users are rejected before data access", async () => {
   const memberId = "support-test-non-admin";
   process.env.GLOBUS_ADMIN_CLERK_IDS = "";
