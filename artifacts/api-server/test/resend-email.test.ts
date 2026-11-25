@@ -288,3 +288,24 @@ test("admin test-email cooldown is per administrator and returns the remaining w
   assert.match(source, /retryAfterSeconds/);
   assert.match(source, /setHeader\("Retry-After"/);
 });
+
+
+test("admin test transfer-alert limiter permits five requests per hour", () => {
+  const source = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /const testTransactionAlertLimiter = rateLimit\(\{[\s\S]*?windowMs: 60 \* 60 \* 1000,[\s\S]*?limit: 5,/);
+  assert.match(source, /GLOBUS_TRANSFER_ALERT_EMAIL_FROM/);
+  assert.match(source, /sendResendEmail\(/);
+  assert.doesNotMatch(source, /await sendVaultPasscodeResetEmail\(\{[\s\S]*?recipientAddress,\s*subject,\s*text: message/);
+});
+
+test("vault passcode reset sender does not inherit transfer security sender", () => {
+  const source = readFileSync(
+    new URL("../src/lib/vault-passcode-reset-email.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /env\.GLOBUS_VAULT_PIN_RESET_EMAIL_FROM\s*\?\?/);
+  assert.doesNotMatch(source, /GLOBUS_SECURITY_EMAIL_FROM/);
+});
