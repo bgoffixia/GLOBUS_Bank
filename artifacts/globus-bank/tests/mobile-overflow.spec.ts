@@ -1463,12 +1463,12 @@ test.describe('compact admin overview and member directory at phone widths', () 
 
     await page.setViewportSize({ width: 390, height: 850 });
     await page.goto('/admin/users', { waitUntil: 'domcontentloaded' });
-    const row = page.locator('tr').filter({ hasText: 'viewport-member@example.test' });
+    const row = page.getByTestId('row-admin-member-viewport-member');
     await expect(row).toBeVisible();
     await expect(page.getByTestId('member-profile-setup-viewport-member')).toContainText('Complete');
     await expect(row).toContainText('On');
     await expect(row).toContainText('Not granted');
-    await row.getByRole('link', { name: 'Open' }).click();
+    await row.getByRole('link', { name: 'Open record' }).click();
 
     await expect(page).toHaveURL(/\/admin\/users\/viewport-member$/);
     await expect(page.getByText('Profile setup')).toBeVisible();
