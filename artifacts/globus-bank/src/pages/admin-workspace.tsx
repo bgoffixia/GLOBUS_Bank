@@ -443,6 +443,10 @@ function MemberDetail({ userId }: { userId: string }) {
   const [message, setMessage] = useState(''); const [error, setError] = useState('');
   const [vaultResetBusy, setVaultResetBusy] = useState(false);
   const [vaultResetError, setVaultResetError] = useState('');
+  const [eraseConfirmation, setEraseConfirmation] = useState('');
+  const [eraseReason, setEraseReason] = useState('');
+  const [eraseBusy, setEraseBusy] = useState(false);
+  const [eraseError, setEraseError] = useState('');
   useEffect(() => {
     if (!detail.data) return;
     setTestingModeDisabled(detail.data.user.testingModeDisabled);
@@ -544,6 +548,32 @@ function MemberDetail({ userId }: { userId: string }) {
     }
   };
 
+  const eraseCustomerData = async () => {
+    if (!u || eraseBusy || eraseConfirmation !== 'DELETE' || eraseReason.trim().length < 10) return;
+    setEraseBusy(true);
+    setEraseError('');
+    try {
+      const response = await fetch(`/api/bank/admin/users/${encodeURIComponent(userId)}/delete`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirmation: 'DELETE', reason: eraseReason.trim() }),
+      });
+      const result = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(typeof result.error === 'string' ? result.error : 'Customer data erasure could not be completed.');
+      if (result.pending) throw new Error(typeof result.error === 'string' ? result.error : 'Identity-provider deletion is pending. Retry after checking the Clerk connection.');
+      setMessage('Customer personal data was erased. Required financial records may remain in pseudonymous form.');
+      setEraseConfirmation('');
+      setEraseReason('');
+      await refresh();
+      window.location.assign('/admin/users');
+    } catch (err) {
+      setEraseError(err instanceof Error ? err.message : 'Customer data erasure could not be completed.');
+    } finally {
+      setEraseBusy(false);
+    }
+  };
+
   if (detail.isLoading) return <><Heading kicker="Member management" title="Loading member record" subtitle="Fetching the authorized account record." /><div className={box}><Skeleton /></div></>;
   if (detail.isError || !detail.data || !u) return <><Heading kicker="Member management" title="Member record unavailable" subtitle="The member record could not be loaded." /><InlineError text="Try loading this member record again." retry={() => detail.refetch()} /></>;
   const fullName = nameOf(u);
@@ -606,6 +636,19 @@ function MemberDetail({ userId }: { userId: string }) {
               <p className="text-[10px] leading-5 text-[#718588]">Send a single-use reset link to the customer’s verified primary email. The link expires after 30 minutes. Completing the reset changes only the passcode credential and lockout counters; it does not grant, revoke, activate, suspend, or otherwise change Private Vault access or subscription status.</p>
               {vaultResetError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{vaultResetError}</p>}
               <button type="button" data-testid="button-send-vault-passcode-reset" onClick={sendVaultResetLink} disabled={vaultResetBusy} className={button}>{vaultResetBusy ? 'Sending reset link…' : 'Send Vault passcode reset link'}</button>
+            </div>
+          </Panel>
+          <Panel title="Permanent customer data erasure" eyebrow="Destructive · administrator only">
+            <div className="space-y-3 p-4 sm:p-5">
+              <p className="text-[10px] leading-5 text-[#945246]">This permanently removes the customer's profile details, Vault credentials, reset tokens, sessions, and support conversations, then deletes their Clerk identity. Financial ledger and transaction evidence may be retained where law, accounting, dispute, or fraud rules require it.</p>
+              <Field label="Reason for erasure (10–500 characters)">
+                <textarea className={input + ' min-h-[76px] py-2'} value={eraseReason} onChange={event => setEraseReason(event.target.value)} maxLength={500} placeholder="Record the authorized deletion request and reason." />
+              </Field>
+              <Field label="Type DELETE to confirm">
+                <input className={input} value={eraseConfirmation} onChange={event => setEraseConfirmation(event.target.value)} autoComplete="off" placeholder="DELETE" />
+              </Field>
+              {eraseError && <p role="alert" className="rounded-lg bg-[#fff1ef] px-3 py-2 text-[10px] text-[#a24940]">{eraseError}</p>}
+              <button type="button" onClick={eraseCustomerData} disabled={eraseBusy || eraseConfirmation !== 'DELETE' || eraseReason.trim().length < 10} className="inline-flex items-center justify-center rounded-[9px] bg-[#a33e35] px-4 py-2.5 text-[11px] font-bold text-white disabled:opacity-50">{eraseBusy ? 'Erasing customer data…' : 'Permanently erase customer data'}</button>
             </div>
           </Panel>
           <Panel title="Customer access controls" eyebrow="Independent from Private Vault">
