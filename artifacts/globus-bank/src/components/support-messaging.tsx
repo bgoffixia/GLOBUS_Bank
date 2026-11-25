@@ -214,9 +214,10 @@ export function CustomerSupportPage() {
   const markedRef = useRef(new Set<string>());
 
   useEffect(() => {
+    if (transferLinkReference) return;
     if (!selectedId && items.length) setSelectedId(items[0].id);
     if (selectedId && !items.some(item => item.id === selectedId) && items.length) setSelectedId(items[0].id);
-  }, [items, selectedId]);
+  }, [items, selectedId, transferLinkReference]);
 
   useEffect(() => {
     if (!selected?.customerUnread || markedRef.current.has(selected.id)) return;
