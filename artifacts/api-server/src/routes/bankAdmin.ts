@@ -2748,6 +2748,7 @@ router.get(
             user.profileSetupCompletedAt?.toISOString() ?? null,
           testingModeDisabled: user.testingModeDisabled,
           transferAccessGranted: user.transferAccessGranted,
+          supportAccessGranted: user.supportAccessGranted,
           vaultSubscriptionStatus: vaultSubscriptionStatus(
             user.vaultSubscriptionStatus,
             user.vaultSubscriptionExpiresAt,
