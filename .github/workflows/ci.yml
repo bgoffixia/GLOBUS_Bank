@@ -26,8 +26,14 @@ jobs:
       - name: Install Playwright Chromium
         run: pnpm --filter @workspace/globus-bank exec playwright install --with-deps chromium
       - name: Run mobile viewport and overflow regression suite
+        env:
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY }}
         run: |
-          PORT=24083 BASE_PATH=/ NODE_ENV=test VITE_CLERK_PUBLISHABLE_KEY=pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk pnpm --filter @workspace/globus-bank dev > /tmp/globus-vite.log 2>&1 &
+          if [ -z "$VITE_CLERK_PUBLISHABLE_KEY" ]; then
+            echo "::error::Set the VITE_CLERK_PUBLISHABLE_KEY repository Actions variable before running the browser suite."
+            exit 1
+          fi
+          PORT=24083 BASE_PATH=/ NODE_ENV=test VITE_CLERK_PUBLISHABLE_KEY="$VITE_CLERK_PUBLISHABLE_KEY" pnpm --filter @workspace/globus-bank dev > /tmp/globus-vite.log 2>&1 &
           echo $! > /tmp/globus-vite.pid
           for attempt in $(seq 1 60); do
             if curl --silent --fail http://127.0.0.1:24083/tests/personal-finance-harness.html > /dev/null; then
