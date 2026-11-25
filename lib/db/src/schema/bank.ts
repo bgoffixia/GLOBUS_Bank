@@ -765,3 +765,26 @@ export const bankVaultPasscodeResetTokensTable = pgTable(
     index("bank_vault_passcode_reset_expiry_idx").on(table.expiresAt),
   ],
 );
+
+
+export const bankTransferInquiryLinksTable = pgTable(
+  "bank_transfer_inquiry_links",
+  {
+    id: uuid("id").defaultRandom().primaryKey(),
+    tokenHash: text("token_hash").notNull().unique(),
+    conversationId: uuid("conversation_id")
+      .notNull()
+      .references(() => bankSupportConversationsTable.id, { onDelete: "cascade" }),
+    userId: text("user_id")
+      .notNull()
+      .references(() => bankUsersTable.id, { onDelete: "cascade" }),
+    transferReference: text("transfer_reference").notNull(),
+    expiresAt: timestamp("expires_at", { withTimezone: true }).notNull(),
+    revokedAt: timestamp("revoked_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index("bank_transfer_inquiry_owner_transfer_idx").on(table.userId, table.transferReference),
+    index("bank_transfer_inquiry_expiry_idx").on(table.expiresAt),
+  ],
+);
