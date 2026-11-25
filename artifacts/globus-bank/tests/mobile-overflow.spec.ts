@@ -1299,7 +1299,9 @@ test('Private Vault support inbox is linked and protected by active entitlement'
   expect(appSource).toContain('path="/private-vault/support"');
   expect(supportSource).toContain("vaultContext ? 'private_vault' : 'general'");
   expect(bankSource).toContain('async function canAccessSupportCategory');
-  expect(bankSource).toContain('user.supportAccessGranted || await hasActiveVaultAccess(user)');
+  expect(bankSource).toContain('if (category === "transfer" || category === "private_vault")');
+  expect(bankSource).toContain('return activeVaultAccess;');
+  expect(bankSource).toContain('return user.supportAccessGranted || activeVaultAccess;');
   expect(bankSource).toContain('eq(bankSupportConversationsTable.userId, user.id)');
 });
 
