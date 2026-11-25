@@ -360,6 +360,7 @@ export async function sendTransferAlertEmail(input: {
     const [settings] = await db
       .select({
         senderAddress: bankAdminSettingsTable.transferAlertEmailFrom,
+        displayName: bankAdminSettingsTable.customerEmailSenderDisplayName,
         defaultSupportUrl: bankAdminSettingsTable.defaultSupportUrl,
         supportEmail: bankAdminSettingsTable.supportEmail,
       })
@@ -367,6 +368,7 @@ export async function sendTransferAlertEmail(input: {
       .where(eq(bankAdminSettingsTable.id, "operations"))
       .limit(1);
     senderAddress = settings?.senderAddress || senderAddress;
+    senderDisplayName = settings?.displayName || senderDisplayName;
     globalSupportUrl = settings?.defaultSupportUrl ?? null;
     globalSupportEmail = settings?.supportEmail ?? null;
   } catch {
