@@ -5447,6 +5447,9 @@ router.get(
     if (parsed.data.status) {
       filters.push(eq(bankSupportConversationsTable.status, parsed.data.status));
     }
+    if (parsed.data.category) {
+      filters.push(eq(bankSupportConversationsTable.category, parsed.data.category));
+    }
     if (parsed.data.search?.trim()) {
       const needle = `%${parsed.data.search.trim()}%`;
       filters.push(
@@ -5470,6 +5473,8 @@ router.get(
         lastName: bankUsersTable.lastName,
         customerEmail: bankUsersTable.email,
         subject: bankSupportConversationsTable.subject,
+        category: bankSupportConversationsTable.category,
+        transferReference: bankSupportConversationsTable.transferReference,
         status: bankSupportConversationsTable.status,
         adminUnread: bankSupportConversationsTable.adminUnread,
         lastMessagePreview: sql<string | null>`(
@@ -5502,6 +5507,8 @@ router.get(
             "Globus member",
           customerEmail: conversation.customerEmail,
           subject: conversation.subject,
+          category: conversation.category as "general" | "private_vault" | "transfer",
+          transferReference: conversation.transferReference,
           status: conversation.status as "open" | "closed",
           adminUnread: conversation.adminUnread,
           lastMessagePreview: conversation.lastMessagePreview,
