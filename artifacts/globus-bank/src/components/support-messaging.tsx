@@ -203,6 +203,7 @@ export function CustomerSupportPage() {
     } else {
       setCompose(true);
     }
+    setTransferLinkReference('');
   }, [items, transferLinkReference, conversations.isLoading]);
   const created = useCreateBankSupportConversation();
   const send = useSendBankSupportMessage();
