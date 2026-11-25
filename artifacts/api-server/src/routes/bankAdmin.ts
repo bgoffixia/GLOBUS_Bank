@@ -258,6 +258,7 @@ const adminAuditDetailFields = [
   "vaultPlanCode",
   "testingModeDisabled",
   "transferAccessGranted",
+  "supportAccessGranted",
   "adminAccountTier",
   "direction",
   "currency",
@@ -3650,7 +3651,7 @@ router.patch(
         actorUserId,
         targetUserId: updated.id,
         action: "update_customer_access_controls",
-        reason: `${generatedAdminAuditReason(req)} Neither setting grants Private Vault access.`,
+        reason: `${generatedAdminAuditReason(req)} Support access grants only dedicated support-thread access, never Private Vault access.`,
       });
       return updated;
     });
