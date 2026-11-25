@@ -1322,7 +1322,7 @@ test('customer erasure mutations remain scoped to the selected member only', () 
   expect(erasureRoute).toContain('inArray(bankSupportMessagesTable.conversationId, conversations.map((item) => item.id))');
   expect(erasureRoute).toContain('eq(bankSupportConversationsTable.userId, target.id)');
   expect(erasureRoute).not.toContain('delete(bankUsersTable)');
-  expect(erasureRoute).toContain('eq(bankUsersTable.id, target.id)').toBeTruthy();
+  expect(erasureRoute).toContain('eq(bankUsersTable.id, target.id)');
   expect(erasureRoute).toContain('Allowlisted administrator accounts cannot be deleted');
 });
 
