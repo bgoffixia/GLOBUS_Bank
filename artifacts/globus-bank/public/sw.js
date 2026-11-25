@@ -1,4 +1,4 @@
-const CACHE_NAME = "globus-app-shell-v3";
+const CACHE_NAME = "globus-app-shell-v4";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
