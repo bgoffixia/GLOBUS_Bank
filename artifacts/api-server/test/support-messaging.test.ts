@@ -186,6 +186,12 @@ test("customer erasure is admin-only, explicitly confirmed, and retains required
   assert.match(handler, /bankNotificationsTable/);
   assert.match(handler, /bankPushSubscriptionsTable/);
   assert.match(handler, /bankIdentityDocumentsTable/);
+  assert.match(handler, /bankRestrictionsTable/);
+  assert.match(handler, /bankWalletsTable/);
+  assert.match(handler, /bankSandboxRequestsTable/);
+  assert.match(handler, /paymentMethodSummary: null/);
+  assert.match(handler, /vaultSubscriptionReviewedByUserId: null/);
+  assert.match(handler, /acceptedTermsAt: null/);
   assert.match(handler, /GLOBUS_PRIVATE_FILES_BUCKET/);
   assert.match(handler, /deleteCustomerPrivateObjects\(storageObjectPaths\)/);
   assert.ok(handler.indexOf("deleteCustomerPrivateObjects(storageObjectPaths)") < handler.indexOf("clerkClient.users.deleteUser"));
