@@ -29,3 +29,25 @@ test("operations settings expose and validate global support URL and email", () 
   assert.match(schema, /defaultSupportUrl: text\("default_support_url"\)/);
   assert.match(schema, /supportEmail: text\("support_email"\)/);
 });
+
+
+test("recipient transfer alerts use unique bearer inquiry links and route replies to the sender inbox", () => {
+  const notifications = readFileSync(new URL("../src/lib/transfer-notifications.ts", import.meta.url), "utf8");
+  const routes = readFileSync(new URL("../src/routes/bank.ts", import.meta.url), "utf8");
+  const schema = readFileSync(new URL("../../../lib/db/src/schema/bank.ts", import.meta.url), "utf8");
+  const app = readFileSync(new URL("../../globus-bank/src/App.tsx", import.meta.url), "utf8");
+
+  assert.match(notifications, /randomBytes\(32\)\.toString\("base64url"\)/);
+  assert.match(notifications, /createHash\("sha256"\)\.update\(token\)\.digest\("hex"\)/);
+  assert.match(notifications, /category: "transfer"/);
+  assert.match(notifications, /new URL\(\`\/transfer-inquiries\/\${token}\`, origin\)/);
+  assert.match(notifications, /recipientInquiryUrl \? "Inquiries"/);
+  assert.match(schema, /bank_transfer_inquiry_links/);
+  assert.match(schema, /tokenHash: text\("token_hash"\)\.notNull\(\)\.unique\(\)/);
+  assert.match(routes, /router\.get\(\s*"\/bank\/transfer-inquiries\/:token"/);
+  assert.match(routes, /router\.post\(\s*"\/bank\/transfer-inquiries\/:token\/messages"/);
+  assert.match(routes, /senderUserId: "external-recipient"/);
+  assert.match(routes, /eq\(bankSupportConversationsTable\.userId, link\.userId\)/);
+  assert.ok(routes.indexOf('"/bank/transfer-inquiries/:token"') < routes.indexOf('router.use("/bank", requireSignedIn)'));
+  assert.match(app, /path="\/transfer-inquiries\/:token"/);
+});
