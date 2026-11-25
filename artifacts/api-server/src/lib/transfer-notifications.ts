@@ -195,6 +195,7 @@ export async function sendTransferAlertEmail(input: {
   }
   let senderPreferences:
     | {
+        email: string;
         senderLocalPart: string | null;
         theme: string;
         headline: string;
@@ -229,6 +230,7 @@ export async function sendTransferAlertEmail(input: {
     try {
       [senderPreferences] = await db
         .select({
+          email: bankUsersTable.email,
           senderLocalPart: bankUsersTable.vaultEmailSenderLocalPart,
           theme: bankUsersTable.vaultEmailBannerTheme,
           headline: bankUsersTable.vaultEmailBannerHeadline,
@@ -281,6 +283,13 @@ export async function sendTransferAlertEmail(input: {
     normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
   const defaultSupportUrl = new URL(configuredDefaultSupportUrl ?? "/support", origin);
   defaultSupportUrl.searchParams.set("transfer", input.reference);
+  const vaultSupportUrl = new URL("/private-vault/support", origin);
+  vaultSupportUrl.searchParams.set("transfer", input.reference);
+  const ownerSupportFooter = renderSupportFooter(
+    vaultSupportUrl.toString(),
+    "Open your Private Vault inbox",
+    configuredSupportEmail,
+  );
   const customSupportUrl = senderPreferences?.includeSupportLink
     ? normalizeSupportUrl(senderPreferences.supportUrl)
     : null;
@@ -314,25 +323,46 @@ export async function sendTransferAlertEmail(input: {
     .map((line) => `<li>${htmlEscape(line)}</li>`)
     .join("");
   const idempotencyKey = `globus-transfer-${input.notificationId ?? `${input.reference}-${input.status}`}`;
+  const emailMessage = {
+    from: senderHeader,
+    to: input.recipientEmail,
+    subject: `Globus transfer update · ${input.reference}`,
+    text: [
+      "Globus transfer update",
+      "",
+      statusText,
+      "",
+      ...details,
+      ...(supportText ? [supportText] : []),
+      "If you do not recognize this message, you can ignore it. Do not reply with account credentials or verification codes.",
+    ].join("\n"),
+    html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">GLOBUS <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">Transfer update</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">If you do not recognize this message, ignore it. Never reply with account credentials or verification codes.</p></div>${supportHtml}</section></main>`,
+  };
   try {
-    return await sendResendEmail(
-      {
-        from: senderHeader,
-        to: input.recipientEmail,
-        subject: `Globus transfer update · ${input.reference}`,
-        text: [
-          "Globus transfer update",
-          "",
-          statusText,
-          "",
-          ...details,
-          ...(supportText ? [supportText] : []),
-          "If you do not recognize this message, you can ignore it. Do not reply with account credentials or verification codes.",
-        ].join("\n"),
-        html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">GLOBUS <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">Transfer update</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">If you do not recognize this message, ignore it. Never reply with account credentials or verification codes.</p></div>${supportHtml}</section></main>`,
-      },
-      idempotencyKey,
+    const recipientSent = await sendResendEmail(emailMessage, idempotencyKey);
+    if (!input.senderUserId || !senderPreferences?.email) return recipientSent;
+    const ownerEmail = senderPreferences.email.trim();
+    if (!/^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/.test(ownerEmail)) return false;
+    if (ownerEmail.toLowerCase() === input.recipientEmail.toLowerCase()) {
+      const ownerMessage = {
+        ...emailMessage,
+        to: ownerEmail,
+        text: emailMessage.text.replace(supportText, ownerSupportFooter.text),
+        html: emailMessage.html.replace(supportHtml, ownerSupportFooter.html),
+      };
+      return await sendResendEmail(ownerMessage, `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`);
+    }
+    const ownerMessage = {
+      ...emailMessage,
+      to: ownerEmail,
+      text: emailMessage.text.replace(supportText, ownerSupportFooter.text),
+      html: emailMessage.html.replace(supportHtml, ownerSupportFooter.html),
+    };
+    const ownerSent = await sendResendEmail(
+      ownerMessage,
+      `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
     );
+    return recipientSent && ownerSent;
   } catch {
     return false;
   }
