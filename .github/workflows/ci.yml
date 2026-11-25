@@ -19,6 +19,8 @@ jobs:
           cache: pnpm
       - run: pnpm install --frozen-lockfile
       - run: PORT=24083 BASE_PATH=/ NODE_ENV=production pnpm run build
+      - name: Run support messaging and transfer email regression tests
+        run: pnpm --filter @workspace/api-server test:support-messaging
       - name: Install Playwright Chromium
         run: pnpm --filter @workspace/globus-bank exec playwright install --with-deps chromium
       - name: Run mobile viewport and overflow regression suite
