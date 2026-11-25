@@ -1,5 +1,5 @@
 import { Link } from 'wouter';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { useClerk, useUser } from '@clerk/react';
 import {
   ArrowRight, Bell, Check, ChevronRight, Globe2, HelpCircle, KeyRound,
@@ -190,7 +190,7 @@ export function SettingsPage() {
   );
 }
 
-function SettingsPanel({ title, description, icon: Icon, children }: { title: string; description: string; icon: typeof ShieldCheck; children: React.ReactNode }) {
+function SettingsPanel({ title, description, icon: Icon, children }: { title: string; description: string; icon: typeof ShieldCheck; children: ReactNode }) {
   return (
     <section className="overflow-hidden rounded-2xl border border-[#dfe7ed] bg-white shadow-[0_6px_22px_rgba(20,47,81,.035)]">
       <header className="flex items-center gap-3 border-b border-[#edf1f4] px-4 py-4 sm:px-5">
