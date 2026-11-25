@@ -2,6 +2,7 @@ import { Router, type IRouter, type Request, type RequestHandler } from "express
 import { randomBytes, randomUUID, createHash } from "node:crypto";
 import { clerkClient, getAuth } from "@clerk/express";
 import { rateLimit } from "express-rate-limit";
+import { Storage } from "@google-cloud/storage";
 import {
   and,
   asc,
@@ -190,6 +191,22 @@ import {
 import { withCustomerReceiptTemplate } from "../lib/customer-receipt-template";
 import { getVaultPasscodeResetSenderAddress } from "../lib/vault-passcode-reset-email";
 import { sendVaultPasscodeResetEmail } from "../lib/vault-passcode-reset-smtp";
+
+const privateObjectStorage = new Storage();
+
+async function deleteCustomerPrivateObjects(objectPaths: string[]): Promise<void> {
+  if (objectPaths.length === 0) return;
+  const bucketName = process.env.GLOBUS_PRIVATE_FILES_BUCKET?.trim();
+  if (!bucketName) throw new Error("GLOBUS_PRIVATE_FILES_BUCKET is not configured.");
+  const bucket = privateObjectStorage.bucket(bucketName);
+  await Promise.all(objectPaths.map(async (objectPath) => {
+    const key = objectPath.replace(/^\\/+/, "");
+    if (!key || key.split("/").includes("..") || key.includes("\\0")) {
+      throw new Error("A customer object path is invalid.");
+    }
+    await bucket.file(key).delete({ ignoreNotFound: true });
+  }));
+}
 
 const router: IRouter = Router();
 const supportMessageLimiter = rateLimit({
@@ -5727,7 +5744,12 @@ router.post(
 
     const actor = await ensureBankUser(authenticatedClerkId);
     const [target] = await db
-      .select({ id: bankUsersTable.id, email: bankUsersTable.email, accountStatus: bankUsersTable.accountStatus })
+      .select({
+        id: bankUsersTable.id,
+        email: bankUsersTable.email,
+        accountStatus: bankUsersTable.accountStatus,
+        vaultSubscriptionProofObjectPath: bankUsersTable.vaultSubscriptionProofObjectPath,
+      })
       .from(bankUsersTable)
       .where(eq(bankUsersTable.id, userId))
       .limit(1);
@@ -5747,6 +5769,15 @@ router.post(
       res.status(409).json({ error: "Allowlisted administrator accounts cannot be deleted through customer management." });
       return;
     }
+
+    const identityDocuments = await db
+      .select({ objectPath: bankIdentityDocumentsTable.objectPath })
+      .from(bankIdentityDocumentsTable)
+      .where(eq(bankIdentityDocumentsTable.userId, target.id));
+    const storageObjectPaths = [...new Set([
+      target.vaultSubscriptionProofObjectPath,
+      ...identityDocuments.map((document) => document.objectPath),
+    ].filter((path): path is string => Boolean(path?.trim())))];
 
     const now = new Date();
     const tombstoneEmail = `erased+${createHash("sha256").update(target.id).digest("hex").slice(0, 24)}@invalid.local`;
@@ -5770,7 +5801,6 @@ router.post(
         await tx.delete(bankNotificationsTable).where(eq(bankNotificationsTable.userId, target.id));
         await tx.delete(bankPushSubscriptionsTable).where(eq(bankPushSubscriptionsTable.userId, target.id));
         await tx.delete(bankVaultAdminEntitlementsTable).where(eq(bankVaultAdminEntitlementsTable.userId, target.id));
-        await tx.delete(bankIdentityDocumentsTable).where(eq(bankIdentityDocumentsTable.userId, target.id));
         await tx.delete(bankPersonalFinanceRecordsTable).where(eq(bankPersonalFinanceRecordsTable.userId, target.id));
         await tx.delete(bankFinancialAccountsTable).where(eq(bankFinancialAccountsTable.userId, target.id));
         await tx.delete(bankFinanceLoanApplicationsTable).where(eq(bankFinanceLoanApplicationsTable.userId, target.id));
@@ -5803,11 +5833,6 @@ router.post(
           vaultSubscriptionPaymentReference: null,
           vaultPaystackCustomerCode: null,
           vaultPaystackSubscriptionCode: null,
-          vaultSubscriptionProofObjectPath: null,
-          vaultSubscriptionProofContentType: null,
-          vaultSubscriptionProofSizeBytes: null,
-          vaultSubscriptionProofFileName: null,
-          vaultSubscriptionProofUploadedAt: null,
           vaultEmailSupportUrl: null,
           vaultEmailSupportLabel: "Contact support",
           vaultEmailSenderLocalPart: null,
@@ -5841,6 +5866,30 @@ router.post(
       });
     } catch {
       res.status(500).json({ error: "Customer data erasure could not be prepared. No success was recorded." });
+      return;
+    }
+
+    try {
+      await deleteCustomerPrivateObjects(storageObjectPaths);
+      await db.transaction(async (tx) => {
+        await tx.delete(bankIdentityDocumentsTable).where(eq(bankIdentityDocumentsTable.userId, target.id));
+        await tx.update(bankUsersTable).set({
+          vaultSubscriptionProofObjectPath: null,
+          vaultSubscriptionProofContentType: null,
+          vaultSubscriptionProofSizeBytes: null,
+          vaultSubscriptionProofFileName: null,
+          vaultSubscriptionProofUploadedAt: null,
+          updatedAt: new Date(),
+        }).where(eq(bankUsersTable.id, target.id));
+      });
+    } catch {
+      res.status(202).json({
+        deleted: false,
+        pending: true,
+        storageCleanupRequired: true,
+        userId: target.id,
+        error: "Application profile data was scrubbed, but uploaded identity or Vault proof files could not be removed. Configure GLOBUS_PRIVATE_FILES_BUCKET and Google Cloud Storage credentials, then retry this erasure request.",
+      });
       return;
     }
 
