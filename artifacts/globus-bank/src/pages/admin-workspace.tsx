@@ -1163,7 +1163,6 @@ function SettingsPage() {
   const [vaultPlan1mPrice, setVaultPlan1mPrice] = useState<string | null>(null);
   const [vaultPlan3mPrice, setVaultPlan3mPrice] = useState<string | null>(null);
   const [vaultPlan1yPrice, setVaultPlan1yPrice] = useState<string | null>(null);
-  const [customerEmailSenderDisplayName, setCustomerEmailSenderDisplayName] = useState<string | null>(null);
   const [defaultSupportUrl, setDefaultSupportUrl] = useState<string | null>(null);
   const [supportEmail, setSupportEmail] = useState<string | null>(null);
   const [pin, setPin] = useState('');
@@ -1181,16 +1180,12 @@ function SettingsPage() {
           vaultPlan1mPrice: vaultPlan1mPrice ?? settings.data?.vaultPlan1mPrice ?? '',
           vaultPlan3mPrice: vaultPlan3mPrice ?? settings.data?.vaultPlan3mPrice ?? '',
           vaultPlan1yPrice: vaultPlan1yPrice ?? settings.data?.vaultPlan1yPrice ?? '',
-          customerEmailSenderDisplayName:
-            customerEmailSenderDisplayName ??
-            settings.data?.customerEmailSenderDisplayName ??
-            '',
+          customerEmailSenderDisplayName: 'Incoming Transfer',
           defaultSupportUrl: (defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? '') || null,
           supportEmail: (supportEmail ?? settings.data?.supportEmail ?? '') || null,
           transactionPin: pin,
         },
       });
-      setCustomerEmailSenderDisplayName(result.customerEmailSenderDisplayName);
       setDefaultSupportUrl(result.defaultSupportUrl);
       setSupportEmail(result.supportEmail);
       setVaultPlan1mPrice(result.vaultPlan1mPrice);
