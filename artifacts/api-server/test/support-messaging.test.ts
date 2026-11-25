@@ -118,6 +118,22 @@ test("customer handlers enforce owner scope and message rate limits", () => {
   assert.match(customerRoutes, /where\(eq\(bankSupportConversationsTable\.userId, user\.id\)\)/);
 });
 
+test("support categories enforce Vault eligibility and transfer ownership", () => {
+  const routes = source("../src/routes/bank.ts");
+  const adminRoutes = source("../src/routes/bankAdmin.ts");
+  const schema = source("../../../lib/db/src/schema/bank.ts");
+  const migration = source("../../../lib/db/migrations/20261125_support_conversation_categories.sql");
+  assert.match(schema, /category: text\("category"\)\.notNull\(\)\.default\("general"\)/);
+  assert.match(schema, /transferReference: text\("transfer_reference"\)/);
+  assert.match(migration, /category IN \('general', 'private_vault', 'transfer'\)/);
+  assert.match(routes, /hasActiveVaultAccess\(user\)/);
+  assert.match(routes, /eq\(bankTransactionsTable\.reference, transferReference\)/);
+  assert.match(routes, /eq\(bankTransactionsTable\.fromUserId, user\.id\)/);
+  assert.match(routes, /conversation\.category !== "general"/);
+  assert.match(adminRoutes, /parsed\.data\.category/);
+  assert.match(adminRoutes, /bankSupportConversationsTable\.transferReference/);
+});
+
 test("admin support handlers require allowlisting and write reply audit records", () => {
   const routes = source("../src/routes/bankAdmin.ts");
   assert.match(routes, /router\.get\(\s*"\/bank\/admin\/support\/conversations",\s*requireAdmin/);
