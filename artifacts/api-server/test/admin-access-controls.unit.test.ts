@@ -316,3 +316,62 @@ test("access-control route denies anonymous and non-allowlisted users before dat
     else process.env.GLOBUS_ADMIN_EMAILS = previousEmails;
   }
 });
+
+
+test("customer erasure is scoped to one member and revokes only that member's active sessions", () => {
+  const source = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  const start = source.indexOf('router.post(\n  "/bank/admin/users/:userId/delete"');
+  const end = source.indexOf("\n);\n\nexport default router", start);
+  assert.ok(start >= 0 && end > start, "customer erasure route should be present");
+  const route = source.slice(start, end);
+
+  assert.match(route, /\.where\(eq\(bankUsersTable\.id, userId\)\)/);
+  assert.match(route, /getSessionList\(\{\s*userId:\s*target\.id/);
+  assert.match(route, /revokeSession\(session\.id\)/);
+  assert.match(route, /clerkClient\.users\.deleteUser\(target\.id\)/);
+  assert.doesNotMatch(route, /deleteUser\(authenticatedClerkId\)/);
+
+  const targetScopedTables = [
+    "bankSupportConversationsTable",
+    "bankVaultSessionsTable",
+    "bankVaultPasscodeResetTokensTable",
+    "bankSavedPaymentMethodsTable",
+    "bankVaultTransactionNotesTable",
+    "bankNotificationsTable",
+    "bankPushSubscriptionsTable",
+    "bankVaultAdminEntitlementsTable",
+    "bankRestrictionsTable",
+    "bankWalletsTable",
+    "bankSandboxRequestsTable",
+    "bankPersonalFinanceRecordsTable",
+    "bankFinancialAccountsTable",
+    "bankFinanceLoanApplicationsTable",
+    "bankVaultPaystackEventsTable",
+    "bankUsersTable",
+    "bankIdentityDocumentsTable",
+  ];
+  for (const table of targetScopedTables) {
+    assert.match(
+      route,
+      new RegExp(`\\.where\\(eq\\(${table}\\.(?:userId|id), target\\.id\\)\\)`),
+      `all mutations for ${table} must be restricted to the selected member`,
+    );
+  }
+  assert.match(
+    route,
+    /inArray\(bankSupportMessagesTable\.conversationId, conversations\.map/,
+    "support messages must be limited to conversations belonging to the selected member",
+  );
+  assert.match(
+    route,
+    /protectedAdminIds\.includes\(target\.id\).*?protectedAdminEmails\.includes\(target\.email\.toLowerCase\(\)\)/s,
+    "allowlisted administrators must remain protected from customer erasure",
+  );
+  assert.match(
+    route,
+    /action:\s*"customer_personal_data_erasure_requested"[\s\S]*?targetUserId:\s*target\.id/,
+  );
+});
