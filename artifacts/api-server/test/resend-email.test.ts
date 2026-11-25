@@ -276,3 +276,15 @@ test("reports Resend rejection as an unsuccessful delivery", async () => {
     else process.env[apiKeyEnv] = previousKey;
   }
 });
+
+
+test("admin test-email cooldown is per administrator and returns the remaining wait", () => {
+  const source = readFileSync(
+    new URL("../src/routes/bankAdmin.ts", import.meta.url),
+    "utf8",
+  );
+  assert.match(source, /keyGenerator:\s*\(req\)\s*=>\s*getAuth\(req\)\.userId/);
+  assert.match(source, /req\.rateLimit\?\.resetTime/);
+  assert.match(source, /retryAfterSeconds/);
+  assert.match(source, /setHeader\("Retry-After"/);
+});
