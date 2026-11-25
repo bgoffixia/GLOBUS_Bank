@@ -158,6 +158,13 @@ test("customer erasure is admin-only, explicitly confirmed, and retains required
   assert.match(handler, /bankSupportMessagesTable/);
   assert.match(handler, /bankVaultSessionsTable/);
   assert.match(handler, /bankVaultPasscodeResetTokensTable/);
+  assert.match(handler, /bankSavedPaymentMethodsTable/);
+  assert.match(handler, /bankPersonalFinanceRecordsTable/);
+  assert.match(handler, /bankFinancialAccountsTable/);
+  assert.match(handler, /bankFinanceLoanApplicationsTable/);
+  assert.match(handler, /bankNotificationsTable/);
+  assert.match(handler, /bankPushSubscriptionsTable/);
+  assert.match(handler, /bankIdentityDocumentsTable/);
   assert.match(handler, /clerkClient\.users\.deleteUser/);
   assert.match(handler, /accountStatus: "deletion_pending"/);
   assert.match(handler, /accountStatus: "deleted"/);
