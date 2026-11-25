@@ -445,6 +445,8 @@ export const bankSupportConversationsTable = pgTable(
       .notNull()
       .references(() => bankUsersTable.id, { onDelete: "cascade" }),
     subject: text("subject").notNull(),
+    category: text("category").notNull().default("general"),
+    transferReference: text("transfer_reference"),
     status: text("status").notNull().default("open"),
     customerUnread: boolean("customer_unread").notNull().default(false),
     adminUnread: boolean("admin_unread").notNull().default(false),
@@ -468,6 +470,14 @@ export const bankSupportConversationsTable = pgTable(
       table.lastMessageAt,
     ),
     check(
+      "bank_support_conversation_category_check",
+      sql`${table.category} in ('general', 'private_vault', 'transfer')`,
+    ),
+    check(
+      "bank_support_conversation_transfer_reference_check",
+      sql`${table.category} = 'transfer' or ${table.transferReference} is null`,
+    ),
+        check(
       "bank_support_conversation_status_check",
       sql`${table.status} in ('open', 'closed')`,
     ),
