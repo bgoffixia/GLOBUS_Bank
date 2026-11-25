@@ -3,7 +3,7 @@ import { useClerk, useUser } from '@clerk/react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Link, useLocation } from 'wouter';
 import {
-  Activity, ArrowLeft, ArrowRight, ArrowUpRight, Banknote,
+  Activity, ArrowLeft, ArrowRight, ArrowUpRight, Banknote, Bell, Monitor,
   Check, ChevronDown, ChevronLeft, ChevronRight, CircleAlert, ClipboardList, Download,
   FileClock, KeyRound, Landmark, LayoutDashboard, LockKeyhole, LogOut, Menu, Search,
   Mail, MessageSquareText, Settings2, Shield, ShieldCheck, SlidersHorizontal, Users, WalletCards, X,
@@ -560,17 +560,17 @@ function MemberDetail({ userId }: { userId: string }) {
      </nav>
      <section aria-label="Quick member controls" className="mb-3 shrink-0 rounded-xl border border-[#dce6e0] bg-[#fbfcf8] p-2.5">
        <div className="mb-2 flex items-center justify-between gap-2"><p className="text-[9px] font-extrabold uppercase tracking-[.14em] text-[#4f8888]">Quick controls</p><span className="text-[8px] font-semibold text-[#849493]">PIN-protected · audited</span></div>
-       <div className="grid grid-cols-5 gap-1.5">
-         <button type="button" onClick={() => open('profile')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Users size={13} />Edit profile</button>
-         <button type="button" onClick={() => open('status')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Shield size={13} />{u.accountStatus === 'active' ? 'Restrict' : 'Restore'}</button>
-         <button type="button" onClick={() => open('pin')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><LockKeyhole size={13} />Reset PIN</button>
-         <button type="button" onClick={() => open('password-reset')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><KeyRound size={13} />Password reset</button>
-         <button type="button" onClick={() => void sendVaultResetLink()} disabled={vaultResetBusy} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef] disabled:opacity-50"><ShieldCheck size={13} />{vaultResetBusy ? 'Sending…' : 'Vault reset'}</button>
-         <button type="button" onClick={() => open('vault-subscription')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><LockKeyhole size={13} />Remove Vault</button>
-         <button type="button" onClick={() => document.getElementById('member-account-tier')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><WalletCards size={13} />Account tier</button>
-         <button type="button" onClick={() => document.getElementById('member-access-controls')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Settings2 size={13} />Access rules</button>
-         <button type="button" onClick={() => setActiveTab('transactions')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Activity size={13} />Activity</button>
-         <button type="button" onClick={() => setActiveTab('restrictions')} className="flex min-h-[48px] min-w-0 flex-col items-center justify-center gap-1 rounded-lg border border-[#e0e9e3] bg-white px-1 py-1.5 text-center text-[8px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><ShieldCheck size={13} />Restrictions</button>
+       <div className="grid grid-cols-5 gap-1">
+         <button type="button" onClick={() => open('profile')} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Users size={12} />Edit profile</button>
+         <button type="button" onClick={() => open('status')} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Shield size={12} />{u.accountStatus === 'active' ? 'Restrict' : 'Restore'}</button>
+         <button type="button" onClick={() => open('pin')} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><LockKeyhole size={12} />Reset PIN</button>
+         <button type="button" onClick={() => open('password-reset')} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><KeyRound size={12} />Password reset</button>
+         <button type="button" onClick={() => void sendVaultResetLink()} disabled={vaultResetBusy} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef] disabled:opacity-50"><ShieldCheck size={12} />{vaultResetBusy ? 'Sending…' : 'Vault reset'}</button>
+         <button type="button" onClick={() => open('vault-subscription')} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><LockKeyhole size={12} />Remove Vault</button>
+         <button type="button" onClick={() => document.getElementById('member-account-tier')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><WalletCards size={12} />Account tier</button>
+         <button type="button" onClick={() => document.getElementById('member-access-controls')?.scrollIntoView({ behavior: 'smooth', block: 'start' })} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Settings2 size={12} />Access rules</button>
+         <button type="button" onClick={() => setActiveTab('transactions')} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><Activity size={12} />Activity</button>
+         <button type="button" onClick={() => setActiveTab('restrictions')} className="flex min-h-[42px] min-w-0 flex-col items-center justify-center gap-0.5 rounded-lg border border-[#e0e9e3] bg-white px-0.5 py-1 text-center text-[7px] font-semibold leading-tight text-[#49666c] hover:bg-[#eef5ef]"><ShieldCheck size={12} />Restrictions</button>
        </div>
        {vaultResetError && <p role="alert" className="mt-2 text-[9px] text-[#a45247]">{vaultResetError}</p>}
      </section>
@@ -1148,6 +1148,19 @@ function SettingsPage() {
   const client = useQueryClient();
   const settings = useGetAdminSettings({ query: { queryKey: getGetAdminSettingsQueryKey() } });
   const update = useUpdateAdminSettings();
+  const { openUserProfile } = useClerk();
+  const { user } = useUser();
+  const [activeCategory, setActiveCategory] = useState<'general' | 'security' | 'notifications' | 'display' | 'operations'>('general');
+  const [notifications, setNotifications] = useState(() => {
+    if (typeof window === 'undefined') return { email: true, sms: true, inApp: true, security: true, product: false };
+    try { return { email: true, sms: true, inApp: true, security: true, product: false, ...JSON.parse(window.localStorage.getItem('globus-admin-notification-preferences') || '{}') }; }
+    catch { return { email: true, sms: true, inApp: true, security: true, product: false }; }
+  });
+  const [display, setDisplay] = useState(() => {
+    if (typeof window === 'undefined') return { theme: 'light', density: 'comfortable', language: 'English' };
+    try { return { theme: 'light', density: 'comfortable', language: 'English', ...JSON.parse(window.localStorage.getItem('globus-admin-display-preferences') || '{}') }; }
+    catch { return { theme: 'light', density: 'comfortable', language: 'English' }; }
+  });
   const [limit, setLimit] = useState('');
   const [threshold, setThreshold] = useState('');
   const [vaultPlan1mPrice, setVaultPlan1mPrice] = useState<string | null>(null);
@@ -1159,6 +1172,23 @@ function SettingsPage() {
   const [pin, setPin] = useState('');
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
+  const categories = [
+    { id: 'general', label: 'General', detail: 'Account overview', icon: Users },
+    { id: 'security', label: 'Security', detail: 'Sign-in and protection', icon: ShieldCheck },
+    { id: 'notifications', label: 'Notifications', detail: 'Email, SMS and alerts', icon: Bell },
+    { id: 'display', label: 'Display', detail: 'Theme and language', icon: Monitor },
+    { id: 'operations', label: 'Operations', detail: 'Bank-wide policy settings', icon: SlidersHorizontal },
+  ] as const;
+  const saveNotifications = (key: keyof typeof notifications, value: boolean) => {
+    const next = { ...notifications, [key]: value };
+    setNotifications(next);
+    try { window.localStorage.setItem('globus-admin-notification-preferences', JSON.stringify(next)); } catch { /* Preferences remain active for this session. */ }
+  };
+  const saveDisplay = (key: keyof typeof display, value: string) => {
+    const next = { ...display, [key]: value };
+    setDisplay(next);
+    try { window.localStorage.setItem('globus-admin-display-preferences', JSON.stringify(next)); } catch { /* Preferences remain active for this session. */ }
+  };
   const saveSettings = async (e: FormEvent) => {
     e.preventDefault();
     setError('');
@@ -1171,10 +1201,7 @@ function SettingsPage() {
           vaultPlan1mPrice: vaultPlan1mPrice ?? settings.data?.vaultPlan1mPrice ?? '',
           vaultPlan3mPrice: vaultPlan3mPrice ?? settings.data?.vaultPlan3mPrice ?? '',
           vaultPlan1yPrice: vaultPlan1yPrice ?? settings.data?.vaultPlan1yPrice ?? '',
-          customerEmailSenderDisplayName:
-            customerEmailSenderDisplayName ??
-            settings.data?.customerEmailSenderDisplayName ??
-            '',
+          customerEmailSenderDisplayName: customerEmailSenderDisplayName ?? settings.data?.customerEmailSenderDisplayName ?? '',
           defaultSupportUrl: (defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? '') || null,
           supportEmail: (supportEmail ?? settings.data?.supportEmail ?? '') || null,
           transactionPin: pin,
@@ -1193,14 +1220,63 @@ function SettingsPage() {
       setError(err instanceof Error ? err.message : 'Settings could not be updated.');
     }
   };
+  const ToggleRow = ({ title, description, checked, onChange }: { title: string; description: string; checked: boolean; onChange: (value: boolean) => void }) => (
+    <div className="flex min-w-0 items-center justify-between gap-4 rounded-xl border border-[#e0e8ed] bg-white p-3.5">
+      <div className="min-w-0"><p className="text-[11px] font-bold text-[#233e53]">{title}</p><p className="mt-1 text-[9px] leading-4 text-[#7a8d99]">{description}</p></div>
+      <button type="button" role="switch" aria-checked={checked} onClick={() => onChange(!checked)} className={`relative h-6 w-11 shrink-0 rounded-full transition ${checked ? 'bg-[#168b68]' : 'bg-[#c5d0d8]'}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${checked ? 'left-[22px]' : 'left-0.5'}`} /></button>
+    </div>
+  );
   return (
-    <>
-      <Heading
-        kicker="Operational policy"
-        title="Operations settings"
-       subtitle="Set funding rules, customer messaging, and Paystack access-plan pricing."
-      />
-      {settings.isError && <InlineError text="Operational settings could not be loaded." retry={() => settings.refetch()} />}
+    <div className="space-y-4">
+      <Heading kicker="Account preferences" title="Account settings" subtitle="Manage your administrator profile, security, notifications and display preferences." />
+      <div className="grid items-start gap-4 lg:grid-cols-[230px_minmax(0,1fr)]">
+        <aside className="rounded-2xl border border-[#dce5eb] bg-white p-2.5 shadow-sm">
+          <p className="px-3 pb-2 pt-1 text-[8px] font-extrabold uppercase tracking-[.16em] text-[#8295a0]">Settings categories</p>
+          <nav aria-label="Account settings categories" className="grid grid-cols-2 gap-1.5 lg:grid-cols-1">
+            {categories.map(item => { const Icon = item.icon; return <button key={item.id} type="button" onClick={() => setActiveCategory(item.id)} aria-current={activeCategory === item.id ? 'page' : undefined} className={`flex min-w-0 items-center gap-2.5 rounded-xl px-3 py-3 text-left transition ${activeCategory === item.id ? 'bg-[#e4f4ed] text-[#164c4b]' : 'text-[#526b7b] hover:bg-[#f2f6f8]'}`}><Icon size={17} className="shrink-0" /><span className="min-w-0"><span className="block text-[10px] font-bold">{item.label}</span><span className="mt-0.5 block truncate text-[8px] opacity-75">{item.detail}</span></span><ChevronRight size={13} className="ml-auto hidden shrink-0 lg:block" /></button>; })}
+          </nav>
+        </aside>
+        <main className="min-w-0 space-y-4">
+          {activeCategory === 'general' && <>
+            <Panel title="General account information" eyebrow="Administrator profile" action={<button type="button" onClick={() => openUserProfile()} className={button}>Manage profile</button>}>
+              <div className="grid gap-4 p-4 sm:grid-cols-2">
+                <div><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#8295a0]">Full name</p><p className="mt-1 text-[12px] font-semibold text-[#233e53]">{user?.fullName || 'Administrator'}</p></div>
+                <div><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#8295a0]">Email address</p><p className="mt-1 break-all text-[12px] font-semibold text-[#233e53]">{user?.primaryEmailAddress?.emailAddress || 'Not available'}</p></div>
+                <div><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#8295a0]">Account provider</p><p className="mt-1 text-[11px] font-semibold text-[#496578]">Clerk authentication</p></div>
+                <div><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#8295a0]">Workspace</p><p className="mt-1 text-[11px] font-semibold text-[#496578]">GLOBUS BANK · Operations</p></div>
+              </div>
+            </Panel>
+            <Panel title="Account preferences" eyebrow="Quick overview" note="Choose a category to update the preferences available to your administrator account.">
+              <div className="grid gap-2 p-3 sm:grid-cols-2"><button type="button" onClick={() => setActiveCategory('notifications')} className="rounded-xl border border-[#e0e8ed] p-3 text-left hover:bg-[#f5f9f7]"><p className="text-[10px] font-bold text-[#233e53]">Notification preferences</p><p className="mt-1 text-[9px] text-[#7a8d99]">Manage email, SMS, in-app and security alerts.</p></button><button type="button" onClick={() => setActiveCategory('display')} className="rounded-xl border border-[#e0e8ed] p-3 text-left hover:bg-[#f5f9f7]"><p className="text-[10px] font-bold text-[#233e53]">Display preferences</p><p className="mt-1 text-[9px] text-[#7a8d99]">Set your appearance, density and language.</p></button></div>
+            </Panel>
+          </>}
+          {activeCategory === 'security' && <>
+            <Panel title="Sign-in and account security" eyebrow="Clerk-managed authentication" note="Authentication credentials and multi-factor options are managed securely by Clerk.">
+              <div className="space-y-3 p-4"><div className="flex items-center justify-between gap-3 rounded-xl bg-[#f2f7f5] p-3"><div><p className="text-[10px] font-bold text-[#233e53]">Administrator identity</p><p className="mt-1 text-[9px] text-[#718795]">Signed in as {user?.primaryEmailAddress?.emailAddress || 'your administrator account'}</p></div><span className="rounded-full bg-[#e0f3e9] px-2.5 py-1 text-[8px] font-bold text-[#24734f]">Authenticated</span></div><p className="text-[9px] leading-5 text-[#718795]">Use the secure identity settings to update your password, connected sign-in methods and available verification options.</p><button type="button" onClick={() => openUserProfile()} className={button}>Open security and profile settings</button></div>
+            </Panel>
+            <Panel title="Administrative safeguards" eyebrow="Protected operations"><div className="p-4 text-[9px] leading-5 text-[#718795]">Sensitive banking operations continue to require the existing server-side authorization, transaction PIN validation and audit logging. These controls are not changed by display preferences.</div></Panel>
+          </>}
+          {activeCategory === 'notifications' && <>
+            <Panel title="Notification preferences" eyebrow="Delivery channels" note="Choose which notification categories you want to receive. Changes are saved in this browser for this administrator profile.">
+              <div className="grid gap-3 p-3 xl:grid-cols-2">
+                <div className="space-y-2"><p className="px-1 text-[9px] font-extrabold uppercase tracking-[.12em] text-[#64818b]">Communication channels</p><ToggleRow title="Email notifications" description="Administrative updates and account notices by email." checked={notifications.email} onChange={v => saveNotifications('email',v)} /><ToggleRow title="SMS notifications" description="Time-sensitive operational alerts by SMS." checked={notifications.sms} onChange={v => saveNotifications('sms',v)} /><ToggleRow title="In-app notifications" description="Show notifications inside the Globus workspace." checked={notifications.inApp} onChange={v => saveNotifications('inApp',v)} /></div>
+                <div className="space-y-2"><p className="px-1 text-[9px] font-extrabold uppercase tracking-[.12em] text-[#64818b]">Notification types</p><ToggleRow title="Security alerts" description="Sign-in, access and account-security events." checked={notifications.security} onChange={v => saveNotifications('security',v)} /><ToggleRow title="Product and service updates" description="Non-critical product news and workspace updates." checked={notifications.product} onChange={v => saveNotifications('product',v)} /></div>
+              </div>
+            </Panel>
+            <p className="rounded-xl border border-[#e3eaf0] bg-[#f7fafb] p-3 text-[9px] leading-5 text-[#718795]">These are local administrator display preferences. They do not unsubscribe customers, change transaction-alert delivery, or alter mandatory security and banking notifications.</p>
+          </>}
+          {activeCategory === 'display' && <>
+            <Panel title="Display preferences" eyebrow="Workspace appearance" note="Choose a comfortable workspace presentation for this browser.">
+              <div className="grid gap-4 p-4 sm:grid-cols-2">
+                <Field label="Theme"><select className={input} value={display.theme} onChange={e => saveDisplay('theme',e.target.value)}><option value="light">Light · Globus classic</option><option value="system">Follow device preference</option></select></Field>
+                <Field label="Interface density"><select className={input} value={display.density} onChange={e => saveDisplay('density',e.target.value)}><option value="comfortable">Comfortable</option><option value="compact">Compact</option></select></Field>
+                <Field label="Language"><select className={input} value={display.language} onChange={e => saveDisplay('language',e.target.value)}><option>English</option><option>French</option><option>Spanish</option></select></Field>
+              </div>
+              <div className="mx-4 mb-4 rounded-xl border border-[#dce7eb] bg-[#f5f9fa] p-3"><p className="text-[9px] font-bold text-[#345367]">Preview</p><p className="mt-1 text-[9px] text-[#718795]">{display.theme === 'system' ? 'Device-based theme preference' : 'Globus classic light theme'} · {display.density} layout · {display.language}</p></div>
+            </Panel>
+          </>}
+          {activeCategory === 'operations' && <>
+                  {settings.isError && <InlineError text="Operational settings could not be loaded." retry={() => settings.refetch()} />}
       {error && <p role="alert" className="mb-4 rounded-lg bg-[#fff2ed] p-3 text-[10px] text-[#a45247]">{error}</p>}
       {message && <p role="status" className="mb-4 rounded-lg bg-[#eef7f0] p-3 text-[10px] text-[#47755e]">{message}</p>}
       <form onSubmit={saveSettings} className="space-y-5">
@@ -1274,7 +1350,10 @@ function SettingsPage() {
         </Panel>
       </form>
       <div className="mt-5"><LegacyWalletCurrencyMigrationPanel /></div>
-    </>
+          </>}
+        </main>
+      </div>
+    </div>
   );
 }
 
