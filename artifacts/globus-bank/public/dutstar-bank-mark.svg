@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Dutstar Bank emblem">
+  <rect width="512" height="512" rx="112" fill="#102f50"/>
+  <path d="M256 56 408 112v116c0 106-64 181-152 228C168 409 104 334 104 228V112z" fill="#1c6680" stroke="#d9b65c" stroke-width="18"/>
+  <path d="M174 266h164M196 218h120M216 170h80M210 322h92" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round"/>
+  <path d="m194 265 62 61 62-61" fill="none" stroke="#d9b65c" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
