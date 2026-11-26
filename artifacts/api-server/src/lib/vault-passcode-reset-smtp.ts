@@ -14,6 +14,7 @@ type SmtpEmailInput = {
 
 const SMTP_HOST = process.env.RESEND_SMTP_HOST?.trim() || "smtp.resend.com";
 const SMTP_PORT = Number(process.env.RESEND_SMTP_PORT || 587);
+const SMTP_USERNAME = process.env.RESEND_SMTP_USERNAME?.trim() || "resend";
 const SMTP_TIMEOUT_MS = 15_000;
 
 type SmtpSocket = Socket | TLSSocket;
@@ -125,7 +126,7 @@ export async function sendResendSmtpEmail(input: SmtpEmailInput): Promise<void> 
       secureSocket.once("error", reject);
     });
     await command(secureSocket, "EHLO dutstar-bank", [250]);
-    const credentials = Buffer.from(`\0resend\0${apiKey}`, "utf8").toString("base64");
+    const credentials = Buffer.from(`\0${SMTP_USERNAME}\0${apiKey}`, "utf8").toString("base64");
     await command(secureSocket, `AUTH PLAIN ${credentials}`, [235]);
     await command(secureSocket, `MAIL FROM:<${sender}>`, [250]);
     await command(secureSocket, `RCPT TO:<${recipient}>`, [250, 251]);
