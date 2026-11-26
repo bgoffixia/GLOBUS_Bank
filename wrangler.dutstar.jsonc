@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dutstar-bank-api",
+  "main": "artifacts/api-server/src/worker.ts",
+  "compatibility_date": "2026-11-26",
+  "compatibility_flags": ["nodejs_compat"],
+  "observability": {
+    "enabled": true
+  },
+  "triggers": {
+    "crons": ["* * * * *", "0 */6 * * *"]
+  },
+  "vars": {
+    "NODE_ENV": "production",
+    "PORT": "8787",
+    "DUTSTAR_TRANSFER_ALERT_EMAIL_FROM": "paymentnotification@infomail.click"
+  }
+}
