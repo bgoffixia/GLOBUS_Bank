@@ -10,7 +10,7 @@ import {
   db,
 } from "@workspace/db";
 import { decryptPrivateData, encryptPrivateData, hashPrivateToken } from "./private-data";
-import { sendResendEmail } from "./resend-email";
+import { sendResendTransactionalEmail } from "./vault-passcode-reset-smtp";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type NotificationCategory = "transfer" | "wallet" | "security";
@@ -19,7 +19,7 @@ export type StoredNotification = typeof bankNotificationsTable.$inferSelect;
 
 export class WebpushrSubscriberAlreadyLinkedError extends Error {
   constructor() {
-    super("This Webpushr subscriber is already linked to another Globus account.");
+    super("This Webpushr subscriber is already linked to another Dutstar account.");
     this.name = "WebpushrSubscriberAlreadyLinkedError";
   }
 }
@@ -131,82 +131,82 @@ function transferLanguageForCountry(country: string): TransferLanguage {
 
 const transferEmailCopy: Record<TransferLanguage, Record<string, string>> = {
   en: {
-    subject: "Globus transfer update", heading: "Transfer update",
-    completed: "The sender’s Globus account recorded this transfer.",
-    pending: "The transfer is pending review in Globus.",
-    failed: "The transfer was not posted to the sender’s Globus wallet.",
+    subject: "Dutstar transfer update", heading: "Transfer update",
+    completed: "The sender’s Dutstar account recorded this transfer.",
+    pending: "The transfer is pending review in Dutstar.",
+    failed: "The transfer was not posted to the sender’s Dutstar wallet.",
     recipient: "Recipient", destination: "Destination", amount: "Amount",
     reference: "Reference", status: "Status", recorded: "Recorded",
     safety: "If you do not recognize this message, ignore it. Never reply with account credentials or verification codes.",
   },
   fr: {
-    subject: "Mise à jour du transfert Globus", heading: "Mise à jour du transfert",
-    completed: "Le compte Globus de l’expéditeur a enregistré ce transfert.",
-    pending: "Le transfert est en attente de vérification dans Globus.",
-    failed: "Le transfert n’a pas été crédité sur le portefeuille Globus de l’expéditeur.",
+    subject: "Mise à jour du transfert Dutstar", heading: "Mise à jour du transfert",
+    completed: "Le compte Dutstar de l’expéditeur a enregistré ce transfert.",
+    pending: "Le transfert est en attente de vérification dans Dutstar.",
+    failed: "Le transfert n’a pas été crédité sur le portefeuille Dutstar de l’expéditeur.",
     recipient: "Bénéficiaire", destination: "Destination", amount: "Montant",
     reference: "Référence", status: "Statut", recorded: "Enregistré",
     safety: "Si vous ne reconnaissez pas ce message, ignorez-le. Ne répondez jamais avec vos identifiants ou codes de vérification.",
   },
   es: {
-    subject: "Actualización de transferencia de Globus", heading: "Actualización de transferencia",
-    completed: "La cuenta Globus del remitente registró esta transferencia.",
-    pending: "La transferencia está pendiente de revisión en Globus.",
-    failed: "La transferencia no se abonó en la cartera Globus del remitente.",
+    subject: "Actualización de transferencia de Dutstar", heading: "Actualización de transferencia",
+    completed: "La cuenta Dutstar del remitente registró esta transferencia.",
+    pending: "La transferencia está pendiente de revisión en Dutstar.",
+    failed: "La transferencia no se abonó en la cartera Dutstar del remitente.",
     recipient: "Beneficiario", destination: "Destino", amount: "Importe",
     reference: "Referencia", status: "Estado", recorded: "Registrado",
     safety: "Si no reconoce este mensaje, ignórelo. Nunca responda con credenciales ni códigos de verificación.",
   },
   de: {
-    subject: "Globus-Überweisungsaktualisierung", heading: "Überweisungsaktualisierung",
-    completed: "Das Globus-Konto des Absenders hat diese Überweisung erfasst.",
-    pending: "Die Überweisung wird bei Globus geprüft.",
-    failed: "Die Überweisung wurde nicht dem Globus-Wallet des Absenders gutgeschrieben.",
+    subject: "Dutstar-Überweisungsaktualisierung", heading: "Überweisungsaktualisierung",
+    completed: "Das Dutstar-Konto des Absenders hat diese Überweisung erfasst.",
+    pending: "Die Überweisung wird bei Dutstar geprüft.",
+    failed: "Die Überweisung wurde nicht dem Dutstar-Wallet des Absenders gutgeschrieben.",
     recipient: "Empfänger", destination: "Ziel", amount: "Betrag",
     reference: "Referenz", status: "Status", recorded: "Erfasst",
     safety: "Wenn Sie diese Nachricht nicht erkennen, ignorieren Sie sie. Antworten Sie niemals mit Zugangsdaten oder Bestätigungscodes.",
   },
   it: {
-    subject: "Aggiornamento trasferimento Globus", heading: "Aggiornamento trasferimento",
-    completed: "Il conto Globus del mittente ha registrato questo trasferimento.",
-    pending: "Il trasferimento è in attesa di verifica su Globus.",
-    failed: "Il trasferimento non è stato accreditato sul portafoglio Globus del mittente.",
+    subject: "Aggiornamento trasferimento Dutstar", heading: "Aggiornamento trasferimento",
+    completed: "Il conto Dutstar del mittente ha registrato questo trasferimento.",
+    pending: "Il trasferimento è in attesa di verifica su Dutstar.",
+    failed: "Il trasferimento non è stato accreditato sul portafoglio Dutstar del mittente.",
     recipient: "Destinatario", destination: "Destinazione", amount: "Importo",
     reference: "Riferimento", status: "Stato", recorded: "Registrato",
     safety: "Se non riconosci questo messaggio, ignoralo. Non rispondere mai con credenziali o codici di verifica.",
   },
   ru: {
-    subject: "Обновление перевода Globus", heading: "Обновление перевода",
-    completed: "Счёт отправителя в Globus зарегистрировал этот перевод.",
-    pending: "Перевод ожидает проверки в Globus.",
-    failed: "Перевод не был зачислен на кошелёк отправителя Globus.",
+    subject: "Обновление перевода Dutstar", heading: "Обновление перевода",
+    completed: "Счёт отправителя в Dutstar зарегистрировал этот перевод.",
+    pending: "Перевод ожидает проверки в Dutstar.",
+    failed: "Перевод не был зачислен на кошелёк отправителя Dutstar.",
     recipient: "Получатель", destination: "Назначение", amount: "Сумма",
     reference: "Номер", status: "Статус", recorded: "Дата записи",
     safety: "Если вы не узнаёте это сообщение, проигнорируйте его. Не отправляйте в ответ пароли или коды подтверждения.",
   },
   uk: {
-    subject: "Оновлення переказу Globus", heading: "Оновлення переказу",
-    completed: "Рахунок відправника в Globus зареєстрував цей переказ.",
-    pending: "Переказ очікує перевірки в Globus.",
-    failed: "Переказ не було зараховано на гаманець відправника Globus.",
+    subject: "Оновлення переказу Dutstar", heading: "Оновлення переказу",
+    completed: "Рахунок відправника в Dutstar зареєстрував цей переказ.",
+    pending: "Переказ очікує перевірки в Dutstar.",
+    failed: "Переказ не було зараховано на гаманець відправника Dutstar.",
     recipient: "Отримувач", destination: "Призначення", amount: "Сума",
     reference: "Номер", status: "Статус", recorded: "Записано",
     safety: "Якщо ви не впізнаєте це повідомлення, проігноруйте його. Не надсилайте у відповідь паролі чи коди підтвердження.",
   },
   pl: {
-    subject: "Aktualizacja przelewu Globus", heading: "Aktualizacja przelewu",
-    completed: "Konto Globus nadawcy zarejestrowało ten przelew.",
-    pending: "Przelew oczekuje na weryfikację w Globus.",
-    failed: "Przelew nie został zaksięgowany w portfelu Globus nadawcy.",
+    subject: "Aktualizacja przelewu Dutstar", heading: "Aktualizacja przelewu",
+    completed: "Konto Dutstar nadawcy zarejestrowało ten przelew.",
+    pending: "Przelew oczekuje na weryfikację w Dutstar.",
+    failed: "Przelew nie został zaksięgowany w portfelu Dutstar nadawcy.",
     recipient: "Odbiorca", destination: "Cel", amount: "Kwota",
     reference: "Numer referencyjny", status: "Status", recorded: "Zarejestrowano",
     safety: "Jeśli nie rozpoznajesz tej wiadomości, zignoruj ją. Nigdy nie odsyłaj danych logowania ani kodów weryfikacyjnych.",
   },
   ro: {
-    subject: "Actualizare transfer Globus", heading: "Actualizare transfer",
-    completed: "Contul Globus al expeditorului a înregistrat acest transfer.",
-    pending: "Transferul așteaptă verificarea în Globus.",
-    failed: "Transferul nu a fost creditat în portofelul Globus al expeditorului.",
+    subject: "Actualizare transfer Dutstar", heading: "Actualizare transfer",
+    completed: "Contul Dutstar al expeditorului a înregistrat acest transfer.",
+    pending: "Transferul așteaptă verificarea în Dutstar.",
+    failed: "Transferul nu a fost creditat în portofelul Dutstar al expeditorului.",
     recipient: "Beneficiar", destination: "Destinație", amount: "Sumă",
     reference: "Referință", status: "Stare", recorded: "Înregistrat",
     safety: "Dacă nu recunoașteți acest mesaj, ignorați-l. Nu răspundeți niciodată cu date de autentificare sau coduri de verificare.",
@@ -350,8 +350,8 @@ export async function sendTransferAlertEmail(input: {
   status: string;
   createdAt: Date;
 }): Promise<boolean> {
-  let senderAddress = "transfer-comfirmation@globus.website";
-  let senderDisplayName = "Incoming Transfer";
+  let senderAddress = process.env.DUTSTAR_TRANSFER_ALERT_EMAIL_FROM?.trim() || "paymentnotification@infomail.click";
+  let senderDisplayName = "Dutstar Bank Transfer Alerts";
   let globalSupportUrl: string | null = null;
   let globalSupportEmail: string | null = null;
   try {
@@ -365,7 +365,7 @@ export async function sendTransferAlertEmail(input: {
       .from(bankAdminSettingsTable)
       .where(eq(bankAdminSettingsTable.id, "operations"))
       .limit(1);
-    senderAddress = settings?.senderAddress || senderAddress;
+    senderAddress = process.env.DUTSTAR_TRANSFER_ALERT_EMAIL_FROM?.trim() || settings?.senderAddress || senderAddress;
     senderDisplayName = settings?.displayName || senderDisplayName;
     globalSupportUrl = settings?.defaultSupportUrl ?? null;
     globalSupportEmail = settings?.supportEmail ?? null;
@@ -428,7 +428,7 @@ export async function sendTransferAlertEmail(input: {
       0.0722 * backgroundRgb[2]) /
     255;
   const bannerTextColor = backgroundLuminance > 0.62 ? "#17314f" : "#ffffff";
-  const headline = senderPreferences?.headline?.trim() || "A Globus transfer notice";
+  const headline = senderPreferences?.headline?.trim() || "A Dutstar transfer notice";
   const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
   const configuredDefaultSupportUrl =
     normalizeSupportUrl(globalSupportUrl) ??
@@ -471,7 +471,8 @@ export async function sendTransferAlertEmail(input: {
         ? copy.pending
         : input.status === "failed" || input.status === "rejected"
           ? copy.failed
-          : `Globus record status: ${input.status}.`;
+          : `Dutstar record status: ${input.status}.`;
+  const simulationNotice = "This is a simulated ledger notification. It does not confirm a real-world bank payment or external account credit.";
   const details = [
     `${copy.recipient}: ${input.recipientName}`,
     `${copy.destination}: ${input.bankName}, ${input.destinationCountry}`,
@@ -495,9 +496,10 @@ export async function sendTransferAlertEmail(input: {
       "",
       ...details,
       ...(supportText ? [supportText] : []),
+      simulationNotice,
       copy.safety,
     ].join("\n"),
-    html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">GLOBUS <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">${htmlEscape(copy.heading)}</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">${htmlEscape(copy.safety)}</p></div>${supportHtml}</section></main>`,
+    html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">DUTSTAR <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">${htmlEscape(copy.heading)}</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">${htmlEscape(simulationNotice)}</p><p style="margin:10px 0 0;font-size:11px;color:#7a8b99">${htmlEscape(copy.safety)}</p></div>${supportHtml}</section></main>`,
   };
   try {
     const ownerEmail = senderPreferences?.email?.trim() ?? null;
@@ -517,16 +519,46 @@ export async function sendTransferAlertEmail(input: {
       ownerEmail!.toLowerCase() === input.recipientEmail.toLowerCase(),
     );
     const recipientMessage = sameAddress && ownerMessage ? ownerMessage : emailMessage;
-    const recipientSent = await sendResendEmail(
-      recipientMessage,
-      idempotencyKey,
-    );
+    let recipientSent = false;
+    try {
+      await sendResendTransactionalEmail({
+        apiKey: process.env.RESEND_API_KEY ?? "",
+        senderAddress,
+        recipientAddress: recipientMessage.to,
+        senderName: senderDisplayName,
+        subject: recipientMessage.subject,
+        text: recipientMessage.text,
+        html: recipientMessage.html,
+        messageId: idempotencyKey,
+      });
+      recipientSent = true;
+    } catch (error) {
+      console.warn("Dutstar transfer email SMTP delivery failed", {
+        reference: input.reference,
+        error: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
     if (!input.senderUserId || !ownerMessage) return recipientSent;
     if (sameAddress) return recipientSent;
-    const ownerSent = await sendResendEmail(
-      ownerMessage,
-      `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
-    );
+    let ownerSent = false;
+    try {
+      await sendResendTransactionalEmail({
+        apiKey: process.env.RESEND_API_KEY ?? "",
+        senderAddress,
+        recipientAddress: ownerMessage.to,
+        senderName: senderDisplayName,
+        subject: ownerMessage.subject,
+        text: ownerMessage.text,
+        html: ownerMessage.html,
+        messageId: `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
+      });
+      ownerSent = true;
+    } catch (error) {
+      console.warn("Dutstar transfer owner email SMTP delivery failed", {
+        reference: input.reference,
+        error: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
     if (!ownerSent) {
       console.warn("Transfer owner alert email could not be delivered", {
         reference: input.reference,
@@ -610,7 +642,7 @@ export async function sendPushToUser(
           },
           body: JSON.stringify({
             title: notification.title.slice(0, 100),
-            message: "You have a new account activity update. Open Globus to review it.",
+            message: "You have a new account activity update. Open Dutstar to review it.",
             target_url: new URL("/notifications", origin).toString(),
             sid: subscriberId,
             icon: new URL("/globus-mark-transparent.png", origin).toString(),

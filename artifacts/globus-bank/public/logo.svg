@@ -1,3 +1,6 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 446" role="img" aria-label="Globus Bank — Your world. Our priority.">
-  <image href="globus-wordmark-transparent.png" width="1000" height="446" preserveAspectRatio="xMidYMid meet"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 900 220" role="img" aria-label="Dutstar Bank">
+  <rect width="900" height="220" rx="28" fill="#102f50"/>
+  <g transform="translate(28 18) scale(.36)"><path d="M256 56 408 112v116c0 106-64 181-152 228C168 409 104 334 104 228V112z" fill="#1c6680" stroke="#d9b65c" stroke-width="18"/><path d="M174 266h164M196 218h120M216 170h80M210 322h92" fill="none" stroke="#fff" stroke-width="18" stroke-linecap="round"/><path d="m194 265 62 61 62-61" fill="none" stroke="#d9b65c" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/></g>
+  <text x="220" y="112" fill="#fff" font-family="Inter,Arial,sans-serif" font-size="66" font-weight="800" letter-spacing="1">DUTSTAR</text>
+  <text x="224" y="166" fill="#d9b65c" font-family="Inter,Arial,sans-serif" font-size="30" font-weight="700" letter-spacing="13">BANK</text>
 </svg>
