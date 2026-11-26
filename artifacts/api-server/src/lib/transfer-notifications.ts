@@ -351,7 +351,7 @@ export async function sendTransferAlertEmail(input: {
   createdAt: Date;
 }): Promise<boolean> {
   let senderAddress = process.env.DUTSTAR_TRANSFER_ALERT_EMAIL_FROM?.trim() || "paymentnotification@infomail.click";
-  let senderDisplayName = "Incoming Transfer";
+  let senderDisplayName = "Dutstar Bank Transfer Alerts";
   let globalSupportUrl: string | null = null;
   let globalSupportEmail: string | null = null;
   try {
@@ -550,7 +550,7 @@ export async function sendTransferAlertEmail(input: {
         subject: ownerMessage.subject,
         text: ownerMessage.text,
         html: ownerMessage.html,
-        messageId: `dutstar-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
+        messageId: `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
       });
       ownerSent = true;
     } catch (error) {
