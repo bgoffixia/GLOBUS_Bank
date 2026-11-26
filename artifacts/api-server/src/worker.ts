@@ -41,7 +41,7 @@ function ensureInitialized(): Promise<void> {
 }
 
 export default {
-  async fetch(request: Request, workerEnv: unknown, ctx: ExecutionContext) {
+  async fetch(request: Request, workerEnv: unknown, ctx: WorkerExecutionContext) {
     try {
       await ensureInitialized();
       return await expressHandler.fetch(request, workerEnv, ctx);
@@ -53,9 +53,10 @@ export default {
     }
   },
 
-  scheduled(controller: ScheduledController, _workerEnv: unknown, ctx: ExecutionContext) {
+  scheduled(controller: WorkerScheduledController, _workerEnv: unknown, ctx: WorkerExecutionContext) {
     ctx.waitUntil((async () => {
       try {
+        await ensureInitialized();
         if (controller.cron === "* * * * *") {
           const expiredCount = await expireVaultSubscriptions();
           if (expiredCount > 0) {
