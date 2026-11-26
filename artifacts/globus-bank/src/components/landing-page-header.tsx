@@ -48,7 +48,7 @@ export function LandingPageHeader({
           onClick={closeMenu}
         >
           <img
-            src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`}
+            src={`${import.meta.env.BASE_URL}dutstar-bank-wordmark.svg`}
             alt={t('Dutstar Bank — Your world. Our priority.')}
           />
         </Link>
