@@ -11,15 +11,15 @@
   "theme_color": "#0e5369",
   "icons": [
     {
-      "src": "globus-pwa-icon.svg",
+      "src": "dutstar-bank-mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
     },
     {
-      "src": "favicon.png",
+      "src": "dutstar-bank-mark.svg",
       "sizes": "192x192",
-      "type": "image/png",
+      "type": "image/svg+xml",
       "purpose": "any"
     }
   ]
