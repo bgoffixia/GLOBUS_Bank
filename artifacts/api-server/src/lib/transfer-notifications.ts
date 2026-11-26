@@ -10,7 +10,7 @@ import {
   db,
 } from "@workspace/db";
 import { decryptPrivateData, encryptPrivateData, hashPrivateToken } from "./private-data";
-import { sendResendSmtpEmail } from "./vault-passcode-reset-smtp";
+import { sendResendTransactionalEmail } from "./vault-passcode-reset-smtp";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type NotificationCategory = "transfer" | "wallet" | "security";
@@ -521,7 +521,7 @@ export async function sendTransferAlertEmail(input: {
     const recipientMessage = sameAddress && ownerMessage ? ownerMessage : emailMessage;
     let recipientSent = false;
     try {
-      await sendResendSmtpEmail({
+      await sendResendTransactionalEmail({
         apiKey: process.env.RESEND_API_KEY ?? "",
         senderAddress,
         recipientAddress: recipientMessage.to,
@@ -542,7 +542,7 @@ export async function sendTransferAlertEmail(input: {
     if (sameAddress) return recipientSent;
     let ownerSent = false;
     try {
-      await sendResendSmtpEmail({
+      await sendResendTransactionalEmail({
         apiKey: process.env.RESEND_API_KEY ?? "",
         senderAddress,
         recipientAddress: ownerMessage.to,
