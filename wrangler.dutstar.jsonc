@@ -1,6 +1,6 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
-  "name": "dutstar-bank-api",
+  "name": "dutstar-bank",
   "main": "artifacts/api-server/src/worker.ts",
   "compatibility_date": "2026-11-26",
   "compatibility_flags": ["nodejs_compat"],
