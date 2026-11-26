@@ -472,6 +472,7 @@ export async function sendTransferAlertEmail(input: {
         : input.status === "failed" || input.status === "rejected"
           ? copy.failed
           : `Dutstar record status: ${input.status}.`;
+  const simulationNotice = "This is a simulated ledger notification. It does not confirm a real-world bank payment or external account credit.";
   const details = [
     `${copy.recipient}: ${input.recipientName}`,
     `${copy.destination}: ${input.bankName}, ${input.destinationCountry}`,
@@ -495,9 +496,10 @@ export async function sendTransferAlertEmail(input: {
       "",
       ...details,
       ...(supportText ? [supportText] : []),
+      simulationNotice,
       copy.safety,
     ].join("\n"),
-    html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">DUTSTAR <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">${htmlEscape(copy.heading)}</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">${htmlEscape(copy.safety)}</p></div>${supportHtml}</section></main>`,
+    html: `<main style="margin:0;padding:32px 16px;background:#f1f6f7;font-family:Arial,sans-serif;color:#17314f"><section style="max-width:560px;margin:auto;background:#fff;border:1px solid #dce7ea;border-radius:18px;overflow:hidden"><header style="padding:22px 28px;background:${bannerBackgroundColor};color:${bannerTextColor}"><div style="font-size:19px;font-weight:700;letter-spacing:1px">DUTSTAR <span style="color:${theme.accent}">BANK</span></div><div style="margin-top:8px;font-size:13px;font-weight:700;color:${bannerTextColor}">${htmlEscape(headline)}</div></header><div style="padding:26px 28px"><h1 style="margin:0 0 12px;font-size:21px">${htmlEscape(copy.heading)}</h1><p style="margin:0 0 20px;line-height:1.55;color:#536a7d">${htmlEscape(statusText)}</p><ul style="padding:0 0 0 18px;line-height:1.9;color:#334b62">${htmlDetails}</ul><p style="margin:20px 0 0;font-size:11px;color:#7a8b99">${htmlEscape(simulationNotice)}</p><p style="margin:10px 0 0;font-size:11px;color:#7a8b99">${htmlEscape(copy.safety)}</p></div>${supportHtml}</section></main>`,
   };
   try {
     const ownerEmail = senderPreferences?.email?.trim() ?? null;
