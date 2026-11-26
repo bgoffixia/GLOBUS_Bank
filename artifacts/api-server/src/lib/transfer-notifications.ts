@@ -10,7 +10,7 @@ import {
   db,
 } from "@workspace/db";
 import { decryptPrivateData, encryptPrivateData, hashPrivateToken } from "./private-data";
-import { sendResendEmail } from "./resend-email";
+import { sendResendSmtpEmail } from "./vault-passcode-reset-smtp";
 
 type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
 type NotificationCategory = "transfer" | "wallet" | "security";
@@ -519,16 +519,46 @@ export async function sendTransferAlertEmail(input: {
       ownerEmail!.toLowerCase() === input.recipientEmail.toLowerCase(),
     );
     const recipientMessage = sameAddress && ownerMessage ? ownerMessage : emailMessage;
-    const recipientSent = await sendResendEmail(
-      recipientMessage,
-      idempotencyKey,
-    );
+    let recipientSent = false;
+    try {
+      await sendResendSmtpEmail({
+        apiKey: process.env.RESEND_API_KEY ?? "",
+        senderAddress,
+        recipientAddress: recipientMessage.to,
+        senderName: senderDisplayName,
+        subject: recipientMessage.subject,
+        text: recipientMessage.text,
+        html: recipientMessage.html,
+        messageId: idempotencyKey,
+      });
+      recipientSent = true;
+    } catch (error) {
+      console.warn("Dutstar transfer email SMTP delivery failed", {
+        reference: input.reference,
+        error: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
     if (!input.senderUserId || !ownerMessage) return recipientSent;
     if (sameAddress) return recipientSent;
-    const ownerSent = await sendResendEmail(
-      ownerMessage,
-      `globus-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
-    );
+    let ownerSent = false;
+    try {
+      await sendResendSmtpEmail({
+        apiKey: process.env.RESEND_API_KEY ?? "",
+        senderAddress,
+        recipientAddress: ownerMessage.to,
+        senderName: senderDisplayName,
+        subject: ownerMessage.subject,
+        text: ownerMessage.text,
+        html: ownerMessage.html,
+        messageId: `dutstar-transfer-owner-${input.notificationId ?? `${input.reference}-${input.status}`}`,
+      });
+      ownerSent = true;
+    } catch (error) {
+      console.warn("Dutstar transfer owner email SMTP delivery failed", {
+        reference: input.reference,
+        error: error instanceof Error ? error.name : "UnknownError",
+      });
+    }
     if (!ownerSent) {
       console.warn("Transfer owner alert email could not be delivered", {
         reference: input.reference,
