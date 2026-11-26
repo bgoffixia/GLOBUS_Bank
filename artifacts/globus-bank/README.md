@@ -1,4 +1,4 @@
-# Globus Bank
+# Dutstar Bank 🏦
 
 Globus Bank is a simulation-only multi-currency wallet experience. It is software for exploring account and ledger workflows—not a licensed bank, custodian, payment institution, or source of real financial balances.
 
