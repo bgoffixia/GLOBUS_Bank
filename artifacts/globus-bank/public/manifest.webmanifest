@@ -1,8 +1,8 @@
 {
   "id": "./",
-  "name": "Globus Bank",
-  "short_name": "Globus",
-  "description": "Your world. Our priority.",
+  "name": "Dutstar Bank 🏦",
+  "short_name": "Dutstar",
+  "description": "Simulation-only digital wallet and ledger experience.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
