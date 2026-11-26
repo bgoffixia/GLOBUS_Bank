@@ -7,6 +7,9 @@ type ResetEmailInput = {
   recipientAddress: string;
   subject: string;
   text: string;
+  html?: string;
+  senderName?: string;
+  messageId?: string;
 };
 
 const SMTP_HOST = "smtp.resend.com";
@@ -68,7 +71,7 @@ function assertMailbox(value: string, label: string): string {
   return address;
 }
 
-export async function sendVaultPasscodeResetEmail(input: ResetEmailInput): Promise<void> {
+export async function sendResendSmtpEmail(input: ResetEmailInput): Promise<void> {
   const apiKey = input.apiKey.trim();
   if (!apiKey) throw new Error("Resend SMTP API key is not configured.");
   const sender = assertMailbox(input.senderAddress, "sender");
@@ -126,4 +129,8 @@ export async function sendVaultPasscodeResetEmail(input: ResetEmailInput): Promi
   } finally {
     socket?.end();
   }
+}
+
+export async function sendVaultPasscodeResetEmail(input: ResetEmailInput): Promise<void> {
+  return sendResendSmtpEmail({ ...input, senderName: "DUTSTAR BANK Security" });
 }
