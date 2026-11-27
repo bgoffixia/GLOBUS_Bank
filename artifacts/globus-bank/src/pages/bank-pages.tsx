@@ -133,7 +133,7 @@ export function HomePage() {
   const { isSignedIn } = useUser();
   const { t } = useLanguage();
   return (
-    <div className="public-viewport-scroll bg-[#f6f8fa] pt-[5.2rem] text-[#192e49] sm:pt-[6rem]">
+    <div className="public-viewport-scroll bg-[#f7f9fc] pt-[5.2rem] text-[#101f3c] sm:pt-[6rem]">
       <LandingPageHeader
         isSignedIn={Boolean(isSignedIn)}
         t={t}
@@ -141,26 +141,26 @@ export function HomePage() {
 
       <section id="account-record" className="relative mx-auto grid min-w-0 max-w-[1320px] items-center gap-10 px-4 pb-16 pt-7 scroll-mt-24 sm:gap-14 sm:px-6 sm:pb-20 sm:pt-9 lg:grid-cols-[1.04fr_.96fr] lg:px-12 lg:pb-28 lg:pt-16">
         <div className="relative z-10 min-w-0">
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#dbe7e9] bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#3b777d]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#55a5a9]" />
+          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#dbe7e9] bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#078f95]">
+            <span className="h-1.5 w-1.5 rounded-full bg-[#12b8ad]" />
             {t('A multi-currency account workspace')}
           </div>
-          <h1 className="max-w-full font-serif text-[clamp(2.25rem,10vw,5.6rem)] font-medium leading-[1.04] tracking-[-.055em] text-[#142c49] sm:max-w-[700px] sm:text-[clamp(3.2rem,6.5vw,5.8rem)]">
+          <h1 className="max-w-full font-serif text-[clamp(2.25rem,10vw,5.6rem)] font-medium leading-[1.04] tracking-[-.055em] text-[#0a2147] sm:max-w-[700px] sm:text-[clamp(3.2rem,6.5vw,5.8rem)]">
             {t('A clear record.')}
             <br />
-            <span className="text-[#9a7840]">{t('For every currency.')}</span>
+            <span className="text-[#b38a32]">{t('For every currency.')}</span>
           </h1>
           <p className="mt-7 max-w-[510px] text-[16px] leading-7 text-[#64758a] sm:text-[18px] sm:leading-8">
-            {t('Review your currency balances and the entries recorded in your Globus account, all in one considered workspace.')}
+            {t('Review your currency balances and the entries recorded in your DUTSTAR account, all in one considered workspace.')}
           </p>
           <div className="mt-8 flex flex-col items-stretch gap-2 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
-            <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#152f50] px-5 py-3.5 text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(18,43,75,.16)] transition hover:-translate-y-0.5 hover:bg-[#1b4168] sm:w-auto sm:px-6 sm:py-4">
+            <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#0a2147] px-5 py-3.5 text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(18,43,75,.16)] transition hover:-translate-y-0.5 hover:bg-[#12447b] sm:w-auto sm:px-6 sm:py-4">
               {isSignedIn ? t('Go to your dashboard') : t('Get started')} <ArrowRight size={16} />
             </Link>
           </div>
           <div className="mt-8 flex min-w-0 flex-wrap gap-x-5 gap-y-3 text-[10px] font-medium text-[#68798d] sm:mt-11 sm:gap-x-7 sm:text-[11px]">
-            <span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#478b8e]" /> {t('Globus account activity clearly identified')}</span>
-            <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#478b8e]" /> {t('Four supported wallet currencies')}</span>
+            <span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#079c9d]" /> {t('DUTSTAR account activity clearly identified')}</span>
+            <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#079c9d]" /> {t('Four supported wallet currencies')}</span>
           </div>
         </div>
         <figure data-testid="landing-hero-institute-photo" className="relative mx-auto w-full min-w-0 max-w-[560px]">
@@ -172,7 +172,7 @@ export function HomePage() {
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#b99a5b]/60 bg-[#e9e0cc] text-[#173651]"><Building2 size={17} strokeWidth={1.6} /></span>
               <span className="min-w-0"><span className="block font-serif text-[12px] font-semibold tracking-[.08em] text-[#173651] sm:text-[14px]">GLOBUS BANK</span><span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[.18em] text-[#8b7953] sm:text-[8px]">{t('Currency account records')}</span></span>
               </div>
-              <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">{t('Globus institute')}</span>
+              <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">{t('DUTSTAR institute')}</span>
             </div>
             <div className="relative mt-3 overflow-hidden rounded-[15px] border border-[#d9cfb9] bg-[#e8e4d9] shadow-[0_8px_20px_rgba(31,56,83,.10)] sm:mt-4 sm:rounded-[18px]">
               <img
@@ -196,22 +196,22 @@ export function HomePage() {
           <h2 className="bank-display mt-3 max-w-[450px] text-[32px] font-semibold leading-[1.08] text-[#17304f] sm:mt-4 sm:text-[52px]">{t('Your balances.')}<br />{t('Your ledger.')}</h2>
         </div>
         <div data-testid="landing-feature-grid" className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-8">
-          <FeatureBlock number="01" title={t('See each currency clearly')} copy={t('Review available, pending and reserved amounts separately in each Globus wallet.')} />
-          <FeatureBlock number="02" title={t('Follow account entries')} copy={t('Search internal Globus ledger activity by currency, description or transaction reference.')} />
+          <FeatureBlock number="01" title={t('See each currency clearly')} copy={t('Review available, pending and reserved amounts separately in each DUTSTAR wallet.')} />
+          <FeatureBlock number="02" title={t('Follow account entries')} copy={t('Search internal DUTSTAR ledger activity by currency, description or transaction reference.')} />
           <div className="sm:col-span-2 lg:col-span-1">
             <FeatureBlock number="03" title={t('Keep a clear record')} copy={t('Every entry has a reference, status and timestamp for straightforward review.')} />
           </div>
         </div>
       </section>
-      <section className="mx-3 mb-10 rounded-[22px] bg-[#132f51] px-4 py-7 text-white sm:mx-10 sm:mb-16 sm:rounded-[28px] sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1240px] lg:px-16 lg:py-16">
+      <section className="mx-3 mb-10 rounded-[22px] bg-[#081b3b] px-4 py-7 text-white sm:mx-10 sm:mb-16 sm:rounded-[28px] sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1240px] lg:px-16 lg:py-16">
         <div className="grid items-center gap-5 sm:gap-8 md:grid-cols-[1fr_auto]">
-          <div><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#a6d5d8] sm:text-[10px]">{t('Make your next step clearer')}</p><h2 className="bank-display mt-2 max-w-[640px] text-[25px] font-semibold leading-tight sm:mt-3 sm:text-[45px]">{t('Your Globus account workspace, ready to use.')}</h2></div>
-          <Link href="/sign-up" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#d5b765] px-5 py-3 text-[11px] font-bold text-[#17304d] hover:bg-[#e0c879] sm:gap-3 sm:px-6 sm:py-4 sm:text-[13px]">{t('Create your account')} <ArrowRight size={15} /></Link>
+          <div><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#a6d5d8] sm:text-[10px]">{t('Make your next step clearer')}</p><h2 className="bank-display mt-2 max-w-[640px] text-[25px] font-semibold leading-tight sm:mt-3 sm:text-[45px]">{t('Your DUTSTAR account workspace, ready to use.')}</h2></div>
+          <Link href="/sign-up" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e7b638] px-5 py-3 text-[11px] font-bold text-[#081b3b] hover:bg-[#f0cb5c] sm:gap-3 sm:px-6 sm:py-4 sm:text-[13px]">{t('Create your account')} <ArrowRight size={15} /></Link>
         </div>
       </section>
       <footer className="border-t border-[#e1e7ec] bg-white">
         <div className="mx-auto flex max-w-[1320px] flex-col gap-5 px-6 py-8 text-[11px] text-[#76869a] sm:flex-row sm:items-center sm:justify-between lg:px-12">
-          <p>{t('© {year} Globus. A multi-currency software platform.', { year: new Date().getFullYear() })}</p>
+          <p>{t('© {year} DUTSTAR. A multi-currency software platform.', { year: new Date().getFullYear() })}</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/fees">{t('Fees')}</Link><Link href="/contact">{t('Contact')}</Link></div>
         </div>
       </footer>
