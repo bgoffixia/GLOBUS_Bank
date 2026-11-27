@@ -120,7 +120,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
     status: humanizeStatus(transaction.status),
     date: formatDateTime(transaction.createdAt),
     description: transaction.description || heading,
-    counterparty: transaction.counterparty || 'Globus account',
+    counterparty: transaction.counterparty || 'DUTSTAR account',
     activity: heading,
     sourceAmount: conversion ? formatAmount(conversion.sourceAmount, conversion.sourceCurrency) : undefined,
     exchangeRate: conversion ? `1 ${conversion.sourceCurrency} = ${formatRate(conversion.exchangeRate)} ${conversion.destinationCurrency}` : undefined,
@@ -142,7 +142,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
     setExporting('pdf');
     try {
       if (!completed) throw new Error('PDF receipts are available for completed transactions only.');
-      await downloadTransactionReceiptPdf(exportData(), `${import.meta.env.BASE_URL}globus-wordmark-transparent.png`);
+      await downloadTransactionReceiptPdf(exportData(), `${import.meta.env.BASE_URL}dutstar-wordmark.svg`);
     } catch (error) {
       toast({
         title: 'Receipt PDF could not be downloaded',
@@ -159,7 +159,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
     setExporting('png');
     try {
       if (!completed) throw new Error('PNG receipts are available for completed transactions only.');
-      await saveTransactionReceiptPng(exportData(), `${import.meta.env.BASE_URL}globus-wordmark-transparent.png`);
+      await saveTransactionReceiptPng(exportData(), `${import.meta.env.BASE_URL}dutstar-wordmark.svg`);
     } catch (error) {
       toast({
         title: 'Receipt PNG could not be saved',
@@ -176,7 +176,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
     setExporting('share');
     try {
       if (!completed) throw new Error('PNG receipts are available for completed transactions only.');
-      await shareTransactionReceiptPng(exportData(), `${import.meta.env.BASE_URL}globus-wordmark-transparent.png`);
+      await shareTransactionReceiptPng(exportData(), `${import.meta.env.BASE_URL}dutstar-wordmark.svg`);
     } catch (error) {
       if (error instanceof Error && error.name === 'AbortError') return;
       toast({
@@ -206,13 +206,13 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
             {template === 'bank_payment' && <>
             <header className={`px-5 pb-4 pt-4 sm:px-6 ${darkMasthead ? `text-white ${template === 'transfer_ledger' ? 'bg-[#173c4b]' : 'bg-[#173951]'}` : 'text-[#203a54]'}`}>
               <div className={`flex items-center justify-between border-b pb-3 ${darkMasthead ? 'border-white/15' : 'border-[#e8ecee]'}`}>
-                <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className={`h-auto w-[104px] ${darkMasthead ? 'brightness-0 invert' : ''}`} />
+                <img src={`${import.meta.env.BASE_URL}dutstar-wordmark.svg`} alt="DUTSTAR BANK" className={`h-auto w-[104px] ${darkMasthead ? 'brightness-0 invert' : ''}`} />
                 <button ref={closeRef} type="button" aria-label="Close receipt" data-testid="button-close-receipt" onClick={onClose} className={`receipt-screen-only grid h-8 w-8 place-items-center rounded-full border transition ${darkMasthead ? 'border-white/20 text-white/80 hover:bg-white/10' : 'border-[#e1e8eb] text-[#607589] hover:bg-[#f1f6f7]'}`}><X size={15} /></button>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div className="min-w-0">
                   <p className={`text-[9px] font-bold uppercase tracking-[.18em] ${darkMasthead ? 'text-[#a9c7bd]' : 'text-[#478783]'}`}>
-                    Globus Bank · transaction record
+                    DUTSTAR BANK · transaction record
                   </p>
                   <h2 id="receipt-title" className="bank-display mt-1 text-[19px] font-bold tracking-[-.045em] text-[#183450]">{templateTitle}</h2>
                   <p className="mt-0.5 text-[10px] text-[#7d8d9b]">{heading}</p>
@@ -262,14 +262,14 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
                     {transaction.recipient.transferType === 'local_routing' && transaction.recipient.routingCode && <Row label="Routing number" value={transaction.recipient.routingCode} mono />}
                     {transaction.recipient.transferType === 'international_wire' && transaction.recipient.swiftBic && <Row label="SWIFT / BIC" value={transaction.recipient.swiftBic} mono />}
                     <Row label="Remark / description" value={transaction.recipient.remark || transaction.description || heading} />
-                  </> : <Row label="Counterparty" value={transaction.counterparty || 'Globus account'} />}
+                  </> : <Row label="Counterparty" value={transaction.counterparty || 'DUTSTAR account'} />}
                   <Row label="Date / time" value={formatDateTime(transaction.createdAt)} />
                   {!transaction.recipient && <Row label="Fee" value={formatAmount(transaction.fee, transaction.currency)} />}
                 </dl>
               </section>
               <div className="flex items-center gap-2 border-t border-dashed border-[#dfe6e9] pt-2">
                 <div className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-[#edf5f1] text-[#4a826d]"><ShieldCheck size={13} /></div>
-                <p className="min-w-0 text-[8px] leading-4 text-[#7d8c98]">Recorded by Globus Bank · This receipt does not confirm settlement through an outside bank or payment service.</p>
+                <p className="min-w-0 text-[8px] leading-4 text-[#7d8c98]">Recorded by DUTSTAR BANK · This receipt does not confirm settlement through an outside bank or payment service.</p>
                 <CalendarDays size={12} className="ml-auto shrink-0 text-[#8da0ab]" />
               </div>
             </div>
@@ -298,11 +298,11 @@ export function TransferReceiptPreview({ transaction }: { transaction: ReceiptTr
   const completed = transaction.status === 'completed';
   const pending = transaction.status === 'pending';
   if (transaction.receiptTemplate === 'bank_payment') {
-    const counterparty = transaction.recipient?.name || transaction.counterparty || 'Globus account';
+    const counterparty = transaction.recipient?.name || transaction.counterparty || 'DUTSTAR account';
     return (
       <article data-testid={`receipt-full-preview-${transaction.receiptTemplate}`} className="overflow-hidden rounded-[18px] bg-[#fffefa] text-[#203a54]">
         <header className="border-b border-[#e5ebed] px-5 py-5">
-          <div className="flex items-center justify-between gap-3"><img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className="h-auto w-[116px]" /><span data-testid="text-receipt-status" className={`rounded-full border px-2.5 py-1 text-[8px] font-bold ${completed ? 'border-[#d5e7dc] bg-[#eff7f2] text-[#47755f]' : pending ? 'border-[#eadfbf] bg-[#fbf7eb] text-[#8b7440]' : 'border-[#f1d8d5] bg-[#fbefed] text-[#9c4d46]'}`}>{humanizeStatus(transaction.status)}</span></div>
+          <div className="flex items-center justify-between gap-3"><img src={`${import.meta.env.BASE_URL}dutstar-wordmark.svg`} alt="DUTSTAR BANK" className="h-auto w-[116px]" /><span data-testid="text-receipt-status" className={`rounded-full border px-2.5 py-1 text-[8px] font-bold ${completed ? 'border-[#d5e7dc] bg-[#eff7f2] text-[#47755f]' : pending ? 'border-[#eadfbf] bg-[#fbf7eb] text-[#8b7440]' : 'border-[#f1d8d5] bg-[#fbefed] text-[#9c4d46]'}`}>{humanizeStatus(transaction.status)}</span></div>
           <p className="mt-6 text-[8px] font-bold uppercase tracking-[.16em] text-[#548783]">Bank transaction record</p>
           <h3 className="bank-display mt-1 text-[22px] font-semibold">{heading}</h3>
           <p className="mt-5 text-[8px] font-bold uppercase tracking-[.14em] text-[#81919a]">Amount recorded</p>
@@ -314,12 +314,12 @@ export function TransferReceiptPreview({ transaction }: { transaction: ReceiptTr
             {transaction.recipient && <ReceiptDataRow label="Destination bank" value={transaction.recipient.bank} />}
             <ReceiptDataRow label="Reference" value={transaction.reference} strong mono testId="text-receipt-reference" />
             <ReceiptDataRow label="Date and time" value={formatDateTime(transaction.createdAt)} />
-            <ReceiptDataRow label="Globus status" value={humanizeStatus(transaction.status)} />
+            <ReceiptDataRow label="DUTSTAR status" value={humanizeStatus(transaction.status)} />
             <ReceiptDataRow label="Description" value={transaction.description || heading} />
             <ReceiptDataRow label="Fee" value={formatAmount(transaction.fee, transaction.currency)} />
           </dl>
         </section>
-        <p className="border-t border-dashed border-[#dfe6e9] px-5 py-4 text-[8px] leading-4 text-[#7d8c98]">Recorded by Globus Bank. This receipt does not confirm settlement through an outside bank or payment service.</p>
+        <p className="border-t border-dashed border-[#dfe6e9] px-5 py-4 text-[8px] leading-4 text-[#7d8c98]">Recorded by DUTSTAR BANK. This receipt does not confirm settlement through an outside bank or payment service.</p>
       </article>
     );
   }
@@ -363,15 +363,15 @@ function ReceiptDocument({
 }) {
   const [journeyView, setJourneyView] = useState<'journey' | 'details'>('journey');
   const statusLabel = completed
-    ? 'Recorded in Globus'
+    ? 'Recorded in DUTSTAR'
     : pending
-      ? 'Pending in Globus'
-      : `${humanizeStatus(transaction.status)} in Globus`;
+      ? 'Pending in DUTSTAR'
+      : `${humanizeStatus(transaction.status)} in DUTSTAR`;
   const occurredAt = formatDateTime(transaction.createdAt);
   const logo = (
     <img
-      src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`}
-      alt="Globus Bank"
+      src={`${import.meta.env.BASE_URL}dutstar-wordmark.svg`}
+      alt="DUTSTAR BANK"
       className="h-auto w-[104px] brightness-0 invert"
     />
   );
@@ -408,7 +408,7 @@ function ReceiptDocument({
         {transaction.recipient.transferType === 'international_wire' && transaction.recipient.swiftBic && <ReceiptDataRow label="SWIFT / BIC" value={transaction.recipient.swiftBic} mono />}
         <ReceiptDataRow label="Description" value={transaction.recipient.remark || transaction.description || heading} />
       </> : <>
-        <ReceiptDataRow label="Counterparty" value={transaction.counterparty || 'Globus account'} />
+        <ReceiptDataRow label="Counterparty" value={transaction.counterparty || 'DUTSTAR account'} />
         <ReceiptDataRow label="Description" value={transaction.description || heading} />
         <ReceiptDataRow label="Fee" value={formatAmount(transaction.fee, transaction.currency)} />
       </>}
@@ -418,13 +418,13 @@ function ReceiptDocument({
         <ReceiptDataRow label="Exchange rate" value={`1 ${conversion.sourceCurrency} = ${formatRate(conversion.exchangeRate)} ${conversion.destinationCurrency}`} />
       </>}
       <ReceiptDataRow label="Date and time" value={occurredAt} />
-      <ReceiptDataRow label="Globus status" value={humanizeStatus(transaction.status)} />
+      <ReceiptDataRow label="DUTSTAR status" value={humanizeStatus(transaction.status)} />
     </dl>
   );
   const disclaimer = (
     <p className="flex items-start gap-2 border-t border-dashed border-[#dfe6e9] px-5 py-3 text-[9px] leading-4 text-[#788995]">
       <ShieldCheck size={13} className="mt-0.5 shrink-0 text-[#4a826d]" />
-      <span>Internal Globus ledger record. This receipt is not proof of an outside payment or bank settlement.</span>
+      <span>Internal DUTSTAR ledger record. This receipt is not proof of an outside payment or bank settlement.</span>
     </p>
   );
 
@@ -436,7 +436,7 @@ function ReceiptDocument({
           <div className="relative flex items-center justify-between gap-3">
             {logo}{closeButton}
           </div>
-          <p className="relative mt-5 text-[9px] font-bold uppercase tracking-[.18em] text-[#a8d3d6]">Globus transaction record</p>
+          <p className="relative mt-5 text-[9px] font-bold uppercase tracking-[.18em] text-[#a8d3d6]">DUTSTAR transaction record</p>
           <h2 id="receipt-title" className="bank-display relative mt-1 text-[21px] font-semibold">{heading}</h2>
           <p className="bank-display relative mt-3 text-[30px] font-semibold tracking-[-.04em]" data-testid="text-receipt-amount">{amount}</p>
           <span data-testid="text-receipt-status" className={`relative mt-3 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[9px] font-bold ${completed ? 'bg-[#2c6b5a] text-[#d9f2e6]' : 'bg-[#6b5a2c] text-[#f6e8c4]'}`}>
@@ -468,7 +468,7 @@ function ReceiptDocument({
           <div className="flex items-center justify-between gap-3">{logo}{closeButton}</div>
           <p className="mt-5 text-[8px] font-bold uppercase tracking-[.16em] text-[#a9c7bd]">Internal payment record</p>
           <h2 id="receipt-title" className="bank-display mt-1 text-[23px] font-medium">{heading}</h2>
-          <p className="mt-1 text-[10px] text-[#bed0ca]">Current Globus status: {humanizeStatus(transaction.status)}</p>
+          <p className="mt-1 text-[10px] text-[#bed0ca]">Current DUTSTAR status: {humanizeStatus(transaction.status)}</p>
         </header>
         <div className="px-5 pb-4 sm:px-6">
           <section className="border-b border-dashed border-[#d9e3df] py-4" aria-label="Transaction amount">
@@ -491,7 +491,7 @@ function ReceiptDocument({
             </div>
             <div className="grid grid-cols-[20px_1fr_auto] items-start gap-3">
               <span className={`grid h-4 w-4 place-items-center rounded-full text-[8px] text-white ${completed ? 'bg-[#347c78]' : 'bg-[#8b7440]'}`}>2</span>
-              <div><p className="text-[10px] font-bold">Current Globus status</p><p className="mt-1 text-[9px] text-[#89999c]">{statusLabel}</p></div>
+              <div><p className="text-[10px] font-bold">Current DUTSTAR status</p><p className="mt-1 text-[9px] text-[#89999c]">{statusLabel}</p></div>
               <span className="text-[9px] font-mono text-[#355362]">{humanizeStatus(transaction.status)}</span>
             </div>
           </div> : <div className="py-3">{details}</div>}
@@ -518,7 +518,7 @@ function ReceiptDocument({
         </header>
         <section className="border-b border-[#dce6df] px-5 py-4 sm:px-6">
           <p className="text-[7px] font-bold uppercase tracking-[.15em] text-[#859895]">Counterparty</p>
-          <p className="mt-1 text-[12px] font-semibold">{transaction.recipient?.name || transaction.counterparty || 'Globus account'}</p>
+          <p className="mt-1 text-[12px] font-semibold">{transaction.recipient?.name || transaction.counterparty || 'DUTSTAR account'}</p>
           {transaction.recipient && <p className="mt-1 text-[9px] text-[#70868a]">{transaction.recipient.bank} · {transaction.recipient.country} · {transaction.recipient.account}</p>}
         </section>
         <section className="px-5 py-4 sm:px-6" aria-label="Ledger activity">
@@ -529,7 +529,7 @@ function ReceiptDocument({
           <div className="mt-3 space-y-3 border-l border-dashed border-[#cbdad0] pl-4">
             <div><p className="text-[9px] font-bold">Transaction entered</p><p className="mt-0.5 text-[8px] text-[#7a8e8b]">{occurredAt}</p></div>
             {conversion && <div><p className="text-[9px] font-bold">Recorded conversion</p><p className="mt-0.5 text-[8px] text-[#7a8e8b]">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)} → {convertedAmount} · 1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p></div>}
-            <div><p className="text-[9px] font-bold">Current Globus status</p><p className="mt-0.5 text-[8px] text-[#7a8e8b]">{humanizeStatus(transaction.status)}</p></div>
+            <div><p className="text-[9px] font-bold">Current DUTSTAR status</p><p className="mt-0.5 text-[8px] text-[#7a8e8b]">{humanizeStatus(transaction.status)}</p></div>
           </div>
           <div className="mt-4">{details}</div>
         </section>
@@ -547,7 +547,7 @@ function ReceiptDocument({
     'settlement_timeline',
     'archival_statement',
   ].includes(template)) {
-    const counterparty = transaction.recipient?.name || transaction.counterparty || 'Globus account';
+    const counterparty = transaction.recipient?.name || transaction.counterparty || 'DUTSTAR account';
     const variants = {
       editorial_ledger: {
         eyebrow: 'An account record',
@@ -562,7 +562,7 @@ function ReceiptDocument({
         masthead: 'bg-[#173c4b]',
       },
       settlement_ledger: {
-        eyebrow: 'Globus account record',
+        eyebrow: 'DUTSTAR account record',
         title: 'Settlement ledger',
         shell: 'bg-[#f7f8f3] text-[#29444d]',
         masthead: 'bg-[#315b57]',
@@ -580,7 +580,7 @@ function ReceiptDocument({
         masthead: 'bg-[#315b57]',
       },
       archival_statement: {
-        eyebrow: 'Globus Bank · Archive',
+        eyebrow: 'DUTSTAR BANK · Archive',
         title: 'Account statement',
         shell: 'bg-[#faf8f0] text-[#31434c]',
         masthead: 'bg-[#283e4c]',
@@ -591,14 +591,14 @@ function ReceiptDocument({
       ['Reference', transaction.reference],
       ['Counterparty', counterparty],
       ['Transaction date', occurredAt],
-      ['Globus status', humanizeStatus(transaction.status)],
+      ['DUTSTAR status', humanizeStatus(transaction.status)],
       ['Description', transaction.description || heading],
     ];
     return (
       <article className={`overflow-hidden ${variant.shell}`}>
         <header className={`${variant.masthead} px-5 py-5 text-white sm:px-8`}>
           <div className="flex items-center justify-between gap-3">
-            <img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt="Globus Bank" className="h-auto w-[104px] brightness-0 invert" />
+            <img src={`${import.meta.env.BASE_URL}dutstar-wordmark.svg`} alt="DUTSTAR BANK" className="h-auto w-[104px] brightness-0 invert" />
             {closeButton}
           </div>
           <p className="mt-6 text-[8px] font-bold uppercase tracking-[.2em] text-[#c3d5cb]">{variant.eyebrow}</p>
@@ -615,7 +615,7 @@ function ReceiptDocument({
           <div className="border-l-2 border-[#b79d61] pl-4">
             <p className="text-[8px] font-bold uppercase tracking-[.14em] text-[#73877e]">Record note</p>
             <p className="mt-2 font-serif text-[19px] leading-tight">A clear account of what was recorded.</p>
-            <p className="mt-2 text-[9px] leading-5 text-[#728287]">This document reflects Globus account activity at the time shown.</p>
+            <p className="mt-2 text-[9px] leading-5 text-[#728287]">This document reflects DUTSTAR account activity at the time shown.</p>
           </div>
           <dl className="divide-y divide-[#dfe4dc]">
             {dataRows.map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} strong={label === 'Reference'} mono={label === 'Reference'} testId={label === 'Reference' ? 'text-receipt-reference' : undefined} />)}
@@ -637,27 +637,27 @@ function ReceiptDocument({
         </section>}
         {template === 'settlement_ledger' && <section className="px-5 py-5 sm:px-8">
           <div className="rounded-xl border border-[#d7e3da] bg-white/65 p-4">
-            <div className="flex items-center justify-between gap-3 border-b border-[#dfe7e0] pb-3"><strong className="text-[10px]">Globus posting record</strong><span className="text-[8px] font-bold uppercase tracking-[.12em] text-[#648078]">{humanizeStatus(transaction.status)}</span></div>
+            <div className="flex items-center justify-between gap-3 border-b border-[#dfe7e0] pb-3"><strong className="text-[10px]">DUTSTAR posting record</strong><span className="text-[8px] font-bold uppercase tracking-[.12em] text-[#648078]">{humanizeStatus(transaction.status)}</span></div>
             <div className="mt-3 grid gap-4 sm:grid-cols-2"><div><p className="text-[8px] uppercase tracking-[.12em] text-[#83938d]">Debit / credit amount</p><p className="mt-1 text-[14px] font-semibold">{amount}</p></div><div><p className="text-[8px] uppercase tracking-[.12em] text-[#83938d]">Beneficiary / source</p><p className="mt-1 break-words text-[11px] font-semibold">{counterparty}</p></div></div>
           </div>
           <dl className="mt-3 divide-y divide-[#dfe6df]">{dataRows.filter(([label]) => label !== 'Counterparty').map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} strong={label === 'Reference'} mono={label === 'Reference'} testId={label === 'Reference' ? 'text-receipt-reference' : undefined} />)}</dl>
         </section>}
         {template === 'reconciliation_statement' && <section className="px-5 py-5 sm:px-8">
           <div className="grid gap-3 sm:grid-cols-2">
-            {[['Transaction side', heading], ['Account side', 'Globus internal ledger']].map(([label, value]) => <div key={label} className="rounded-lg border border-[#e1e5dc] bg-white/70 p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#80908a]">{label}</p><p className="mt-2 break-words text-[10px] font-semibold">{value}</p><p className="mt-1 text-[8px] text-[#7e8e88]">Recorded amount · {amount}</p></div>)}
+            {[['Transaction side', heading], ['Account side', 'DUTSTAR internal ledger']].map(([label, value]) => <div key={label} className="rounded-lg border border-[#e1e5dc] bg-white/70 p-3"><p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#80908a]">{label}</p><p className="mt-2 break-words text-[10px] font-semibold">{value}</p><p className="mt-1 text-[8px] text-[#7e8e88]">Recorded amount · {amount}</p></div>)}
           </div>
           <dl className="mt-4 divide-y divide-[#e1e5dc]">{dataRows.map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} strong={label === 'Reference'} mono={label === 'Reference'} testId={label === 'Reference' ? 'text-receipt-reference' : undefined} />)}</dl>
         </section>}
         {template === 'settlement_timeline' && <section className="px-5 py-6 sm:px-8">
           <ol className="relative ml-2 space-y-5 border-l border-[#bfd2c7] pl-5">
-            <li className="relative"><span className="absolute -left-[26px] top-0.5 h-3 w-3 rounded-full border-2 border-[#f3f7f4] bg-[#4e8877]" /><p className="text-[10px] font-bold">Activity recorded in Globus</p><p className="mt-1 text-[9px] text-[#778b82]">{occurredAt} · {amount}</p></li>
-            <li className="relative"><span className="absolute -left-[26px] top-0.5 h-3 w-3 rounded-full border-2 border-[#f3f7f4] bg-[#ba9c5d]" /><p className="text-[10px] font-bold">Current Globus status</p><p data-testid="text-receipt-status" className="mt-1 text-[9px] text-[#778b82]">{statusLabel}</p></li>
+            <li className="relative"><span className="absolute -left-[26px] top-0.5 h-3 w-3 rounded-full border-2 border-[#f3f7f4] bg-[#4e8877]" /><p className="text-[10px] font-bold">Activity recorded in DUTSTAR</p><p className="mt-1 text-[9px] text-[#778b82]">{occurredAt} · {amount}</p></li>
+            <li className="relative"><span className="absolute -left-[26px] top-0.5 h-3 w-3 rounded-full border-2 border-[#f3f7f4] bg-[#ba9c5d]" /><p className="text-[10px] font-bold">Current DUTSTAR status</p><p data-testid="text-receipt-status" className="mt-1 text-[9px] text-[#778b82]">{statusLabel}</p></li>
           </ol>
           <dl className="mt-5 divide-y divide-[#dfe7e1]">{dataRows.map(([label, value]) => <ReceiptDataRow key={label} label={label} value={value} strong={label === 'Reference'} mono={label === 'Reference'} testId={label === 'Reference' ? 'text-receipt-reference' : undefined} />)}</dl>
         </section>}
         {template === 'archival_statement' && <section className="px-5 py-6 sm:px-8">
           <div className="border-y border-[#c8d1c8] py-4 text-center">
-            <p className="text-[8px] font-bold uppercase tracking-[.2em] text-[#71847d]">Account archive · Globus internal record</p>
+            <p className="text-[8px] font-bold uppercase tracking-[.2em] text-[#71847d]">Account archive · DUTSTAR internal record</p>
             <p className="bank-display mt-2 text-[23px] font-semibold">{amount}</p>
             <p className="mt-1 font-mono text-[9px] text-[#657b7d]" data-testid="text-receipt-reference">{transaction.reference}</p>
           </div>
@@ -676,7 +676,7 @@ function ReceiptDocument({
   return (
     <div className="overflow-hidden border border-[#d7e0da] bg-[#fcfcf7] text-[#28444c]">
       <header className="flex items-center justify-between gap-3 border-b-4 border-[#a8c3b0] bg-[#173b4b] px-5 py-4 text-[#f4f4e9] sm:px-8">
-        <span className="text-[12px] font-extrabold tracking-wide">◉ GLOBUS BANK</span>{closeButton}
+        <span className="text-[12px] font-extrabold tracking-wide">◉ DUTSTAR BANK</span>{closeButton}
       </header>
       <section className="flex flex-wrap items-end justify-between gap-4 px-5 py-5 sm:px-8">
         <div><p className="text-[8px] font-extrabold uppercase tracking-[.17em] text-[#718b81]">Internal transaction statement</p><h2 id="receipt-title" className="bank-display mt-2 text-[24px] font-medium leading-tight text-[#173b4b]">{heading}</h2><span data-testid="text-receipt-status" className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-[#bfd5c6] px-2 py-1 text-[8px] font-extrabold uppercase tracking-[.1em] text-[#316e60]"><span className="h-1.5 w-1.5 rounded-full bg-[#4d9079]" />{humanizeStatus(transaction.status)}</span></div>
@@ -686,7 +686,7 @@ function ReceiptDocument({
         <p className="mb-3 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#183d4b]">Transaction particulars</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <div><p className="text-[7px] font-bold uppercase tracking-[.13em] text-[#82928e]">Amount</p><p className="bank-display mt-1 text-[15px] font-medium" data-testid="text-receipt-amount">{amount}</p></div>
-          <div><p className="text-[7px] font-bold uppercase tracking-[.13em] text-[#82928e]">Counterparty</p><p className="mt-1 break-words text-[9px] font-semibold">{transaction.recipient?.name || transaction.counterparty || 'Globus account'}</p></div>
+          <div><p className="text-[7px] font-bold uppercase tracking-[.13em] text-[#82928e]">Counterparty</p><p className="mt-1 break-words text-[9px] font-semibold">{transaction.recipient?.name || transaction.counterparty || 'DUTSTAR account'}</p></div>
           <div><p className="text-[7px] font-bold uppercase tracking-[.13em] text-[#82928e]">Reference</p><p className="mt-1 break-all font-mono text-[9px]" data-testid="text-receipt-reference">{transaction.reference}</p></div>
         </div>
       </section>
@@ -702,7 +702,7 @@ function ReceiptDocument({
       <section className="border-t border-[#dce4df] px-5 py-4 sm:px-8">
         <p className="mb-2 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#183d4b]">Record details</p>{details}
       </section>
-      <p className="border-t border-[#dce4df] px-5 py-3 text-[8px] leading-4 text-[#71868a] sm:px-8">Internal Globus ledger record. This statement is not proof of outside payment or bank settlement.</p>
+      <p className="border-t border-[#dce4df] px-5 py-3 text-[8px] leading-4 text-[#71868a] sm:px-8">Internal DUTSTAR ledger record. This statement is not proof of outside payment or bank settlement.</p>
     </div>
   );
 }
