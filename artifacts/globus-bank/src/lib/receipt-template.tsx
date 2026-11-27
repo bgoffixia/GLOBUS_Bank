@@ -128,7 +128,7 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
             ['01', 'Request recorded', '20 Nov · 10:42', 'complete'],
             ['02', 'Review in progress', 'Awaiting update', 'current'],
           ].map(([step, label, note, state]) => <div key={step} className="flex items-start gap-1.5">
-            <span className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full text-[4px] font-bold ${state === 'complete' ? 'bg-[#43847a] text-white' : 'border border-[#d8c88f] bg-[#fbf7eb] text-[#8b7440]'}`}>{step}</span>
+            <span className={`grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full text-[4px] font-bold ${state === 'complete' ? 'bg-[#278C8C] text-white' : 'border border-[#d8c88f] bg-[#fbf7eb] text-[#8b7440]'}`}>{step}</span>
             <span className="min-w-0 flex-1"><b className="block text-[5px] text-[#465e6d]">{label}</b><small className="block text-[4px] text-[#8b999f]">{note}</small></span>
             <span className="text-[4px] font-bold uppercase tracking-[.08em] text-[#62817e]">{state === 'complete' ? 'Done' : 'Current'}</span>
           </div>)}
@@ -152,7 +152,7 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
         </div>
       </>}
       {template === 'settlement_statement' && <>
-        <div className="flex items-center justify-between border-b-[2px] border-[#9dbbab] bg-[#173b4b] px-2.5 py-2 text-white">
+        <div className="flex items-center justify-between border-b-[2px] border-[#9dbbab] bg-[#12365B] px-2.5 py-2 text-white">
           <span className="text-[5px] font-black tracking-[.14em]">DUTSTAR BANK</span>
           <span className="border border-[#b8d6c2]/40 px-1.5 py-1 text-[4px] font-bold uppercase tracking-[.1em] text-[#d6eadc]">Internal copy</span>
         </div>
@@ -176,7 +176,7 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
         'settlement_timeline',
         'archival_statement',
       ] as ReceiptTemplateId[]).includes(template) && <>
-        <div className={`px-2.5 py-2 text-white ${template === 'editorial_ledger' ? 'bg-[#344d5a]' : template === 'settlement_timeline' ? 'bg-[#315b57]' : 'bg-[#173b4b]'}`}>
+        <div className={`px-2.5 py-2 text-white ${template === 'editorial_ledger' ? 'bg-[#344d5a]' : template === 'settlement_timeline' ? 'bg-[#315b57]' : 'bg-[#12365B]'}`}>
           <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">DUTSTAR BANK</span><span className="text-[4px] font-bold uppercase tracking-[.1em] text-[#d5c78f]">{template.replaceAll('_', ' ')}</span></div>
           <p className="mt-2 font-serif text-[12px] font-semibold">Transaction record</p>
           <div className="mt-1 flex items-center justify-between gap-2 text-[4px] text-white/75"><span>Amount on record</span><span>Current status</span></div>
