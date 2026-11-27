@@ -116,16 +116,12 @@ const clerkAppearance = {
 };
 
 function HomeRedirect() {
-  return (
-    <>
-      <Show when="signed-in">
-        <Redirect to="/dashboard" />
-      </Show>
-      <Show when="signed-out">
-        <HomePage />
-      </Show>
-    </>
-  );
+  // The public landing page must not wait for Clerk to finish initializing.
+  // Clerk can be delayed by network/proxy checks; gating both branches with
+  // <Show> leaves #root empty and makes the site look broken to visitors.
+  const { isLoaded, isSignedIn } = useUser();
+  if (isLoaded && isSignedIn) return <Redirect to="/dashboard" />;
+  return <HomePage />;
 }
 
 function PasswordResetGate({ children }: { children: ReactNode }) {
