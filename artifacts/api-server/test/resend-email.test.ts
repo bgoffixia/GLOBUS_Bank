@@ -108,7 +108,7 @@ test("admin sender-name setting is allowlisted, persisted, audited, and used by 
 });
 
 const message = {
-  from: "Globus Bank <alerts@example.test>",
+  from: "DUTSTAR BANK <alerts@example.test>",
   to: "recipient@example.test",
   subject: "Transfer update",
   text: "Test message",
@@ -222,7 +222,7 @@ test("retries sender-domain rejection with the configured verified sender", asyn
   }) as typeof fetch;
 
   try {
-    const fallback = { ...message, from: "GLOBUS BANK <verified@globus.website>" };
+    const fallback = { ...message, from: "DUTSTAR BANK <verified@globus.website>" };
     assert.equal(await sendResendEmail(message, "fallback-test-key", fallback), true);
     assert.equal(requests.length, 2);
     assert.equal((await requests[0].json()).from, message.from);
