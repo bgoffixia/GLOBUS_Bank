@@ -892,6 +892,7 @@ router.post(
       const now = new Date();
       const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
       const configuredOrigin =
+        process.env.DUTSTAR_APP_ORIGIN?.trim() ||
         process.env.GLOBUS_APP_ORIGIN?.trim() ||
         process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
         process.env.REPLIT_DEV_DOMAIN?.trim() ||
@@ -1122,7 +1123,8 @@ router.post(
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
     const configuredOrigin =
-      process.env.GLOBUS_APP_ORIGIN?.trim() ||
+      process.env.DUTSTAR_APP_ORIGIN?.trim() ||
+        process.env.GLOBUS_APP_ORIGIN?.trim() ||
       process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
       process.env.REPLIT_DEV_DOMAIN?.trim() ||
       "www.global-internetbanking.globus.website";
