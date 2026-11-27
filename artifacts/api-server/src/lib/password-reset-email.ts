@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { sendResendEmail } from "./resend-email";
 
-const EMAIL_FROM_ADDRESS_PATTERN = /^[^\s<>@]+@[^\s<>@]+\.[^\s<>@]+$/;
+const EMAIL_FROM_ADDRESS_PATTERN = /^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/;
 
 function appOrigin(): string | null {
   const configuredHost =
@@ -38,17 +38,17 @@ export async function sendPasswordResetEmail(input: {
   const link = recoveryUrl.toString();
   return sendResendEmail(
     {
-      from: `Globus Bank Security <${sender}>`,
+      from: `DUTSTAR BANK Security <${sender}>`,
       to: input.recipient,
-      subject: "Reset your Globus Bank password",
+      subject: "Reset your DUTSTAR BANK password",
       text: [
-        "An administrator required a password update for your Globus Bank account.",
+        "An administrator required a password update for your DUTSTAR BANK account.",
         "Use this secure link to sign in and choose a new password:",
         link,
         "This link expires in 15 minutes and can only be used once.",
-        "If you did not expect this message, contact Globus Bank support.",
-      ].join("\n\n"),
-      html: `<p>An administrator required a password update for your Globus Bank account.</p><p><a href="${link}">Sign in and choose a new password</a></p><p>This secure link expires in 15 minutes and can only be used once.</p><p>If you did not expect this message, contact Globus Bank support.</p>`,
+        "If you did not expect this message, contact DUTSTAR BANK support.",
+      ].join("\\n\\n"),
+      html: `<p>An administrator required a password update for your DUTSTAR BANK account.</p><p><a href="${link}">Sign in and choose a new password</a></p><p>This secure link expires in 15 minutes and can only be used once.</p><p>If you did not expect this message, contact DUTSTAR BANK support.</p>`,
     },
     `password-reset-${randomUUID()}`,
   );
