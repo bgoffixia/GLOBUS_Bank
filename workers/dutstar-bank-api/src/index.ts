@@ -34,6 +34,7 @@ type ClerkClaims = {
   exp?: number;
   nbf?: number;
   sid?: string;
+  azp?: string;
 };
 
 type JwkSet = { keys: JsonWebKey[] };
@@ -86,6 +87,7 @@ async function verifyClerkSession(request: Request, env: Env): Promise<ClerkClai
     const now = Math.floor(Date.now() / 1000);
     if (
       claims.iss !== env.CLERK_ISSUER ||
+      claims.azp !== env.APP_ORIGIN ||
       typeof claims.sub !== "string" ||
       claims.sub.length === 0 ||
       typeof claims.exp !== "number" ||
