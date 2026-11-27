@@ -45,7 +45,7 @@ export function SettingsPage() {
           <SettingsLink href="/sign-in/email" icon={KeyRound} title={t('Account password')} description={t('Open the secure account password recovery flow.')} />
           <SettingsLink href="/private-vault/reset-passcode" icon={LockKeyhole} title={t('Private Vault PIN')} description={t('Update or reset your Vault PIN after Clerk email OTP and account identity verification.')} />
         </SettingsGroup>
-        <SettingsGroup title={t('Preferences')} description={t('Choose how you use Globus Bank')} icon={Globe2}>
+        <SettingsGroup title={t('Preferences')} description={t('Choose how you use DUTSTAR Bank')} icon={Globe2}>
           <div className="flex items-center gap-3 px-4 py-4">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eef5f5] text-[#397a80]"><Globe2 size={17} /></span>
             <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-[#29445e]">{t('Language')}</p><p className="mt-1 text-xs text-[#8290a0]">{t('Set your preferred display language.')}</p></div>
@@ -53,13 +53,13 @@ export function SettingsPage() {
           </div>
           <div className="flex items-center gap-3 border-t border-[#edf1f4] px-4 py-4">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-xl bg-[#eef5f5] text-[#397a80]"><Smartphone size={17} /></span>
-            <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-[#29445e]">{t('Mobile app')}</p><p className="mt-1 text-xs text-[#8290a0]">{t('Install Globus Bank on your device.')}</p></div>
+            <div className="min-w-0 flex-1"><p className="text-sm font-semibold text-[#29445e]">{t('Mobile app')}</p><p className="mt-1 text-xs text-[#8290a0]">{t('Install DUTSTAR Bank on your device.')}</p></div>
             <InstallAppButton className="rounded-lg border border-[#dce6ec] bg-white px-3 py-2 text-xs font-semibold text-[#315b70] hover:bg-[#f4f8fa]" />
           </div>
         </SettingsGroup>
         <SettingsGroup title={t('Notifications & help')} description={t('Stay informed and get assistance')} icon={Bell}>
           <SettingsLink href="/notifications" icon={Bell} title={t('Notifications')} description={t('View account updates and recent alerts.')} />
-          <SettingsLink href="/support" icon={HelpCircle} title={t('Help & support')} description={t('Contact the Globus support team.')} />
+          <SettingsLink href="/support" icon={HelpCircle} title={t('Help & support')} description={t('Contact the DUTSTAR support team.')} />
         </SettingsGroup>
       </div>
 
