@@ -57,7 +57,7 @@ export function TransferInquiryPage({ token }: { token: string }) {
     <main className="min-h-screen bg-[#f2f6f8] px-4 py-10 text-[#203851]">
       <div className="mx-auto w-full max-w-[560px] overflow-hidden rounded-2xl border border-[#dce6eb] bg-white shadow-[0_16px_50px_rgba(25,55,80,.08)]">
         <header className="bg-[#173b62] px-6 py-6 text-white">
-          <p className="text-xs font-bold tracking-[.18em]">GLOBUS BANK</p>
+          <p className="text-xs font-bold tracking-[.18em]">DUTSTAR BANK</p>
           <h1 className="mt-3 text-2xl font-semibold">Transfer inquiries</h1>
           <p className="mt-2 text-sm leading-6 text-white/75">Send a message about the transfer directly to the sender's dedicated support inbox.</p>
         </header>
@@ -76,7 +76,7 @@ export function TransferInquiryPage({ token }: { token: string }) {
               {sent ? (
                 <div role="status" className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
                   <div className="flex items-center gap-2 font-semibold text-emerald-800"><CheckCircle2 className="h-5 w-5" /> Inquiry sent</div>
-                  <p className="mt-2 text-sm leading-6 text-emerald-800">Your message has been delivered to the sender's dedicated GLOBUS BANK support inbox. You can close this page.</p>
+                  <p className="mt-2 text-sm leading-6 text-emerald-800">Your message has been delivered to the sender's dedicated DUTSTAR BANK support inbox. You can close this page.</p>
                 </div>
               ) : (
                 <form onSubmit={submit} className="space-y-3">
