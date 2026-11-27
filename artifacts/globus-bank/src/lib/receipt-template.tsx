@@ -5,7 +5,7 @@ const baseReceiptTemplateOptions = [
   {
     value: 'standard',
     label: 'Standard receipt',
-    description: 'The current Globus receipt layout',
+    description: 'The current DUTSTAR receipt layout',
   },
   {
     value: 'bank_payment',
@@ -20,7 +20,7 @@ const baseReceiptTemplateOptions = [
   {
     value: 'transfer_ledger',
     label: 'Transfer ledger',
-    description: 'A compact summary of Globus ledger activity',
+    description: 'A compact summary of DUTSTAR ledger activity',
   },
   {
     value: 'settlement_statement',
@@ -85,12 +85,12 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
       {template === 'standard' && <>
         <div className="bg-[#173858] px-2.5 py-2 text-white">
           <div className="flex items-center justify-between border-b border-white/15 pb-1.5">
-            <span className="text-[6px] font-black tracking-[.16em]">GLOBUS BANK</span>
+            <span className="text-[6px] font-black tracking-[.16em]">DUTSTAR BANK</span>
             <span className="rounded-full border border-[#d5e7dc]/30 px-1 py-0.5 text-[4px] font-bold tracking-[.1em] text-[#d9eadf]">PENDING</span>
           </div>
           <p className="mt-2 text-[5px] font-bold uppercase tracking-[.15em] text-[#a9d6d3]">Transfer record</p>
           <p className="mt-0.5 font-serif text-[13px] font-semibold leading-none">₦184,500.00</p>
-          <p className="mt-1 text-[5px] text-white/65">Internal Globus account activity</p>
+          <p className="mt-1 text-[5px] text-white/65">Internal DUTSTAR account activity</p>
         </div>
         <div className="space-y-1.5 px-2.5 py-2 text-[5px]">
           <div className="flex justify-between gap-2"><span className="text-[#87959b]">Reference</span><span className="font-mono font-semibold text-[#3b5969]">GBX-20261120-8Q4K2P</span></div>
@@ -101,7 +101,7 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
       </>}
       {template === 'bank_payment' && <>
         <div className="flex items-center justify-between border-b border-[#e6ebed] bg-white px-2.5 py-2">
-          <div><p className="text-[6px] font-black tracking-[.14em] text-[#173858]">GLOBUS BANK</p><p className="mt-0.5 text-[4px] uppercase tracking-[.13em] text-[#8a989f]">Transaction advice</p></div>
+          <div><p className="text-[6px] font-black tracking-[.14em] text-[#173858]">DUTSTAR BANK</p><p className="mt-0.5 text-[4px] uppercase tracking-[.13em] text-[#8a989f]">Transaction advice</p></div>
           <span className="rounded-sm border border-[#eadfbf] bg-[#fbf7eb] px-1.5 py-1 text-[4px] font-bold uppercase tracking-[.08em] text-[#8b7440]">Pending</span>
         </div>
         <div className="space-y-1.5 px-2.5 py-2">
@@ -111,7 +111,7 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
           </div>
           <div className="flex items-center gap-1.5 rounded border border-[#e3e9e9] bg-white p-1.5">
             <span className="grid h-5 w-5 shrink-0 place-items-center rounded-full bg-[#e3efea] text-[6px] font-bold text-[#397b7b]">AB</span>
-            <span className="min-w-0"><b className="block truncate text-[5px] text-[#36536a]">Amina Bello</b><small className="block truncate text-[4px] text-[#85949d]">Globus recipient · •••• 7314</small></span>
+            <span className="min-w-0"><b className="block truncate text-[5px] text-[#36536a]">Amina Bello</b><small className="block truncate text-[4px] text-[#85949d]">DUTSTAR recipient · •••• 7314</small></span>
             <span className="ml-auto shrink-0 font-mono text-[4px] text-[#81939d]">20 NOV 2026</span>
           </div>
           <p className="text-center font-mono text-[4px] text-[#84949b]">REF GBX-20261120-8Q4K2P</p>
@@ -119,7 +119,7 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
       </>}
       {template === 'transfer_journey' && <>
         <div className="bg-[#173951] px-2.5 py-2 text-white">
-          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">GLOBUS BANK</span><span className="text-[4px] font-bold tracking-[.12em] text-[#b6d0c5]">TRANSFER JOURNEY</span></div>
+          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">DUTSTAR BANK</span><span className="text-[4px] font-bold tracking-[.12em] text-[#b6d0c5]">TRANSFER JOURNEY</span></div>
           <p className="mt-2 font-serif text-[12px] font-semibold">₦184,500.00</p>
           <p className="mt-0.5 text-[4px] text-white/60">Transfer request · pending review</p>
         </div>
@@ -137,7 +137,7 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
       </>}
       {template === 'transfer_ledger' && <>
         <div className="bg-[#173c4b] px-2.5 py-2 text-white">
-          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">GLOBUS BANK</span><span className="text-[4px] font-bold tracking-[.1em] text-[#a8cbb7]">LEDGER COPY</span></div>
+          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">DUTSTAR BANK</span><span className="text-[4px] font-bold tracking-[.1em] text-[#a8cbb7]">LEDGER COPY</span></div>
           <div className="mt-2 flex items-end justify-between gap-1"><div><p className="text-[4px] uppercase tracking-[.12em] text-white/55">Net activity</p><p className="mt-0.5 font-serif text-[12px] font-semibold">₦184,500.00</p></div><span className="mb-0.5 rounded-sm bg-white/10 px-1 py-0.5 text-[4px] font-bold uppercase tracking-[.08em]">Pending</span></div>
         </div>
         <div className="px-2.5 py-2">
@@ -153,7 +153,7 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
       </>}
       {template === 'settlement_statement' && <>
         <div className="flex items-center justify-between border-b-[2px] border-[#9dbbab] bg-[#173b4b] px-2.5 py-2 text-white">
-          <span className="text-[5px] font-black tracking-[.14em]">GLOBUS BANK</span>
+          <span className="text-[5px] font-black tracking-[.14em]">DUTSTAR BANK</span>
           <span className="border border-[#b8d6c2]/40 px-1.5 py-1 text-[4px] font-bold uppercase tracking-[.1em] text-[#d6eadc]">Internal copy</span>
         </div>
         <div className="px-2.5 py-2">
@@ -177,18 +177,18 @@ export function ReceiptTemplateMiniPreview({ template }: { template: ReceiptTemp
         'archival_statement',
       ] as ReceiptTemplateId[]).includes(template) && <>
         <div className={`px-2.5 py-2 text-white ${template === 'editorial_ledger' ? 'bg-[#344d5a]' : template === 'settlement_timeline' ? 'bg-[#315b57]' : 'bg-[#173b4b]'}`}>
-          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">GLOBUS BANK</span><span className="text-[4px] font-bold uppercase tracking-[.1em] text-[#d5c78f]">{template.replaceAll('_', ' ')}</span></div>
+          <div className="flex items-center justify-between"><span className="text-[5px] font-black tracking-[.14em]">DUTSTAR BANK</span><span className="text-[4px] font-bold uppercase tracking-[.1em] text-[#d5c78f]">{template.replaceAll('_', ' ')}</span></div>
           <p className="mt-2 font-serif text-[12px] font-semibold">Transaction record</p>
           <div className="mt-1 flex items-center justify-between gap-2 text-[4px] text-white/75"><span>Amount on record</span><span>Current status</span></div>
         </div>
         <div className={`px-2.5 py-2 ${template === 'transfer_ledger_columnar' ? 'grid grid-cols-2 gap-1.5' : 'space-y-1.5'}`}>
           {(template === 'settlement_timeline'
-            ? ['Activity recorded', 'Current Globus status']
+            ? ['Activity recorded', 'Current DUTSTAR status']
             : template === 'reconciliation_statement'
               ? ['Reference', 'Amount', 'Counterparty', 'Recorded status']
               : ['Transaction detail', 'Recorded amount', 'Counterparty', 'Reference']
           ).map((label, index) => <div key={label} className="flex items-center justify-between gap-2 border-b border-[#e6ece8] py-1 text-[4px]">
-            <span className="text-[#81918e]">{label}</span><span className="max-w-[56%] truncate font-semibold text-[#405b61]">{index === 0 ? 'Current account record' : 'Recorded in Globus'}</span>
+            <span className="text-[#81918e]">{label}</span><span className="max-w-[56%] truncate font-semibold text-[#405b61]">{index === 0 ? 'Current account record' : 'Recorded in DUTSTAR'}</span>
           </div>)}
           <p className="pt-1 text-right text-[4px] font-bold uppercase tracking-[.1em] text-[#66857d]">Full record preview</p>
         </div>
