@@ -136,7 +136,7 @@ export function PwaInstallPrompt() {
       setCanInstall(false);
       setOpen(false);
     } catch {
-      setInstallError("The browser could not open its install prompt. Use the browser menu to install Globus Bank.");
+      setInstallError("The browser could not open its install prompt. Use the browser menu to install DUTSTAR Bank.");
     }
   };
 
@@ -154,10 +154,10 @@ export function PwaInstallPrompt() {
             {isIos ? <Share2 size={19} /> : <Download size={19} />}
           </span>
           <DialogTitle className="text-[18px] text-[#213a55]">
-            Install Globus Bank
+            Install DUTSTAR Bank
           </DialogTitle>
           <DialogDescription className="text-[12px] leading-5 text-[#718296]">
-            Add Globus to your device for a direct app shortcut and a dedicated
+            Add DUTSTAR to your device for a direct app shortcut and a dedicated
             full-screen experience.
           </DialogDescription>
         </DialogHeader>
