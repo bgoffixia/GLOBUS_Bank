@@ -12,7 +12,7 @@ test("validates and preserves a configured sender mailbox", () => {
   );
   assert.equal(
     getVaultPasscodeResetSenderAddress({
-      GLOBUS_VAULT_PIN_RESET_EMAIL_FROM: "vault@globus.website",
+      DUTSTAR_VAULT_PIN_RESET_EMAIL_FROM: "vault@globus.website",
       GLOBUS_SECURITY_EMAIL_FROM: "legacy@globus.website",
     }),
     "vault@globus.website",
@@ -33,7 +33,7 @@ test("rejects malformed, display-name, and header-injection sender values", () =
   for (const address of [
     "",
     " ",
-    "GLOBUS Security <security@globus.website>",
+    "DUTSTAR Security <security@globus.website>",
     "security@localhost",
     "security..team@globus.website",
     ".security@globus.website",
@@ -49,7 +49,7 @@ test("does not silently fall back when the dedicated setting is explicitly empty
   assert.throws(
     () =>
       getVaultPasscodeResetSenderAddress({
-        GLOBUS_VAULT_PIN_RESET_EMAIL_FROM: "",
+        DUTSTAR_VAULT_PIN_RESET_EMAIL_FROM: "",
         GLOBUS_SECURITY_EMAIL_FROM: "security@globus.website",
       }),
     /configured but empty/i,
