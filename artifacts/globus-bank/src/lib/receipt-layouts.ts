@@ -59,7 +59,7 @@ export const RECEIPT_LAYOUTS = [
   {
     id: "settlement_timeline",
     label: "Settlement timeline",
-    summary: "A time-led record of the transaction and its current Globus status.",
+    summary: "A time-led record of the transaction and its current DUTSTAR status.",
     preview: "timeline",
   },
   {

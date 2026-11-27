@@ -34,9 +34,9 @@ test('the Vault offers all eleven receipt presets with a rendered preview', () =
       createElement(ReceiptTemplateMiniPreview, { template: option.value }),
     );
     assert.match(html, new RegExp(`data-testid="receipt-template-preview-${option.value}"`));
-    assert.match(html, /GLOBUS BANK/);
+    assert.match(html, /DUTSTAR BANK/);
     if (['standard', 'bank_payment', 'transfer_journey', 'transfer_ledger', 'settlement_statement'].includes(option.value)) {
-      assert.match(html, /GBX-20261120-8Q4K2P/);
+      assert.match(html, /DTS-20261120-8Q4K2P/);
       assert.match(html, /184,500\.00/);
     } else {
       assert.match(html, /Full record preview/);

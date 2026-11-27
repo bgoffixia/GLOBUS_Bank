@@ -3,7 +3,7 @@ import type { ReceiptTransaction } from "./transfer-receipt-data";
 
 export const illustrativeReceiptTransaction: ReceiptTransaction = {
   id: "vault-layout-sample",
-  reference: "GBX-20261120-8Q4K2P",
+  reference: "DTS-20261120-8Q4K2P",
   type: "external_transfer",
   status: "pending",
   receiptTemplate: "standard",
