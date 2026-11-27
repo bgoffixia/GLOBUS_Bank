@@ -3,7 +3,9 @@
   "name": "dutstar-bank-api",
   "main": "src/index.ts",
   "compatibility_date": "2026-11-27",
-  "compatibility_flags": ["nodejs_compat"],
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
   "workers_dev": false,
   "vars": {
     "APP_NAME": "DUTSTAR BANK",
@@ -23,11 +25,20 @@
   "assets": {
     "directory": "../../artifacts/globus-bank/dist/public",
     "binding": "ASSETS",
-    "run_worker_first": ["/api/*", "/health"],
+    "run_worker_first": [
+      "/api/*",
+      "/health"
+    ],
     "not_found_handling": "single-page-application"
   },
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
-  }
+  },
+  "hyperdrive": [
+    {
+      "binding": "DB",
+      "id": "3fbe4aa6fa17456aa0eb2a33a6774534"
+    }
+  ]
 }
