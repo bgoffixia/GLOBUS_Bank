@@ -42,14 +42,14 @@ export function LandingPageHeader({
       <div className="globus-landing-header__bar">
         <Link
           href={isSignedIn ? '/home' : '/'}
-          aria-label={t('Globus Bank home')}
+          aria-label={t('DUTSTAR BANK home')}
           className="globus-landing-header__brand"
           data-testid="link-globus-home"
           onClick={closeMenu}
         >
           <img
-            src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`}
-            alt={t('Globus Bank — Your world. Our priority.')}
+            src={`${import.meta.env.BASE_URL}dutstar-mark.svg`}
+            alt={t('DUTSTAR BANK — Your world. Our priority.')}
           />
         </Link>
 
@@ -111,7 +111,7 @@ export function LandingPageHeader({
               hidden={!isMenuOpen}
               data-testid="landing-navigation-menu"
             >
-              <p className="globus-landing-header__menu-eyebrow">{t('Explore Globus')}</p>
+              <p className="globus-landing-header__menu-eyebrow">{t('Explore DUTSTAR')}</p>
               <a href="#features" onClick={closeMenu} data-testid="link-nav-features">{t('Features')}</a>
               <a href="#account-record" onClick={closeMenu} data-testid="link-nav-account-record">{t('Account record')}</a>
               <div className="globus-landing-header__menu-auth">
