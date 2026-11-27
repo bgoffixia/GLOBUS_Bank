@@ -5,6 +5,13 @@
   "compatibility_date": "2026-11-27",
   "compatibility_flags": ["nodejs_compat"],
   "workers_dev": false,
+  "vars": {
+    "APP_NAME": "DUTSTAR BANK",
+    "APP_ORIGIN": "https://www.bank.dutstar.online",
+    "APP_ENV": "production",
+    "AUTH_PROVIDER": "clerk",
+    "DATABASE_PROVIDER": "supabase-postgres"
+  },
   "assets": {
     "directory": "../../artifacts/globus-bank/dist/public",
     "binding": "ASSETS",
