@@ -19,7 +19,7 @@ export type StoredNotification = typeof bankNotificationsTable.$inferSelect;
 
 export class WebpushrSubscriberAlreadyLinkedError extends Error {
   constructor() {
-    super("This Webpushr subscriber is already linked to another Globus account.");
+    super("This Webpushr subscriber is already linked to another DUTSTAR account.");
     this.name = "WebpushrSubscriberAlreadyLinkedError";
   }
 }
@@ -131,82 +131,82 @@ function transferLanguageForCountry(country: string): TransferLanguage {
 
 const transferEmailCopy: Record<TransferLanguage, Record<string, string>> = {
   en: {
-    subject: "Globus transfer update", heading: "Transfer update",
-    completed: "The sender’s Globus account recorded this transfer.",
-    pending: "The transfer is pending review in Globus.",
-    failed: "The transfer was not posted to the sender’s Globus wallet.",
+    subject: "DUTSTAR transfer update", heading: "Transfer update",
+    completed: "The sender’s DUTSTAR account recorded this transfer.",
+    pending: "The transfer is pending review in DUTSTAR.",
+    failed: "The transfer was not posted to the sender’s DUTSTAR wallet.",
     recipient: "Recipient", destination: "Destination", amount: "Amount",
     reference: "Reference", status: "Status", recorded: "Recorded",
     safety: "If you do not recognize this message, ignore it. Never reply with account credentials or verification codes.",
   },
   fr: {
-    subject: "Mise à jour du transfert Globus", heading: "Mise à jour du transfert",
-    completed: "Le compte Globus de l’expéditeur a enregistré ce transfert.",
-    pending: "Le transfert est en attente de vérification dans Globus.",
-    failed: "Le transfert n’a pas été crédité sur le portefeuille Globus de l’expéditeur.",
+    subject: "Mise à jour du transfert DUTSTAR", heading: "Mise à jour du transfert",
+    completed: "Le compte DUTSTAR de l’expéditeur a enregistré ce transfert.",
+    pending: "Le transfert est en attente de vérification dans DUTSTAR.",
+    failed: "Le transfert n’a pas été crédité sur le portefeuille DUTSTAR de l’expéditeur.",
     recipient: "Bénéficiaire", destination: "Destination", amount: "Montant",
     reference: "Référence", status: "Statut", recorded: "Enregistré",
     safety: "Si vous ne reconnaissez pas ce message, ignorez-le. Ne répondez jamais avec vos identifiants ou codes de vérification.",
   },
   es: {
-    subject: "Actualización de transferencia de Globus", heading: "Actualización de transferencia",
-    completed: "La cuenta Globus del remitente registró esta transferencia.",
-    pending: "La transferencia está pendiente de revisión en Globus.",
-    failed: "La transferencia no se abonó en la cartera Globus del remitente.",
+    subject: "Actualización de transferencia de DUTSTAR", heading: "Actualización de transferencia",
+    completed: "La cuenta DUTSTAR del remitente registró esta transferencia.",
+    pending: "La transferencia está pendiente de revisión en DUTSTAR.",
+    failed: "La transferencia no se abonó en la cartera DUTSTAR del remitente.",
     recipient: "Beneficiario", destination: "Destino", amount: "Importe",
     reference: "Referencia", status: "Estado", recorded: "Registrado",
     safety: "Si no reconoce este mensaje, ignórelo. Nunca responda con credenciales ni códigos de verificación.",
   },
   de: {
-    subject: "Globus-Überweisungsaktualisierung", heading: "Überweisungsaktualisierung",
-    completed: "Das Globus-Konto des Absenders hat diese Überweisung erfasst.",
-    pending: "Die Überweisung wird bei Globus geprüft.",
-    failed: "Die Überweisung wurde nicht dem Globus-Wallet des Absenders gutgeschrieben.",
+    subject: "DUTSTAR-Überweisungsaktualisierung", heading: "Überweisungsaktualisierung",
+    completed: "Das DUTSTAR-Konto des Absenders hat diese Überweisung erfasst.",
+    pending: "Die Überweisung wird bei DUTSTAR geprüft.",
+    failed: "Die Überweisung wurde nicht dem DUTSTAR-Wallet des Absenders gutgeschrieben.",
     recipient: "Empfänger", destination: "Ziel", amount: "Betrag",
     reference: "Referenz", status: "Status", recorded: "Erfasst",
     safety: "Wenn Sie diese Nachricht nicht erkennen, ignorieren Sie sie. Antworten Sie niemals mit Zugangsdaten oder Bestätigungscodes.",
   },
   it: {
-    subject: "Aggiornamento trasferimento Globus", heading: "Aggiornamento trasferimento",
-    completed: "Il conto Globus del mittente ha registrato questo trasferimento.",
-    pending: "Il trasferimento è in attesa di verifica su Globus.",
-    failed: "Il trasferimento non è stato accreditato sul portafoglio Globus del mittente.",
+    subject: "Aggiornamento trasferimento DUTSTAR", heading: "Aggiornamento trasferimento",
+    completed: "Il conto DUTSTAR del mittente ha registrato questo trasferimento.",
+    pending: "Il trasferimento è in attesa di verifica su DUTSTAR.",
+    failed: "Il trasferimento non è stato accreditato sul portafoglio DUTSTAR del mittente.",
     recipient: "Destinatario", destination: "Destinazione", amount: "Importo",
     reference: "Riferimento", status: "Stato", recorded: "Registrato",
     safety: "Se non riconosci questo messaggio, ignoralo. Non rispondere mai con credenziali o codici di verifica.",
   },
   ru: {
-    subject: "Обновление перевода Globus", heading: "Обновление перевода",
-    completed: "Счёт отправителя в Globus зарегистрировал этот перевод.",
-    pending: "Перевод ожидает проверки в Globus.",
-    failed: "Перевод не был зачислен на кошелёк отправителя Globus.",
+    subject: "Обновление перевода DUTSTAR", heading: "Обновление перевода",
+    completed: "Счёт отправителя в DUTSTAR зарегистрировал этот перевод.",
+    pending: "Перевод ожидает проверки в DUTSTAR.",
+    failed: "Перевод не был зачислен на кошелёк отправителя DUTSTAR.",
     recipient: "Получатель", destination: "Назначение", amount: "Сумма",
     reference: "Номер", status: "Статус", recorded: "Дата записи",
     safety: "Если вы не узнаёте это сообщение, проигнорируйте его. Не отправляйте в ответ пароли или коды подтверждения.",
   },
   uk: {
-    subject: "Оновлення переказу Globus", heading: "Оновлення переказу",
-    completed: "Рахунок відправника в Globus зареєстрував цей переказ.",
-    pending: "Переказ очікує перевірки в Globus.",
-    failed: "Переказ не було зараховано на гаманець відправника Globus.",
+    subject: "Оновлення переказу DUTSTAR", heading: "Оновлення переказу",
+    completed: "Рахунок відправника в DUTSTAR зареєстрував цей переказ.",
+    pending: "Переказ очікує перевірки в DUTSTAR.",
+    failed: "Переказ не було зараховано на гаманець відправника DUTSTAR.",
     recipient: "Отримувач", destination: "Призначення", amount: "Сума",
     reference: "Номер", status: "Статус", recorded: "Записано",
     safety: "Якщо ви не впізнаєте це повідомлення, проігноруйте його. Не надсилайте у відповідь паролі чи коди підтвердження.",
   },
   pl: {
-    subject: "Aktualizacja przelewu Globus", heading: "Aktualizacja przelewu",
-    completed: "Konto Globus nadawcy zarejestrowało ten przelew.",
-    pending: "Przelew oczekuje na weryfikację w Globus.",
-    failed: "Przelew nie został zaksięgowany w portfelu Globus nadawcy.",
+    subject: "Aktualizacja przelewu DUTSTAR", heading: "Aktualizacja przelewu",
+    completed: "Konto DUTSTAR nadawcy zarejestrowało ten przelew.",
+    pending: "Przelew oczekuje na weryfikację w DUTSTAR.",
+    failed: "Przelew nie został zaksięgowany w portfelu DUTSTAR nadawcy.",
     recipient: "Odbiorca", destination: "Cel", amount: "Kwota",
     reference: "Numer referencyjny", status: "Status", recorded: "Zarejestrowano",
     safety: "Jeśli nie rozpoznajesz tej wiadomości, zignoruj ją. Nigdy nie odsyłaj danych logowania ani kodów weryfikacyjnych.",
   },
   ro: {
-    subject: "Actualizare transfer Globus", heading: "Actualizare transfer",
-    completed: "Contul Globus al expeditorului a înregistrat acest transfer.",
-    pending: "Transferul așteaptă verificarea în Globus.",
-    failed: "Transferul nu a fost creditat în portofelul Globus al expeditorului.",
+    subject: "Actualizare transfer DUTSTAR", heading: "Actualizare transfer",
+    completed: "Contul DUTSTAR al expeditorului a înregistrat acest transfer.",
+    pending: "Transferul așteaptă verificarea în DUTSTAR.",
+    failed: "Transferul nu a fost creditat în portofelul DUTSTAR al expeditorului.",
     recipient: "Beneficiar", destination: "Destinație", amount: "Sumă",
     reference: "Referință", status: "Stare", recorded: "Înregistrat",
     safety: "Dacă nu recunoașteți acest mesaj, ignorați-l. Nu răspundeți niciodată cu date de autentificare sau coduri de verificare.",
@@ -276,7 +276,7 @@ export function renderSupportFooter(
 async function createTransferInquiryUrl(userId: string, reference: string): Promise<string> {
   const now = new Date();
   const expiresAt = new Date(now.getTime() + 90 * 24 * 60 * 60 * 1000);
-  const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
+  const origin = appOrigin() ?? "https://www.bank.dutstar.online";
   const [existing] = await db
     .select({
       id: bankTransferInquiryLinksTable.id,
@@ -428,8 +428,8 @@ export async function sendTransferAlertEmail(input: {
       0.0722 * backgroundRgb[2]) /
     255;
   const bannerTextColor = backgroundLuminance > 0.62 ? "#17314f" : "#ffffff";
-  const headline = senderPreferences?.headline?.trim() || "A Globus transfer notice";
-  const origin = appOrigin() ?? "https://www.global-internetbanking.globus.website";
+  const headline = senderPreferences?.headline?.trim() || "A DUTSTAR BANK transfer notice";
+  const origin = appOrigin() ?? "https://www.bank.dutstar.online";
   const configuredDefaultSupportUrl =
     normalizeSupportUrl(globalSupportUrl) ??
     normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
@@ -471,7 +471,7 @@ export async function sendTransferAlertEmail(input: {
         ? copy.pending
         : input.status === "failed" || input.status === "rejected"
           ? copy.failed
-          : `Globus record status: ${input.status}.`;
+          : `DUTSTAR BANK record status: ${input.status}.`;
   const details = [
     `${copy.recipient}: ${input.recipientName}`,
     `${copy.destination}: ${input.bankName}, ${input.destinationCountry}`,
@@ -610,7 +610,7 @@ export async function sendPushToUser(
           },
           body: JSON.stringify({
             title: notification.title.slice(0, 100),
-            message: "You have a new account activity update. Open Globus to review it.",
+            message: "You have a new account activity update. Open DUTSTAR to review it.",
             target_url: new URL("/notifications", origin).toString(),
             sid: subscriberId,
             icon: new URL("/globus-mark-transparent.png", origin).toString(),
