@@ -1,6 +1,14 @@
 name: DUTSTAR Cloudflare preview deploy
 
 on:
+  push:
+    branches: [migration/dutstar-cloudflare]
+    paths:
+      - ".github/workflows/dutstar-cloudflare-preview.yml"
+      - "workers/dutstar-bank-api/**"
+      - "artifacts/globus-bank/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
   workflow_dispatch:
 
 permissions:
