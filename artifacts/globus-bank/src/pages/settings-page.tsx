@@ -11,26 +11,26 @@ export function SettingsPage() {
   const { signOut } = useClerk();
   const { t } = useLanguage();
   const email = user?.primaryEmailAddress?.emailAddress ?? 'Email not available';
-  const displayName = user?.fullName || user?.username || 'Globus member';
+  const displayName = user?.fullName || user?.username || 'DUTSTAR member';
   const initials = (user?.firstName?.[0] ?? email[0] ?? 'G').toUpperCase();
 
   return (
     <div className="mx-auto w-full max-w-[1080px] pb-12">
       <div className="mb-7">
-        <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#438187]">{t('ACCOUNT')}</p>
-        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#19334f] sm:text-3xl">{t('Settings')}</h1>
+        <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#078f95]">{t('ACCOUNT')}</p>
+        <h1 className="mt-2 text-2xl font-semibold tracking-tight text-[#0a2147] sm:text-3xl">{t('Settings')}</h1>
         <p className="mt-2 max-w-xl text-sm leading-6 text-[#718196]">{t('Manage your profile, account security and app preferences.')}</p>
       </div>
 
       <section className="mb-6 rounded-2xl border border-[#e1e8ee] bg-white p-4 shadow-[0_8px_24px_rgba(20,47,81,.04)] sm:p-5">
         <div className="flex flex-wrap items-center gap-4">
-          <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-[#e7f0f2] text-lg font-bold text-[#214a61]">
+          <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden rounded-full bg-[#e2f5f3] text-lg font-bold text-[#0b4770]">
             {user?.imageUrl ? <img src={user.imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
           </div>
           <div className="min-w-0 flex-1">
-            <h2 className="truncate text-base font-semibold text-[#203a55]">{displayName}</h2>
+            <h2 className="truncate text-base font-semibold text-[#10294d]">{displayName}</h2>
             <p className="mt-1 truncate text-xs text-[#7b8a9b]">{email}</p>
-            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[.12em] text-[#438187]">{t('GLOBUS BANK MEMBER')}</p>
+            <p className="mt-1 text-[10px] font-semibold uppercase tracking-[.12em] text-[#078f95]">{t('DUTSTAR BANK MEMBER')}</p>
           </div>
           <Link href="/profile" className="inline-flex items-center gap-2 rounded-lg border border-[#dce6ec] px-3 py-2 text-xs font-semibold text-[#315b70] transition hover:bg-[#f4f8fa]">{t('View profile')} <ArrowRight size={14} /></Link>
         </div>
