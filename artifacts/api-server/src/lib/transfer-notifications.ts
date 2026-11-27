@@ -35,6 +35,7 @@ function webpushrCredentials() {
 
 function appOrigin(): string | null {
   const host =
+    process.env.DUTSTAR_APP_ORIGIN?.trim() ||
     process.env.GLOBUS_APP_ORIGIN?.trim() ||
     process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
     process.env.REPLIT_DEV_DOMAIN?.trim();
@@ -432,7 +433,7 @@ export async function sendTransferAlertEmail(input: {
   const origin = appOrigin() ?? "https://www.bank.dutstar.online";
   const configuredDefaultSupportUrl =
     normalizeSupportUrl(globalSupportUrl) ??
-    normalizeSupportUrl(process.env.GLOBUS_DEFAULT_SUPPORT_URL);
+    normalizeSupportUrl((process.env.DUTSTAR_DEFAULT_SUPPORT_URL ?? process.env.GLOBUS_DEFAULT_SUPPORT_URL));
   const defaultSupportUrl = new URL(configuredDefaultSupportUrl ?? "/support", origin);
   defaultSupportUrl.searchParams.set("transfer", input.reference);
   let recipientInquiryUrl: string | null = null;
@@ -444,7 +445,7 @@ export async function sendTransferAlertEmail(input: {
     }
   }
   const configuredSupportEmail =
-    globalSupportEmail?.trim() || process.env.GLOBUS_SUPPORT_EMAIL?.trim() || null;
+    globalSupportEmail?.trim() || (process.env.DUTSTAR_SUPPORT_EMAIL ?? process.env.GLOBUS_SUPPORT_EMAIL)?.trim() || null;
   const vaultSupportUrl = new URL("/private-vault/support", origin);
   vaultSupportUrl.searchParams.set("transfer", input.reference);
   const ownerSupportFooter = renderSupportFooter(
