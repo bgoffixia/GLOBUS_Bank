@@ -14,6 +14,12 @@
     "CLERK_ISSUER": "https://clerk.www.bank.dutstar.online",
     "CLERK_JWKS_URL": "https://clerk.www.bank.dutstar.online/.well-known/jwks.json"
   },
+  "r2_buckets": [
+    {
+      "binding": "PRIVATE_FILES",
+      "bucket_name": "dutstar-bank-private"
+    }
+  ],
   "assets": {
     "directory": "../../artifacts/globus-bank/dist/public",
     "binding": "ASSETS",
