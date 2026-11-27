@@ -14,14 +14,5 @@
   "observability": {
     "enabled": true,
     "head_sampling_rate": 1
-  },
-  "hyperdrive": [
-    {
-      "binding": "DB",
-      "id": "REPLACE_WITH_HYPERDRIVE_ID"
-    }
-  ],
-  "vars": {
-    "CLERK_JWKS_URL": "REPLACE_WITH_PRODUCTION_CLERK_JWKS_URL"
   }
 }
