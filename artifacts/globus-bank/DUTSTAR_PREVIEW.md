@@ -1,1 +1,1 @@
-DUTSTAR BANK preview is built by Cloudflare Pages from the migration branch. Production deployments are disabled for this Pages project.
+DUTSTAR BANK Cloudflare Pages preview. Source branch: migration/dutstar-cloudflare. Preview-only deployment; production cutover remains disabled until acceptance and security gates pass.
