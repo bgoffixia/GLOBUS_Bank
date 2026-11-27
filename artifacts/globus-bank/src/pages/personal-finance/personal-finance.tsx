@@ -219,7 +219,7 @@ function FinanceRecordDialog({ record, pending, saveError, expenseOnly, onClose,
           <div>
             <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#357b83]">{record ? 'Update a saved entry' : 'Add to your workspace'}</p>
             <h2 id="pf-record-dialog-title" className="bank-display mt-1 text-[21px] font-semibold tracking-[-.04em]">{record ? 'Edit record' : 'New personal record'}</h2>
-            <p className="mt-1 text-[11px] text-[#718196]">Manually maintained. This does not change your Globus wallet.</p>
+            <p className="mt-1 text-[11px] text-[#718196]">Manually maintained. This does not change your DUTSTAR wallet.</p>
           </div>
            <button data-testid="button-close-record-dialog" type="button" aria-label="Close record form" disabled={pending} onClick={onClose} className="rounded-lg p-2 text-[#718196] hover:bg-[#f2f7f8]"><X size={17} /></button>
         </div>
@@ -422,7 +422,7 @@ export function PersonalFinancePage() {
         <div>
           <p className="text-[10px] font-bold uppercase tracking-[.18em] text-[#357b83]">Your private workspace</p>
           <h1 className="bank-display mt-1 text-[clamp(25px,5vw,34px)] font-semibold leading-tight tracking-[-.055em]">Financial overview</h1>
-          <p className="mt-1 max-w-[640px] text-[12px] leading-5 text-[#718196]">Review Globus account activity alongside the personal records you maintain—kept clearly separate.</p>
+          <p className="mt-1 max-w-[640px] text-[12px] leading-5 text-[#718196]">Review DUTSTAR account activity alongside the personal records you maintain—kept clearly separate.</p>
         </div>
         <div className="flex w-full gap-2 sm:w-auto">
           <button data-testid="button-refresh-finance" type="button" className="pf-button flex-1 sm:flex-none" onClick={() => { void recordQuery.refetch(); void overviewQuery.refetch(); void reportQuery.refetch(); void accountsQuery.refetch(); void loansQuery.refetch(); }} disabled={recordQuery.isFetching || overviewQuery.isFetching || reportQuery.isFetching || accountsQuery.isFetching || loansQuery.isFetching} aria-label="Refresh finance workspace"><RefreshCw size={14} /> Refresh</button>
@@ -431,7 +431,7 @@ export function PersonalFinancePage() {
       </header>
 
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-[#dfe6ec] bg-[#eef6f6] px-3 py-2.5 text-[11px] leading-4 text-[#315d6c]" role="note">
-        <span><strong className="font-bold">Personal entries only.</strong> Separate from Globus wallet balances, ledger activity and transactions.</span>
+        <span><strong className="font-bold">Personal entries only.</strong> Separate from DUTSTAR wallet balances, ledger activity and transactions.</span>
         <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[.1em]">Not live account data</span>
       </div>
 
@@ -462,10 +462,10 @@ export function PersonalFinancePage() {
 
       <section className="pf-panel min-w-0 overflow-hidden" aria-labelledby="pf-ledger-title" data-testid="finance-ledger-report">
         <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#e8edf2] px-4 py-3">
-          <div><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#eaf3f2] text-[#357b83]"><Landmark size={16} /></span><h2 id="pf-ledger-title" className="text-[14px] font-bold">Globus account activity</h2></div><p className="mt-1 text-[10px] leading-4 text-[#718196]">Internal Globus ledger activity. Not verified outside income or spending.</p></div>
+          <div><div className="flex items-center gap-2"><span className="grid h-8 w-8 place-items-center rounded-xl bg-[#eaf3f2] text-[#357b83]"><Landmark size={16} /></span><h2 id="pf-ledger-title" className="text-[14px] font-bold">DUTSTAR account activity</h2></div><p className="mt-1 text-[10px] leading-4 text-[#718196]">Internal DUTSTAR ledger activity. Not verified outside income or spending.</p></div>
           <span className="rounded-full bg-[#eef6f6] px-2.5 py-1 text-[9px] font-bold capitalize text-[#357b83]">{period} · in-app</span>
         </div>
-        {reportQuery.isError ? <QueryError text="Globus activity is unavailable." retry={() => reportQuery.refetch()} /> : reportQuery.isLoading ? <div className="grid gap-3 p-4 sm:grid-cols-2">{[0,1].map(i => <div key={i} className="pf-skeleton h-20" />)}</div> : <>
+        {reportQuery.isError ? <QueryError text="DUTSTAR activity is unavailable." retry={() => reportQuery.refetch()} /> : reportQuery.isLoading ? <div className="grid gap-3 p-4 sm:grid-cols-2">{[0,1].map(i => <div key={i} className="pf-skeleton h-20" />)}</div> : <>
          <div data-testid="dashboard-ledger-scroll" className="dashboard-ledger-scroll grid gap-2 p-3 sm:grid-cols-2 xl:grid-cols-3">
             {(reportQuery.data?.ledgerSummaries ?? []).map(summary => <article data-testid={`ledger-summary-${summary.currency}-${summary.walletId.slice(-4)}`} key={summary.walletId} className="rounded-xl border border-[#e7edf0] bg-[#fbfcfc] p-3">
               <div className="flex items-center justify-between gap-2"><div><h3 className="text-[11px] font-extrabold">{summary.currency}</h3><p className="mt-0.5 text-[8px] text-[#82909a]">Wallet ····{summary.walletId.slice(-4)}</p></div><span className="text-[9px] text-[#82909a]">Posted ledger</span></div>
@@ -551,7 +551,7 @@ export function CompactExpenseTracker() {
     <section className="pfw pf-panel mt-3 min-w-0 overflow-hidden" aria-labelledby="dashboard-account-activity-title" data-testid="dashboard-ledger-summary">
       <div className="flex flex-wrap items-start justify-between gap-3 border-b border-[#e8edf2] px-3.5 py-3 sm:px-4">
         <div className="min-w-0">
-          <div className="flex items-center gap-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#eaf3f2] text-[#357b83]"><Landmark size={15} /></span><div><h2 id="dashboard-account-activity-title" className="text-[12px] font-bold">Account activity · income & expenses</h2><p className="mt-0.5 text-[9px] text-[#718196]">Posted Globus ledger activity · this month</p></div></div>
+          <div className="flex items-center gap-2"><span className="grid h-8 w-8 shrink-0 place-items-center rounded-xl bg-[#eaf3f2] text-[#357b83]"><Landmark size={15} /></span><div><h2 id="dashboard-account-activity-title" className="text-[12px] font-bold">Account activity · income & expenses</h2><p className="mt-0.5 text-[9px] text-[#718196]">Posted DUTSTAR ledger activity · this month</p></div></div>
           <p className="mt-2 text-[9px] leading-4 text-[#718196]">Internal account activity only. Not verified outside income or spending.</p>
         </div>
         <Link data-testid="link-financial-overview" href="/financial-overview" className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#357b83]">Full report <ChevronRight size={12} /></Link>
