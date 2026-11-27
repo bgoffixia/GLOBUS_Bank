@@ -48,3 +48,11 @@ jobs:
         env:
           PORT: "24083"
           BASE_PATH: "/"
+
+      - name: Publish frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dutstar-frontend-dist
+          path: artifacts/globus-bank/dist/public/
+          if-no-files-found: error
+          retention-days: 7
