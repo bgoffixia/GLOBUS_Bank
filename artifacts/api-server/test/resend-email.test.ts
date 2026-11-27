@@ -306,7 +306,7 @@ test("vault passcode reset sender does not inherit transfer security sender", ()
     new URL("../src/lib/vault-passcode-reset-email.ts", import.meta.url),
     "utf8",
   );
-  assert.match(source, /env\.GLOBUS_VAULT_PIN_RESET_EMAIL_FROM\s*\?\?/);
+  assert.match(source, /env\.DUTSTAR_VAULT_PIN_RESET_EMAIL_FROM\s*\?\?/);\n  assert.match(source, /env\.GLOBUS_VAULT_PIN_RESET_EMAIL_FROM\s*\?\?/);
   assert.doesNotMatch(source, /GLOBUS_SECURITY_EMAIL_FROM/);
 });
 
