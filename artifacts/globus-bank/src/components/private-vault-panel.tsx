@@ -127,10 +127,10 @@ export function PrivateVaultPanel() {
   const [passcode, setPasscode] = useState('');
   const [rememberDevice, setRememberDevice] = useState(false);
   const lockSession = useLockBankVaultSession({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const clearIncompleteSubscription = useClearIncompleteBankVaultSubscription({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const [newPasscode, setNewPasscode] = useState('');
   const [message, setMessage] = useState('');
@@ -140,7 +140,7 @@ export function PrivateVaultPanel() {
   const [resetRequestMessage, setResetRequestMessage] = useState('');
   const [busyWallet, setBusyWallet] = useState('');
   const [bannerTheme, setBannerTheme] = useState<BankVaultEmailPreferences['bannerTheme']>('navy');
-  const [bannerHeadline, setBannerHeadline] = useState('A Globus transfer notice');
+  const [bannerHeadline, setBannerHeadline] = useState('A DUTSTAR transfer notice');
   const [bannerBackgroundColor, setBannerBackgroundColor] = useState('#12385d');
   const [includeSupportLink, setIncludeSupportLink] = useState(false);
   const [supportUrl, setSupportUrl] = useState('');
@@ -200,16 +200,16 @@ export function PrivateVaultPanel() {
       enabled: vaultSessionActive,
       retry: false,
     },
-    request: vaultSessionActive ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: vaultSessionActive ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const initializePaystackPayment = useInitializeBankVaultPaystackPayment({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const verifyPaystackPayment = useVerifyBankVaultPaystackPayment({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const emailRenewalManagementLink = useEmailBankVaultPaystackRenewalManagementLink({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const browserPushConfig = useGetBankPushConfig({
     query: { queryKey: getGetBankPushConfigQueryKey(), retry: false },
@@ -224,7 +224,7 @@ export function PrivateVaultPanel() {
   const savePushSubscription = useSaveBankPushSubscription();
   const deletePushSubscription = useDeleteBankPushSubscription();
   const updateBrowserPushPreferences = useUpdateBankPushPreferences({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   useEffect(() => () => {
     void queryClient.cancelQueries({ queryKey: getListBankVaultWalletControlsQueryKey() });
@@ -245,7 +245,7 @@ export function PrivateVaultPanel() {
       enabled: privateVaultDataEnabled,
       retry: false,
     },
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const previewWallets = useListBankWallets({
     query: {
@@ -261,7 +261,7 @@ export function PrivateVaultPanel() {
       enabled: privateVaultDataEnabled,
       retry: false,
     },
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const receiptPreference = useGetBankVaultReceiptPreference({
     query: {
@@ -274,20 +274,20 @@ export function PrivateVaultPanel() {
     },
     request: {
       cache: 'no-store',
-      ...(sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : {}),
+      ...(sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : {}),
     },
   });
   const saveReceiptPreference = useUpdateBankVaultReceiptPreference({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const saveEmailPreferences = useUpdateBankVaultEmailPreferences({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const updatePasscode = useUpdateBankVaultPasscode({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const updateControl = useUpdateBankVaultWalletControl({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const transactions = useListBankTransactions(
     { limit: 100 },
@@ -305,13 +305,13 @@ export function PrivateVaultPanel() {
       enabled: privateVaultDataEnabled,
       retry: false,
     },
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const saveTransactionNote = useUpdateBankVaultTransactionNote({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   const deleteTransactionNote = useDeleteBankVaultTransactionNote({
-    request: sessionToken ? { headers: { 'X-Globus-Vault-Session': sessionToken } } : undefined,
+    request: sessionToken ? { headers: { 'X-DUTSTAR-Vault-Session': sessionToken } } : undefined,
   });
   useEffect(() => {
     if (!subscriptionStorageKey) {
@@ -875,7 +875,7 @@ export function PrivateVaultPanel() {
       await deletePushSubscription.mutateAsync({ subscriptionId: savedPushSubscriptionId });
       setSavedPushSubscriptionId('');
       if (subscriptionStorageKey) localStorage.removeItem(subscriptionStorageKey);
-      toast({ title: 'Browser alerts disconnected', description: 'This device will no longer receive Globus push alerts.', duration: 5000 });
+      toast({ title: 'Browser alerts disconnected', description: 'This device will no longer receive DUTSTAR push alerts.', duration: 5000 });
       await queryClient.invalidateQueries({ queryKey: getGetBankPushConfigQueryKey() });
     } catch (err) {
       toast({
@@ -934,7 +934,7 @@ export function PrivateVaultPanel() {
       <div className="flex min-w-0 items-center gap-3">
         {vaultSessionActive && <button type="button" aria-label={t('Open Vault workspace navigation')} aria-expanded={mobileNavigationOpen} aria-controls="vault-workspace-mobile-navigation" onClick={() => setMobileNavigationOpen(true)} className="grid h-9 w-9 shrink-0 place-items-center rounded-lg border border-[#dfe7eb] bg-white text-[#29465d] hover:bg-[#f4f8f9] lg:hidden" data-testid="button-vault-navigation"><Menu size={17} /></button>}
         <div className="min-w-0">
-          <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#56878a]">{t('Globus Bank · Customer workspace')}</p>
+          <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#56878a]">{t('DUTSTAR Bank · Customer workspace')}</p>
           <h1 className="truncate text-[14px] font-bold text-[#233c54] sm:text-[16px]">{t('Private Vault')}</h1>
         </div>
       </div>
@@ -1024,7 +1024,7 @@ export function PrivateVaultPanel() {
                   Forgot your PIN? Reset with Clerk email OTP
                 </Link>
                 <p className="mt-1 text-[9px] leading-4 text-[#849397]">
-                  After 3 unsuccessful PIN attempts, verify your Clerk email and GLOBUS account ownership before choosing a new PIN. Your current PIN and Vault access stay unchanged unless verification succeeds.
+                  After 3 unsuccessful PIN attempts, verify your Clerk email and DUTSTAR account ownership before choosing a new PIN. Your current PIN and Vault access stay unchanged unless verification succeeds.
                 </p>
               </div>
             )}
@@ -1065,7 +1065,7 @@ export function PrivateVaultPanel() {
             </h3>
             <p className="mt-1 max-w-2xl text-[10px] leading-5 text-[#708195]">
               {status.isLoading ? 'Loading subscription details…' : status.isError ? 'Subscription details are temporarily unavailable.' :
-                status.data?.accessSource === 'admin_grant' ? 'Access is provided by a Globus administrator grant.' :
+                status.data?.accessSource === 'admin_grant' ? 'Access is provided by a DUTSTAR administrator grant.' :
                   status.data?.subscriptionActive ? `${status.data.planCode ?? 'Vault'} plan active${status.data.expiresAt ? ` · renews or ends ${new Date(status.data.expiresAt).toLocaleDateString()}` : ''}.` :
                     checkoutPending ? 'Payment is awaiting Paystack verification. Unlock your Vault to confirm payment.' :
                       'Manage your plan, renewals, and secure account tools from one workspace.'}
@@ -1215,9 +1215,9 @@ export function PrivateVaultPanel() {
                                 <input type="checkbox" checked={autoRenew} onChange={event => setAutoRenew(event.currentTarget.checked)} className="mt-0.5 accent-[#367b7b]" />
                                 <span><strong className="block text-[#315d63]">Automatically renew this plan</strong>{selectedPlan === '1m' ? 'Paystack will charge the same amount monthly until you cancel.' : 'Paystack will charge the same amount annually until you cancel.'} You can request a management link from this page.</span>
                               </label>}
-                              {(selectedPlan === '1m' || selectedPlan === '1y') && !billing.data.recurringEnabled && <p className="rounded-lg border border-[#e8dfc5] bg-[#fffdf8] p-3 text-[9px] leading-4 text-[#786e55]">Automatic renewal will appear here after Globus configures the Paystack webhook. This checkout is currently one-time.</p>}
+                              {(selectedPlan === '1m' || selectedPlan === '1y') && !billing.data.recurringEnabled && <p className="rounded-lg border border-[#e8dfc5] bg-[#fffdf8] p-3 text-[9px] leading-4 text-[#786e55]">Automatic renewal will appear here after DUTSTAR configures the Paystack webhook. This checkout is currently one-time.</p>}
                               {selectedPlan === '3m' && <p className="rounded-lg border border-[#e8dfc5] bg-[#fffdf8] p-3 text-[9px] leading-4 text-[#786e55]">This three-month option is one-time only; Paystack does not list a quarterly renewal interval.</p>}
-                             <p className="text-[9px] leading-4 text-[#786e55]">Payment is initialized and verified on the Globus server. Vault access activates only after Paystack confirms the exact plan amount and currency.</p>
+                             <p className="text-[9px] leading-4 text-[#786e55]">Payment is initialized and verified on the DUTSTAR server. Vault access activates only after Paystack confirms the exact plan amount and currency.</p>
                              <button type="button" disabled={billingBusy || !billing.data.configured} onClick={() => void startPaystackCheckout()} data-testid="button-vault-paystack-checkout" className="h-9 rounded-lg bg-[#173858] px-4 text-[10px] font-bold text-white disabled:opacity-50">{initializePaystackPayment.isPending ? 'Preparing checkout…' : 'Continue to Paystack'}</button>
                           </div>;
                       })()}
@@ -1347,7 +1347,7 @@ export function PrivateVaultPanel() {
                   {emailAlertPreferenceMessage && <p role="status" data-testid="status-recipient-email-alert-saved" className="rounded-lg bg-[#eef7f1] px-3 py-2 text-[9px] text-[#41755f] sm:col-span-2">{emailAlertPreferenceMessage}</p>}
                   <label className="text-[9px] font-semibold text-[#5c7085]">Banner color
                     <select disabled={!vaultAccessActive} value={bannerTheme} onChange={event => setBannerTheme(event.target.value as BankVaultEmailPreferences['bannerTheme'])} className={`${fieldClass} mt-1 disabled:bg-[#f3f5f5]`} data-testid="select-vault-email-banner-theme">
-                      <option value="navy">Globus navy</option><option value="teal">Globus teal</option><option value="gold">Globus gold</option>
+                      <option value="navy">DUTSTAR navy</option><option value="teal">DUTSTAR teal</option><option value="gold">DUTSTAR gold</option>
                     </select>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Banner headline
@@ -1358,7 +1358,7 @@ export function PrivateVaultPanel() {
                       <input disabled={!vaultAccessActive} maxLength={64} pattern="[A-Za-z0-9](?:[A-Za-z0-9._-]{0,62}[A-Za-z0-9])?" value={senderLocalPart} onChange={event => setSenderLocalPart(event.target.value)} autoCapitalize="none" autoCorrect="off" spellCheck={false} placeholder="choose-a-prefix" className="h-full min-w-0 flex-1 bg-transparent px-3 text-[10px] text-[#344b64] outline-none disabled:bg-[#f3f5f5]" data-testid="input-vault-email-sender-prefix" />
                       <span className="shrink-0 pr-3 text-[9px] font-medium text-[#8190a0]">@{emailPreferences.data?.senderDomain ?? 'globus.website'}</span>
                     </span>
-                    <span className="mt-1 block text-[8px] font-normal leading-4 text-[#8794a2]">Recipients see “{emailPreferences.data?.senderDisplayName ?? 'GLOBUS BANK'}”. The domain and display name are fixed; this sender identity applies only to transfer alerts.</span>
+                    <span className="mt-1 block text-[8px] font-normal leading-4 text-[#8794a2]">Recipients see “{emailPreferences.data?.senderDisplayName ?? 'DUTSTAR BANK'}”. The domain and display name are fixed; this sender identity applies only to transfer alerts.</span>
                   </label>
                   <label className="text-[9px] font-semibold text-[#5c7085]">Custom banner background
                     <span className="mt-1 flex h-9 items-center gap-2 rounded-lg border border-[#dfe6eb] bg-white px-2">
@@ -1368,8 +1368,8 @@ export function PrivateVaultPanel() {
                   </label>
                   <div aria-label="Email banner preview" data-testid="preview-vault-email-banner" className="overflow-hidden rounded-lg border border-[#e2e8eb] sm:col-span-2">
                     <div className="px-4 py-3" style={{ backgroundColor: bannerBackgroundColor, color: bannerForeground(bannerBackgroundColor) }}>
-                      <p className="text-[10px] font-extrabold tracking-[.12em]">GLOBUS <span className="text-[#d6b45e]">BANK</span></p>
-                      <p className="mt-1 text-[10px] font-semibold">{bannerHeadline || 'A Globus transfer notice'}</p>
+                      <p className="text-[10px] font-extrabold tracking-[.12em]">DUTSTAR <span className="text-[#d6b45e]">BANK</span></p>
+                      <p className="mt-1 text-[10px] font-semibold">{bannerHeadline || 'A DUTSTAR transfer notice'}</p>
                     </div>
                     <div className="bg-white px-4 py-2 text-[9px] text-[#526b7e]">Transfer update · transaction details</div>
                     {includeSupportLink && supportUrl.trim() && <div className="border-t border-[#e7ecee] bg-white px-4 py-2 text-center text-[9px] font-bold text-[#356e75]">{supportLabel.trim() || 'Contact support'}</div>}
@@ -1445,7 +1445,7 @@ export function PrivateVaultPanel() {
           </div>
         </div>
       </section>
-      <section id="vault-support-inbox" data-vault-view="support" className="min-w-0 scroll-mt-24" data-testid="vault-support-inbox">{vaultAccessActive ? <CustomerSupportPage vaultContext /> : <div className="rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4"><div className="flex items-center gap-2 text-[#806f43]"><LockKeyhole size={15} /><h3 className="text-[11px] font-bold">Active Vault access required</h3></div><p className="mt-1 text-[9px] leading-4 text-[#7b806e]">The Private Vault support inbox is available while your Vault access is active. Check your subscription or contact Globus support for assistance.</p></div>}</section>
+      <section id="vault-support-inbox" data-vault-view="support" className="min-w-0 scroll-mt-24" data-testid="vault-support-inbox">{vaultAccessActive ? <CustomerSupportPage vaultContext /> : <div className="rounded-xl border border-[#e8e1cc] bg-[#fbf8ef] p-4"><div className="flex items-center gap-2 text-[#806f43]"><LockKeyhole size={15} /><h3 className="text-[11px] font-bold">Active Vault access required</h3></div><p className="mt-1 text-[9px] leading-4 text-[#7b806e]">The Private Vault support inbox is available while your Vault access is active. Check your subscription or contact DUTSTAR support for assistance.</p></div>}</section>
       {(error || updateControl.isError) && <p role="alert" data-testid="status-vault-error" className="mt-3 rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940]">{error || 'A wallet policy could not be saved.'}</p>}
       {message && <p role="status" data-testid="status-vault-message" className="mt-3 rounded-lg bg-[#f0f8f4] px-3 py-2 text-[9px] text-[#41755f]">{message}</p>}
         </main>
@@ -1453,7 +1453,7 @@ export function PrivateVaultPanel() {
       {mobileNavigationOpen && <div className="fixed inset-0 z-[60] lg:hidden">
         <button type="button" aria-label="Close Vault navigation overlay" className="absolute inset-0 bg-[#0b1b2d]/55" onClick={() => setMobileNavigationOpen(false)} />
         <aside id="vault-workspace-mobile-navigation" role="dialog" aria-modal="true" aria-labelledby="vault-mobile-navigation-title" className="absolute inset-y-0 left-0 flex w-[min(290px,86vw)] flex-col overflow-y-auto overscroll-contain bg-[#173b4b] p-4 text-white shadow-2xl">
-          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4"><div><p className="text-[8px] font-bold uppercase tracking-[.15em] text-[#a9c8c0]">Globus Bank</p><h3 id="vault-mobile-navigation-title" className="mt-1 text-[13px] font-bold">Vault workspace</h3></div><button type="button" aria-label="Close Vault navigation" onClick={() => setMobileNavigationOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-[#d5e2e1] hover:bg-white/10"><X size={16} /></button></div>
+          <div className="flex items-center justify-between gap-3 border-b border-white/10 pb-4"><div><p className="text-[8px] font-bold uppercase tracking-[.15em] text-[#a9c8c0]">DUTSTAR Bank</p><h3 id="vault-mobile-navigation-title" className="mt-1 text-[13px] font-bold">Vault workspace</h3></div><button type="button" aria-label="Close Vault navigation" onClick={() => setMobileNavigationOpen(false)} className="grid h-8 w-8 place-items-center rounded-lg text-[#d5e2e1] hover:bg-white/10"><X size={16} /></button></div>
           <nav className="mt-4 min-h-0 space-y-1 overflow-y-auto overscroll-contain" aria-label="Vault workspace navigation">
             {vaultNavigation.map(item => {
               const Icon = item.icon;
@@ -1461,7 +1461,7 @@ export function PrivateVaultPanel() {
               return <button key={item.id} type="button" disabled={disabled} aria-current={activeNavigation === item.id ? 'page' : undefined} onClick={() => navigateToSection(item.id)} className={`flex min-h-10 w-full items-center gap-3 rounded-lg px-3 text-left text-[10px] font-semibold ${activeNavigation === item.id ? 'bg-white/12 text-[#f1dc98]' : 'text-[#d5e2e1] hover:bg-white/[.07]'} disabled:cursor-not-allowed disabled:opacity-45`}><Icon size={15} />{item.label}{disabled && <LockKeyhole size={11} className="ml-auto" />}</button>;
             })}
           </nav>
-          <p className="mt-auto rounded-lg border border-white/10 bg-white/[.05] p-3 text-[8px] leading-4 text-[#c5d6d2]">Customer receipt facts are always taken from Globus account records.</p>
+          <p className="mt-auto rounded-lg border border-white/10 bg-white/[.05] p-3 text-[8px] leading-4 text-[#c5d6d2]">Customer receipt facts are always taken from DUTSTAR account records.</p>
         </aside>
       </div>}
     </section>
