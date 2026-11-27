@@ -12,7 +12,7 @@ import {
 import { RECEIPT_LAYOUTS } from "../src/lib/receipt-layouts";
 
 test("all receipt layouts can be previewed without a Vault session using non-exportable sample data", () => {
-  assert.equal(illustrativeReceiptTransaction.reference, "GBX-20261120-8Q4K2P");
+  assert.equal(illustrativeReceiptTransaction.reference, "DTS-20261120-8Q4K2P");
   assert.match(illustrativeReceiptTransaction.description, /not a real transaction/i);
   assert.equal(illustrativeReceiptTransaction.recipient?.name, "Amina Bello");
   for (const { id } of RECEIPT_LAYOUTS) {
