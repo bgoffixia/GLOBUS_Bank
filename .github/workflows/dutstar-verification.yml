@@ -49,7 +49,7 @@ jobs:
         run: pnpm --filter @workspace/globus-bank run build
         env:
           PORT: "24083"
-          BASE_PATH: "/"
+          BASE_PATH: "/"\n          VITE_CLERK_PUBLISHABLE_KEY: "pk_live_Y2xlcmsud3d3LmJhbmsuZHV0c3Rhci5vbmxpbmUk"
 
       - name: Validate Cloudflare Worker bundle and static assets
         working-directory: workers/dutstar-bank-api
