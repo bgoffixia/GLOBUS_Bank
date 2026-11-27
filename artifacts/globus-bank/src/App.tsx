@@ -1,6 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ClerkProvider, Show, useClerk, useUser } from '@clerk/react';
-import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -44,10 +43,10 @@ import {
 
 const queryClient = new QueryClient();
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+// Use the explicitly configured key in preview and production. Host-based
+// key discovery can reject isolated Pages preview hostnames and prevent the
+// React application from mounting before the landing page is rendered.
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 
