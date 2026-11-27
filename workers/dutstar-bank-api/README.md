@@ -2,20 +2,26 @@
 
 This directory contains the Cloudflare-native edge entrypoint for the DUTSTAR application.
 
-## Safety state
+## Current API surface
 
-- Static assets are served through the ASSETS binding when a production build exists.
-- `/health` reports whether required infrastructure bindings exist.
-- All `/api/*` routes intentionally return 503 until the existing Express banking routes are ported and security-tested.
-- No database writes, customer data access, or financial operations are enabled by this scaffold.
+- `GET /health` and `GET /api/healthz`: infrastructure readiness probe.
+- `GET /api/session`: verifies the Clerk JWT signature and core claims.
+- `GET /api/bank/me`: read-only customer profile.
+- `GET /api/bank/dashboard`: read-only profile, wallet balances, and recent transactions.
+- `GET /api/bank/wallets`: read-only customer wallets and ledger-derived balances.
+- `GET /api/bank/transactions`: read-only transaction history with bounded filters.
+- Other `/api/*` endpoints return 503 until their handlers and safeguards are ported.
 
-## Required before enabling banking API
+## Database access controls
 
-1. Create a Cloudflare Hyperdrive configuration using the existing Supabase PostgreSQL connection string. Keep the connection string private; never commit it.
-2. Set the Hyperdrive ID in `wrangler.jsonc`.
-3. Configure the production Clerk JWKS URL from the actual production Clerk instance; do not guess or replace the existing Clerk keys.
-4. Port the existing Express route handlers and background jobs to Worker-compatible modules. Preserve ledger transactions, idempotency, authorization checks, audit logging, and existing encryption compatibility.
-5. Add request-scoped authorization and secure database access. The existing database currently has tables without RLS policies, so it must not be exposed through the browser or an untrusted API.
-6. Build, run unit/integration tests, upload assets, deploy to a preview, and verify before production activation.
+The Worker uses Hyperdrive and opens a transaction per authenticated customer read. It switches to the non-login, non-superuser, non-BYPASSRLS role `dutstar_api`, then sets the transaction-local `app.clerk_user_id` from the verified Clerk JWT subject. RLS policies scope reads to the matching bank user, owned wallets, participant transactions, wallet ledger entries, and customer restrictions/requests.
 
-Do not enable financial endpoints until these requirements are complete.
+The role currently has SELECT-only grants for the read-model tables. No INSERT, UPDATE, DELETE, ledger posting, payment provider, transfer, vault passcode, or administrative operation is enabled in this Worker. The customer profile response fails closed for deposit/withdrawal eligibility and vault access until those controls are ported and verified.
+
+## Production safety
+
+- Existing Supabase customer records are preserved.
+- No balance, ledger, transaction, or customer data was modified by this API setup.
+- No customer write endpoint is enabled.
+- Do not deploy this Worker to the production hostname until its static assets are built and attached in the same deployment, Clerk session verification is tested end-to-end, and remaining API modules are ported.
+- Keep Hyperdrive connection details and Clerk secrets out of source control.
