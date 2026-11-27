@@ -1134,8 +1134,8 @@ function SupportConfigurationPage() {
     <form onSubmit={save} className="space-y-4">
       <Panel title="Private Vault and account support" eyebrow="Customer-facing routing" note="The default destination is used when no sender-specific support URL is configured. Keep the destination on a domain controlled by DUTSTAR.">
         <div className="grid gap-3 p-4 sm:grid-cols-2">
-          <Field label="Default support inbox URL (HTTPS)"><input type="url" className={input} placeholder="https://www.global-internetbanking.globus.website/support" value={url ?? settings.data?.defaultSupportUrl ?? ''} onChange={e => setUrl(e.target.value)} /></Field>
-          <Field label="Support email"><input type="email" className={input} placeholder="support@globus.website" value={email ?? settings.data?.supportEmail ?? ''} onChange={e => setEmail(e.target.value)} /></Field>
+          <Field label="Default support inbox URL (HTTPS)"><input type="url" className={input} placeholder="https://www.bank.dutstar.online/support" value={url ?? settings.data?.defaultSupportUrl ?? ''} onChange={e => setUrl(e.target.value)} /></Field>
+          <Field label="Support email"><input type="email" className={input} placeholder="Enter verified DUTSTAR support email" value={email ?? settings.data?.supportEmail ?? ''} onChange={e => setEmail(e.target.value)} /></Field>
           <div className="sm:col-span-2 rounded-xl bg-[#f3f7f2] p-3 text-[10px] leading-5 text-[#718588]">
             <p className="font-bold text-[#3e6263]">Routing and access safeguards</p>
             <ul className="mt-1 list-disc space-y-1 pl-4">
@@ -1252,7 +1252,7 @@ function SettingsPage() {
             </Field>
             <div className="rounded-xl bg-[#f2f6f1] p-4">
               <p className="text-[9px] font-bold uppercase tracking-[.1em] text-[#7d8d8e]">Server-managed sender address</p>
-              <p className="mt-2 font-mono text-[13px] font-semibold">{settings.data?.transferAlertEmailFrom || 'transfer-comfirmation@globus.website'}</p>
+              <p className="mt-2 font-mono text-[13px] font-semibold">{settings.data?.transferAlertEmailFrom || 'Not configured — set a verified DUTSTAR sender address'}</p>
             </div>
             <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">Transfer alerts always use the server-managed address and display name shown above. Customer-specific sender addresses are not used. Vault passcode reset continues through Clerk email OTP verification.</p>
           </div>
@@ -1260,10 +1260,10 @@ function SettingsPage() {
         <Panel id="settings-support" title="Support contact settings" eyebrow="Transfer alerts and customer support" note="These global values are used when a sender has not configured a custom support URL.">
           <div className="grid gap-3 p-5 sm:grid-cols-2">
             <Field label="Default support URL (HTTPS)">
-              <input className={input} type="url" placeholder="https://www.global-internetbanking.globus.website/support" value={defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? ''} onChange={event => setDefaultSupportUrl(event.target.value)} autoComplete="url" />
+              <input className={input} type="url" placeholder="https://www.bank.dutstar.online/support" value={defaultSupportUrl ?? settings.data?.defaultSupportUrl ?? ''} onChange={event => setDefaultSupportUrl(event.target.value)} autoComplete="url" />
             </Field>
             <Field label="Support email address">
-              <input className={input} type="email" placeholder="support@globus.website" value={supportEmail ?? settings.data?.supportEmail ?? ''} onChange={event => setSupportEmail(event.target.value)} autoComplete="email" />
+              <input className={input} type="email" placeholder="Enter verified DUTSTAR support email" value={supportEmail ?? settings.data?.supportEmail ?? ''} onChange={event => setSupportEmail(event.target.value)} autoComplete="email" />
             </Field>
             <p className="text-[9px] leading-4 text-[#829294] sm:col-span-2">Transfer alert links automatically include the transfer reference. A sender-specific custom URL overrides the default URL. The email contact is shown as a separate secure mailto link.</p>
           </div>
