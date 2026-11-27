@@ -204,14 +204,14 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
           <article ref={printRef} data-testid="receipt-document" data-receipt-template={template} className="receipt-print w-full bg-[#fffefa] text-[#203a54]" style={{ transform: `scale(${receiptFit.scale})`, transformOrigin: 'top center' }}>
             {template !== 'bank_payment' && <ReceiptDocument template={template} transaction={transaction} conversion={conversion} heading={heading} completed={completed} pending={pending} closeRef={closeRef} onClose={onClose} />}
             {template === 'bank_payment' && <>
-            <header className={`px-5 pb-4 pt-4 sm:px-6 ${darkMasthead ? `text-white ${template === 'transfer_ledger' ? 'bg-[#173c4b]' : 'bg-[#173951]'}` : 'text-[#203a54]'}`}>
+            <header className={`px-5 pb-4 pt-4 sm:px-6 ${darkMasthead ? `text-white ${template === 'transfer_ledger' ? 'bg-[#12365B]' : 'bg-[#12365B]'}` : 'text-[#203a54]'}`}>
               <div className={`flex items-center justify-between border-b pb-3 ${darkMasthead ? 'border-white/15' : 'border-[#e8ecee]'}`}>
                 <img src={`${import.meta.env.BASE_URL}dutstar-wordmark.svg`} alt="DUTSTAR BANK" className={`h-auto w-[104px] ${darkMasthead ? 'brightness-0 invert' : ''}`} />
                 <button ref={closeRef} type="button" aria-label="Close receipt" data-testid="button-close-receipt" onClick={onClose} className={`receipt-screen-only grid h-8 w-8 place-items-center rounded-full border transition ${darkMasthead ? 'border-white/20 text-white/80 hover:bg-white/10' : 'border-[#e1e8eb] text-[#607589] hover:bg-[#f1f6f7]'}`}><X size={15} /></button>
               </div>
               <div className="mt-3 flex items-end justify-between gap-3">
                 <div className="min-w-0">
-                  <p className={`text-[9px] font-bold uppercase tracking-[.18em] ${darkMasthead ? 'text-[#a9c7bd]' : 'text-[#478783]'}`}>
+                  <p className={`text-[9px] font-bold uppercase tracking-[.18em] ${darkMasthead ? 'text-[#a9c7bd]' : 'text-[#278C8C]'}`}>
                     DUTSTAR BANK · transaction record
                   </p>
                   <h2 id="receipt-title" className="bank-display mt-1 text-[19px] font-bold tracking-[-.045em] text-[#183450]">{templateTitle}</h2>
@@ -224,7 +224,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
               </div>
             </header>
             <div className="space-y-3 px-5 pb-3 pt-3 sm:px-6">
-              <section className="rounded-[15px] border border-[#dce5e8] bg-[#173858] p-4 text-white" aria-label="Transfer amount summary">
+              <section className="rounded-[15px] border border-[#dce5e8] bg-[#12365B] p-4 text-white" aria-label="Transfer amount summary">
                 <p className="text-[8px] font-bold uppercase tracking-[.16em] text-[#a9d6d3]">Transaction amount · internal record</p>
                 <p data-testid="text-receipt-amount" className="bank-display mt-1 break-words text-[25px] font-bold tracking-[-.04em]">{formatAmount(transaction.amount, transaction.currency)}</p>
                 {conversion && <div className="mt-3 grid min-w-0 grid-cols-[1fr_auto_1fr] items-center gap-2 border-t border-white/15 pt-3">
@@ -282,7 +282,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
             <button type="button" data-testid="button-save-receipt-png" aria-label="Save receipt PNG to device or gallery" disabled={exporting !== null || !canExportReceipt(illustrativeOnly, completed)} onClick={downloadPng} className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dbe4e8] bg-white px-2 text-[8px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><ImageDown size={11} />{exporting === 'png' ? 'Saving…' : 'Save PNG'}</button>
             {typeof navigator !== 'undefined' && typeof navigator.share === 'function' && <button type="button" data-testid="button-share-receipt" disabled={exporting !== null || !canExportReceipt(illustrativeOnly, completed)} onClick={() => void sharePng()} className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dbe4e8] bg-white px-2 text-[8px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><Share2 size={11} />{exporting === 'share' ? 'Sharing…' : 'Share'}</button>}
             <button type="button" data-testid="button-download-receipt-pdf" disabled={exporting !== null || !canExportReceipt(illustrativeOnly, completed)} onClick={downloadPdf} className="inline-flex h-7 items-center gap-1 rounded-md border border-[#dbe4e8] bg-white px-2 text-[8px] font-bold text-[#456179] hover:bg-[#f4f8f9] disabled:cursor-not-allowed disabled:opacity-50"><Download size={11} />{exporting === 'pdf' ? 'Preparing…' : 'PDF'}</button>
-            <button type="button" data-testid="button-print-receipt" disabled={!canPrintReceipt(illustrativeOnly)} onClick={() => window.print()} className="inline-flex h-7 items-center gap-1 rounded-md bg-[#173858] px-2 text-[8px] font-bold text-white hover:bg-[#21496c] disabled:cursor-not-allowed disabled:opacity-50"><Printer size={11} /> Print</button>
+            <button type="button" data-testid="button-print-receipt" disabled={!canPrintReceipt(illustrativeOnly)} onClick={() => window.print()} className="inline-flex h-7 items-center gap-1 rounded-md bg-[#12365B] px-2 text-[8px] font-bold text-white hover:bg-[#21496c] disabled:cursor-not-allowed disabled:opacity-50"><Printer size={11} /> Print</button>
           </div>
           <p className="mt-1 text-right text-[8px] text-[#8794a2]">On supported phones, choose “Save Image” in the device share sheet to add the PNG to Photos or Gallery. Other browsers download the file.</p>
         </div>
@@ -464,7 +464,7 @@ function ReceiptDocument({
   if (template === 'transfer_journey') {
     return (
       <div className="overflow-hidden rounded-[22px] bg-[#fffefa] text-[#203b50]">
-        <header className="bg-[#173951] px-5 pb-4 pt-4 text-white sm:px-6">
+        <header className="bg-[#12365B] px-5 pb-4 pt-4 text-white sm:px-6">
           <div className="flex items-center justify-between gap-3">{logo}{closeButton}</div>
           <p className="mt-5 text-[8px] font-bold uppercase tracking-[.16em] text-[#a9c7bd]">Internal payment record</p>
           <h2 id="receipt-title" className="bank-display mt-1 text-[23px] font-medium">{heading}</h2>
@@ -475,7 +475,7 @@ function ReceiptDocument({
             <p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#82939c]">Amount recorded</p>
             <div className="mt-2 flex flex-wrap items-center justify-between gap-2">
               <span className="bank-display text-[23px] font-semibold" data-testid="text-receipt-amount">{amount}</span>
-              {conversion && <><ArrowLeftRight size={15} className="text-[#548f80]" /><span className="bank-display text-[20px] font-semibold text-[#347c78]" data-testid="text-receipt-converted-total">{convertedAmount}</span></>}
+              {conversion && <><ArrowLeftRight size={15} className="text-[#548f80]" /><span className="bank-display text-[20px] font-semibold text-[#278C8C]" data-testid="text-receipt-converted-total">{convertedAmount}</span></>}
             </div>
             {conversion && <p className="mt-2 text-center font-mono text-[9px] text-[#71888c]" data-testid="text-receipt-exchange-rate">1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p>}
           </section>
@@ -490,7 +490,7 @@ function ReceiptDocument({
               <span className="text-[9px] font-mono text-[#355362]">{amount}</span>
             </div>
             <div className="grid grid-cols-[20px_1fr_auto] items-start gap-3">
-              <span className={`grid h-4 w-4 place-items-center rounded-full text-[8px] text-white ${completed ? 'bg-[#347c78]' : 'bg-[#8b7440]'}`}>2</span>
+              <span className={`grid h-4 w-4 place-items-center rounded-full text-[8px] text-white ${completed ? 'bg-[#278C8C]' : 'bg-[#8b7440]'}`}>2</span>
               <div><p className="text-[10px] font-bold">Current DUTSTAR status</p><p className="mt-1 text-[9px] text-[#89999c]">{statusLabel}</p></div>
               <span className="text-[9px] font-mono text-[#355362]">{humanizeStatus(transaction.status)}</span>
             </div>
@@ -507,7 +507,7 @@ function ReceiptDocument({
   if (template === 'transfer_ledger') {
     return (
       <div className="overflow-hidden rounded-[21px] bg-[#fbfcf7] text-[#183e4a]">
-        <header className="bg-[#173c4b] px-5 py-5 text-[#f1f4e9] sm:px-6">
+        <header className="bg-[#12365B] px-5 py-5 text-[#f1f4e9] sm:px-6">
           <div className="flex items-center justify-between gap-3">
             <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#bfcec4]">◉ &nbsp; GLOBUS · LEDGER RECORD</p>{closeButton}
           </div>
@@ -559,7 +559,7 @@ function ReceiptDocument({
         eyebrow: 'Transaction ledger',
         title: 'Posting detail',
         shell: 'bg-[#f4f7f3] text-[#29434a]',
-        masthead: 'bg-[#173c4b]',
+        masthead: 'bg-[#12365B]',
       },
       settlement_ledger: {
         eyebrow: 'DUTSTAR account record',
@@ -675,15 +675,15 @@ function ReceiptDocument({
 
   return (
     <div className="overflow-hidden border border-[#d7e0da] bg-[#fcfcf7] text-[#28444c]">
-      <header className="flex items-center justify-between gap-3 border-b-4 border-[#a8c3b0] bg-[#173b4b] px-5 py-4 text-[#f4f4e9] sm:px-8">
+      <header className="flex items-center justify-between gap-3 border-b-4 border-[#a8c3b0] bg-[#12365B] px-5 py-4 text-[#f4f4e9] sm:px-8">
         <span className="text-[12px] font-extrabold tracking-wide">◉ DUTSTAR BANK</span>{closeButton}
       </header>
       <section className="flex flex-wrap items-end justify-between gap-4 px-5 py-5 sm:px-8">
-        <div><p className="text-[8px] font-extrabold uppercase tracking-[.17em] text-[#718b81]">Internal transaction statement</p><h2 id="receipt-title" className="bank-display mt-2 text-[24px] font-medium leading-tight text-[#173b4b]">{heading}</h2><span data-testid="text-receipt-status" className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-[#bfd5c6] px-2 py-1 text-[8px] font-extrabold uppercase tracking-[.1em] text-[#316e60]"><span className="h-1.5 w-1.5 rounded-full bg-[#4d9079]" />{humanizeStatus(transaction.status)}</span></div>
+        <div><p className="text-[8px] font-extrabold uppercase tracking-[.17em] text-[#718b81]">Internal transaction statement</p><h2 id="receipt-title" className="bank-display mt-2 text-[24px] font-medium leading-tight text-[#12365B]">{heading}</h2><span data-testid="text-receipt-status" className="mt-2 inline-flex items-center gap-1.5 rounded-sm border border-[#bfd5c6] px-2 py-1 text-[8px] font-extrabold uppercase tracking-[.1em] text-[#316e60]"><span className="h-1.5 w-1.5 rounded-full bg-[#4d9079]" />{humanizeStatus(transaction.status)}</span></div>
         <div className="text-left text-[8px] leading-4 text-[#71868a] sm:text-right">RECORDED<br />{occurredAt}</div>
       </section>
       <section className="border-t border-[#dce4df] px-5 py-4 sm:px-8">
-        <p className="mb-3 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#183d4b]">Transaction particulars</p>
+        <p className="mb-3 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#12365B]">Transaction particulars</p>
         <div className="grid gap-3 sm:grid-cols-3">
           <div><p className="text-[7px] font-bold uppercase tracking-[.13em] text-[#82928e]">Amount</p><p className="bank-display mt-1 text-[15px] font-medium" data-testid="text-receipt-amount">{amount}</p></div>
           <div><p className="text-[7px] font-bold uppercase tracking-[.13em] text-[#82928e]">Counterparty</p><p className="mt-1 break-words text-[9px] font-semibold">{transaction.recipient?.name || transaction.counterparty || 'DUTSTAR account'}</p></div>
@@ -691,16 +691,16 @@ function ReceiptDocument({
         </div>
       </section>
       {conversion && <section className="border-t border-[#dce4df] bg-[#f3f6f0] px-5 py-4 sm:px-8">
-        <p className="mb-3 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#183d4b]">Recorded conversion</p>
+        <p className="mb-3 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#12365B]">Recorded conversion</p>
         <div className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
           <div><p className="text-[7px] font-bold uppercase text-[#83928c]">Source</p><p className="bank-display mt-1 text-[16px]" data-testid="text-receipt-source-amount">{formatAmount(conversion.sourceAmount, conversion.sourceCurrency)}</p></div>
           <ArrowLeftRight size={13} className="text-[#648878]" />
-          <div className="text-right"><p className="text-[7px] font-bold uppercase text-[#83928c]">Converted</p><p className="bank-display mt-1 text-[16px] text-[#39786d]" data-testid="text-receipt-converted-total">{convertedAmount}</p></div>
+          <div className="text-right"><p className="text-[7px] font-bold uppercase text-[#83928c]">Converted</p><p className="bank-display mt-1 text-[16px] text-[#278C8C]" data-testid="text-receipt-converted-total">{convertedAmount}</p></div>
         </div>
         <p className="mt-2 text-[8px] font-mono text-[#718580]" data-testid="text-receipt-exchange-rate">Rate · 1 {conversion.sourceCurrency} = {formatRate(conversion.exchangeRate)} {conversion.destinationCurrency}</p>
       </section>}
       <section className="border-t border-[#dce4df] px-5 py-4 sm:px-8">
-        <p className="mb-2 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#183d4b]">Record details</p>{details}
+        <p className="mb-2 text-[8px] font-extrabold uppercase tracking-[.13em] text-[#12365B]">Record details</p>{details}
       </section>
       <p className="border-t border-[#dce4df] px-5 py-3 text-[8px] leading-4 text-[#71868a] sm:px-8">Internal DUTSTAR ledger record. This statement is not proof of outside payment or bank settlement.</p>
     </div>
