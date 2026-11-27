@@ -170,7 +170,7 @@ export function HomePage() {
             <div className="flex items-center justify-between gap-2 border-b border-[#dcd2bd] px-1 pb-3 sm:px-2 sm:pb-4">
               <div className="flex min-w-0 items-center gap-2.5">
                 <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#b99a5b]/60 bg-[#e9e0cc] text-[#173651]"><Building2 size={17} strokeWidth={1.6} /></span>
-              <span className="min-w-0"><span className="block font-serif text-[12px] font-semibold tracking-[.08em] text-[#173651] sm:text-[14px]">GLOBUS BANK</span><span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[.18em] text-[#8b7953] sm:text-[8px]">{t('Currency account records')}</span></span>
+              <span className="min-w-0"><span className="block font-serif text-[12px] font-semibold tracking-[.08em] text-[#173651] sm:text-[14px]">DUTSTAR BANK</span><span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[.18em] text-[#8b7953] sm:text-[8px]">{t('Currency account records')}</span></span>
               </div>
               <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">{t('DUTSTAR institute')}</span>
             </div>
@@ -317,7 +317,7 @@ export function DashboardPage() {
             <Link href={currencyActionHref('/transactions', actionCurrency)} aria-label={t('View all activity')} className="inline-flex shrink-0 items-center gap-1 text-[9px] font-bold text-[#397d83]">{t('View all')} <ChevronRight size={12} /></Link>
           </div>
           <div className="min-w-0">
-            {recentTransactions.length ? <TransactionList transactions={recentTransactions.slice(0, 3)} showReceipt={false} /> : <EmptyState title={t('Nothing recorded yet')} text={t('Your latest Globus ledger entries will appear here.')} />}
+            {recentTransactions.length ? <TransactionList transactions={recentTransactions.slice(0, 3)} showReceipt={false} /> : <EmptyState title={t('Nothing recorded yet')} text={t('Your latest DUTSTAR ledger entries will appear here.')} />}
           </div>
         </section>
       </div>
@@ -332,7 +332,7 @@ export function WalletsPage() {
   if (query.isError) return <Failure title="Wallets could not be loaded" retry={() => query.refetch()} />;
   return (
     <>
-      <PageHeading eyebrow="Globus account" title="Your wallets" subtitle="A separate record for each currency. Available, pending and reserved amounts stay distinct." />
+      <PageHeading eyebrow="DUTSTAR account" title="Your wallets" subtitle="A separate record for each currency. Available, pending and reserved amounts stay distinct." />
       <div data-testid="wallet-list" className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
         {(query.data ?? []).map((wallet) => (
           <Link key={wallet.id} href={`/wallets/${encodeURIComponent(wallet.id)}`} aria-label={`View ${wallet.currency} wallet details`} className="group block min-w-0 rounded-[20px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#65a4a7] focus-visible:ring-offset-2">
@@ -366,7 +366,7 @@ export function WalletDetailsPage() {
   }
   const profile = profileQuery.data;
   const reference = walletReferenceValue(profile.customerId, wallet);
-  const accountHolder = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'Globus member';
+  const accountHolder = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || 'DUTSTAR member';
   const copyReference = async () => {
     try {
       await navigator.clipboard.writeText(reference);
@@ -387,13 +387,13 @@ export function WalletDetailsPage() {
           <div className="relative flex h-full flex-col justify-between">
             <div className="flex items-center justify-between gap-4">
               <div className="flex items-center gap-2.5">
-                <img src={`${import.meta.env.BASE_URL}globus-mark-transparent.png`} alt="" className="h-10 w-12 object-contain" />
-                <span className="text-[10px] font-extrabold tracking-[.13em]">GLOBUS<br /><span className="text-[8px] tracking-[.3em] text-[#a47b25]">BANK</span></span>
+                <img src={`${import.meta.env.BASE_URL}dutstar-mark.svg`} alt="" className="h-10 w-12 object-contain" />
+                <span className="text-[10px] font-extrabold tracking-[.13em]">DUTSTAR<br /><span className="text-[8px] tracking-[.3em] text-[#a47b25]">BANK</span></span>
               </div>
               <span className="rounded-full border border-white/70 bg-white/45 px-2.5 py-1 text-[9px] font-bold uppercase tracking-[.1em]">{humanize(wallet.status)}</span>
             </div>
             <div>
-              <p className="text-[8px] font-bold uppercase tracking-[.18em] text-[#62828c]">Globus wallet · {wallet.currency}</p>
+              <p className="text-[8px] font-bold uppercase tracking-[.18em] text-[#62828c]">DUTSTAR wallet · {wallet.currency}</p>
               <p className="bank-display mt-1 text-[23px] font-semibold tracking-[-.04em] sm:text-[30px]">{currencyNames[wallet.currency]}</p>
               <p className="mt-3 text-[9px] font-bold uppercase tracking-[.16em] text-[#62828c]">Account holder</p>
               <p className="mt-1 truncate text-[13px] font-semibold">{accountHolder}</p>
@@ -410,12 +410,12 @@ export function WalletDetailsPage() {
             <div className="flex justify-between gap-3 py-2.5 text-[10px]"><dt className="text-[#8291a0]">Customer ID</dt><dd className="font-mono font-semibold text-[#3b5169]">{profile.customerId}</dd></div>
             <div className="flex justify-between gap-3 py-2.5 text-[10px]"><dt className="text-[#8291a0]">Currency</dt><dd className="font-semibold text-[#3b5169]">{wallet.currency} · {currencyNames[wallet.currency]}</dd></div>
             <div className="py-2.5 text-[10px]">
-              <dt className="text-[#8291a0]">Unique Globus wallet reference</dt>
+              <dt className="text-[#8291a0]">Unique DUTSTAR wallet reference</dt>
               <dd data-testid="wallet-account-reference" className="mt-1 break-all font-mono font-semibold leading-5 text-[#294763]">{reference}</dd>
             </div>
           </dl>
           <button type="button" onClick={copyReference} data-testid="button-copy-wallet-reference" className="mt-2 inline-flex h-9 items-center gap-2 rounded-lg border border-[#dfe6eb] px-3 text-[9px] font-bold text-[#355570] hover:bg-[#f5f8f9]"><Copy size={13} />{copied ? 'Copied' : 'Copy reference'}</button>
-          <p data-testid="wallet-detail-reference-disclosure" className="mt-3 rounded-lg bg-[#f5f8f8] px-3 py-2 text-[9px] leading-4 text-[#71858b]">This reference identifies your wallet inside Globus; it is not a bank account or payment destination.</p>
+          <p data-testid="wallet-detail-reference-disclosure" className="mt-3 rounded-lg bg-[#f5f8f8] px-3 py-2 text-[9px] leading-4 text-[#71858b]">This reference identifies your wallet inside DUTSTAR; it is not a bank account or payment destination.</p>
         </section>
         <section className="rounded-[20px] border border-[#e1e8ee] bg-white p-4 sm:p-5 xl:col-span-2">
           <p className="text-[9px] font-bold uppercase tracking-[.15em] text-[#548d92]">Current balances</p>
@@ -441,9 +441,9 @@ function WalletReference({ customerId, wallet }: { customerId: string; wallet: W
   const reference = walletReferenceValue(customerId, wallet);
   return (
     <div className="min-w-0 rounded-xl border border-[#e0e8ed] bg-white px-3 py-2.5">
-      <p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#7c8c99]">Globus wallet reference</p>
+      <p className="text-[8px] font-bold uppercase tracking-[.12em] text-[#7c8c99]">DUTSTAR wallet reference</p>
       <p className="mt-1 break-all font-mono text-[9px] font-semibold leading-4 text-[#294763]">{reference}</p>
-      <p className="mt-1 text-[8px] leading-3.5 text-[#8794a1]">This identifies the wallet inside Globus; it is not a bank account or payment destination.</p>
+      <p className="mt-1 text-[8px] leading-3.5 text-[#8794a1]">This identifies the wallet inside DUTSTAR; it is not a bank account or payment destination.</p>
     </div>
   );
 }
@@ -463,13 +463,13 @@ export function TransactionsPage() {
   const query = useListBankTransactions(params, { query: { queryKey: getListBankTransactionsQueryKey(params) } });
   return (
     <>
-      <PageHeading eyebrow="Globus account ledger" title="Activity" subtitle="A searchable history of entries recorded in your Globus account." />
+      <PageHeading eyebrow="DUTSTAR account ledger" title="Activity" subtitle="A searchable history of entries recorded in your DUTSTAR account." />
       <div className="mt-5 grid gap-2 sm:grid-cols-[minmax(0,1fr)_220px]">
         <label className="relative min-w-0"><Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-[#8695a5]" /><input aria-label="Search transactions" data-testid="input-transaction-search" value={search} onChange={event => setSearch(event.target.value)} placeholder="Search description or reference" className="h-11 w-full rounded-xl border border-[#dfe6ec] bg-white pl-10 pr-3 text-[12px] outline-none transition focus:border-[#6aa6aa]" /></label>
         <select aria-label="Filter by currency" data-testid="select-transaction-currency" value={currency} onChange={event => setCurrency(event.target.value)} className="h-11 min-w-0 rounded-xl border border-[#dfe6ec] bg-white px-3 text-[12px] text-[#435872] outline-none focus:border-[#6aa6aa]"><option value="">All currencies</option>{historicalCurrencies.map(item => <option key={item} value={item}>{item} · {currencyNames[item]}</option>)}</select>
       </div>
       <section data-testid="transaction-history" className="mt-4 overflow-hidden rounded-[18px] border border-[#e1e8ee] bg-white">
-        <div className="flex items-center justify-between gap-3 border-b border-[#edf0f3] px-4 py-3 sm:px-5"><div><p className="text-[12px] font-bold text-[#28405c]">Transaction history</p><p className="mt-0.5 text-[9px] text-[#8291a1]">Globus ledger entries</p></div><span className="shrink-0 rounded-full bg-[#f3f6f7] px-2.5 py-1 text-[9px] font-semibold text-[#718397]">{query.data?.length ?? 0} entries</span></div>
+        <div className="flex items-center justify-between gap-3 border-b border-[#edf0f3] px-4 py-3 sm:px-5"><div><p className="text-[12px] font-bold text-[#28405c]">Transaction history</p><p className="mt-0.5 text-[9px] text-[#8291a1]">DUTSTAR ledger entries</p></div><span className="shrink-0 rounded-full bg-[#f3f6f7] px-2.5 py-1 text-[9px] font-semibold text-[#718397]">{query.data?.length ?? 0} entries</span></div>
         {query.isLoading ? <ListSkeleton /> : query.isError ? <Failure title="Transaction history isn’t available" retry={() => query.refetch()} /> : query.data?.length ? <TransactionList transactions={query.data} /> : <EmptyState title="No matching activity" text="Try a different search or check back when an account transaction is recorded." />}
       </section>
     </>
@@ -523,12 +523,12 @@ export function SendPage() {
   return (
     <>
       <div className="flex flex-wrap items-end justify-between gap-3">
-        <PageHeading eyebrow="Internal ledger" title="Send to a Globus member" subtitle="Transfers update both members’ Globus ledger wallets. No outside account is contacted." />
+        <PageHeading eyebrow="Internal ledger" title="Send to a DUTSTAR member" subtitle="Transfers update both members’ DUTSTAR ledger wallets. No outside account is contacted." />
         <Link href="/transfer" className="mb-1 inline-flex items-center gap-2 rounded-xl border border-[#d8e4e9] bg-white px-4 py-2.5 text-[10px] font-bold text-[#365771] hover:bg-[#f4f8f9]"><ArrowLeftRight size={14} /> International transfer request</Link>
       </div>
       <div className="mt-7 grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
         <form onSubmit={submit} className="rounded-[22px] border border-[#e1e8ee] bg-white p-5 sm:p-8">
-          <div className="mb-7 flex gap-3 rounded-xl border border-[#d9e9e9] bg-[#f0f8f8] p-4 text-[11px] leading-5 text-[#497b80]"><ShieldCheck size={17} className="mt-0.5 shrink-0" /><span><b className="text-[#2d646a]">Internal member transfer</b><br />The sender’s and recipient’s Globus ledgers are updated together. This does not send money to a bank or outside account.</span></div>
+          <div className="mb-7 flex gap-3 rounded-xl border border-[#d9e9e9] bg-[#f0f8f8] p-4 text-[11px] leading-5 text-[#497b80]"><ShieldCheck size={17} className="mt-0.5 shrink-0" /><span><b className="text-[#2d646a]">Internal member transfer</b><br />The sender’s and recipient’s DUTSTAR ledgers are updated together. This does not send money to a bank or outside account.</span></div>
           <div className="space-y-5">
             <Field label="Recipient email"><input required type="email" value={recipientEmail} onChange={event => setRecipientEmail(event.target.value)} placeholder="name@example.com" className={inputClass} /></Field>
             <div className="grid gap-5 sm:grid-cols-2">
@@ -540,13 +540,13 @@ export function SendPage() {
           </div>
           {profileQuery.data?.transactionPinConfigured === false && <p className="mt-4 rounded-lg border border-[#eadfbe] bg-[#fbf7eb] px-4 py-3 text-[10px] leading-5 text-[#806b3d]">Set up your transaction PIN in <Link href="/profile" className="font-bold underline">Profile</Link> before sending a transfer.</p>}
           {(message || hasError) && <p role="alert" className="mt-5 rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{message || 'Please check the transfer details and try again.'}</p>}
-          {success && <div role="status" className="mt-5 rounded-xl border border-[#cfe5db] bg-[#f1f8f4] p-4 text-[12px] text-[#417461]"><p className="font-bold">Member transfer recorded</p><p className="mt-1">Reference {success.reference} · {humanize(success.status)}</p><p className="mt-1">The recipient’s Globus wallet was credited. No outside account was involved.</p><button type="button" onClick={() => setReceipt(success)} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[#bfd8cc] bg-white px-3 py-2 text-[10px] font-bold text-[#3d725d] hover:bg-[#f7fbf8]"><FileText size={14} /> View receipt</button></div>}
+          {success && <div role="status" className="mt-5 rounded-xl border border-[#cfe5db] bg-[#f1f8f4] p-4 text-[12px] text-[#417461]"><p className="font-bold">Member transfer recorded</p><p className="mt-1">Reference {success.reference} · {humanize(success.status)}</p><p className="mt-1">The recipient’s DUTSTAR wallet was credited. No outside account was involved.</p><button type="button" onClick={() => setReceipt(success)} className="mt-3 inline-flex items-center gap-2 rounded-lg border border-[#bfd8cc] bg-white px-3 py-2 text-[10px] font-bold text-[#3d725d] hover:bg-[#f7fbf8]"><FileText size={14} /> View receipt</button></div>}
           <button disabled={pending || transactionPin.length !== 6 || !recipientEmail.trim() || !amount || Number(amount) <= 0 || Number(amount) > available} className="mt-7 inline-flex h-12 w-full items-center justify-center gap-2 rounded-xl bg-[#142f51] text-[12px] font-bold text-white transition hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-50">{pending ? 'Sending…' : 'Send internal transfer'} <ArrowRight size={15} /></button>
         </form>
         <aside className="rounded-[22px] bg-[#eaf0f4] p-6">
           <p className="text-[10px] font-bold uppercase tracking-[.16em] text-[#638092]">Ledger transfer</p>
-          <h2 className="bank-display mt-3 text-[23px] font-semibold leading-tight text-[#213a55]">Transfer between active Globus member wallets.</h2>
-          <ul className="mt-5 space-y-4 text-[11px] leading-5 text-[#60748a]"><li className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#43888b]" /> Both accounts must be active Globus members.</li><li className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#43888b]" /> Transfers are posted to both members’ ledgers in one database transaction.</li><li className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#43888b]" /> Globus does not contact banks or move outside funds.</li></ul>
+          <h2 className="bank-display mt-3 text-[23px] font-semibold leading-tight text-[#213a55]">Transfer between active DUTSTAR member wallets.</h2>
+          <ul className="mt-5 space-y-4 text-[11px] leading-5 text-[#60748a]"><li className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#43888b]" /> Both accounts must be active DUTSTAR members.</li><li className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#43888b]" /> Transfers are posted to both members’ ledgers in one database transaction.</li><li className="flex gap-2"><Check size={15} className="mt-0.5 shrink-0 text-[#43888b]" /> DUTSTAR does not contact banks or move outside funds.</li></ul>
         </aside>
       </div>
       {receipt && <ReceiptDialog transaction={receipt} onClose={() => setReceipt(null)} />}
@@ -711,7 +711,7 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
     );
   }
   if (type === 'deposit') {
-    const accountHolder = [profileQuery.data?.firstName, profileQuery.data?.lastName].filter(Boolean).join(' ') || 'Globus member';
+    const accountHolder = [profileQuery.data?.firstName, profileQuery.data?.lastName].filter(Boolean).join(' ') || 'DUTSTAR member';
     const walletReference = selectedWallet ? walletReferenceValue(profileQuery.data?.customerId ?? '', selectedWallet) : '';
     const copyWalletReference = async () => {
       if (!walletReference) return;
@@ -766,7 +766,7 @@ export function ProviderRequestPage({ type }: { type: 'deposit' | 'withdrawal' }
               <div className="relative isolate min-h-[174px] overflow-hidden rounded-[18px] bg-gradient-to-br from-[#18375d] via-[#15506c] to-[#147078] p-4 text-white shadow-[0_12px_28px_rgba(20,47,81,.18)] sm:min-h-[184px] sm:p-5">
                 <div aria-hidden="true" className="pointer-events-none absolute -right-8 -top-12 h-44 w-44 rounded-full border border-white/10 before:absolute before:inset-4 before:rounded-full before:border before:border-[#dfc477]/35 after:absolute after:inset-10 after:rounded-full after:border after:border-white/10" />
                 <div className="relative flex items-start justify-between gap-4">
-                  <div><p className="text-[12px] font-extrabold tracking-[.12em]">GLOBUS</p><p className="mt-0.5 text-[7px] font-bold tracking-[.32em] text-[#e0c77d]">BANK</p></div>
+                  <div><p className="text-[12px] font-extrabold tracking-[.12em]">DUTSTAR</p><p className="mt-0.5 text-[7px] font-bold tracking-[.32em] text-[#e0c77d]">BANK</p></div>
                   <div className="text-right"><p className="text-[8px] font-bold uppercase tracking-[.14em] text-white/75">Wallet card</p><p className="mt-1 text-[11px] font-bold">{selectedWallet.currency} wallet</p></div>
                 </div>
                 <div className="relative mt-5 flex items-center gap-2.5">
@@ -1106,7 +1106,7 @@ export function ProfilePage() {
                 {user?.imageUrl ? <img src={user.imageUrl} alt="Your profile" className="h-full w-full object-cover" /> : (user?.firstName?.[0] ?? profile?.email?.[0] ?? 'G').toUpperCase()}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-[12px] font-bold text-[#29425c]">{[profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'Globus member'}</p>
+                <p className="truncate text-[12px] font-bold text-[#29425c]">{[profile?.firstName, profile?.lastName].filter(Boolean).join(' ') || 'DUTSTAR member'}</p>
                 <p className="truncate text-[9px] text-[#7e8d9c]">{profile?.email}</p>
               </div>
             </div>
@@ -1115,7 +1115,7 @@ export function ProfilePage() {
             </label>
             <input id="profile-photo-upload" type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={uploadProfilePhoto} disabled={photoPending} />
           </div>
-          <p className="mt-2 text-[8px] text-[#8794a2]">JPG, PNG or WebP · up to 5 MB. Your photo appears across Globus.</p>
+          <p className="mt-2 text-[8px] text-[#8794a2]">JPG, PNG or WebP · up to 5 MB. Your photo appears across DUTSTAR.</p>
           {photoMessage && <p role="status" className="mt-2 rounded-lg bg-[#f0f8f4] px-3 py-2 text-[9px] text-[#41755f]">{photoMessage}</p>}
           {photoError && <p role="alert" className="mt-2 rounded-lg bg-[#fff1ef] px-3 py-2 text-[9px] text-[#a24940]">{photoError}</p>}
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -1341,7 +1341,7 @@ export function AdminPage() {
   const updateTransactionStatus = useUpdateAdminTransactionStatus();
   const upsertExchangeRate = useUpsertBankExchangeRate();
   if (access.isLoading) return <PageSkeleton />;
-  if (access.isError || !access.data?.allowed) return <Failure title="Operations access is restricted" text="This area is only available to authorized Globus operations staff." retry={() => access.refetch()} />;
+  if (access.isError || !access.data?.allowed) return <Failure title="Operations access is restricted" text="This area is only available to authorized DUTSTAR operations staff." retry={() => access.refetch()} />;
   const setStatus = (userId: string, accountStatus: 'active' | 'suspended') => {
     setStatusError('');
     update.mutate({ userId, data: { accountStatus } }, {
@@ -1437,10 +1437,10 @@ export function AdminPage() {
         <Metric label="Pending operations" value={summary.data?.pendingOperations} />
         <Metric label="Wallet transactions" value={summary.data?.ledgerTransactions} />
       </div>
-      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-[#d9e7e8] bg-[#eff7f7] px-4 py-3 text-[11px] text-[#48767b]"><ShieldCheck size={15} /> Globus wallet records only · no outside funds are held or sent.</div>
+      <div className="mt-5 flex flex-wrap items-center gap-3 rounded-xl border border-[#d9e7e8] bg-[#eff7f7] px-4 py-3 text-[11px] text-[#48767b]"><ShieldCheck size={15} /> DUTSTAR wallet records only · no outside funds are held or sent.</div>
       <section className="mt-6 rounded-[20px] border border-[#dfe7ec] bg-white p-5 sm:p-7">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Internal conversion rates</p><h2 className="mt-1 text-[15px] font-bold text-[#29425c]">Manage calculator rates</h2><p className="mt-1 max-w-2xl text-[10px] leading-5 text-[#718296]">Rates are entered by Globus administrators and are not live market quotes. Each request stores the rate and timestamp used for its estimate.</p></div>
+          <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Internal conversion rates</p><h2 className="mt-1 text-[15px] font-bold text-[#29425c]">Manage calculator rates</h2><p className="mt-1 max-w-2xl text-[10px] leading-5 text-[#718296]">Rates are entered by DUTSTAR administrators and are not live market quotes. Each request stores the rate and timestamp used for its estimate.</p></div>
         </div>
         <form onSubmit={submitExchangeRate} className="mt-5 grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
           <Field label="From"><select data-testid="select-rate-source" value={rateSource} onChange={event => setRateSource(event.target.value as Currency)} className={inputClass}>{currencies.map(currency => <option key={currency} value={currency}>{currency}</option>)}</select></Field>
@@ -1455,15 +1455,15 @@ export function AdminPage() {
       {statusError && <p role="alert" className="mt-3 rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{statusError}</p>}
       {fundTarget && <section className="mt-6 rounded-[20px] border border-[#dfe7ec] bg-white p-5 sm:p-7">
         <div className="mb-5 flex items-start justify-between gap-4">
-          <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Admin balance adjustment</p><h2 className="mt-1 text-[15px] font-bold text-[#29425c]">Adjust a user wallet</h2><p className="mt-1 text-[11px] text-[#7e8d9c]">{[fundTarget.firstName, fundTarget.lastName].filter(Boolean).join(' ') || 'Globus member'} · {fundTarget.email}</p></div>
+          <div><p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Admin balance adjustment</p><h2 className="mt-1 text-[15px] font-bold text-[#29425c]">Adjust a user wallet</h2><p className="mt-1 text-[11px] text-[#7e8d9c]">{[fundTarget.firstName, fundTarget.lastName].filter(Boolean).join(' ') || 'DUTSTAR member'} · {fundTarget.email}</p></div>
           <button type="button" aria-label="Close funding form" onClick={() => { setFundTarget(null); setFundingError(''); setFundingSuccess(null); setFundSenderName(''); setFundDescription(''); setFundTransactionPin(''); }} className="rounded-lg p-2 text-[#6d8092] hover:bg-[#f1f5f7]"><X size={16} /></button>
         </div>
-        <p className="mb-5 rounded-lg border border-[#d9e8e9] bg-[#f2f8f8] px-4 py-3 text-[10px] leading-4 text-[#4e777a]">This records a wallet credit or debit in Globus and writes an audit entry. It does not move outside funds. Maximum per entry: 1,000,000.00.</p>
+        <p className="mb-5 rounded-lg border border-[#d9e8e9] bg-[#f2f8f8] px-4 py-3 text-[10px] leading-4 text-[#4e777a]">This records a wallet credit or debit in DUTSTAR and writes an audit entry. It does not move outside funds. Maximum per entry: 1,000,000.00.</p>
         <form onSubmit={submitFunding} className="grid gap-4 sm:grid-cols-2">
           <Field label="Adjustment direction"><select value={fundDirection} onChange={event => setFundDirection(event.target.value as typeof fundDirection)} className={inputClass}><option value="credit">Credit wallet</option><option value="debit">Debit wallet</option></select></Field>
           <Field label="Currency"><select value={fundCurrency} onChange={event => setFundCurrency(event.target.value as Currency)} className={inputClass}>{currencies.map(item => <option key={item} value={item}>{item} · {currencyNames[item]}</option>)}</select></Field>
           <Field label="Amount"><input required inputMode="decimal" pattern="[0-9]+(\.[0-9]{1,2})?" min="0.01" max="1000000" value={fundAmount} onChange={event => setFundAmount(event.target.value)} placeholder="0.00" className={inputClass} /></Field>
-          <Field label="Counterparty / adjustment label"><input required maxLength={120} value={fundSenderName} onChange={event => setFundSenderName(event.target.value)} placeholder="Globus operations" className={inputClass} /></Field>
+          <Field label="Counterparty / adjustment label"><input required maxLength={120} value={fundSenderName} onChange={event => setFundSenderName(event.target.value)} placeholder="DUTSTAR operations" className={inputClass} /></Field>
           <Field label="Transaction description"><input required maxLength={240} value={fundDescription} onChange={event => setFundDescription(event.target.value)} placeholder="Reason shown in transaction activity" className={inputClass} /></Field>
           <div className="sm:col-span-2"><Field label="Your 6-digit transaction PIN"><input required type="password" inputMode="numeric" pattern="[0-9]{6}" maxLength={6} autoComplete="current-password" value={fundTransactionPin} onChange={event => setFundTransactionPin(event.target.value.replace(/\D/g, '').slice(0, 6))} className={inputClass} /></Field></div>
           {fundingError && <p role="alert" className="sm:col-span-2 rounded-lg bg-[#fff1ef] px-4 py-3 text-[11px] text-[#a24940]">{fundingError}</p>}
@@ -1474,7 +1474,7 @@ export function AdminPage() {
       <AdminLedgerRequestQueue />
       <section className="mt-7 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
           <div className="flex flex-col gap-3 border-b border-[#edf0f3] px-5 py-4 sm:flex-row sm:items-center sm:justify-between sm:px-7"><div><h2 className="text-[14px] font-bold text-[#28405c]">Registered users</h2><p className="mt-1 text-[10px] text-[#8592a1]">Account status decisions are recorded automatically.</p></div><label className="relative"><Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-[#8996a4]" /><input value={search} onChange={event => setSearch(event.target.value)} placeholder="Search name, email, or Customer ID" className="h-10 w-full rounded-lg border border-[#e0e7ec] bg-white pl-9 pr-3 text-[11px] outline-none sm:w-[240px]" /></label></div>
-         {users.isLoading ? <ListSkeleton /> : users.isError ? <InlineError text="User records are unavailable." retry={() => users.refetch()} /> : users.data?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead className="bg-[#f7f9fa] text-[9px] uppercase tracking-[.13em] text-[#8291a0]"><tr><th className="px-6 py-3">Member</th><th className="px-4 py-3">Region</th><th className="px-4 py-3">Account</th><th className="px-4 py-3">Wallets</th><th className="px-6 py-3 text-right">Actions</th></tr></thead><tbody>{users.data.map(user => <tr key={user.id} className="border-t border-[#edf0f2] text-[11px] text-[#445a71]"><td className="px-6 py-4"><b className="block text-[#2d435c]">{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'Globus member'}</b><span className="mt-1 block text-[10px] text-[#8a97a5]">{user.email}</span><span className="mt-1 block font-mono text-[10px] font-semibold tracking-[.08em] text-[#52717e]">Customer ID: {user.customerId ?? '—'}</span></td><td className="px-4 py-4">{user.country || '—'}</td><td className="px-4 py-4">{humanize(user.accountStatus)}</td><td className="px-4 py-4">{user.walletCount}</td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/users/${encodeURIComponent(user.id)}`} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8]">Manage</Link><button disabled={user.accountStatus !== 'active'} onClick={() => { setFundTarget(user); setFundingError(''); setFundingSuccess(null); }} className="rounded-lg bg-[#eff7f7] px-3 py-2 text-[10px] font-bold text-[#36777c] hover:bg-[#e2f1f1] disabled:cursor-not-allowed disabled:opacity-40">Fund</button><button disabled={update.isPending} onClick={() => setStatus(user.id, user.accountStatus === 'active' ? 'suspended' : 'active')} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8] disabled:opacity-50">{user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}</button></div></td></tr>)}</tbody></table></div> : <EmptyState title="No users found" text="Try another email, name, or Customer ID." />}
+         {users.isLoading ? <ListSkeleton /> : users.isError ? <InlineError text="User records are unavailable." retry={() => users.refetch()} /> : users.data?.length ? <div className="overflow-x-auto"><table className="w-full min-w-[980px] text-left"><thead className="bg-[#f7f9fa] text-[9px] uppercase tracking-[.13em] text-[#8291a0]"><tr><th className="px-6 py-3">Member</th><th className="px-4 py-3">Region</th><th className="px-4 py-3">Account</th><th className="px-4 py-3">Wallets</th><th className="px-6 py-3 text-right">Actions</th></tr></thead><tbody>{users.data.map(user => <tr key={user.id} className="border-t border-[#edf0f2] text-[11px] text-[#445a71]"><td className="px-6 py-4"><b className="block text-[#2d435c]">{[user.firstName, user.lastName].filter(Boolean).join(' ') || 'DUTSTAR member'}</b><span className="mt-1 block text-[10px] text-[#8a97a5]">{user.email}</span><span className="mt-1 block font-mono text-[10px] font-semibold tracking-[.08em] text-[#52717e]">Customer ID: {user.customerId ?? '—'}</span></td><td className="px-4 py-4">{user.country || '—'}</td><td className="px-4 py-4">{humanize(user.accountStatus)}</td><td className="px-4 py-4">{user.walletCount}</td><td className="px-6 py-4 text-right"><div className="flex justify-end gap-2"><Link href={`/admin/users/${encodeURIComponent(user.id)}`} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8]">Manage</Link><button disabled={user.accountStatus !== 'active'} onClick={() => { setFundTarget(user); setFundingError(''); setFundingSuccess(null); }} className="rounded-lg bg-[#eff7f7] px-3 py-2 text-[10px] font-bold text-[#36777c] hover:bg-[#e2f1f1] disabled:cursor-not-allowed disabled:opacity-40">Fund</button><button disabled={update.isPending} onClick={() => setStatus(user.id, user.accountStatus === 'active' ? 'suspended' : 'active')} className="rounded-lg border border-[#dfe6eb] px-3 py-2 text-[10px] font-bold text-[#3f5c75] hover:bg-[#f4f7f8] disabled:opacity-50">{user.accountStatus === 'active' ? 'Suspend' : 'Reactivate'}</button></div></td></tr>)}</tbody></table></div> : <EmptyState title="No users found" text="Try another email, name, or Customer ID." />}
       </section>
       <section className="mt-6 overflow-hidden rounded-[20px] border border-[#e1e8ee] bg-white">
         <div className="border-b border-[#edf0f3] px-5 py-4 sm:px-7"><h2 className="text-[14px] font-bold text-[#28405c]">Transaction review</h2><p className="mt-1 text-[10px] text-[#8592a1]">Review account activity and transaction status. Corrections preserve the original record and create separate audited entries.</p></div>
@@ -1512,7 +1512,7 @@ export function AdminUserManagementPage() {
   const [currency, setCurrency] = useState<Currency>('USD');
   const [adjustmentDirection, setAdjustmentDirection] = useState<'credit' | 'debit'>('credit');
   const [amount, setAmount] = useState('');
-  const [senderName, setSenderName] = useState('Globus operations');
+  const [senderName, setSenderName] = useState('DUTSTAR operations');
   const [fundingDescription, setFundingDescription] = useState('');
   const [fundingPin, setFundingPin] = useState('');
   const [fundingError, setFundingError] = useState('');
@@ -1612,7 +1612,7 @@ export function AdminUserManagementPage() {
     return (
       <Failure
         title="Operations access is restricted"
-        text="This area is only available to authorized Globus operations staff."
+        text="This area is only available to authorized DUTSTAR operations staff."
         retry={() => access.refetch()}
       />
     );
@@ -1631,7 +1631,7 @@ export function AdminUserManagementPage() {
   const profile = detail.data.user;
   const memberName =
     [profile.firstName, profile.lastName].filter(Boolean).join(' ') ||
-    'Globus member';
+    'DUTSTAR member';
 
   return (
     <>
@@ -1690,7 +1690,7 @@ export function AdminUserManagementPage() {
 
         <aside className="space-y-5">
           <section className="rounded-[20px] border border-[#e1e8ee] bg-white p-5 sm:p-6">
-            <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">Globus account</p>
+            <p className="text-[10px] font-bold uppercase tracking-[.15em] text-[#55868b]">DUTSTAR account</p>
             <h2 className="mt-1 text-[14px] font-bold text-[#29425c]">Fund this user</h2>
             <p className="mt-2 text-[10px] leading-4 text-[#7e8d9c]">Records a wallet credit or debit with an audit entry. No outside funds are moved.</p>
             <form onSubmit={submitFunding} className="mt-4 space-y-3">
@@ -1726,8 +1726,8 @@ export function AdminUserManagementPage() {
 }
 
 const disclosureCopy: Record<string, { eyebrow: string; title: string; intro: string; sections: [string, string][] }> = {
-  '/fees': { eyebrow: 'Fees and rates', title: 'Understand transfer requests and rates.', intro: 'Globus does not process external deposits, payouts, or card payments.', sections: [['Rate quotes', 'Globus uses Frankfurter reference rates, with Grey as a fallback source. Availability depends on currency-pair support; quotes can change and are not confirmation of a payment.'], ['Fees', 'Globus records account requests and does not charge an outside transaction fee through a payment provider.'], ['Currency balances', 'Currency wallets are recorded separately. The rate and converted amount shown on a transfer receipt match the quote used when Globus recorded that request.']] },
-  '/contact': { eyebrow: 'Contact', title: 'Contact Globus support securely.', intro: 'Sign in to open a private support conversation about your Globus account. Never send passwords, verification codes, or full payment credentials.', sections: [['Account help', 'Use the private support inbox for account questions and include a transaction reference when asking about a recorded Globus activity.'], ['Private conversations', 'Messages are visible only to you and authorized Globus support administrators.'], ['External payment limits', 'Globus support cannot complete, trace, or reverse payments made outside this product.']] },
+  '/fees': { eyebrow: 'Fees and rates', title: 'Understand transfer requests and rates.', intro: 'DUTSTAR does not process external deposits, payouts, or card payments.', sections: [['Rate quotes', 'DUTSTAR uses Frankfurter reference rates, with Grey as a fallback source. Availability depends on currency-pair support; quotes can change and are not confirmation of a payment.'], ['Fees', 'DUTSTAR records account requests and does not charge an outside transaction fee through a payment provider.'], ['Currency balances', 'Currency wallets are recorded separately. The rate and converted amount shown on a transfer receipt match the quote used when DUTSTAR recorded that request.']] },
+  '/contact': { eyebrow: 'Contact', title: 'Contact DUTSTAR support securely.', intro: 'Sign in to open a private support conversation about your DUTSTAR account. Never send passwords, verification codes, or full payment credentials.', sections: [['Account help', 'Use the private support inbox for account questions and include a transaction reference when asking about a recorded DUTSTAR activity.'], ['Private conversations', 'Messages are visible only to you and authorized DUTSTAR support administrators.'], ['External payment limits', 'DUTSTAR support cannot complete, trace, or reverse payments made outside this product.']] },
 };
 
 export function DisclosurePage({ path }: { path: string }) {
@@ -1736,7 +1736,7 @@ export function DisclosurePage({ path }: { path: string }) {
   if (!data) return null;
   return (
     <div className="public-viewport-scroll bg-[#f5f8fa]">
-       <header className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-6 sm:px-6"><Link href="/" aria-label={t('Globus Bank home')} className="flex shrink-0 items-center"><img src={`${import.meta.env.BASE_URL}globus-wordmark-transparent.png`} alt={t('Globus Bank — Your world. Our priority.')} className="h-auto w-[128px] sm:w-[156px]" /></Link><div className="flex items-center gap-2"><AppLanguageSelector /><Link href="/" className="text-[12px] font-semibold text-[#456077] hover:text-[#347e83]">{t('Back to home')}</Link></div></header>
+       <header className="mx-auto flex max-w-[1200px] items-center justify-between gap-4 px-4 py-6 sm:px-6"><Link href="/" aria-label={t('DUTSTAR Bank home')} className="flex shrink-0 items-center"><img src={`${import.meta.env.BASE_URL}dutstar-mark.svg`} alt={t('DUTSTAR Bank — Your world. Our priority.')} className="h-auto w-[128px] sm:w-[156px]" /></Link><div className="flex items-center gap-2"><AppLanguageSelector /><Link href="/" className="text-[12px] font-semibold text-[#456077] hover:text-[#347e83]">{t('Back to home')}</Link></div></header>
       <main className="mx-auto max-w-[1020px] px-6 pb-20 pt-10 sm:pt-16">
          <p className="text-[10px] font-bold uppercase tracking-[.17em] text-[#4b8b90]">{t(data.eyebrow)}</p>
          <h1 className="bank-display mt-4 max-w-[760px] text-[clamp(2.6rem,7vw,5.2rem)] font-semibold leading-[1.02] text-[#16304f]">{t(data.title)}</h1>
@@ -1745,9 +1745,9 @@ export function DisclosurePage({ path }: { path: string }) {
         <div className="mt-12 grid gap-4 md:grid-cols-2">
           {data.sections.map(([title, copy], index) => <article key={title} className="rounded-[20px] border border-[#e0e8ed] bg-white p-6 sm:p-7"><span className="font-mono text-[10px] font-bold tracking-[.14em] text-[#70a0a1]">0{index + 1}</span><h2 className="mt-4 text-[17px] font-bold text-[#27405a]">{t(title)}</h2><p className="mt-3 text-[12px] leading-6 text-[#76869a]">{t(copy)}</p></article>)}
         </div>
-         <div className="mt-8 rounded-xl border border-[#d9e7e8] bg-[#edf6f6] p-5 text-[11px] leading-5 text-[#4c7579]"><b className="text-[#35676b]">{t('Important:')}</b> {t('Globus Bank is a product name for a software platform. It is not a representation that Globus is a licensed bank or financial institution.')}</div>
+         <div className="mt-8 rounded-xl border border-[#d9e7e8] bg-[#edf6f6] p-5 text-[11px] leading-5 text-[#4c7579]"><b className="text-[#35676b]">{t('Important:')}</b> {t('DUTSTAR Bank is a product name for a software platform. It is not a representation that DUTSTAR is a licensed bank or financial institution.')}</div>
       </main>
-       <footer className="border-t border-[#e2e8ed] bg-white px-6 py-7 text-center text-[10px] text-[#8794a3]">{t('Globus · Account activity software · no outside funds are held or sent')}</footer>
+       <footer className="border-t border-[#e2e8ed] bg-white px-6 py-7 text-center text-[10px] text-[#8794a3]">{t('DUTSTAR · Account activity software · no outside funds are held or sent')}</footer>
     </div>
   );
 }
@@ -1801,7 +1801,7 @@ function transactionDisplayType(transaction: BankTransaction) {
     case 'transfer_out':
       return 'Member transfer sent';
     case 'external_transfer':
-      return transaction.status === 'pending' ? 'Globus transfer request' : 'Recorded transfer';
+      return transaction.status === 'pending' ? 'DUTSTAR transfer request' : 'Recorded transfer';
     case 'external_transfer_in':
       return 'Prior account record';
     default:
@@ -1829,7 +1829,7 @@ function TransactionList({
       const canPrintReceipt = transaction.status === 'completed';
       return <div key={transaction.id} className="flex flex-wrap items-center gap-x-2 gap-y-2 border-b border-[#edf0f2] px-4 py-4 last:border-0 sm:flex-nowrap sm:gap-4 sm:px-7">
         <span className={`grid h-9 w-9 shrink-0 place-items-center rounded-xl ${isIncoming ? 'bg-[#edf7f3] text-[#4d8c72]' : isPendingTransferRecord ? 'bg-[#fbf7eb] text-[#a0793b]' : 'bg-[#f0f4f7] text-[#658097]'}`}>{isPendingTransferRecord ? <ArrowLeftRight size={16} /> : isIncoming ? <ArrowDownLeft size={16} /> : <ArrowUpRight size={16} />}</span>
-        <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-[#334a63]">{transaction.description || t(transactionDisplayType(transaction))}</p><p className="mt-1 truncate text-[9px] text-[#8996a4]">{transaction.counterparty || t('Globus account')} · {customerTransactionDate(transaction.transactionDate, transaction.createdAt)} · {t('Globus record')}</p></div>
+        <div className="min-w-0 flex-1"><p className="truncate text-[11px] font-semibold text-[#334a63]">{transaction.description || t(transactionDisplayType(transaction))}</p><p className="mt-1 truncate text-[9px] text-[#8996a4]">{transaction.counterparty || t('DUTSTAR account')} · {customerTransactionDate(transaction.transactionDate, transaction.createdAt)} · {t('DUTSTAR record')}</p></div>
         <div className="shrink-0 text-right"><p className={`text-[11px] font-bold ${isIncoming ? 'text-[#417f69]' : isPendingTransferRecord ? 'text-[#a0793b]' : 'text-[#3c5269]'}`}>{isPendingTransferRecord ? `${t('Request')} · ` : isIncoming ? '+' : '−'}{formatMoney(Number(transaction.amount), transaction.currency)}</p><p className={`mt-1 text-[9px] capitalize ${transaction.status === 'completed' ? 'text-[#4f8c75]' : 'text-[#9b8050]'}`}>{t(humanize(transaction.status))}</p></div>
           {((canPrintReceipt && showReceipt) || onStatusOverride) && <div className="flex w-full flex-wrap justify-end gap-2 sm:ml-auto sm:w-auto sm:flex-nowrap">
            {canPrintReceipt && showReceipt && <button type="button" onClick={() => setReceipt(transaction)} className="inline-flex shrink-0 items-center gap-1.5 rounded-lg border border-[#dfe7eb] px-2.5 py-2 text-[9px] font-bold text-[#4a667e] hover:bg-[#f5f8f9]" aria-label={t('View receipt {reference}', { reference: transaction.reference })}><FileText size={13} /><span className="hidden sm:inline">{t('Receipt')}</span></button>}
@@ -1993,7 +1993,7 @@ function EmptyState({ title, text }: { title: string; text: string }) {
 }
 
 function PageSkeleton() {
-  return <GlobusLoader label="Loading your Globus account" />;
+  return <GlobusLoader label="Loading your DUTSTAR account" />;
 }
 
 function ListSkeleton() {
