@@ -37,7 +37,7 @@ export function authFailureMessage(error: unknown, phase: AuthPhase): string {
     form_code_incorrect: 'That code was not accepted. Check the newest email and try again.',
     verification_expired: 'That code has expired. Request a new code and use the newest email.',
     form_code_expired: 'That code has expired. Request a new code and use the newest email.',
-    strategy_for_user_invalid: 'This sign-in method is not available for the account. Contact Globus support.',
+    strategy_for_user_invalid: 'This sign-in method is not available for the account. Contact DUTSTAR support.',
     network_error: 'The authentication service could not be reached. Check your connection and try again.',
   };
   const defaults: Record<AuthPhase, string> = {
