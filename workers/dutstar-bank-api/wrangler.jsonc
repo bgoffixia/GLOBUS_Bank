@@ -10,7 +10,9 @@
     "APP_ORIGIN": "https://www.bank.dutstar.online",
     "APP_ENV": "production",
     "AUTH_PROVIDER": "clerk",
-    "DATABASE_PROVIDER": "supabase-postgres"
+    "DATABASE_PROVIDER": "supabase-postgres",
+    "CLERK_ISSUER": "https://clerk.www.bank.dutstar.online",
+    "CLERK_JWKS_URL": "https://clerk.www.bank.dutstar.online/.well-known/jwks.json"
   },
   "assets": {
     "directory": "../../artifacts/globus-bank/dist/public",
