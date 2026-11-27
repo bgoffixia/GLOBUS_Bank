@@ -48,6 +48,13 @@ async function checkDatabase(env: Env): Promise<boolean> {
   } catch {
     // Never return connection details, credentials, or raw driver errors.
     return false;
+  } finally {
+    // Release the per-invocation client; Hyperdrive manages origin pooling.
+    try {
+      await client.end();
+    } catch {
+      // A failed connection may already have closed the client.
+    }
   }
 }
 
