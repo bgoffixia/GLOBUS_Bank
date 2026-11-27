@@ -49,6 +49,9 @@ jobs:
           PORT: "24083"
           BASE_PATH: "/"
 
+      - name: Validate Cloudflare Worker bundle and static assets
+        run: pnpm dlx wrangler deploy --dry-run --config workers/dutstar-bank-api/wrangler.jsonc
+
       - name: Publish frontend build artifact
         uses: actions/upload-artifact@v4
         with:
