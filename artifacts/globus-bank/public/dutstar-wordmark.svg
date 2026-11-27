@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 120" role="img" aria-labelledby="title desc">
+  <title id="title">DUTSTAR BANK</title>
+  <desc id="desc">DUTSTAR BANK wordmark in navy and teal.</desc>
+  <g transform="translate(8 8)">
+    <path d="M52 4 94 28v48L52 100 10 76V28L52 4Z" fill="#12365B"/>
+    <path d="M52 18 82 35v34L52 86 22 69V35L52 18Z" fill="none" stroke="#42B7B0" stroke-width="5"/>
+    <path d="M35 62V38h17c10 0 17 5 17 12s-7 12-17 12H35Zm11-9h6c4 0 6-1 6-3s-2-3-6-3h-6v6Z" fill="#fff"/>
+    <path d="M72 36h8v30h-8z" fill="#42B7B0"/>
+  </g>
+  <text x="122" y="70" fill="#12365B" font-family="Arial, Helvetica, sans-serif" font-size="48" font-weight="800" letter-spacing="2">DUTSTAR</text>
+  <text x="125" y="99" fill="#278C8C" font-family="Arial, Helvetica, sans-serif" font-size="17" font-weight="700" letter-spacing="7">BANK</text>
+</svg>
