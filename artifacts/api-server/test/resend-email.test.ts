@@ -48,18 +48,18 @@ test("customer transfer-email sender headers use the configured name and fixed d
   });
   assert.equal(
     customerEmailSenderHeader("jane.doe-7"),
-    '"GLOBUS BANK" <jane.doe-7@globus.website>',
+    '"DUTSTAR BANK" <jane.doe-7@globus.website>',
   );
   assert.equal(
     customerEmailSenderHeader("jane.doe-7", '  Globus "Client" Alerts  '),
-    '"Globus \\"Client\\" Alerts" <jane.doe-7@globus.website>',
+    '"DUTSTAR \\"Client\\" Alerts" <jane.doe-7@globus.website>',
   );
 });
 
 test("transfer-alert display names are trimmed and reject header injection", () => {
   assert.equal(
-    normalizeCustomerEmailSenderDisplayName("  Globus Client Alerts  "),
-    "Globus Client Alerts",
+    normalizeCustomerEmailSenderDisplayName("  DUTSTAR Client Alerts  "),
+    "DUTSTAR Client Alerts",
   );
   assert.equal(normalizeCustomerEmailSenderDisplayName(" "), null);
   assert.equal(normalizeCustomerEmailSenderDisplayName("Name\r\nBcc: victim@example.test"), null);
@@ -68,7 +68,7 @@ test("transfer-alert display names are trimmed and reject header injection", () 
   assert.equal(normalizeCustomerEmailSenderDisplayName("x".repeat(81)), null);
   assert.equal(
     customerEmailSenderHeader("jane.doe-7", "Name\r\nBcc: victim@example.test"),
-    '"GLOBUS BANK" <jane.doe-7@globus.website>',
+    '"DUTSTAR BANK" <jane.doe-7@globus.website>',
   );
 });
 
