@@ -52,7 +52,7 @@ export function normalizeCustomerEmailSenderDisplayName(value: unknown): string 
   const normalized = value.trim();
   return normalized.length >= 1 &&
     normalized.length <= 80 &&
-    !/[\\u0000-\\u001f\\u007f-\\u009f<>]/u.test(normalized)
+    !/[\u0000-\u001f\u007f-\u009f<>]/u.test(normalized)
     ? normalized
     : null;
 }
