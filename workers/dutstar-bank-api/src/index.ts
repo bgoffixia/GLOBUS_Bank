@@ -222,7 +222,8 @@ async function customerProfile(client: DbClient, clerkUserId: string) {
             (transaction_pin_hash IS NOT NULL) AS transaction_pin_configured,
             account_status, admin_account_tier, testing_mode_disabled,
             vault_subscription_status, vault_subscription_expires_at,
-            created_at
+            created_at,
+            ARRAY(SELECT x.restriction_type FROM public.bank_restrictions x WHERE x.user_id = bank_users.id AND x.wallet_id IS NULL AND x.status = 'active' AND x.effective_at <= now() AND (x.expires_at IS NULL OR x.expires_at > now())) AS active_restrictions
        FROM public.bank_users
       WHERE id = $1
       LIMIT 1`,
@@ -370,12 +371,11 @@ export default {
           profileSetupComplete: Boolean(profile.profile_setup_completed_at),
           transferAccessGranted: Boolean(profile.transfer_access_granted),
           transactionPinConfigured: Boolean(profile.transaction_pin_configured),
-          accountStatus: profile.account_status,
+          accountStatus: profile.account_status === "suspended" || profile.active_restrictions.includes("suspend_user") ? "suspended" : profile.account_status === "restricted" || profile.active_restrictions.length > 0 ? "restricted" : "active",
           vaultSubscriptionActive: profile.vault_subscription_status === "active" && profile.vault_subscription_expires_at && new Date(profile.vault_subscription_expires_at).getTime() > Date.now(),
           vaultAccessActive: false, vaultAccessSource: "none",
-          depositAllowed: profile.account_status === "active",
-          withdrawalAllowed: profile.account_status === "active",
-          accountTier: { id: profile.admin_account_tier ?? "standard", name: profile.admin_account_tier ?? "Standard", source: profile.admin_account_tier ? "admin" : "default" },
+          depositAllowed: false, withdrawalAllowed: false,
+          accountTier: { id: ["silver","gold","bronze"].includes(profile.admin_account_tier) ? profile.admin_account_tier : "standard", name: ({standard:"Standard 🏦",silver:"Silver",gold:"Gold",bronze:"Bronze"} as Record<string,string>)[profile.admin_account_tier] ?? "Standard 🏦", source: profile.admin_account_tier ? "admin_assignment" : "default" },
           createdAt: profile.created_at,
         });
       } catch {
