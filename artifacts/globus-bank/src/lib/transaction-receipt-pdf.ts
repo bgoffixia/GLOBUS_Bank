@@ -419,7 +419,7 @@ async function createReceiptPngFile(
     );
   });
   const safeReference = receipt.reference.replace(/[^a-z0-9_-]+/gi, '-');
-  return new File([png], `globus-receipt-${safeReference}.png`, { type: 'image/png' });
+  return new File([png], `dutstar-receipt-${safeReference}.png`, { type: 'image/png' });
 }
 
 async function renderReceiptCanvas(receipt: TransactionReceiptPdfData, logoUrl: string) {
@@ -438,7 +438,7 @@ function downloadBlob(blob: Blob, reference: string, extension: 'pdf' | 'png') {
   const link = document.createElement('a');
   const safeReference = reference.replace(/[^a-z0-9_-]+/gi, '-');
   link.href = url;
-  link.download = `globus-receipt-${safeReference}.${extension}`;
+  link.download = `dutstar-receipt-${safeReference}.${extension}`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
