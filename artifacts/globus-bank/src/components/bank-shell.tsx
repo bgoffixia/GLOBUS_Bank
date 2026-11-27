@@ -151,7 +151,7 @@ export function BankShell({ children }: { children: ReactNode }) {
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <NotificationsCenter />
-            <Link href="/home" aria-label={t('Return to Globus home')} data-testid="link-app-home" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#078f95] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
+            <Link href="/home" aria-label={t('Return to DUTSTAR home')} data-testid="link-app-home" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#078f95] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
               <House size={14} />
               <span className="hidden sm:inline">{t('Home')}</span>
             </Link>
