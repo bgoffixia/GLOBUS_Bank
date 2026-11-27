@@ -7,7 +7,7 @@ type GlobusLoaderProps = {
 
 export function GlobusLoader({
   fullScreen = false,
-  label = "Loading Globus",
+  label = "Loading DUTSTAR",
 }: GlobusLoaderProps) {
   return (
     <div
@@ -25,7 +25,7 @@ export function GlobusLoader({
         </span>
         <img
           className="globus-loader__mark"
-          src={`${import.meta.env.BASE_URL}globus-mark-transparent.png`}
+          src={`${import.meta.env.BASE_URL}dutstar-mark.svg`}
           alt=""
         />
       </div>
