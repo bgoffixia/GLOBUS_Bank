@@ -18,7 +18,24 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: PORT=24083 BASE_PATH=/ NODE_ENV=production pnpm run build
+      - name: Build production frontend
+        env:
+          PORT: "24083"
+          BASE_PATH: /
+          NODE_ENV: production
+        run: |
+          pnpm run build
+          test -s artifacts/globus-bank/dist/public/index.html
+          test -s artifacts/globus-bank/dist/public/sw.js
+          echo "Production frontend output:"
+          find artifacts/globus-bank/dist/public -maxdepth 2 -type f -printf '%P %s bytes\\n' | sort
+      - name: Upload DUTSTAR production frontend bundle
+        uses: actions/upload-artifact@v4
+        with:
+          name: dutstar-production-frontend
+          path: artifacts/globus-bank/dist/public/
+          if-no-files-found: error
+          retention-days: 14
       - name: Run support messaging and transfer email regression tests
         env:
           SUPABASE_DATABASE_URL: postgresql://postgres:postgres@127.0.0.1:5432/postgres
