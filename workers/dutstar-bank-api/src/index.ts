@@ -144,6 +144,178 @@ async function checkDatabase(env: Env): Promise<boolean> {
   }
 }
 
+
+type DbClient = InstanceType<typeof Client>;
+
+async function withCustomerRead<T>(
+  env: Env,
+  clerkUserId: string,
+  work: (client: DbClient) => Promise<T>,
+): Promise<T> {
+  if (!env.DB) throw new Error("Database is not configured");
+  const client = new Client({
+    connectionString: env.DB.connectionString,
+    connectionTimeoutMillis: 5_000,
+    query_timeout: 8_000,
+  });
+  let inTransaction = false;
+  try {
+    await client.connect();
+    await client.query("BEGIN READ ONLY");
+    inTransaction = true;
+    await client.query("SET LOCAL ROLE dutstar_api");
+    await client.query(
+      "SELECT set_config('app.clerk_user_id', $1, true)",
+      [clerkUserId],
+    );
+    const result = await work(client);
+    await client.query("COMMIT");
+    inTransaction = false;
+    return result;
+  } catch (error) {
+    if (inTransaction) {
+      try { await client.query("ROLLBACK"); } catch { /* connection may be closed */ }
+    }
+    throw error;
+  } finally {
+    try { await client.end(); } catch { /* close best-effort */ }
+  }
+}
+
+function moneyMinor(value: string | number | bigint | null | undefined): string {
+  const amount = BigInt(value ?? 0);
+  const negative = amount < 0n;
+  const absolute = negative ? -amount : amount;
+  return `${negative ? "-" : ""}${absolute / 100n}.${(absolute % 100n).toString().padStart(2, "0")}`;
+}
+
+function transactionPayload(row: Record<string, unknown>, viewerId: string) {
+  const rawType = String(row.type);
+  const type = rawType === "transfer"
+    ? (row.to_user_id === viewerId ? "transfer_in" : "transfer_out")
+    : rawType === "sandbox_credit" ? "simulation_credit"
+    : rawType === "admin_funding" && row.from_user_id === viewerId ? "admin_debit"
+    : rawType;
+  const legacyExternal = rawType === "external_transfer" || rawType === "external_transfer_in";
+  return {
+    id: row.id,
+    reference: row.reference,
+    type,
+    status: row.status,
+    receiptTemplate: row.receipt_template ?? "standard",
+    currency: row.currency,
+    amount: moneyMinor(row.amount_minor as string),
+    fee: moneyMinor(row.fee_minor as string),
+    counterparty: legacyExternal ? "Internal ledger" : row.counterparty ?? null,
+    description: legacyExternal ? "Prior internal ledger entry" : String(row.description ?? ""),
+    mode: "internal_ledger",
+    transactionDate: row.transaction_date ?? null,
+    createdAt: row.created_at instanceof Date ? row.created_at.toISOString() : String(row.created_at),
+  };
+}
+
+async function customerProfile(client: DbClient, clerkUserId: string) {
+  const result = await client.query(
+    `SELECT id, email, customer_id, first_name, last_name, address, phone,
+            country, date_of_birth, city_of_origin, occupation,
+            profile_setup_completed_at, transfer_access_granted,
+            (transaction_pin_hash IS NOT NULL) AS transaction_pin_configured,
+            account_status, admin_account_tier, testing_mode_disabled,
+            vault_subscription_status, vault_subscription_expires_at,
+            created_at
+       FROM public.bank_users
+      WHERE id = $1
+      LIMIT 1`,
+    [clerkUserId],
+  );
+  return result.rows[0] ?? null;
+}
+
+async function customerWallets(client: DbClient, clerkUserId: string) {
+  const result = await client.query(
+    `SELECT w.id, w.currency,
+            CASE WHEN w.status = 'restricted' OR COALESCE(r.frozen, false)
+                 THEN 'restricted' ELSE 'active' END AS status,
+            (COALESCE(l.balance_minor, 0) - COALESCE(p.reserved_minor, 0))::text AS available_minor,
+            COALESCE(p.pending_minor, 0)::text AS pending_minor,
+            COALESCE(p.reserved_minor, 0)::text AS reserved_minor
+       FROM public.bank_wallets w
+       LEFT JOIN LATERAL (
+         SELECT COALESCE(SUM(CASE WHEN side = 'credit' THEN amount_minor ELSE -amount_minor END), 0) AS balance_minor
+           FROM public.bank_ledger_entries WHERE wallet_id = w.id
+       ) l ON true
+       LEFT JOIN LATERAL (
+         SELECT
+           COALESCE(SUM(CASE WHEN q.type = 'deposit' AND t.to_wallet_id = w.id
+                             AND q.status IN ('pending_review','pending_provider_setup')
+                             THEN q.amount_minor ELSE 0 END), 0) AS pending_minor,
+           COALESCE(SUM(CASE WHEN q.type = 'withdrawal' AND t.from_wallet_id = w.id
+                             AND q.status IN ('pending_review','pending_provider_setup')
+                             THEN q.amount_minor ELSE 0 END), 0) AS reserved_minor
+         FROM public.bank_sandbox_requests q
+         JOIN public.bank_transactions t ON t.id = q.transaction_id
+         WHERE q.user_id = $1
+       ) p ON true
+       LEFT JOIN LATERAL (
+         SELECT EXISTS (
+           SELECT 1 FROM public.bank_restrictions x
+            WHERE x.user_id = $1 AND x.wallet_id = w.id
+              AND x.restriction_type = 'freeze_wallet' AND x.status = 'active'
+              AND x.effective_at <= now()
+              AND (x.expires_at IS NULL OR x.expires_at > now())
+         ) AS frozen
+       ) r ON true
+      WHERE w.user_id = $1
+      ORDER BY w.currency`,
+    [clerkUserId],
+  );
+  return result.rows.map((row) => ({
+    id: row.id,
+    currency: row.currency,
+    available: moneyMinor(row.available_minor),
+    pending: moneyMinor(row.pending_minor),
+    reserved: moneyMinor(row.reserved_minor),
+    status: row.status,
+  }));
+}
+
+async function customerTransactions(
+  client: DbClient,
+  clerkUserId: string,
+  url: URL,
+  limit: number,
+) {
+  const conditions = ["(from_user_id = $1 OR to_user_id = $1 OR initiated_by_user_id = $1)"];
+  const values: unknown[] = [clerkUserId];
+  const currency = url.searchParams.get("currency");
+  const status = url.searchParams.get("status");
+  const search = url.searchParams.get("search")?.trim();
+  if (currency && ["USD","EUR","GBP","NGN","CAD","AUD"].includes(currency)) {
+    values.push(currency);
+    conditions.push(`currency = ${values.length}`);
+  }
+  if (status && ["completed","pending","failed","rejected","reversed"].includes(status)) {
+    values.push(status);
+    conditions.push(`status = ${values.length}`);
+  }
+  if (search) {
+    values.push(`%${search.slice(0, 80)}%`);
+    conditions.push(`(reference ILIKE ${values.length} OR counterparty ILIKE ${values.length} OR description ILIKE ${values.length})`);
+  }
+  values.push(limit);
+  const result = await client.query(
+    `SELECT id, reference, type, status, receipt_template, currency,
+            amount_minor::text, fee_minor::text, from_user_id, to_user_id,
+            counterparty, description, transaction_date, created_at
+       FROM public.bank_transactions
+      WHERE ${conditions.join(" AND ")}
+      ORDER BY created_at DESC
+      LIMIT ${values.length}`,
+    values,
+  );
+  return result.rows.map((row) => transactionPayload(row, clerkUserId));
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -184,10 +356,61 @@ export default {
       });
     }
 
+    if (url.pathname === "/api/bank/me" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const profile = await withCustomerRead(env, claims.sub, (client) => customerProfile(client, claims.sub!));
+        if (!profile) return json({ error: "BANK_ACCOUNT_NOT_FOUND", message: "Your bank profile is not yet linked. Contact support to complete account linking." }, 404);
+        return json({
+          id: profile.id, email: profile.email, customerId: profile.customer_id,
+          firstName: profile.first_name, lastName: profile.last_name, address: profile.address,
+          phone: profile.phone, country: profile.country, dateOfBirth: profile.date_of_birth,
+          cityOfOrigin: profile.city_of_origin, occupation: profile.occupation,
+          profileSetupComplete: Boolean(profile.profile_setup_completed_at),
+          transferAccessGranted: Boolean(profile.transfer_access_granted),
+          transactionPinConfigured: Boolean(profile.transaction_pin_configured),
+          accountStatus: profile.account_status,
+          vaultSubscriptionActive: profile.vault_subscription_status === "active" && profile.vault_subscription_expires_at && new Date(profile.vault_subscription_expires_at).getTime() > Date.now(),
+          vaultAccessActive: false, vaultAccessSource: "none",
+          depositAllowed: profile.account_status === "active",
+          withdrawalAllowed: profile.account_status === "active",
+          accountTier: { id: profile.admin_account_tier ?? "standard", name: profile.admin_account_tier ?? "Standard", source: profile.admin_account_tier ? "admin" : "default" },
+          createdAt: profile.created_at,
+        });
+      } catch {
+        return json({ error: "BANK_PROFILE_UNAVAILABLE" }, 503);
+      }
+    }
+
+    if (url.pathname === "/api/bank/wallets" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const wallets = await withCustomerRead(env, claims.sub, (client) => customerWallets(client, claims.sub!));
+        return json(wallets);
+      } catch {
+        return json({ error: "BANK_WALLETS_UNAVAILABLE" }, 503);
+      }
+    }
+
+    if (url.pathname === "/api/bank/transactions" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      const rawLimit = Number(url.searchParams.get("limit") ?? 25);
+      const limit = Number.isInteger(rawLimit) ? Math.max(1, Math.min(rawLimit, 100)) : 25;
+      try {
+        const transactions = await withCustomerRead(env, claims.sub, (client) => customerTransactions(client, claims.sub!, url, limit));
+        return json(transactions);
+      } catch {
+        return json({ error: "BANK_TRANSACTIONS_UNAVAILABLE" }, 503);
+      }
+    }
+
     if (url.pathname.startsWith("/api/")) {
       return json({
         error: "BANKING_API_NOT_READY",
-        message: "Banking operations remain disabled until database access controls and financial transaction safeguards pass verification.",
+        message: "This banking operation is not enabled on the Cloudflare API yet.",
       }, 503);
     }
 
