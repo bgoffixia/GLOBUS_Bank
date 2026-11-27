@@ -5,6 +5,7 @@ const EMAIL_FROM_ADDRESS_PATTERN = /^[^\\s<>@]+@[^\\s<>@]+\\.[^\\s<>@]+$/;
 
 function appOrigin(): string | null {
   const configuredHost =
+    process.env.DUTSTAR_APP_ORIGIN?.trim() ||
     process.env.GLOBUS_APP_ORIGIN?.trim() ||
     process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
     process.env.REPLIT_DEV_DOMAIN?.trim();
@@ -27,7 +28,7 @@ export async function sendPasswordResetEmail(input: {
   recipient: string;
   ticket: string;
 }): Promise<boolean> {
-  const sender = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim();
+  const sender = (process.env.DUTSTAR_SECURITY_EMAIL_FROM ?? process.env.GLOBUS_SECURITY_EMAIL_FROM)?.trim();
   const origin = appOrigin();
   if (!sender || !EMAIL_FROM_ADDRESS_PATTERN.test(sender) || !origin) {
     return false;
