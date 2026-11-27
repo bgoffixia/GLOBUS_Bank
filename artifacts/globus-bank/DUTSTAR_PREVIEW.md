@@ -1,1 +1,1 @@
-DUTSTAR BANK Cloudflare Pages preview. Source branch: migration/dutstar-cloudflare. Preview-only deployment; production cutover remains disabled until acceptance and security gates pass.
+DUTSTAR BANK Cloudflare Pages preview. Build source: migration/dutstar-cloudflare. Preview-only; production deployments remain disabled until acceptance and security gates pass.
