@@ -1,4 +1,9 @@
 export interface Env {
+  APP_NAME: string;
+  APP_ORIGIN: string;
+  APP_ENV: string;
+  AUTH_PROVIDER: string;
+  DATABASE_PROVIDER: string;
   ASSETS?: Fetcher;
   DB?: Hyperdrive;
   CLERK_JWKS_URL?: string;
@@ -27,7 +32,11 @@ export default {
     if (url.pathname === "/health" && request.method === "GET") {
       const ready = Boolean(env.ASSETS && env.DB && env.CLERK_JWKS_URL);
       return json({
-        service: "DUTSTAR BANK",
+        service: env.APP_NAME,
+        origin: env.APP_ORIGIN,
+        environment: env.APP_ENV,
+        authProvider: env.AUTH_PROVIDER,
+        databaseProvider: env.DATABASE_PROVIDER,
         status: ready ? "infrastructure_configured" : "setup_required",
         checks: {
           staticAssets: Boolean(env.ASSETS),
