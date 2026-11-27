@@ -75,7 +75,7 @@ export function BankShell({ children }: { children: ReactNode }) {
       refetchIntervalInBackground: false,
     },
   });
-  const initials = (user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'G').toUpperCase();
+  const initials = (user?.firstName?.[0] ?? user?.primaryEmailAddress?.emailAddress?.[0] ?? 'D').toUpperCase();
 
   if (isPrivateVault) {
     return <div className="min-h-dvh w-full bg-[#edf3f6]" data-testid="vault-full-page-shell">{children}</div>;
