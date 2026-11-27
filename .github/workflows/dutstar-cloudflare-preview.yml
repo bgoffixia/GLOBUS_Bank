@@ -51,6 +51,12 @@ jobs:
           config.name = 'dutstar-bank-api-preview';
           config.workers_dev = true;
           config.vars = { ...config.vars, APP_ENV: 'preview' };
+          if (!config.hyperdrive?.some((binding) => binding.binding === 'DB')) {
+            throw new Error('DUTSTAR preview must inherit the existing Supabase Hyperdrive DB binding.');
+          }
+          if (!config.assets?.binding || !config.assets?.directory) {
+            throw new Error('DUTSTAR preview must include the built frontend assets.');
+          }
           fs.writeFileSync('workers/dutstar-bank-api/wrangler.preview.json', JSON.stringify(config, null, 2));
           NODE
       - name: Deploy isolated preview only
