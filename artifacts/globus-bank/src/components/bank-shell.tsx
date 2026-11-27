@@ -85,10 +85,10 @@ export function BankShell({ children }: { children: ReactNode }) {
     <div className="app-shell">
       <aside className={`bank-sidebar fixed inset-y-0 left-0 z-40 flex w-[min(252px,84vw)] flex-col transition-transform duration-200 lg:translate-x-0 ${mobileMenu ? 'translate-x-0' : '-translate-x-full'}`}>
         <div className="flex h-[78px] items-center justify-between gap-2 px-4 sm:px-7">
-          <Link href="/dashboard" aria-label="Globus Bank dashboard" className="bank-brand flex min-w-0 items-center gap-2 text-white sm:gap-3">
-            <img src={`${import.meta.env.BASE_URL}globus-mark-transparent.png`} alt="" className="h-10 w-12 shrink-0 object-contain" />
+          <Link href="/dashboard" aria-label="DUTSTAR BANK dashboard" className="bank-brand flex min-w-0 items-center gap-2 text-white sm:gap-3">
+            <img src={`${import.meta.env.BASE_URL}dutstar-mark.svg`} alt="" className="h-10 w-12 shrink-0 object-contain" />
             <span className="flex min-w-0 flex-col leading-none">
-              <span className="text-[16px] font-extrabold tracking-tight">GLOBUS</span>
+              <span className="text-[16px] font-extrabold tracking-tight">DUTSTAR</span>
               <span className="mt-1 text-[8px] font-bold tracking-[0.3em] text-[#d1b05f]">BANK</span>
             </span>
           </Link>
@@ -117,7 +117,7 @@ export function BankShell({ children }: { children: ReactNode }) {
                 {user?.imageUrl ? <img src={user.imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
               </div>
               <div className="min-w-0">
-                <p className="truncate text-xs font-semibold text-white">{user?.fullName ?? t('Globus member')}</p>
+                <p className="truncate text-xs font-semibold text-white">{user?.fullName ?? t('DUTSTAR member')}</p>
                 <p className="truncate text-[10px] text-slate-400">{user?.primaryEmailAddress?.emailAddress}</p>
               </div>
             </Link>
@@ -146,18 +146,18 @@ export function BankShell({ children }: { children: ReactNode }) {
                 </p>
               </div>
             ) : (
-              <p className="min-w-0 truncate text-[11px] font-medium text-[#738297] sm:text-[12px]"><span className="hidden sm:inline">Globus Bank <span className="px-1.5 text-[#c5ced7]">/</span> </span><span className="text-[#253850]">{t(pageLabel(location))}</span></p>
+              <p className="min-w-0 truncate text-[11px] font-medium text-[#738297] sm:text-[12px]"><span className="hidden sm:inline">DUTSTAR BANK <span className="px-1.5 text-[#c5ced7]">/</span> </span><span className="text-[#253850]">{t(pageLabel(location))}</span></p>
             )}
           </div>
           <div className="flex shrink-0 items-center gap-1.5 sm:gap-3">
             <NotificationsCenter />
-            <Link href="/home" aria-label={t('Return to Globus home')} data-testid="link-app-home" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#377d83] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
+            <Link href="/home" aria-label={t('Return to Globus home')} data-testid="link-app-home" className="inline-flex h-9 shrink-0 items-center justify-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2 text-[9px] font-bold text-[#078f95] hover:bg-[#eff8f8] sm:px-3 sm:text-[10px]">
               <House size={14} />
               <span className="hidden sm:inline">{t('Home')}</span>
             </Link>
             <div className="hidden sm:block"><AppLanguageSelector /></div>
-            <InstallAppButton className="hidden items-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2.5 py-2 text-[10px] font-bold text-[#377d83] hover:bg-[#eff8f8] sm:inline-flex" />
-            <Link href="/profile" aria-label="Open your profile" data-testid="link-header-profile" className={`grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-[#dbe3eb] bg-white text-xs font-bold text-[#27445e] ${isProfile ? 'ring-2 ring-[#68a3a6] ring-offset-2' : ''}`}>
+            <InstallAppButton className="hidden items-center gap-1.5 rounded-lg border border-[#d6e8e9] bg-white px-2.5 py-2 text-[10px] font-bold text-[#078f95] hover:bg-[#eff8f8] sm:inline-flex" />
+            <Link href="/profile" aria-label="Open your profile" data-testid="link-header-profile" className={`grid h-9 w-9 place-items-center overflow-hidden rounded-full border border-[#dbe3eb] bg-white text-xs font-bold text-[#27445e] ${isProfile ? 'ring-2 ring-[#0bb9b2] ring-offset-2' : ''}`}>
               {user?.imageUrl ? <img src={user.imageUrl} alt="" className="h-full w-full object-cover" /> : initials}
             </Link>
           </div>
@@ -169,7 +169,7 @@ export function BankShell({ children }: { children: ReactNode }) {
           {dashboardTools.map(({ href, label, ariaLabel, icon: Icon }) => {
             const active = location === href || (href === '/transactions' && location.startsWith('/transactions'));
             return (
-              <Link key={href} href={href} aria-label={t(ariaLabel)} data-testid={`dashboard-tool-${href.slice(1)}`} className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-center text-[8px] font-bold transition sm:text-[9px] ${active ? 'text-[#277a80]' : 'text-[#718297] hover:bg-[#f2f7f8] hover:text-[#315d6c]'}`}>
+              <Link key={href} href={href} aria-label={t(ariaLabel)} data-testid={`dashboard-tool-${href.slice(1)}`} className={`flex min-w-0 flex-col items-center justify-center gap-1 rounded-lg px-1 py-1.5 text-center text-[8px] font-bold transition sm:text-[9px] ${active ? 'text-[#079c9d]' : 'text-[#718297] hover:bg-[#f2f7f8] hover:text-[#315d6c]'}`}>
                 <Icon size={16} strokeWidth={active ? 2.2 : 1.8} />
                 <span className="max-w-full truncate">{t(label)}</span>
               </Link>
