@@ -1,3 +1,5 @@
+import { Client } from "pg";
+
 export interface Env {
   APP_NAME: string;
   APP_ORIGIN: string;
@@ -25,12 +27,48 @@ function json(body: unknown, status = 200): Response {
   });
 }
 
+/**
+ * Performs a read-only connectivity check. A fresh pg Client is created for
+ * each Worker invocation; Hyperdrive owns the reusable origin connection pool.
+ * No customer tables or records are read or changed.
+ */
+async function checkDatabase(env: Env): Promise<boolean> {
+  if (!env.DB) return false;
+
+  const client = new Client({
+    connectionString: env.DB.connectionString,
+    connectionTimeoutMillis: 5_000,
+    query_timeout: 5_000,
+  });
+
+  try {
+    await client.connect();
+    const result = await client.query<{ ok: number }>("SELECT 1 AS ok");
+    return result.rows[0]?.ok === 1;
+  } catch {
+    // Never return connection details, credentials, or raw driver errors.
+    return false;
+  }
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
 
     if (url.pathname === "/health" && request.method === "GET") {
-      const ready = Boolean(env.ASSETS && env.DB && env.CLERK_JWKS_URL);
+      const [databaseConnected] = await Promise.all([checkDatabase(env)]);
+      const checks = {
+        staticAssets: Boolean(env.ASSETS),
+        hyperdriveBinding: Boolean(env.DB),
+        databaseConnection: databaseConnected,
+        clerkJwks: Boolean(env.CLERK_JWKS_URL),
+        bankingApi: false,
+      };
+      const ready = checks.staticAssets
+        && checks.hyperdriveBinding
+        && checks.databaseConnection
+        && checks.clerkJwks;
+
       return json({
         service: env.APP_NAME,
         origin: env.APP_ORIGIN,
@@ -38,19 +76,14 @@ export default {
         authProvider: env.AUTH_PROVIDER,
         databaseProvider: env.DATABASE_PROVIDER,
         status: ready ? "infrastructure_configured" : "setup_required",
-        checks: {
-          staticAssets: Boolean(env.ASSETS),
-          postgresHyperdrive: Boolean(env.DB),
-          clerkJwks: Boolean(env.CLERK_JWKS_URL),
-          bankingApi: false,
-        },
+        checks,
       }, ready ? 200 : 503);
     }
 
     if (url.pathname.startsWith("/api/")) {
       return json({
         error: "BANKING_API_NOT_READY",
-        message: "Banking operations remain disabled until the authenticated database adapter and financial controls pass verification.",
+        message: "Banking operations remain disabled until Clerk session verification, database access controls, and financial transaction safeguards pass verification.",
       }, 503);
     }
 
