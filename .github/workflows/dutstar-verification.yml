@@ -18,7 +18,7 @@ concurrency:
 
 jobs:
   frontend:
-    name: Frontend typecheck and production build
+    name: Workspace typecheck and production build
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -40,8 +40,10 @@ jobs:
       - name: Install locked workspace dependencies
         run: pnpm install --frozen-lockfile
 
-      - name: Typecheck frontend
-        run: pnpm --filter @workspace/globus-bank run typecheck
+      # The root typecheck builds TypeScript project references first.
+      # Running the frontend package directly skips generated declaration files.
+      - name: Typecheck workspace and build project references
+        run: pnpm run typecheck
 
       - name: Build frontend
         run: pnpm --filter @workspace/globus-bank run build
