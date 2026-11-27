@@ -150,13 +150,13 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   const right = PAGE_WIDTH - PAGE_MARGIN;
   const contentWidth = right - left;
   const theme = {
-    standard: { canvas: '#e8efed', ink: '#173951', accent: '#347c78', kicker: 'DUTSTAR TRANSACTION RECORD' },
-    bank_payment: { canvas: '#f3f6f7', ink: '#173858', accent: '#478783', kicker: 'DUTSTAR BANK · TRANSACTION RECORD' },
-    transfer_journey: { canvas: '#e8f0ec', ink: '#173951', accent: '#347c78', kicker: 'INTERNAL PAYMENT RECORD' },
-    transfer_ledger: { canvas: '#e9efea', ink: '#173c4b', accent: '#39786d', kicker: 'DUTSTAR · LEDGER RECORD' },
-    settlement_statement: { canvas: '#e8eeea', ink: '#173b4b', accent: '#39786d', kicker: 'INTERNAL TRANSACTION STATEMENT' },
+    standard: { canvas: '#e8efed', ink: '#12365B', accent: '#278C8C', kicker: 'DUTSTAR TRANSACTION RECORD' },
+    bank_payment: { canvas: '#f3f6f7', ink: '#12365B', accent: '#278C8C', kicker: 'DUTSTAR BANK · TRANSACTION RECORD' },
+    transfer_journey: { canvas: '#e8f0ec', ink: '#12365B', accent: '#278C8C', kicker: 'INTERNAL PAYMENT RECORD' },
+    transfer_ledger: { canvas: '#e9efea', ink: '#12365B', accent: '#278C8C', kicker: 'DUTSTAR · LEDGER RECORD' },
+    settlement_statement: { canvas: '#e8eeea', ink: '#12365B', accent: '#278C8C', kicker: 'INTERNAL TRANSACTION STATEMENT' },
     editorial_ledger: { canvas: '#e9e5da', ink: '#344d5a', accent: '#907b4b', kicker: 'EDITORIAL LEDGER · DUTSTAR BANK' },
-    transfer_ledger_columnar: { canvas: '#e8efea', ink: '#173c4b', accent: '#4b796b', kicker: 'COLUMNAR TRANSFER LEDGER' },
+    transfer_ledger_columnar: { canvas: '#e8efea', ink: '#12365B', accent: '#4b796b', kicker: 'COLUMNAR TRANSFER LEDGER' },
     settlement_ledger: { canvas: '#e7efea', ink: '#315b57', accent: '#4b8875', kicker: 'SETTLEMENT LEDGER · INTERNAL COPY' },
     reconciliation_statement: { canvas: '#eeeae0', ink: '#34495a', accent: '#917f52', kicker: 'TRANSFER RECONCILIATION STATEMENT' },
     settlement_timeline: { canvas: '#e6efea', ink: '#315b57', accent: '#578b77', kicker: 'SETTLEMENT TIMELINE · DUTSTAR BANK' },
@@ -262,7 +262,7 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
 
   let y = heroY + heroHeight + 40;
 
-  context.fillStyle = template === 'settlement_statement' ? '#183d4b' : '#718599';
+  context.fillStyle = template === 'settlement_statement' ? '#12365B' : '#718599';
   context.font = '700 18px Arial, sans-serif';
   context.fillText(template === 'settlement_statement' ? 'RECORD PARTICULARS' : 'TRANSACTION DETAILS', left, y);
   y += 24;
