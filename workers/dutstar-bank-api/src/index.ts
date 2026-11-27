@@ -357,6 +357,49 @@ export default {
       });
     }
 
+    if (url.pathname === "/api/bank/dashboard" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const dashboard = await withCustomerRead(env, claims.sub, async (client) => {
+          const profile = await customerProfile(client, claims.sub!);
+          if (!profile) return null;
+          const accountStatus = profile.account_status === "suspended" || profile.active_restrictions.includes("suspend_user")
+            ? "suspended"
+            : profile.account_status === "restricted" || profile.active_restrictions.length > 0
+              ? "restricted"
+              : "active";
+          const wallets = await customerWallets(client, claims.sub!);
+          const recentTransactions = await customerTransactions(client, claims.sub!, url, 10);
+          const tierId = ["silver","gold","bronze"].includes(profile.admin_account_tier) ? profile.admin_account_tier : "standard";
+          const tierNames: Record<string,string> = { standard: "Standard 🏦", silver: "Silver", gold: "Gold", bronze: "Bronze" };
+          return {
+            profile: {
+              id: profile.id, email: profile.email, customerId: profile.customer_id,
+              firstName: profile.first_name, lastName: profile.last_name, address: profile.address,
+              phone: profile.phone, country: profile.country, dateOfBirth: profile.date_of_birth,
+              cityOfOrigin: profile.city_of_origin, occupation: profile.occupation,
+              profileSetupComplete: Boolean(profile.profile_setup_completed_at),
+              transferAccessGranted: Boolean(profile.transfer_access_granted),
+              transactionPinConfigured: Boolean(profile.transaction_pin_configured),
+              accountStatus,
+              vaultSubscriptionActive: profile.vault_subscription_status === "active" && profile.vault_subscription_expires_at && new Date(profile.vault_subscription_expires_at).getTime() > Date.now(),
+              vaultAccessActive: false, vaultAccessSource: "none",
+              depositAllowed: false, withdrawalAllowed: false,
+              accountTier: { id: tierId, name: tierNames[tierId], source: profile.admin_account_tier ? "admin_assignment" : "default" },
+              testingMode: false,
+              createdAt: profile.created_at,
+            },
+            wallets, recentTransactions, referenceCurrency: "USD", internalLedger: true,
+          };
+        });
+        if (!dashboard) return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
+        return json(dashboard);
+      } catch {
+        return json({ error: "BANK_DASHBOARD_UNAVAILABLE" }, 503);
+      }
+    }
+
     if (url.pathname === "/api/bank/me" && request.method === "GET") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
