@@ -71,7 +71,7 @@ const clerkAppearance = {
   options: {
     logoPlacement: 'inside' as const,
     logoLinkUrl: basePath || '/',
-    logoImageUrl: `${window.location.origin}${basePath}/globus-wordmark-transparent.png`,
+    logoImageUrl: `${window.location.origin}${basePath}/dutstar-mark.svg`,
   },
   variables: {
     colorPrimary: '#173b62',
@@ -237,13 +237,13 @@ function ClerkRoutes() {
         signIn: {
           start: {
             title: t('Welcome back'),
-            subtitle: t('Sign in to access your Globus workspace'),
+            subtitle: t('Sign in to access your DUTSTAR workspace'),
           },
         },
         signUp: {
           start: {
             title: t('Set up your account'),
-            subtitle: t('Create a secure account to explore Globus'),
+            subtitle: t('Create a secure account to explore DUTSTAR'),
           },
         },
       }}
