@@ -219,7 +219,7 @@ export function TransferReceiptModal({ transaction, onClose, title, notice, illu
                 </div>
                 <span data-testid="text-receipt-status" className={`mb-0.5 inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-1 text-[9px] font-bold ${completed ? 'border-[#d5e7dc] bg-[#eff7f2] text-[#47755f]' : pending ? 'border-[#eadfbf] bg-[#fbf7eb] text-[#8b7440]' : 'border-[#f1d8d5] bg-[#fbefed] text-[#9c4d46]'}`}>
                   {completed ? <BadgeCheck size={11} /> : <Clock3 size={11} />}
-                  {completed ? 'RECORDED IN GLOBUS' : pending ? 'PENDING IN GLOBUS' : `${humanizeStatus(transaction.status).toUpperCase()} IN GLOBUS`}
+                  {completed ? 'RECORDED IN DUTSTAR' : pending ? 'PENDING IN DUTSTAR' : `${humanizeStatus(transaction.status).toUpperCase()} IN DUTSTAR`}
                 </span>
               </div>
             </header>
