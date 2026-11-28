@@ -747,6 +747,122 @@ export default {
       } catch { return json({ error: "FINANCE_LOAN_APPLICATION_WITHDRAW_FAILED" }, 503); }
     }
 
+    if (url.pathname === "/api/bank/personal-finance/accounts" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerRead(env, claims.sub, (client) => client.query(
+          `SELECT id, account_type, name, currency, current_value_minor::text,
+                  target_amount_minor::text, opened_on, status, notes, created_at, updated_at
+             FROM public.bank_financial_accounts WHERE user_id = $1
+            ORDER BY status, updated_at DESC LIMIT 100`,
+          [claims.sub],
+        ));
+        return json(result.rows.map((row) => ({
+          id: row.id, type: row.account_type, name: row.name, currency: row.currency,
+          currentValueMinor: row.current_value_minor, targetAmountMinor: row.target_amount_minor,
+          openedOn: row.opened_on, status: row.status, notes: row.notes,
+          createdAt: row.created_at, updatedAt: row.updated_at,
+        })));
+      } catch { return json({ error: "FINANCIAL_ACCOUNTS_UNAVAILABLE" }, 503); }
+    }
+
+    if (url.pathname === "/api/bank/personal-finance/accounts" && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const currencies = ["USD", "EUR", "GBP", "NGN", "CAD", "AUD"];
+      const currentValue = typeof body.currentValueMinor === "string" ? body.currentValueMinor : "";
+      const target = body.targetAmountMinor == null ? null : String(body.targetAmountMinor);
+      const validDate = (value: unknown) => typeof value === "string" &&
+        /^\\d{4}-\\d{2}-\\d{2}$/.test(value) &&
+        Number.isFinite(new Date(value + "T00:00:00.000Z").getTime()) &&
+        new Date(value + "T00:00:00.000Z").toISOString().slice(0, 10) === value;
+      if (Object.keys(body).some((key) => !["type","name","currency","currentValueMinor","targetAmountMinor","openedOn","notes"].includes(key)) ||
+          !["savings","investment"].includes(String(body.type)) ||
+          typeof body.name !== "string" || !body.name.trim() || body.name.trim().length > 120 ||
+          !currencies.includes(String(body.currency)) || !/^\\d{1,19}$/.test(currentValue) ||
+          (target !== null && (!/^\\d{1,19}$/.test(target) || BigInt(target) <= 0n)) ||
+          (body.type === "investment" && target !== null) || !validDate(body.openedOn) ||
+          (body.notes !== undefined && body.notes !== null && typeof body.notes !== "string")) {
+        return json({ error: "INVALID_FINANCIAL_ACCOUNT" }, 400);
+      }
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          `INSERT INTO public.bank_financial_accounts
+            (user_id, account_type, name, currency, current_value_minor, target_amount_minor, opened_on, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8)
+           RETURNING id, account_type, name, currency, current_value_minor::text,
+             target_amount_minor::text, opened_on, status, notes, created_at, updated_at`,
+          [claims.sub, body.type, body.name.trim(), body.currency, currentValue, target,
+           body.openedOn, typeof body.notes === "string" ? body.notes.trim().slice(0,2000) || null : null],
+        ));
+        const row = result.rows[0];
+        if (!row) return json({ error: "FINANCIAL_ACCOUNT_SAVE_FAILED" }, 503);
+        return json({
+          id: row.id, type: row.account_type, name: row.name, currency: row.currency,
+          currentValueMinor: row.current_value_minor, targetAmountMinor: row.target_amount_minor,
+          openedOn: row.opened_on, status: row.status, notes: row.notes,
+          createdAt: row.created_at, updatedAt: row.updated_at,
+        }, 201);
+      } catch { return json({ error: "FINANCIAL_ACCOUNT_SAVE_FAILED" }, 503); }
+    }
+
+    const financialAccountMatch = url.pathname.match(/^\\/api\\/bank\\/personal-finance\\/accounts\\/([0-9a-f-]{36})$/i);
+    if (financialAccountMatch && request.method === "PATCH") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const allowed = ["name","currentValueMinor","targetAmountMinor","status","notes"];
+      if (!Object.keys(body).length || Object.keys(body).some((key) => !allowed.includes(key))) {
+        return json({ error: "INVALID_FINANCIAL_ACCOUNT_UPDATE" }, 400);
+      }
+      const sets: string[] = [];
+      const values: unknown[] = [financialAccountMatch[1], claims.sub];
+      for (const [key, value] of Object.entries(body)) {
+        if (key === "name") {
+          if (typeof value !== "string" || !value.trim() || value.trim().length > 120) return json({ error: "INVALID_ACCOUNT_NAME" }, 400);
+          values.push(value.trim()); sets.push(`name = ${values.length}`);
+        } else if (key === "currentValueMinor" || key === "targetAmountMinor") {
+          if (value === null && key === "targetAmountMinor") values.push(null);
+          else {
+            const amount = String(value);
+            if (!/^\\d{1,19}$/.test(amount) || (key === "targetAmountMinor" && BigInt(amount) <= 0n)) return json({ error: "INVALID_ACCOUNT_AMOUNT" }, 400);
+            values.push(amount);
+          }
+          sets.push(`${key === "currentValueMinor" ? "current_value_minor" : "target_amount_minor"} = ${values.length}`);
+        } else if (key === "status") {
+          if (!["active","closed"].includes(String(value))) return json({ error: "INVALID_ACCOUNT_STATUS" }, 400);
+          values.push(value); sets.push(`status = ${values.length}`);
+        } else if (key === "notes") {
+          if (value !== null && typeof value !== "string") return json({ error: "INVALID_ACCOUNT_NOTES" }, 400);
+          values.push(value === null ? null : value.trim().slice(0,2000) || null); sets.push(`notes = ${values.length}`);
+        }
+      }
+      sets.push("updated_at = now()");
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          `UPDATE public.bank_financial_accounts SET ${sets.join(", ")}
+            WHERE id = $1 AND user_id = $2
+            RETURNING id, account_type, name, currency, current_value_minor::text,
+              target_amount_minor::text, opened_on, status, notes, created_at, updated_at`,
+          values,
+        ));
+        const row = result.rows[0];
+        if (!row) return json({ error: "FINANCIAL_ACCOUNT_NOT_FOUND" }, 404);
+        return json({
+          id: row.id, type: row.account_type, name: row.name, currency: row.currency,
+          currentValueMinor: row.current_value_minor, targetAmountMinor: row.target_amount_minor,
+          openedOn: row.opened_on, status: row.status, notes: row.notes,
+          createdAt: row.created_at, updatedAt: row.updated_at,
+        });
+      } catch { return json({ error: "FINANCIAL_ACCOUNT_UPDATE_FAILED" }, 503); }
+    }
+
     if (url.pathname === "/api/bank/personal-finance/records" && request.method === "GET") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
