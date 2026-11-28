@@ -626,7 +626,7 @@ export default {
       try {
         const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
           `UPDATE public.bank_users
-              SET first_name = $3, last_name = $4,
+              SET first_name = $2, last_name = $3,
                   address = CASE WHEN $4 THEN $5 ELSE address END,
                   phone = CASE WHEN $6 THEN $7 ELSE phone END,
                   country = CASE WHEN $8 THEN $9 ELSE country END,
