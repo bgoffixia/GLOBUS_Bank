@@ -342,6 +342,18 @@ async function customerProfile(client: DbClient, clerkUserId: string) {
   return result.rows[0] ?? null;
 }
 
+async function ensureCustomerWallets(env: Env, clerkUserId: string): Promise<void> {
+  // Idempotently create the supported customer wallets for both new and
+  // existing verified customers. Existing wallet IDs, balances and statuses
+  // are preserved by the unique (user_id, currency) conflict guard.
+  await withCustomerWrite(env, clerkUserId, (client) => client.query(
+    `INSERT INTO public.bank_wallets (user_id, currency)
+     VALUES ($1, 'USD'), ($1, 'EUR'), ($1, 'GBP'), ($1, 'CAD')
+     ON CONFLICT (user_id, currency) DO NOTHING`,
+    [clerkUserId],
+  ));
+}
+
 async function customerWallets(client: DbClient, clerkUserId: string) {
   const result = await client.query(
     `SELECT w.id, w.currency,
@@ -599,6 +611,10 @@ export default {
             [claims.sub, identity.email, identity.firstName ?? null, identity.lastName ?? null],
           ));
         }
+
+        // Profile creation and wallet creation are separate so interrupted
+        // legacy signups are repaired without changing existing balances.
+        await ensureCustomerWallets(env, claims.sub);
 
         const dashboard = await withCustomerRead(env, claims.sub, async (client) => {
           const profile = await customerProfile(client, claims.sub!);
@@ -1008,6 +1024,7 @@ export default {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
       try {
+        await ensureCustomerWallets(env, claims.sub);
         const wallets = await withCustomerRead(env, claims.sub, (client) => customerWallets(client, claims.sub!));
         return json(wallets);
       } catch {
