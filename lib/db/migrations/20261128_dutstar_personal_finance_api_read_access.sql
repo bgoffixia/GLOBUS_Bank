@@ -79,3 +79,34 @@ GRANT UPDATE (
   transaction_pin_hash, transaction_pin_failed_attempts,
   transaction_pin_locked_until, updated_at
 ) ON public.bank_users TO dutstar_api;
+--> statement-breakpoint
+-- Customer-owned loan application access for the Cloudflare Worker.
+DROP POLICY IF EXISTS dutstar_api_loan_application_owner_select
+  ON public.bank_finance_loan_applications;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_loan_application_owner_select
+  ON public.bank_finance_loan_applications
+  FOR SELECT TO dutstar_api
+  USING (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_loan_application_owner_insert
+  ON public.bank_finance_loan_applications;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_loan_application_owner_insert
+  ON public.bank_finance_loan_applications
+  FOR INSERT TO dutstar_api
+  WITH CHECK (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_loan_application_owner_update
+  ON public.bank_finance_loan_applications;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_loan_application_owner_update
+  ON public.bank_finance_loan_applications
+  FOR UPDATE TO dutstar_api
+  USING (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''))
+  WITH CHECK (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+GRANT SELECT, INSERT ON public.bank_finance_loan_applications TO dutstar_api;
+--> statement-breakpoint
+GRANT UPDATE (status, updated_at)
+  ON public.bank_finance_loan_applications TO dutstar_api;
