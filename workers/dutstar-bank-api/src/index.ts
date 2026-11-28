@@ -397,6 +397,28 @@ type ClerkUserIdentity = {
   }>;
 };
 
+async function getVerifiedClerkPrimaryEmail(
+  userId: string,
+  env: Env,
+): Promise<string | null> {
+  if (!env.CLERK_SECRET_KEY) throw new Error("Clerk backend identity verification is not configured");
+  const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
+    headers: {
+      authorization: `Bearer ${env.CLERK_SECRET_KEY}`,
+      accept: "application/json",
+    },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("Clerk identity lookup failed");
+  const identity = await response.json() as ClerkUserIdentity;
+  const primary = identity.email_addresses?.find(
+    (email) => email.id === identity.primary_email_address_id,
+  );
+  if (!primary || primary.verification?.status !== "verified" ||
+      typeof primary.email_address !== "string") return null;
+  return primary.email_address.trim().toLowerCase();
+}
+
 async function getAllowlistedAdminEmail(
   userId: string,
   env: Env,
@@ -580,75 +602,77 @@ export default {
       const allowed = new Set(["firstName","lastName","address","phone","country","cityOfOrigin","dateOfBirth","occupation","acceptedTerms"]);
       if (Object.keys(body).some((key) => !allowed.has(key))) return json({ error: "INVALID_PROFILE_FIELDS" }, 400);
       const normalizeName = (value: unknown) => typeof value === "string" && value.trim().length > 0 &&
-        value.trim().length <= 80 && /\p{L}/u.test(value) && !/[\p{Cc}\p{Cf}]/u.test(value)
+        value.trim().length <= 80 && /\\p{L}/u.test(value) && !/[\\p{Cc}\\p{Cf}]/u.test(value)
         ? value.trim() : null;
       const firstName = normalizeName(body.firstName);
       const lastName = normalizeName(body.lastName);
       if (!firstName || !lastName) return json({ error: "FIRST_AND_LAST_NAME_REQUIRED" }, 400);
       const validText = (value: unknown, max: number) => typeof value === "string" &&
-        value.trim().length > 0 && value.trim().length <= max &&
-        /^[\p{L}\p{M}\p{N} .,'’()&/-]+$/u.test(value.trim()) ? value.trim() : null;
-      const optionalText = (key: string, max: number) => {
-        if (!(key in body)) return undefined;
-        if (body[key] === null) return null;
-        return validText(body[key], max);
-      };
-      const address = optionalText("address", 1024);
-      const country = optionalText("country", 1024);
-      const cityOfOrigin = optionalText("cityOfOrigin", 1024);
-      const occupation = optionalText("occupation", 1024);
-      if ((address === null && body.address !== null) || (country === null && body.country !== null) ||
-          (cityOfOrigin === null && body.cityOfOrigin !== null) || (occupation === null && body.occupation !== null)) {
-        return json({ error: "INVALID_PROFILE_TEXT" }, 400);
-      }
-      let phone: string | null | undefined;
-      if ("phone" in body) {
-        if (body.phone === null) phone = null;
-        else if (typeof body.phone === "string") {
-          const v = body.phone.trim(), digits = v.replace(/\D/g, "").length;
-          if (!v || v.length > 1024 || !/^\+?[0-9(). -]+$/.test(v) || digits < 7 || digits > 15) {
-            return json({ error: "INVALID_PHONE" }, 400);
-          }
-          phone = v;
-        } else return json({ error: "INVALID_PHONE" }, 400);
-      }
+        value.trim().length > 0 && value.trim().length <= max && /[\\p{L}\\p{N}]/u.test(value) &&
+        !/[\\p{Cc}\\p{Cf}]/u.test(value) ? value.trim() : null;
+      const address = body.address === undefined ? undefined : validText(body.address, 1024);
+      const phone = body.phone === undefined ? undefined :
+        (typeof body.phone === "string" && /^\\+?[0-9(). -]{7,32}$/.test(body.phone.trim()) ? body.phone.trim() : null);
+      const country = body.country === undefined ? undefined : validText(body.country, 100);
+      const cityOfOrigin = body.cityOfOrigin === undefined ? undefined : validText(body.cityOfOrigin, 100);
+      const occupation = body.occupation === undefined ? undefined : validText(body.occupation, 1024);
+      if ((body.address !== undefined && !address) || (body.phone !== undefined && !phone) ||
+          (body.country !== undefined && !country) || (body.cityOfOrigin !== undefined && !cityOfOrigin) ||
+          (body.occupation !== undefined && !occupation)) return json({ error: "INVALID_PROFILE_FIELD_VALUE" }, 400);
       let dateOfBirth: string | null | undefined;
-      if ("dateOfBirth" in body) {
-        if (body.dateOfBirth === null) dateOfBirth = null;
-        else if (typeof body.dateOfBirth === "string" &&
-          /^\d{4}-\d{2}-\d{2}$/.test(body.dateOfBirth) &&
-          Number.isFinite(new Date(body.dateOfBirth + "T00:00:00.000Z").getTime()) &&
-          new Date(body.dateOfBirth + "T00:00:00.000Z").toISOString().slice(0,10) === body.dateOfBirth &&
-          body.dateOfBirth <= new Date().toISOString().slice(0,10)) dateOfBirth = body.dateOfBirth;
-        else return json({ error: "INVALID_DATE_OF_BIRTH" }, 400);
+      if (body.dateOfBirth !== undefined) {
+        if (body.dateOfBirth === null || body.dateOfBirth === "") dateOfBirth = null;
+        else if (typeof body.dateOfBirth === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.dateOfBirth)) {
+          const parsed = new Date(`${body.dateOfBirth}T00:00:00.000Z`);
+          if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== body.dateOfBirth ||
+              body.dateOfBirth > new Date().toISOString().slice(0, 10)) return json({ error: "INVALID_DATE_OF_BIRTH" }, 400);
+          dateOfBirth = body.dateOfBirth;
+        } else return json({ error: "INVALID_DATE_OF_BIRTH" }, 400);
       }
       if ("acceptedTerms" in body && typeof body.acceptedTerms !== "boolean") return json({ error: "INVALID_ACCEPTED_TERMS" }, 400);
+
+      let verifiedEmail: string | null;
       try {
-        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
-          `UPDATE public.bank_users
-              SET first_name = $2, last_name = $3,
-                  address = CASE WHEN $4 THEN $5 ELSE address END,
-                  phone = CASE WHEN $6 THEN $7 ELSE phone END,
-                  country = CASE WHEN $8 THEN $9 ELSE country END,
-                  city_of_origin = CASE WHEN $10 THEN $11 ELSE city_of_origin END,
-                  date_of_birth = CASE WHEN $12 THEN $13::date ELSE date_of_birth END,
-                  occupation = CASE WHEN $14 THEN $15 ELSE occupation END,
-                  profile_setup_completed_at = COALESCE(profile_setup_completed_at, now()),
-                  accepted_terms_at = CASE WHEN $16 THEN now() ELSE accepted_terms_at END,
-                  updated_at = now()
-            WHERE id = $1
-            RETURNING id, email, customer_id, first_name, last_name, address, phone,
-              country, city_of_origin, date_of_birth, occupation, profile_setup_completed_at,
-              transfer_access_granted, (transaction_pin_hash IS NOT NULL) AS transaction_pin_configured,
-              account_status, created_at`,
-          [claims.sub, firstName, lastName,
-           address !== undefined, address ?? null, phone !== undefined, phone ?? null,
-           country !== undefined, country ?? null, cityOfOrigin !== undefined, cityOfOrigin ?? null,
-           dateOfBirth !== undefined, dateOfBirth ?? null, occupation !== undefined, occupation ?? null,
-           body.acceptedTerms === true],
-        ));
+        verifiedEmail = await getVerifiedClerkPrimaryEmail(claims.sub, env);
+      } catch {
+        return json({ error: "CLERK_IDENTITY_VERIFICATION_UNAVAILABLE" }, 503);
+      }
+      if (!verifiedEmail) return json({ error: "VERIFIED_PRIMARY_EMAIL_REQUIRED" }, 403);
+
+      try {
+        const result = await withCustomerWrite(env, claims.sub, async (client) => {
+          // Idempotently provision a bank profile for verified Clerk users.
+          // Existing profiles are never overwritten by this provisioning step.
+          await client.query(
+            "SELECT * FROM public.ensure_dutstar_customer_profile($1,$2,$3,$4,$5)",
+            [claims.sub, verifiedEmail, firstName, lastName, body.acceptedTerms === true],
+          );
+          return client.query(
+            `UPDATE public.bank_users
+                SET first_name = $2, last_name = $3,
+                    address = CASE WHEN $4 THEN $5 ELSE address END,
+                    phone = CASE WHEN $6 THEN $7 ELSE phone END,
+                    country = CASE WHEN $8 THEN $9 ELSE country END,
+                    city_of_origin = CASE WHEN $10 THEN $11 ELSE city_of_origin END,
+                    date_of_birth = CASE WHEN $12 THEN $13::date ELSE date_of_birth END,
+                    occupation = CASE WHEN $14 THEN $15 ELSE occupation END,
+                    profile_setup_completed_at = COALESCE(profile_setup_completed_at, now()),
+                    accepted_terms_at = CASE WHEN $16 THEN COALESCE(accepted_terms_at, now()) ELSE accepted_terms_at END,
+                    updated_at = now()
+              WHERE id = $1 AND lower(email) = $17
+              RETURNING id, email, customer_id, first_name, last_name, address, phone,
+                country, city_of_origin, date_of_birth, occupation, profile_setup_completed_at,
+                transfer_access_granted, (transaction_pin_hash IS NOT NULL) AS transaction_pin_configured,
+                account_status, created_at`,
+            [claims.sub, firstName, lastName,
+             address !== undefined, address ?? null, phone !== undefined, phone ?? null,
+             country !== undefined, country ?? null, cityOfOrigin !== undefined, cityOfOrigin ?? null,
+             dateOfBirth !== undefined, dateOfBirth ?? null, occupation !== undefined, occupation ?? null,
+             body.acceptedTerms === true, verifiedEmail],
+          );
+        });
         const user = result.rows[0];
-        if (!user) return json({ error: "PROFILE_SETUP_ALREADY_COMPLETED_OR_ACCOUNT_NOT_FOUND" }, 409);
+        if (!user) return json({ error: "BANK_PROFILE_LINK_CONFLICT" }, 409);
         return json({
           id: user.id, email: user.email, customerId: user.customer_id,
           firstName: user.first_name, lastName: user.last_name, address: user.address,
@@ -659,7 +683,9 @@ export default {
           transactionPinConfigured: Boolean(user.transaction_pin_configured),
           accountStatus: user.account_status, createdAt: user.created_at,
         });
-      } catch { return json({ error: "BANK_PROFILE_UPDATE_UNAVAILABLE" }, 503); }
+      } catch {
+        return json({ error: "BANK_PROFILE_UPDATE_UNAVAILABLE" }, 503);
+      }
     }
 
     if (url.pathname === "/api/bank/transaction-pin" && request.method === "PUT") {
