@@ -281,3 +281,25 @@ CREATE POLICY dutstar_api_notification_owner_delete
 GRANT SELECT, DELETE ON public.bank_notifications TO dutstar_api;
 --> statement-breakpoint
 GRANT UPDATE (read_at) ON public.bank_notifications TO dutstar_api;
+
+
+-- Cloudflare Private Vault session access. Session tokens are SHA-256 hashed
+-- before storage; only the authenticated owner may read/insert/revoke a session.
+ALTER TABLE public.bank_vault_sessions ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.bank_vault_admin_entitlements ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS dutstar_vault_sessions_owner_select ON public.bank_vault_sessions;
+DROP POLICY IF EXISTS dutstar_vault_sessions_owner_insert ON public.bank_vault_sessions;
+DROP POLICY IF EXISTS dutstar_vault_sessions_owner_delete ON public.bank_vault_sessions;
+CREATE POLICY dutstar_vault_sessions_owner_select ON public.bank_vault_sessions FOR SELECT TO dutstar_api
+  USING (user_id = current_setting('app.clerk_user_id', true));
+CREATE POLICY dutstar_vault_sessions_owner_insert ON public.bank_vault_sessions FOR INSERT TO dutstar_api
+  WITH CHECK (user_id = current_setting('app.clerk_user_id', true));
+CREATE POLICY dutstar_vault_sessions_owner_delete ON public.bank_vault_sessions FOR DELETE TO dutstar_api
+  USING (user_id = current_setting('app.clerk_user_id', true));
+DROP POLICY IF EXISTS dutstar_vault_entitlements_owner_select ON public.bank_vault_admin_entitlements;
+CREATE POLICY dutstar_vault_entitlements_owner_select ON public.bank_vault_admin_entitlements FOR SELECT TO dutstar_api
+  USING (user_id = current_setting('app.clerk_user_id', true));
+GRANT SELECT, INSERT, DELETE ON public.bank_vault_sessions TO dutstar_api;
+GRANT SELECT ON public.bank_vault_admin_entitlements TO dutstar_api;
+GRANT UPDATE (vault_passcode_failed_attempts, vault_passcode_locked_until, updated_at)
+  ON public.bank_users TO dutstar_api;
