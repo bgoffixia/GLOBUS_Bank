@@ -7,6 +7,7 @@
     "nodejs_compat"
   ],
   "workers_dev": false,
+  "previews": {},
   "vars": {
     "APP_NAME": "DUTSTAR BANK",
     "APP_ORIGIN": "https://www.bank.dutstar.online",
