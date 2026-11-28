@@ -3,6 +3,7 @@ name: DUTSTAR verification
 on:
   push:
     branches:
+      - main
       - migration/dutstar-cloudflare
   pull_request:
     branches:
