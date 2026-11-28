@@ -39,7 +39,6 @@ export function AppLanguageSelector({
     if (!open) return;
     const selectedIndex = Math.max(0, filtered.findIndex(option => option.code === language));
     setActive(selectedIndex);
-    requestAnimationFrame(() => searchRef.current?.focus());
     const onPointerDown = (event: PointerEvent) => {
       if (event.target instanceof Node && !rootRef.current?.contains(event.target)) {
         setOpen(false);
@@ -111,7 +110,7 @@ export function AppLanguageSelector({
       {open && (
         <div
           data-testid={`${testId}-drawer`}
-          className="absolute right-0 top-[calc(100%+6px)] z-[90] w-[min(16rem,calc(100vw-24px))] overflow-hidden rounded-xl border border-[#d9e4e8] bg-white shadow-[0_18px_40px_rgba(20,45,75,.16)]"
+          className="app-language-selector__drawer absolute right-0 top-[calc(100%+6px)] z-[90] w-[min(16rem,calc(100vw-24px))] overflow-hidden rounded-xl border border-[#d9e4e8] bg-white shadow-[0_18px_40px_rgba(20,45,75,.16)]"
         >
           <label className="relative block border-b border-[#edf1f3] p-2">
             <span className="sr-only">{t('Search languages')}</span>
@@ -136,7 +135,7 @@ export function AppLanguageSelector({
             id={listId}
             role="listbox"
             aria-label={t('Language')}
-            className="max-h-[min(260px,40dvh)] overflow-y-auto overscroll-contain p-1"
+            className="max-h-[min(260px,35dvh)] overflow-y-auto overscroll-contain p-1"
           >
             {filtered.map((option, index) => (
               <li
