@@ -678,9 +678,9 @@
   justify-content: center;
   border: 0;
   border-radius: 10px;
-  background: linear-gradient(105deg, #7048d6 0%, #925fe7 100%);
+  background: linear-gradient(105deg, #071a3a 0%, #1456a5 100%);
   color: #fff;
-  box-shadow: 0 6px 14px rgba(112, 72, 214, .16);
+  box-shadow: 0 6px 14px rgba(7, 26, 58, .20);
   font-size: 14px;
   font-weight: 700;
   letter-spacing: .005em;
@@ -689,8 +689,8 @@
 
 .gb-auth-signup-shell .gb-signup-content .gb-signup-continue:hover:not(:disabled),
 .gb-auth-signup-shell .gb-signup-content .gb-primary-button:hover:not(:disabled) {
-  background: linear-gradient(105deg, #6840ce 0%, #8754dc 100%);
-  box-shadow: 0 10px 22px rgba(112, 72, 214, .23);
+  background: linear-gradient(105deg, #06152f 0%, #104887 100%);
+  box-shadow: 0 10px 22px rgba(7, 26, 58, .28);
   transform: translateY(-1px);
 }
 
@@ -969,9 +969,9 @@ body:has(.gb-auth-signup-shell) #root {
   justify-content: center;
   border: 0;
   border-radius: 10px;
-  background: linear-gradient(105deg, #7048d6 0%, #925fe7 100%);
+  background: linear-gradient(105deg, #071a3a 0%, #1456a5 100%);
   color: #fff;
-  box-shadow: 0 6px 14px rgba(112, 72, 214, .16);
+  box-shadow: 0 6px 14px rgba(7, 26, 58, .20);
   font-size: 14px;
 }
 
