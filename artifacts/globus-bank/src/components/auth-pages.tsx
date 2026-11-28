@@ -72,7 +72,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
             <img src={asset('dutstar-mark.svg')} alt="" className="gb-mark" />
           </span>
           <span className="gb-wordmark-wrap">
-            <img src={asset('dutstar-mark.svg')} alt="DUTSTAR BANK" className="gb-wordmark" />
+            <img src={asset('dutstar-wordmark.svg')} alt="DUTSTAR BANK" className="gb-wordmark" />
           </span>
         </div>
         <div className="gb-brand-copy">
@@ -102,7 +102,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
             <AppLanguageSelector />
           </div>
           <div className={`gb-signup-brand${isSignUp ? '' : ' gb-signin-brand'}`}>
-            <img src={asset('dutstar-mark.svg')} alt="DUTSTAR BANK" />
+            <img src={asset('dutstar-lockup.svg')} alt="DUTSTAR BANK — Banking Made Smarter" />
           </div>
           {children}
           <div className="gb-signup-footer">
