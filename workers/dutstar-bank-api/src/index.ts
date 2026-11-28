@@ -729,8 +729,8 @@ export default {
       let body: { code?: unknown; passcode?: unknown };
       try { body = await request.json() as typeof body; }
       catch { return json({ error: "INVALID_JSON" }, 400); }
-      if (typeof body.code !== "string" || !/^\\d{8}$/.test(body.code) ||
-          typeof body.passcode !== "string" || !/^\\d{6,12}$/.test(body.passcode)) {
+      if (typeof body.code !== "string" || !/^\d{8}$/.test(body.code) ||
+          typeof body.passcode !== "string" || !/^\d{6,12}$/.test(body.passcode)) {
         return json({ error: "INVALID_RECOVERY_INPUT" }, 400);
       }
       try {
