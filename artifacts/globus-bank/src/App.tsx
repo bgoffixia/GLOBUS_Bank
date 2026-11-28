@@ -1,7 +1,8 @@
 import { useEffect, useRef, type ReactNode } from 'react';
-import { ClerkProvider, Show, useClerk, useUser } from '@clerk/react';
+import { ClerkProvider, Show, useAuth, useClerk, useUser } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
+import { setAuthTokenGetter } from '@workspace/api-client-react';
 import { ErrorBoundary } from '@/components/error-boundary';
 import { BankShell } from '@/components/bank-shell';
 import { Toaster } from '@/components/ui/toaster';
@@ -217,6 +218,25 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
+function ClerkApiTokenBridge() {
+  const { getToken, isLoaded, isSignedIn } = useAuth();
+
+  useEffect(() => {
+    if (!isLoaded || !isSignedIn) {
+      setAuthTokenGetter(null);
+      return;
+    }
+
+    // The DUTSTAR Worker verifies Clerk session JWTs from the Authorization
+    // header. Resolve a fresh token for every API request instead of relying
+    // on browser cookies, which the Worker does not use for authentication.
+    setAuthTokenGetter(() => getToken());
+    return () => setAuthTokenGetter(null);
+  }, [getToken, isLoaded, isSignedIn]);
+
+  return null;
+}
+
 function ClerkRoutes() {
   const [, setLocation] = useLocation();
   const { t } = useLanguage();
@@ -246,6 +266,7 @@ function ClerkRoutes() {
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
       <ClerkQueryClientCacheInvalidator />
+      <ClerkApiTokenBridge />
       <PendingSignupProfilePersistence />
       <Switch>
         <Route path="/" component={HomeRedirect} />
