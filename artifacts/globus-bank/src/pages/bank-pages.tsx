@@ -174,35 +174,20 @@ export function HomePage() {
                 <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#078e91]" />{t('Multi-currency workspace')}</span>
               </div>
             </div>
-            <div className="dutstar-reveal dutstar-reveal-late relative mx-auto w-full max-w-[510px]">
-              <div className="absolute -inset-5 rounded-[34px] bg-gradient-to-br from-[#c9eeeb]/60 via-white/30 to-[#d8e6fa]/70 blur-2xl" />
-              <div className="relative overflow-hidden rounded-[26px] border border-white/90 bg-white/90 p-4 shadow-[0_28px_80px_rgba(19,48,83,.14)] backdrop-blur-xl sm:p-5">
-                <div className="flex items-center justify-between border-b border-[#e9eef2] pb-4">
-                  <div className="flex items-center gap-3">
-                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#09234f] to-[#1263b2] text-white shadow-md"><Building2 size={19} /></span>
-                    <div><p className="text-[12px] font-bold text-[#1c3654]">{t('Account overview')}</p><p className="mt-0.5 text-[9px] text-[#8392a1]">{t('Your DUTSTAR workspace')}</p></div>
-                  </div>
-                  <span className="rounded-full border border-[#d7ece8] bg-[#f0faf7] px-2.5 py-1 text-[8px] font-bold uppercase tracking-[.12em] text-[#39816f]">{t('Overview')}</span>
-                </div>
-                <div className="mt-5 rounded-2xl bg-gradient-to-br from-[#0a2147] via-[#103d79] to-[#087e91] p-5 text-white shadow-[0_12px_30px_rgba(8,42,86,.18)]">
-                  <div className="flex items-center justify-between gap-3"><p className="text-[10px] font-medium text-white/70">{t('Wallet snapshot')}</p><WalletCards size={17} className="text-[#9ce4df]" /></div>
-                  <p className="mt-4 text-[9px] font-semibold uppercase tracking-[.17em] text-white/65">{t('Available balance')}</p>
-                  <p className="mt-1 text-[clamp(1.8rem,5vw,2.5rem)] font-semibold tracking-[-.04em]">— — —</p>
-                  <p className="mt-1 text-[9px] text-white/65">{t('Sign in to view your account balances')}</p>
-                  <div className="mt-5 grid grid-cols-3 gap-2">
-                    {['USD', 'EUR', 'GBP'].map(currency => <div key={currency} className="rounded-lg border border-white/15 bg-white/[.09] px-3 py-2"><p className="text-[9px] font-bold">{currency}</p><p className="mt-1 text-[10px] text-white/65">— —</p></div>)}
-                  </div>
-                </div>
-                <div className="mt-5 flex items-center justify-between"><p className="text-[11px] font-bold text-[#2b425b]">{t('Account activity')}</p><span className="text-[9px] text-[#8b99a6]">{t('Workspace preview')}</span></div>
-                <div className="mt-3 space-y-2.5">
-                  <div className="flex items-center gap-3 rounded-xl border border-[#edf1f4] bg-[#fbfcfd] p-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eaf6f3] text-[#378b79]"><ArrowDownLeft size={16} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-[#40566e]">{t('Incoming record')}</p><p className="mt-1 text-[9px] text-[#8a98a6]">{t('Reference and status details')}</p></div><span className="text-[9px] font-semibold text-[#708396]">—</span></div>
-                  <div className="flex items-center gap-3 rounded-xl border border-[#edf1f4] bg-[#fbfcfd] p-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eef3fb] text-[#416ca3]"><ArrowUpRight size={16} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-[#40566e]">{t('Account entry')}</p><p className="mt-1 text-[9px] text-[#8a98a6]">{t('Date and activity description')}</p></div><span className="text-[9px] font-semibold text-[#708396]">—</span></div>
-                </div>
-                <div className="mt-4 flex items-center gap-2 border-t border-[#edf1f4] pt-4 text-[9px] text-[#8493a1]"><LockKeyhole size={13} className="text-[#078e91]" />{t('Illustrative preview · sign in for your own records')}</div>
+            <div className="dutstar-reveal dutstar-reveal-late relative mx-auto w-full max-w-[590px]">
+              <div className="absolute -inset-8 rounded-[42px] bg-gradient-to-br from-[#c9eeeb]/65 via-white/30 to-[#d8e6fa]/75 blur-3xl" />
+              <img
+                src={`${import.meta.env.BASE_URL}dutstar-hero-artwork.svg`}
+                alt={t('DUTSTAR BANK digital banking hero artwork featuring a secure financial overview, multi-currency wallet workspace and premium bank card')}
+                className="relative block h-auto w-full rounded-[30px] object-contain drop-shadow-[0_28px_48px_rgba(19,48,83,.18)]"
+                fetchPriority="high"
+                decoding="async"
+              />
+              <div className="dutstar-float absolute -left-3 top-[24%] hidden items-center gap-2 rounded-xl border border-white bg-white px-3 py-2.5 text-[9px] font-bold text-[#38536e] shadow-[0_12px_30px_rgba(25,50,80,.12)] sm:flex">
+                <span className="grid h-7 w-7 place-items-center rounded-lg bg-[#e8f6f4] text-[#0c9293]"><ShieldCheck size={14} /></span>
+                {t('Secure digital banking')}
               </div>
-              <div className="dutstar-float absolute -left-5 top-[27%] hidden items-center gap-2 rounded-xl border border-white bg-white px-3 py-2.5 text-[9px] font-bold text-[#38536e] shadow-[0_12px_30px_rgba(25,50,80,.12)] sm:flex"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#e8f6f4] text-[#0c9293]"><Clock3 size={14} /></span>{t('Clear activity history')}</div>
             </div>
-          </div>
           <div className="mx-auto max-w-[1320px] px-5 pb-14 sm:px-8 lg:px-12">
             <div className="dutstar-brand-panel relative overflow-hidden rounded-[24px] border border-[#e0e9ee] bg-white px-5 py-6 shadow-[0_18px_55px_rgba(25,53,82,.07)] sm:px-10 sm:py-8">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0b2b68] via-[#087eb0] to-[#12b8ad]" />
