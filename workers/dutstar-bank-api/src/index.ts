@@ -504,6 +504,7 @@ export default {
         if (body.dateOfBirth === null) dateOfBirth = null;
         else if (typeof body.dateOfBirth === "string" &&
           /^\d{4}-\d{2}-\d{2}$/.test(body.dateOfBirth) &&
+          Number.isFinite(new Date(body.dateOfBirth + "T00:00:00.000Z").getTime()) &&
           new Date(body.dateOfBirth + "T00:00:00.000Z").toISOString().slice(0,10) === body.dateOfBirth &&
           body.dateOfBirth <= new Date().toISOString().slice(0,10)) dateOfBirth = body.dateOfBirth;
         else return json({ error: "INVALID_DATE_OF_BIRTH" }, 400);
@@ -513,21 +514,21 @@ export default {
         const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
           `UPDATE public.bank_users
               SET first_name = $3, last_name = $4,
-                  address = CASE WHEN $5 THEN $6 ELSE address END,
-                  phone = CASE WHEN $7 THEN $8 ELSE phone END,
-                  country = CASE WHEN $9 THEN $10 ELSE country END,
-                  city_of_origin = CASE WHEN $11 THEN $12 ELSE city_of_origin END,
-                  date_of_birth = CASE WHEN $13 THEN $14::date ELSE date_of_birth END,
-                  occupation = CASE WHEN $15 THEN $16 ELSE occupation END,
+                  address = CASE WHEN $4 THEN $5 ELSE address END,
+                  phone = CASE WHEN $6 THEN $7 ELSE phone END,
+                  country = CASE WHEN $8 THEN $9 ELSE country END,
+                  city_of_origin = CASE WHEN $10 THEN $11 ELSE city_of_origin END,
+                  date_of_birth = CASE WHEN $12 THEN $13::date ELSE date_of_birth END,
+                  occupation = CASE WHEN $14 THEN $15 ELSE occupation END,
                   profile_setup_completed_at = now(),
-                  accepted_terms_at = CASE WHEN $17 THEN now() ELSE accepted_terms_at END,
+                  accepted_terms_at = CASE WHEN $16 THEN now() ELSE accepted_terms_at END,
                   updated_at = now()
             WHERE id = $1 AND profile_setup_completed_at IS NULL
             RETURNING id, email, customer_id, first_name, last_name, address, phone,
               country, city_of_origin, date_of_birth, occupation, profile_setup_completed_at,
               transfer_access_granted, (transaction_pin_hash IS NOT NULL) AS transaction_pin_configured,
               account_status, created_at`,
-          [claims.sub, null, firstName, lastName,
+          [claims.sub, firstName, lastName,
            address !== undefined, address ?? null, phone !== undefined, phone ?? null,
            country !== undefined, country ?? null, cityOfOrigin !== undefined, cityOfOrigin ?? null,
            dateOfBirth !== undefined, dateOfBirth ?? null, occupation !== undefined, occupation ?? null,
