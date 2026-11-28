@@ -113,6 +113,7 @@ export function LandingPageHeader({
             >
               <p className="globus-landing-header__menu-eyebrow">{t('Explore DUTSTAR')}</p>
               <a href="#features" onClick={closeMenu} data-testid="link-nav-features">{t('Features')}</a>
+              <a href="#banking-portfolio" onClick={closeMenu} data-testid="link-nav-banking-portfolio">{t('Banking portfolio')}</a>
               <a href="#account-record" onClick={closeMenu} data-testid="link-nav-account-record">{t('Account record')}</a>
               <div className="globus-landing-header__menu-auth">
                 {!isSignedIn && (
