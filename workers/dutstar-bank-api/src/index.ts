@@ -214,6 +214,38 @@ function transactionPayload(row: Record<string, unknown>, viewerId: string) {
   };
 }
 
+async function withCustomerWrite<T>(
+  env: Env,
+  clerkUserId: string,
+  work: (client: DbClient) => Promise<T>,
+): Promise<T> {
+  if (!env.DB) throw new Error("Database is not configured");
+  const client = new Client({
+    connectionString: env.DB.connectionString,
+    connectionTimeoutMillis: 5_000,
+    query_timeout: 8_000,
+  });
+  let inTransaction = false;
+  try {
+    await client.connect();
+    await client.query("BEGIN");
+    inTransaction = true;
+    await client.query("SET LOCAL ROLE dutstar_api");
+    await client.query("SELECT set_config('app.clerk_user_id', $1, true)", [clerkUserId]);
+    const result = await work(client);
+    await client.query("COMMIT");
+    inTransaction = false;
+    return result;
+  } catch (error) {
+    if (inTransaction) {
+      try { await client.query("ROLLBACK"); } catch { /* connection may be closed */ }
+    }
+    throw error;
+  } finally {
+    try { await client.end(); } catch { /* close best-effort */ }
+  }
+}
+
 async function customerProfile(client: DbClient, clerkUserId: string) {
   const result = await client.query(
     `SELECT id, email, customer_id, first_name, last_name, address, phone,
@@ -503,6 +535,122 @@ export default {
       } catch {
         return json({ error: "PERSONAL_FINANCE_UNAVAILABLE" }, 503);
       }
+    }
+
+    if (url.pathname === "/api/bank/personal-finance/records" && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const kinds = ["expense", "savings", "investment", "loan", "bill"];
+      const currencies = ["USD", "EUR", "GBP", "NGN", "CAD", "AUD"];
+      const frequencies = ["once", "weekly", "monthly", "quarterly", "yearly"];
+      const amount = typeof body.amountMinor === "string" ? body.amountMinor : String(body.amountMinor ?? "");
+      const target = body.targetAmountMinor == null ? null : String(body.targetAmountMinor);
+      if (!kinds.includes(String(body.kind)) || !currencies.includes(String(body.currency)) ||
+          typeof body.title !== "string" || !body.title.trim() || body.title.length > 160 ||
+          !/^\d+$/.test(amount) || BigInt(amount) < 0n ||
+          (body.kind === "expense" && BigInt(amount) === 0n) ||
+          typeof body.recordDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(body.recordDate) ||
+          (body.dueDate != null && (typeof body.dueDate !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(body.dueDate))) ||
+          (body.frequency != null && !frequencies.includes(String(body.frequency))) ||
+          (body.kind === "savings" && (!target || !/^\d+$/.test(target) || BigInt(target) <= 0n)) ||
+          (body.kind !== "savings" && target !== null)) {
+        return json({ error: "INVALID_PERSONAL_FINANCE_RECORD" }, 400);
+      }
+      try {
+        const result = await withCustomerWrite(env, claims.sub, async (client) => client.query(
+          `INSERT INTO public.bank_personal_finance_records
+            (user_id, kind, title, category, currency, amount_minor, target_amount_minor,
+             record_date, due_date, frequency, status, notes)
+           VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,'active',$11)
+           RETURNING id, kind, title, category, currency, amount_minor::text,
+             target_amount_minor::text, record_date, due_date, frequency, status, notes, created_at, updated_at`,
+          [claims.sub, body.kind, body.title.trim(), typeof body.category === "string" ? body.category.slice(0,100) : null,
+           body.currency, amount, target, body.recordDate, body.dueDate ?? null, body.frequency ?? null,
+           typeof body.notes === "string" ? body.notes.slice(0,2000) : null],
+        ));
+        const row = result.rows[0];
+        if (!row) return json({ error: "PERSONAL_FINANCE_SAVE_FAILED" }, 503);
+        return json({ record: {
+          id: row.id, kind: row.kind, title: row.title, category: row.category, currency: row.currency,
+          amountMinor: row.amount_minor, targetAmountMinor: row.target_amount_minor,
+          recordDate: row.record_date, dueDate: row.due_date, frequency: row.frequency,
+          status: row.status, notes: row.notes, createdAt: row.created_at, updatedAt: row.updated_at,
+        } }, 201);
+      } catch { return json({ error: "PERSONAL_FINANCE_SAVE_FAILED" }, 503); }
+    }
+
+    const personalFinanceRecordMatch = url.pathname.match(/^\/api\/bank\/personal-finance\/records\/([0-9a-f-]{36})$/i);
+    if (personalFinanceRecordMatch && request.method === "DELETE") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          "DELETE FROM public.bank_personal_finance_records WHERE id = $1 AND user_id = $2 RETURNING id",
+          [personalFinanceRecordMatch[1], claims.sub],
+        ));
+        return result.rowCount ? json({ deleted: true }) : json({ error: "RECORD_NOT_FOUND" }, 404);
+      } catch { return json({ error: "PERSONAL_FINANCE_DELETE_FAILED" }, 503); }
+    }
+
+    if (personalFinanceRecordMatch && request.method === "PATCH") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const allowed: Record<string, string> = {
+        title: "title", category: "category", amountMinor: "amount_minor",
+        targetAmountMinor: "target_amount_minor", recordDate: "record_date",
+        dueDate: "due_date", frequency: "frequency", status: "status", notes: "notes",
+      };
+      const entries = Object.entries(body).filter(([key]) => Object.hasOwn(allowed, key));
+      if (!entries.length || entries.length !== Object.keys(body).length) return json({ error: "INVALID_UPDATE_FIELDS" }, 400);
+      const sets: string[] = [];
+      const values: unknown[] = [personalFinanceRecordMatch[1], claims.sub];
+      for (const [key, value] of entries) {
+        if (key === "amountMinor" || key === "targetAmountMinor") {
+          const amount = String(value);
+          if (!/^\d+$/.test(amount)) return json({ error: "INVALID_AMOUNT" }, 400);
+          values.push(amount);
+        } else if (key === "status") {
+          if (!["active", "paid", "closed"].includes(String(value))) return json({ error: "INVALID_STATUS" }, 400);
+          values.push(value);
+        } else if (key === "frequency") {
+          if (value !== null && !["once", "weekly", "monthly", "quarterly", "yearly"].includes(String(value))) return json({ error: "INVALID_FREQUENCY" }, 400);
+          values.push(value);
+        } else if (key === "recordDate" || key === "dueDate") {
+          if (value !== null && (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value))) return json({ error: "INVALID_DATE" }, 400);
+          values.push(value);
+        } else if (key === "title") {
+          if (typeof value !== "string" || !value.trim() || value.length > 160) return json({ error: "INVALID_TITLE" }, 400);
+          values.push(value.trim());
+        } else if (key === "category" || key === "notes") {
+          if (value !== null && typeof value !== "string") return json({ error: "INVALID_TEXT_FIELD" }, 400);
+          values.push(value === null ? null : String(value).slice(0, key === "notes" ? 2000 : 100));
+        }
+        sets.push(`${allowed[key]} = ${values.length}`);
+      }
+      sets.push("updated_at = now()");
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          `UPDATE public.bank_personal_finance_records SET ${sets.join(", ")}
+            WHERE id = $1 AND user_id = $2
+            RETURNING id, kind, title, category, currency, amount_minor::text,
+              target_amount_minor::text, record_date, due_date, frequency, status, notes, created_at, updated_at`,
+          values,
+        ));
+        const row = result.rows[0];
+        if (!row) return json({ error: "RECORD_NOT_FOUND" }, 404);
+        return json({ record: {
+          id: row.id, kind: row.kind, title: row.title, category: row.category, currency: row.currency,
+          amountMinor: row.amount_minor, targetAmountMinor: row.target_amount_minor,
+          recordDate: row.record_date, dueDate: row.due_date, frequency: row.frequency,
+          status: row.status, notes: row.notes, createdAt: row.created_at, updatedAt: row.updated_at,
+        } });
+      } catch { return json({ error: "PERSONAL_FINANCE_UPDATE_FAILED" }, 503); }
     }
 
     if (url.pathname.startsWith("/api/")) {
