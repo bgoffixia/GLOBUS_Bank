@@ -72,3 +72,10 @@ GRANT UPDATE (
   date_of_birth, occupation, profile_setup_completed_at,
   accepted_terms_at, updated_at
 ) ON public.bank_users TO dutstar_api;
+--> statement-breakpoint
+-- PIN values remain hash-only. This grants the Worker access only to the
+-- current user's own PIN hash and lockout state through the owner RLS policy.
+GRANT UPDATE (
+  transaction_pin_hash, transaction_pin_failed_attempts,
+  transaction_pin_locked_until, updated_at
+) ON public.bank_users TO dutstar_api;
