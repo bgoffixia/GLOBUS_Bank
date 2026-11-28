@@ -14,6 +14,8 @@ export interface Env {
   SESSION_SECRET?: string;
   PAYSTACK_SECRET_KEY?: string;
   PAYSTACK_WEBHOOK_SECRET?: string;
+  RESEND_API_KEY?: string;
+  PRIVATE_FILES?: unknown;
 }
 
 const JSON_HEADERS = {
