@@ -661,6 +661,55 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/bank/notifications" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerRead(env, claims.sub, (client) => client.query(
+          `SELECT id, category, title, body, reference, read_at, created_at
+             FROM public.bank_notifications WHERE user_id = $1
+            ORDER BY created_at DESC LIMIT 50`,
+          [claims.sub],
+        ));
+        return json(result.rows.map((row) => ({
+          id: row.id, category: row.category, title: row.title, body: row.body,
+          reference: row.reference, readAt: row.read_at, createdAt: row.created_at,
+        })));
+      } catch { return json({ error: "BANK_NOTIFICATIONS_UNAVAILABLE" }, 503); }
+    }
+
+    if (url.pathname === "/api/bank/notifications" && request.method === "DELETE") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          "DELETE FROM public.bank_notifications WHERE user_id = $1 RETURNING id",
+          [claims.sub],
+        ));
+        return json({ deletedCount: result.rowCount ?? 0 });
+      } catch { return json({ error: "BANK_NOTIFICATIONS_CLEAR_FAILED" }, 503); }
+    }
+
+    const notificationReadMatch = url.pathname.match(/^\\/api\\/bank\\/notifications\\/([0-9a-f-]{36})\\/read$/i);
+    if (notificationReadMatch && request.method === "PATCH") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          `UPDATE public.bank_notifications SET read_at = now()
+            WHERE id = $1 AND user_id = $2
+            RETURNING id, category, title, body, reference, read_at, created_at`,
+          [notificationReadMatch[1], claims.sub],
+        ));
+        const row = result.rows[0];
+        if (!row) return json({ error: "NOTIFICATION_NOT_FOUND" }, 404);
+        return json({
+          id: row.id, category: row.category, title: row.title, body: row.body,
+          reference: row.reference, readAt: row.read_at, createdAt: row.created_at,
+        });
+      } catch { return json({ error: "BANK_NOTIFICATION_READ_FAILED" }, 503); }
+    }
+
     if (url.pathname === "/api/bank/support/conversations" && request.method === "GET") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
