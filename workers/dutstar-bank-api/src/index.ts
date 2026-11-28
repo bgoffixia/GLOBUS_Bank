@@ -592,15 +592,11 @@ export default {
               message: "Verify your primary email before accessing your DUTSTAR dashboard.",
             }, 403);
           }
-          if (!identity.firstName || !identity.lastName) {
-            return json({
-              error: "PROFILE_NAME_DETAILS_REQUIRED",
-              message: "Complete your first and last name in your verified account profile, then reload the dashboard.",
-            }, 409);
-          }
+          // Names are optional profile fields. A verified identity is enough
+          // to provision the bank profile and render the dashboard.
           await withCustomerWrite(env, claims.sub, (client) => client.query(
             "SELECT * FROM public.ensure_dutstar_customer_profile($1,$2,$3,$4,false)",
-            [claims.sub, identity.email, identity.firstName, identity.lastName],
+            [claims.sub, identity.email, identity.firstName ?? null, identity.lastName ?? null],
           ));
         }
 
@@ -661,12 +657,10 @@ export default {
         if (!profile) {
           const identity = await getVerifiedClerkIdentity(claims.sub, env);
           if (!identity) return json({ error: "VERIFIED_PRIMARY_EMAIL_REQUIRED", message: "Verify your primary email before setting up your DUTSTAR profile." }, 403);
-          if (!identity.firstName || !identity.lastName) {
-            return json({ error: "PROFILE_NAME_DETAILS_REQUIRED", message: "Add your first and last name to your Clerk account, then reload your profile." }, 409);
-          }
+          // Keep profile completion separate from verified-email access.
           await withCustomerWrite(env, claims.sub, (client) => client.query(
             "SELECT * FROM public.ensure_dutstar_customer_profile($1,$2,$3,$4,false)",
-            [claims.sub, identity.email, identity.firstName, identity.lastName],
+            [claims.sub, identity.email, identity.firstName ?? null, identity.lastName ?? null],
           ));
           profile = await withCustomerRead(env, claims.sub, (client) => customerProfile(client, claims.sub!));
         }
