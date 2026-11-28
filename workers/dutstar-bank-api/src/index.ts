@@ -389,6 +389,8 @@ async function customerTransactions(
 
 
 type ClerkUserIdentity = {
+  first_name?: string | null;
+  last_name?: string | null;
   primary_email_address_id?: string | null;
   email_addresses?: Array<{
     id?: string;
@@ -397,10 +399,10 @@ type ClerkUserIdentity = {
   }>;
 };
 
-async function getVerifiedClerkPrimaryEmail(
+async function getVerifiedClerkIdentity(
   userId: string,
   env: Env,
-): Promise<string | null> {
+): Promise<{ email: string; firstName: string; lastName: string } | null> {
   if (!env.CLERK_SECRET_KEY) throw new Error("Clerk backend identity verification is not configured");
   const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
     headers: {
@@ -416,7 +418,11 @@ async function getVerifiedClerkPrimaryEmail(
   );
   if (!primary || primary.verification?.status !== "verified" ||
       typeof primary.email_address !== "string") return null;
-  return primary.email_address.trim().toLowerCase();
+  return {
+    email: primary.email_address.trim().toLowerCase(),
+    firstName: typeof identity.first_name === "string" ? identity.first_name.trim() : "",
+    lastName: typeof identity.last_name === "string" ? identity.last_name.trim() : "",
+  };
 }
 
 async function getAllowlistedAdminEmail(
@@ -571,8 +577,20 @@ export default {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
       try {
-        const profile = await withCustomerRead(env, claims.sub, (client) => customerProfile(client, claims.sub!));
-        if (!profile) return json({ error: "BANK_ACCOUNT_NOT_FOUND", message: "Your bank profile is not yet linked. Contact support to complete account linking." }, 404);
+        let profile = await withCustomerRead(env, claims.sub, (client) => customerProfile(client, claims.sub!));
+        if (!profile) {
+          const identity = await getVerifiedClerkIdentity(claims.sub, env);
+          if (!identity) return json({ error: "VERIFIED_PRIMARY_EMAIL_REQUIRED", message: "Verify your primary email before setting up your DUTSTAR profile." }, 403);
+          if (!identity.firstName || !identity.lastName) {
+            return json({ error: "PROFILE_NAME_DETAILS_REQUIRED", message: "Add your first and last name to your Clerk account, then reload your profile." }, 409);
+          }
+          await withCustomerWrite(env, claims.sub, (client) => client.query(
+            "SELECT * FROM public.ensure_dutstar_customer_profile($1,$2,$3,$4,false)",
+            [claims.sub, identity.email, identity.firstName, identity.lastName],
+          ));
+          profile = await withCustomerRead(env, claims.sub, (client) => customerProfile(client, claims.sub!));
+        }
+        if (!profile) return json({ error: "BANK_ACCOUNT_NOT_FOUND", message: "Your bank profile could not be linked. Try again or contact DUTSTAR support." }, 404);
         return json({
           id: profile.id, email: profile.email, customerId: profile.customer_id,
           firstName: profile.first_name, lastName: profile.last_name, address: profile.address,
@@ -633,7 +651,8 @@ export default {
 
       let verifiedEmail: string | null;
       try {
-        verifiedEmail = await getVerifiedClerkPrimaryEmail(claims.sub, env);
+        const identity = await getVerifiedClerkIdentity(claims.sub, env);
+        verifiedEmail = identity?.email ?? null;
       } catch {
         return json({ error: "CLERK_IDENTITY_VERIFICATION_UNAVAILABLE" }, 503);
       }
