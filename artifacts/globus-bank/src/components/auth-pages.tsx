@@ -102,7 +102,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
             <AppLanguageSelector />
           </div>
           <div className={`gb-signup-brand${isSignUp ? '' : ' gb-signin-brand'}`}>
-            <img src={asset('dutstar-lockup.svg')} alt="DUTSTAR BANK — Banking Made Smarter" />
+            <img src={asset('dutstar-wordmark.svg')} alt="DUTSTAR BANK — Banking Made Smarter" />
           </div>
           {children}
           <div className="gb-signup-footer">
