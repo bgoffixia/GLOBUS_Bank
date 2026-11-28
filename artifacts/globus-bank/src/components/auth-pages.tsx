@@ -69,10 +69,10 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
       <aside className="gb-brand-panel">
         <div className="gb-brand-lockup">
           <span className="gb-mark-wrap">
-            <img src={asset('globus-mark-transparent.png')} alt="" className="gb-mark" />
+            <img src={asset('dutstar-mark.svg')} alt="" className="gb-mark" />
           </span>
           <span className="gb-wordmark-wrap">
-            <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" className="gb-wordmark" />
+            <img src={asset('dutstar-mark.svg')} alt="DUTSTAR BANK" className="gb-wordmark" />
           </span>
         </div>
         <div className="gb-brand-copy">
@@ -80,7 +80,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
           <h2>{t(isSignUp ? 'Begin with\na better view.' : 'Your world.\nIn one place.')}</h2>
           <p>
             {isSignUp
-              ? t('Create your member account and bring your Globus activity into focus.')
+              ? t('Create your member account and bring your DUTSTAR activity into focus.')
               : t('Access your accounts, follow your balances, and move money with clarity.')}
           </p>
         </div>
@@ -91,7 +91,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
           <span className="gb-world-label">{t('GLOBAL FINANCE')}</span>
         </div>
         <div className="gb-panel-foot">
-          <span>GLOBUS BANK</span>
+          <span>DUTSTAR BANK</span>
           <span>{t('YOUR WORLD. OUR PRIORITY.')}</span>
         </div>
       </aside>
@@ -102,7 +102,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
             <AppLanguageSelector />
           </div>
           <div className={`gb-signup-brand${isSignUp ? '' : ' gb-signin-brand'}`}>
-            <img src={asset('globus-wordmark-transparent.png')} alt="Globus Bank" />
+            <img src={asset('dutstar-mark.svg')} alt="DUTSTAR BANK" />
           </div>
           {children}
           <div className="gb-signup-footer">
@@ -215,11 +215,11 @@ export function ClerkSignInForm() {
         return;
       case 'verification':
         if (!(await startAdditionalVerification())) {
-          setError('Your account requires an additional sign-in method that this page cannot complete. Contact Globus support.');
+          setError('Your account requires an additional sign-in method that this page cannot complete. Contact DUTSTAR support.');
         }
         return;
       default:
-        setError('Sign-in needs another verification step. Please contact Globus support.');
+        setError('Sign-in needs another verification step. Please contact DUTSTAR support.');
     }
   };
 
@@ -383,7 +383,7 @@ export function ClerkSignInForm() {
       <p className="gb-recovery-link">
         <Link href="/private-vault/reset-passcode">Forgot your Private Vault PIN?</Link>
       </p>
-      <p className="gb-switch-copy">{t('New to Globus?')} <Link href="/sign-up">{t('Create an account')}</Link></p>
+      <p className="gb-switch-copy">{t('New to DUTSTAR?')} <Link href="/sign-up">{t('Create an account')}</Link></p>
     </div>
   );
 }
@@ -525,7 +525,7 @@ export function EmailRecoverySignInForm() {
       const factor = (['email_code', 'phone_code', 'totp', 'backup_code'] as const)
         .find(strategy => available.has(strategy));
       if (!factor) {
-        setError('This account needs another sign-in method before its username can be shown. Contact Globus support.');
+        setError('This account needs another sign-in method before its username can be shown. Contact DUTSTAR support.');
         return;
       }
       const prepared = factor === 'email_code'
@@ -543,7 +543,7 @@ export function EmailRecoverySignInForm() {
       setNotice('Enter the additional code to continue.');
       return;
     }
-    setError('The email was verified, but another sign-in step is required. Try your username and password or contact Globus support.');
+    setError('The email was verified, but another sign-in step is required. Try your username and password or contact DUTSTAR support.');
   };
 
   const verifyCode = async (event: FormEvent<HTMLFormElement>) => {
@@ -566,7 +566,7 @@ export function EmailRecoverySignInForm() {
           return;
         }
         if (signIn.status !== 'needs_new_password') {
-          setError('Recovery needs another verification step. Request a fresh code or contact Globus support.');
+          setError('Recovery needs another verification step. Request a fresh code or contact DUTSTAR support.');
           return;
         }
         setStage('password');
@@ -608,7 +608,7 @@ export function EmailRecoverySignInForm() {
         return;
       }
       if (signIn.status !== 'complete') {
-        setError('Your account requires another verification step before recovery can finish. Contact Globus support.');
+        setError('Your account requires another verification step before recovery can finish. Contact DUTSTAR support.');
         return;
       }
       const finalized = await signIn.finalize({ navigate: () => undefined });
@@ -643,7 +643,7 @@ export function EmailRecoverySignInForm() {
           {stage === 'code' && recoveryType === 'password' && 'Enter the code to reset your password.'}
           {stage === 'username-factor' && 'Complete the additional sign-in check.'}
           {stage === 'username-revealed' && 'Your email is verified. Your username is below.'}
-          {stage === 'password' && 'Set a new password for your Globus account.'}
+          {stage === 'password' && 'Set a new password for your DUTSTAR account.'}
           {stage === 'complete' && 'Your password has been reset.'}
         </p>
       </div>
@@ -1173,7 +1173,7 @@ export function ClerkSignUpForm() {
 
     try {
       if (!firstName.trim() || !lastName.trim()) {
-        setError('Enter both your first name and last name, as required by Globus account setup.');
+        setError('Enter both your first name and last name, as required by DUTSTAR account setup.');
         return;
       }
       if (!/^(?=.*[A-Za-z])[A-Za-z0-9_-]{6,12}$/.test(username)) {

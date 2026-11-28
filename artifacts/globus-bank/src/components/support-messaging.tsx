@@ -123,7 +123,7 @@ function MessageThread({
       const own = admin ? !fromCustomer : fromCustomer;
       return <article key={message.id} className={`max-w-[88%] rounded-[13px] px-3.5 py-3 sm:max-w-[78%] ${own ? 'ml-auto rounded-br-[4px] bg-[#e8f1ed] text-[#29484a]' : 'mr-auto rounded-bl-[4px] border border-[#e6ebe7] bg-[#fffefa] text-[#344c55]'}`}>
         <div className="mb-1.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-1">
-          <span className="text-[9px] font-bold text-[#4b7774]">{message.senderName || (fromCustomer ? 'You' : 'Globus Support')}</span>
+          <span className="text-[9px] font-bold text-[#4b7774]">{message.senderName || (fromCustomer ? 'You' : 'DUTSTAR Support')}</span>
           <time className="text-[8px] text-[#899895]">{asDate(message.createdAt)}</time>
         </div>
         <p className="whitespace-pre-wrap break-words text-[11px] leading-[1.65]">{message.body}</p>
@@ -266,7 +266,7 @@ export function CustomerSupportPage({ vaultContext = false }: { vaultContext?: b
     } catch {
       setFormError(category === 'general'
         ? 'We could not open your conversation. Check your connection and retry.'
-        : 'Active Private Vault access or dedicated support access is required for this support area. Contact Globus support if you need access.');
+        : 'Active Private Vault access or dedicated support access is required for this support area. Contact DUTSTAR support if you need access.');
     }
   }
 
@@ -276,7 +276,7 @@ export function CustomerSupportPage({ vaultContext = false }: { vaultContext?: b
       <div>
         <p className="flex items-center gap-1.5 text-[9px] font-bold uppercase tracking-[.18em] text-[#4d8581]"><LockKeyhole size={12} /> {vaultContext ? 'Private Vault support' : 'Secure account support'}</p>
         <h1 className="mt-1 text-[21px] font-extrabold tracking-[-.045em] text-[#203b4c] sm:text-[26px]">Support inbox</h1>
-        <p className="mt-1 max-w-xl text-[10px] leading-4 text-[#71858b]">{vaultContext ? 'Private conversations for your active Vault account. Replies remain tied to your signed-in profile.' : 'Talk with Globus about your account. Replies stay tied to your signed-in profile.'}</p>
+        <p className="mt-1 max-w-xl text-[10px] leading-4 text-[#71858b]">{vaultContext ? 'Private conversations for your active Vault account. Replies remain tied to your signed-in profile.' : 'Talk with DUTSTAR about your account. Replies stay tied to your signed-in profile.'}</p>
       </div>
       <button type="button" onClick={() => { setCompose(true); setFormError(''); }} className={primaryButton}><Plus size={15} />New conversation</button>
     </header>
@@ -404,6 +404,6 @@ export function AdminSupportInbox() {
         {selected?.status === 'closed' && <div className="border-t border-[#e8eeeb] px-4 py-4 text-center text-[10px] text-[#7d8d8b]"><CheckCheck size={13} className="mr-1 inline" />This conversation is closed and cannot receive replies.</div>}
       </div>
     </div>
-    <p className="flex items-center gap-1.5 text-[9px] text-[#82918d]"><ShieldCheck size={12} />Access is limited by administrator allowlisting. Conversation ownership remains enforced by Globus.</p>
+    <p className="flex items-center gap-1.5 text-[9px] text-[#82918d]"><ShieldCheck size={12} />Access is limited by administrator allowlisting. Conversation ownership remains enforced by DUTSTAR.</p>
   </section>;
 }

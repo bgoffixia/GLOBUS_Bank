@@ -29,7 +29,7 @@ export const RECEIPT_LAYOUTS = [
   {
     id: "settlement_statement",
     label: "Settlement statement",
-    summary: "A formal statement layout for a Globus transaction.",
+    summary: "A formal statement layout for a DUTSTAR transaction.",
     preview: "statement",
   },
   {
@@ -59,7 +59,7 @@ export const RECEIPT_LAYOUTS = [
   {
     id: "settlement_timeline",
     label: "Settlement timeline",
-    summary: "A time-led record of the transaction and its current Globus status.",
+    summary: "A time-led record of the transaction and its current DUTSTAR status.",
     preview: "timeline",
   },
   {

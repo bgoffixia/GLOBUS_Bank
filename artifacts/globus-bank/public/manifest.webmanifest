@@ -1,17 +1,17 @@
 {
   "id": "./",
-  "name": "Globus Bank",
-  "short_name": "Globus",
-  "description": "Your world. Our priority.",
+  "name": "DUTSTAR BANK",
+  "short_name": "DUTSTAR",
+  "description": "Banking Made Smarter",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
   "orientation": "any",
-  "background_color": "#0e5369",
-  "theme_color": "#0e5369",
+  "background_color": "#081b3b",
+  "theme_color": "#081b3b",
   "icons": [
     {
-      "src": "globus-pwa-icon.svg",
+      "src": "dutstar-mark.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"

@@ -1,0 +1,71 @@
+name: DUTSTAR Cloudflare preview deploy
+
+on:
+  push:
+    branches: [migration/dutstar-cloudflare]
+    paths:
+      - ".github/workflows/dutstar-cloudflare-preview.yml"
+      - "workers/dutstar-bank-api/**"
+      - "artifacts/globus-bank/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dutstar-cloudflare-preview
+  cancel-in-progress: true
+
+jobs:
+  deploy-preview:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: migration/dutstar-cloudflare
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - name: Build production frontend
+        env:
+          PORT: "24083"
+          BASE_PATH: /
+          NODE_ENV: production
+        run: |
+          pnpm run build
+          test -s artifacts/globus-bank/dist/public/index.html
+          test -s artifacts/globus-bank/dist/public/sw.js
+      - name: Create isolated preview Worker configuration
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const source = 'workers/dutstar-bank-api/wrangler.jsonc';
+          const config = JSON.parse(fs.readFileSync(source, 'utf8'));
+          config.name = 'dutstar-bank-api-preview';
+          config.workers_dev = true;
+          config.vars = { ...config.vars, APP_ENV: 'preview' };
+          if (!config.hyperdrive?.some((binding) => binding.binding === 'DB')) {
+            throw new Error('DUTSTAR preview must inherit the existing Supabase Hyperdrive DB binding.');
+          }
+          if (!config.assets?.binding || !config.assets?.directory) {
+            throw new Error('DUTSTAR preview must include the built frontend assets.');
+          }
+          fs.writeFileSync('workers/dutstar-bank-api/wrangler.preview.json', JSON.stringify(config, null, 2));
+          NODE
+      - name: Deploy isolated preview only
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "334a20d5ead9d330d85ab713876e1faf"
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::Add CLOUDFLARE_API_TOKEN as a GitHub Actions repository secret."; exit 1; }
+          pnpm dlx wrangler@4 deploy --config workers/dutstar-bank-api/wrangler.preview.json
+      - name: Remove temporary preview config
+        if: always()
+        run: rm -f workers/dutstar-bank-api/wrangler.preview.json

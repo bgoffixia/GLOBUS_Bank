@@ -16,7 +16,7 @@ export function validateVaultPasscodeResetSenderAddress(value: string): string {
     !EMAIL_ADDRESS_PATTERN.test(address)
   ) {
     throw new Error(
-      "GLOBUS_VAULT_PIN_RESET_EMAIL_FROM must be a valid mailbox address (for example, security@globus.website).",
+      "DUTSTAR_VAULT_PIN_RESET_EMAIL_FROM must be a valid mailbox address (for example, security@globus.website).",
     );
   }
   return address;
@@ -28,10 +28,11 @@ export function getVaultPasscodeResetSenderAddress(
   // Vault passcode mail has its own sender identity; never inherit the
   // transfer-alert sender configuration.
   const configured =
+    env.DUTSTAR_VAULT_PIN_RESET_EMAIL_FROM ??
     env.GLOBUS_VAULT_PIN_RESET_EMAIL_FROM ??
     DEFAULT_VAULT_PASSCODE_RESET_SENDER;
   if (!configured.trim()) {
-    throw new Error("GLOBUS_VAULT_PIN_RESET_EMAIL_FROM is configured but empty.");
+    throw new Error("DUTSTAR_VAULT_PIN_RESET_EMAIL_FROM is configured but empty.");
   }
   return validateVaultPasscodeResetSenderAddress(configured);
 }

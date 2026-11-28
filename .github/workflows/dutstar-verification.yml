@@ -1,0 +1,107 @@
+name: DUTSTAR verification
+
+on:
+  push:
+    branches:
+      - migration/dutstar-cloudflare
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dutstar-verification-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  frontend:
+    name: Workspace typecheck and production build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out migration branch
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      # The root typecheck builds TypeScript project references first.
+      # Running the frontend package directly skips generated declaration files.
+      - name: Typecheck workspace and build project references
+        run: pnpm run typecheck
+
+      - name: Build frontend
+        run: pnpm --filter @workspace/globus-bank run build
+        env:
+          PORT: "24083"
+          BASE_PATH: "/"
+          VITE_CLERK_PUBLISHABLE_KEY: "pk_live_Y2xlcmsud3d3LmJhbmsuZHV0c3Rhci5vbmxpbmUk"
+
+      - name: Validate Cloudflare Worker bundle and static assets
+        working-directory: workers/dutstar-bank-api
+        run: pnpm dlx wrangler deploy --dry-run --config wrangler.jsonc
+
+      - name: Publish frontend build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dutstar-frontend-dist
+          path: artifacts/globus-bank/dist/public/
+          if-no-files-found: error
+          retention-days: 7
+
+  deploy-production:
+    name: Deploy DUTSTAR production Worker and frontend
+    needs: frontend
+    # A merge alone must not release the unfinished banking API. Set the
+    # repository variable DUTSTAR_PRODUCTION_RELEASE_APPROVED=true only
+    # after the documented production release gates have been cleared.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DUTSTAR_PRODUCTION_RELEASE_APPROVED == 'true'
+    runs-on: ubuntu-latest
+    environment: production
+    permissions:
+      contents: read
+    steps:
+      - name: Check out production branch
+        uses: actions/checkout@v4
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          run_install: false
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Install locked workspace dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build production frontend assets
+        run: pnpm --filter @workspace/globus-bank run build
+        env:
+          PORT: "24083"
+          BASE_PATH: "/"
+          VITE_CLERK_PUBLISHABLE_KEY: ${{ vars.VITE_CLERK_PUBLISHABLE_KEY || 'pk_live_Y2xlcmsud3d3LmJhbmsuZHV0c3Rhci5vbmxpbmUk' }}
+
+      - name: Deploy Worker and bundled frontend to Cloudflare
+        working-directory: workers/dutstar-bank-api
+        run: pnpm dlx wrangler deploy --config wrangler.jsonc
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "334a20d5ead9d330d85ab713876e1faf"

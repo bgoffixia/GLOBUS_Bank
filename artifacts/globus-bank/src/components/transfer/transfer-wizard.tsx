@@ -232,7 +232,7 @@ export function InternationalTransferPage() {
         if (request.recipientEmailNotificationSkipped) {
           toast({
             title: 'Transfer recorded',
-            description: 'No recipient email alert was sent. The Globus transfer record is available in Activity.',
+            description: 'No recipient email alert was sent. The DUTSTAR transfer record is available in Activity.',
             duration: 5000,
           });
         }
@@ -360,7 +360,7 @@ export function InternationalTransferPage() {
                 </section>
                 <label className={`flex cursor-pointer items-start gap-2.5 rounded-lg px-3 py-2.5 text-[9px] leading-4 ${confirmed ? 'bg-[#eef6f3] text-[#355b59]' : 'bg-[#f5f7f8] text-[#53677b]'}`}>
                   <input data-testid="checkbox-confirm-transfer" type="checkbox" checked={confirmed} disabled={!amountCanBeConfirmed} onChange={e => setConfirmationFingerprint(e.target.checked ? fingerprint : null)} className="mt-0.5 h-4 w-4 shrink-0 accent-[#173b62] disabled:opacity-45" />
-                  <span>I confirm the recipient details and converted amount are correct. This is an internal Globus ledger record; it does not send funds to an outside bank.</span>
+                  <span>I confirm the recipient details and converted amount are correct. This is an internal DUTSTAR ledger record; it does not send funds to an outside bank.</span>
                 </label>
               </>}
 

@@ -1,5 +1,5 @@
 export const CUSTOMER_EMAIL_SENDER_DOMAIN = "globus.website";
-export const CUSTOMER_EMAIL_SENDER_DISPLAY_NAME = "GLOBUS BANK";
+export const CUSTOMER_EMAIL_SENDER_DISPLAY_NAME = "DUTSTAR BANK";
 
 const RESERVED_LOCAL_PARTS = new Set([
   "abuse",
@@ -9,6 +9,8 @@ const RESERVED_LOCAL_PARTS = new Set([
   "contact",
   "globus",
   "globusbank",
+  "dutstar",
+  "dutstarbank",
   "help",
   "mailer-daemon",
   "no-reply",

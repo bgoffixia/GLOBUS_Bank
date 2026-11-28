@@ -35,7 +35,7 @@ function loadImage(src: string): Promise<HTMLImageElement> {
   return new Promise((resolve, reject) => {
     const image = new Image();
     image.onload = () => resolve(image);
-    image.onerror = () => reject(new Error('The Globus logo could not be loaded.'));
+    image.onerror = () => reject(new Error('The DUTSTAR logo could not be loaded.'));
     image.src = src;
   });
 }
@@ -150,17 +150,17 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   const right = PAGE_WIDTH - PAGE_MARGIN;
   const contentWidth = right - left;
   const theme = {
-    standard: { canvas: '#e8efed', ink: '#173951', accent: '#347c78', kicker: 'GLOBUS TRANSACTION RECORD' },
-    bank_payment: { canvas: '#f3f6f7', ink: '#173858', accent: '#478783', kicker: 'GLOBUS BANK · TRANSACTION RECORD' },
+    standard: { canvas: '#e8efed', ink: '#173951', accent: '#347c78', kicker: 'DUTSTAR TRANSACTION RECORD' },
+    bank_payment: { canvas: '#f3f6f7', ink: '#173858', accent: '#478783', kicker: 'DUTSTAR BANK · TRANSACTION RECORD' },
     transfer_journey: { canvas: '#e8f0ec', ink: '#173951', accent: '#347c78', kicker: 'INTERNAL PAYMENT RECORD' },
-    transfer_ledger: { canvas: '#e9efea', ink: '#173c4b', accent: '#39786d', kicker: 'GLOBUS · LEDGER RECORD' },
+    transfer_ledger: { canvas: '#e9efea', ink: '#173c4b', accent: '#39786d', kicker: 'DUTSTAR · LEDGER RECORD' },
     settlement_statement: { canvas: '#e8eeea', ink: '#173b4b', accent: '#39786d', kicker: 'INTERNAL TRANSACTION STATEMENT' },
-    editorial_ledger: { canvas: '#e9e5da', ink: '#344d5a', accent: '#907b4b', kicker: 'EDITORIAL LEDGER · GLOBUS BANK' },
+    editorial_ledger: { canvas: '#e9e5da', ink: '#344d5a', accent: '#907b4b', kicker: 'EDITORIAL LEDGER · DUTSTAR BANK' },
     transfer_ledger_columnar: { canvas: '#e8efea', ink: '#173c4b', accent: '#4b796b', kicker: 'COLUMNAR TRANSFER LEDGER' },
     settlement_ledger: { canvas: '#e7efea', ink: '#315b57', accent: '#4b8875', kicker: 'SETTLEMENT LEDGER · INTERNAL COPY' },
     reconciliation_statement: { canvas: '#eeeae0', ink: '#34495a', accent: '#917f52', kicker: 'TRANSFER RECONCILIATION STATEMENT' },
-    settlement_timeline: { canvas: '#e6efea', ink: '#315b57', accent: '#578b77', kicker: 'SETTLEMENT TIMELINE · GLOBUS BANK' },
-    archival_statement: { canvas: '#efede4', ink: '#283e4c', accent: '#897c58', kicker: 'ARCHIVAL STATEMENT · GLOBUS BANK' },
+    settlement_timeline: { canvas: '#e6efea', ink: '#315b57', accent: '#578b77', kicker: 'SETTLEMENT TIMELINE · DUTSTAR BANK' },
+    archival_statement: { canvas: '#efede4', ink: '#283e4c', accent: '#897c58', kicker: 'ARCHIVAL STATEMENT · DUTSTAR BANK' },
   }[template];
   const paperBackground = template === 'settlement_statement' ? '#fcfcf7' : template === 'transfer_ledger' ? '#fbfcf7' : '#fffefa';
   context.fillStyle = theme.canvas;
@@ -293,7 +293,7 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
     context.fill();
     context.fillStyle = '#344b63';
     context.font = '700 17px Arial, sans-serif';
-    context.fillText('Current Globus status', left + 24, y + 74);
+    context.fillText('Current DUTSTAR status', left + 24, y + 74);
     context.fillStyle = '#8291a0';
     context.font = '400 15px Arial, sans-serif';
     context.fillText(receipt.status, left + 24, y + 101);
@@ -350,7 +350,7 @@ function drawReceipt(context: CanvasRenderingContext2D, logo: HTMLImageElement, 
   context.setLineDash([]);
   context.fillStyle = theme.accent;
   context.font = '700 18px Arial, sans-serif';
-  context.fillText('GLOBUS BANK', left, footerY + 5);
+  context.fillText('DUTSTAR BANK', left, footerY + 5);
   context.fillStyle = '#7d8c98';
   context.font = '400 17px Arial, sans-serif';
   context.textAlign = 'right';
@@ -399,7 +399,7 @@ export async function shareTransactionReceiptPng(
   }
   const shareData: ShareData = {
     files: [file],
-    title: 'Globus transaction receipt',
+    title: 'DUTSTAR transaction receipt',
   };
   if (typeof navigator.canShare === 'function' && !navigator.canShare(shareData)) {
     throw new Error('This device cannot share receipt images. Save the PNG instead.');
@@ -419,7 +419,7 @@ async function createReceiptPngFile(
     );
   });
   const safeReference = receipt.reference.replace(/[^a-z0-9_-]+/gi, '-');
-  return new File([png], `globus-receipt-${safeReference}.png`, { type: 'image/png' });
+  return new File([png], `dutstar-receipt-${safeReference}.png`, { type: 'image/png' });
 }
 
 async function renderReceiptCanvas(receipt: TransactionReceiptPdfData, logoUrl: string) {
@@ -438,7 +438,7 @@ function downloadBlob(blob: Blob, reference: string, extension: 'pdf' | 'png') {
   const link = document.createElement('a');
   const safeReference = reference.replace(/[^a-z0-9_-]+/gi, '-');
   link.href = url;
-  link.download = `globus-receipt-${safeReference}.${extension}`;
+  link.download = `dutstar-receipt-${safeReference}.${extension}`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

@@ -306,7 +306,7 @@ function generatedAdminAuditReason(req: Request): string {
 
 function configuredAdminIds(): Set<string> {
   return new Set(
-    (process.env.GLOBUS_ADMIN_CLERK_IDS ?? "")
+    (process.env.DUTSTAR_ADMIN_CLERK_IDS ?? process.env.GLOBUS_ADMIN_CLERK_IDS ?? "")
       .split(",")
       .map((userId) => userId.trim())
       .filter(Boolean),
@@ -315,7 +315,7 @@ function configuredAdminIds(): Set<string> {
 
 function configuredAdminEmails(): Set<string> {
   return new Set(
-    (process.env.GLOBUS_ADMIN_EMAILS ?? "")
+    (process.env.DUTSTAR_ADMIN_EMAILS ?? process.env.GLOBUS_ADMIN_EMAILS ?? "")
       .split(",")
       .map((email) => email.trim().toLowerCase())
       .filter(Boolean),
@@ -2992,6 +2992,7 @@ router.post(
     const now = new Date();
     const expiresAt = new Date(now.getTime() + 30 * 60 * 1000);
     const configuredOrigin =
+      process.env.DUTSTAR_APP_ORIGIN?.trim() ||
       process.env.GLOBUS_APP_ORIGIN?.trim() ||
       process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
       process.env.REPLIT_DEV_DOMAIN?.trim() ||
@@ -3102,7 +3103,7 @@ router.post(
     let emailSent = false;
     try {
       const resendApiKey = process.env.RESEND_API_KEY?.trim();
-      const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "security@globus.website";
+      const senderAddress = process.env.DUTSTAR_SECURITY_EMAIL_FROM?.trim() || process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim() || "security@globus.website";
       if (!resendApiKey) throw new Error("Resend API key is not configured.");
       if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(senderAddress)) {
         throw new Error("The configured security sender address is invalid.");
@@ -3114,10 +3115,10 @@ router.post(
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          from: `GLOBUS BANK Security <${senderAddress}>`,
+          from: `DUTSTAR BANK Security <${senderAddress}>`,
           to: [recipientEmail],
-          subject: "Reset your GLOBUS BANK Private Vault passcode",
-          text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not expect this email, contact GLOBUS BANK support. Resetting the passcode does not change your Private Vault access status.`,
+          subject: "Reset your DUTSTAR BANK Private Vault passcode",
+          text: `A Private Vault passcode reset was requested for your account.\n\nUse this one-time link within 30 minutes:\n${resetUrl.toString()}\n\nIf you did not expect this email, contact DUTSTAR BANK support. Resetting the passcode does not change your Private Vault access status.`,
         }),
         signal: AbortSignal.timeout(15_000),
       });
@@ -5790,11 +5791,11 @@ router.post(
       res.status(404).json({ error: "Customer account not found." });
       return;
     }
-    const protectedAdminEmails = (process.env.GLOBUS_ADMIN_EMAILS ?? "")
+    const protectedAdminEmails = (process.env.DUTSTAR_ADMIN_EMAILS ?? process.env.GLOBUS_ADMIN_EMAILS ?? "")
       .split(",")
       .map((value) => value.trim().toLowerCase())
       .filter(Boolean);
-    const protectedAdminIds = (process.env.GLOBUS_ADMIN_CLERK_IDS ?? "")
+    const protectedAdminIds = (process.env.DUTSTAR_ADMIN_CLERK_IDS ?? process.env.GLOBUS_ADMIN_CLERK_IDS ?? "")
       .split(",")
       .map((value) => value.trim())
       .filter(Boolean);

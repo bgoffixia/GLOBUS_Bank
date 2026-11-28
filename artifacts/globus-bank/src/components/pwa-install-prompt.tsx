@@ -15,8 +15,6 @@ type InstallPromptEvent = Event & {
   userChoice: Promise<{ outcome: "accepted" | "dismissed"; platform?: string }>;
 };
 
-const PROMPT_INTERVAL_MS = 5 * 60 * 60 * 1000;
-const PROMPT_SHOWN_KEY = "globus:pwa-prompt-shown-at";
 const INSTALLED_KEY = "globus:pwa-installed";
 const OPEN_PROMPT_EVENT = "globus:open-install-prompt";
 const INSTALLED_EVENT = "globus:pwa-installed";
@@ -33,14 +31,6 @@ function isAppInstalled() {
     (navigator as Navigator & { standalone?: boolean }).standalone === true ||
     wasInstalled
   );
-}
-
-function markPromptShown() {
-  try {
-    localStorage.setItem(PROMPT_SHOWN_KEY, String(Date.now()));
-  } catch {
-    // The install action remains available if storage is disabled.
-  }
 }
 
 export function PwaInstallPrompt() {
@@ -65,22 +55,8 @@ export function PwaInstallPrompt() {
         (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1),
     );
 
-    const openIfEligible = () => {
-      if (isAuthPage || isAppInstalled()) return;
-      let lastShown = 0;
-      try {
-        lastShown = Number(localStorage.getItem(PROMPT_SHOWN_KEY) ?? 0);
-      } catch {
-        lastShown = 0;
-      }
-      if (Number.isFinite(lastShown) && Date.now() - lastShown < PROMPT_INTERVAL_MS) return;
-      markPromptShown();
-      setOpen(true);
-    };
-    const showTimer = window.setTimeout(openIfEligible, 900);
     const handleManualOpen = () => {
       if (isAuthPage || isAppInstalled()) return;
-      markPromptShown();
       setInstallError("");
       setOpen(true);
     };
@@ -88,7 +64,7 @@ export function PwaInstallPrompt() {
       event.preventDefault();
       installPrompt.current = event as InstallPromptEvent;
       setCanInstall(true);
-      openIfEligible();
+      // Do not interrupt first page load with an unsolicited install dialog.
     };
     const handleInstalled = () => {
       installPrompt.current = null;
@@ -106,7 +82,6 @@ export function PwaInstallPrompt() {
     window.addEventListener("appinstalled", handleInstalled);
     window.addEventListener(OPEN_PROMPT_EVENT, handleManualOpen);
     return () => {
-      window.clearTimeout(showTimer);
       window.removeEventListener("beforeinstallprompt", handleInstallPrompt);
       window.removeEventListener("appinstalled", handleInstalled);
       window.removeEventListener(OPEN_PROMPT_EVENT, handleManualOpen);
@@ -136,17 +111,14 @@ export function PwaInstallPrompt() {
       setCanInstall(false);
       setOpen(false);
     } catch {
-      setInstallError("The browser could not open its install prompt. Use the browser menu to install Globus Bank.");
+      setInstallError("The browser could not open its install prompt. Use the browser menu to install DUTSTAR Bank.");
     }
   };
 
   return (
     <Dialog
       open={open}
-      onOpenChange={(nextOpen) => {
-        if (!nextOpen) markPromptShown();
-        setOpen(nextOpen);
-      }}
+      onOpenChange={(nextOpen) => setOpen(nextOpen)}
     >
       <DialogContent className="left-4 right-4 w-auto max-w-[420px] translate-x-0 rounded-[22px] border-[#dfe7ec] bg-white p-6 sm:left-1/2 sm:right-auto sm:w-[calc(100vw-2rem)] sm:translate-x-[-50%] sm:p-7">
         <DialogHeader className="text-left">
@@ -154,10 +126,10 @@ export function PwaInstallPrompt() {
             {isIos ? <Share2 size={19} /> : <Download size={19} />}
           </span>
           <DialogTitle className="text-[18px] text-[#213a55]">
-            Install Globus Bank
+            Install DUTSTAR Bank
           </DialogTitle>
           <DialogDescription className="text-[12px] leading-5 text-[#718296]">
-            Add Globus to your device for a direct app shortcut and a dedicated
+            Add DUTSTAR to your device for a direct app shortcut and a dedicated
             full-screen experience.
           </DialogDescription>
         </DialogHeader>
@@ -183,10 +155,7 @@ export function PwaInstallPrompt() {
         <DialogFooter className="mt-1 gap-2 sm:gap-2">
           <button
             type="button"
-            onClick={() => {
-              markPromptShown();
-              setOpen(false);
-            }}
+            onClick={() => setOpen(false)}
             className="h-10 rounded-xl border border-[#dfe6eb] px-4 text-[11px] font-bold text-[#546b80] hover:bg-[#f5f8f9]"
           >
             Not now

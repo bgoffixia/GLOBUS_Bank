@@ -1,4 +1,4 @@
-const CACHE_NAME = "globus-app-shell-v3";
+const CACHE_NAME = "dutstar-app-shell-v3";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
@@ -24,7 +24,7 @@ self.addEventListener("activate", (event) => {
       const keys = await caches.keys();
       await Promise.all(
         keys
-          .filter((key) => key.startsWith("globus-app-shell-") && key !== CACHE_NAME)
+          .filter((key) => key.startsWith("dutstar-app-shell-") && key !== CACHE_NAME)
           .map((key) => caches.delete(key)),
       );
       // Do not take control of already-open tabs during activation. They keep
@@ -63,7 +63,7 @@ self.addEventListener("push", (event) => {
     const parsed = event.data ? event.data.json() : {};
     payload = parsed && typeof parsed === "object" ? parsed : {};
   } catch {
-    payload = { title: "Globus account notice", body: "You have an account update." };
+    payload = { title: "DUTSTAR account notice", body: "You have an account update." };
   }
 
   const title =
@@ -71,7 +71,7 @@ self.addEventListener("push", (event) => {
       ? payload.t
       : typeof payload.title === "string" && payload.title
         ? payload.title
-      : "Globus account notice";
+      : "DUTSTAR account notice";
   const body =
     typeof payload.m === "string" && payload.m
       ? payload.m
@@ -100,10 +100,10 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(title, {
       body,
-      icon: new URL("globus-mark-transparent.png", self.registration.scope).toString(),
-      badge: new URL("globus-mark-transparent.png", self.registration.scope).toString(),
+      icon: new URL("dutstar-mark.svg", self.registration.scope).toString(),
+      badge: new URL("dutstar-mark.svg", self.registration.scope).toString(),
       data: { url: targetUrl },
-      tag: typeof payload.notificationId === "string" ? payload.notificationId : "globus-account-update",
+      tag: typeof payload.notificationId === "string" ? payload.notificationId : "dutstar-account-update",
     }),
   );
 });

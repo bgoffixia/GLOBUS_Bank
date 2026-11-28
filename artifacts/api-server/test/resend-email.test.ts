@@ -48,18 +48,18 @@ test("customer transfer-email sender headers use the configured name and fixed d
   });
   assert.equal(
     customerEmailSenderHeader("jane.doe-7"),
-    '"GLOBUS BANK" <jane.doe-7@globus.website>',
+    '"DUTSTAR BANK" <jane.doe-7@globus.website>',
   );
   assert.equal(
     customerEmailSenderHeader("jane.doe-7", '  Globus "Client" Alerts  '),
-    '"Globus \\"Client\\" Alerts" <jane.doe-7@globus.website>',
+    '"DUTSTAR \\"Client\\" Alerts" <jane.doe-7@globus.website>',
   );
 });
 
 test("transfer-alert display names are trimmed and reject header injection", () => {
   assert.equal(
-    normalizeCustomerEmailSenderDisplayName("  Globus Client Alerts  "),
-    "Globus Client Alerts",
+    normalizeCustomerEmailSenderDisplayName("  DUTSTAR Client Alerts  "),
+    "DUTSTAR Client Alerts",
   );
   assert.equal(normalizeCustomerEmailSenderDisplayName(" "), null);
   assert.equal(normalizeCustomerEmailSenderDisplayName("Name\r\nBcc: victim@example.test"), null);
@@ -68,7 +68,7 @@ test("transfer-alert display names are trimmed and reject header injection", () 
   assert.equal(normalizeCustomerEmailSenderDisplayName("x".repeat(81)), null);
   assert.equal(
     customerEmailSenderHeader("jane.doe-7", "Name\r\nBcc: victim@example.test"),
-    '"GLOBUS BANK" <jane.doe-7@globus.website>',
+    '"DUTSTAR BANK" <jane.doe-7@globus.website>',
   );
 });
 
@@ -108,7 +108,7 @@ test("admin sender-name setting is allowlisted, persisted, audited, and used by 
 });
 
 const message = {
-  from: "Globus Bank <alerts@example.test>",
+  from: "DUTSTAR BANK <alerts@example.test>",
   to: "recipient@example.test",
   subject: "Transfer update",
   text: "Test message",
@@ -222,7 +222,7 @@ test("retries sender-domain rejection with the configured verified sender", asyn
   }) as typeof fetch;
 
   try {
-    const fallback = { ...message, from: "GLOBUS BANK <verified@globus.website>" };
+    const fallback = { ...message, from: "DUTSTAR BANK <verified@globus.website>" };
     assert.equal(await sendResendEmail(message, "fallback-test-key", fallback), true);
     assert.equal(requests.length, 2);
     assert.equal((await requests[0].json()).from, message.from);
@@ -306,6 +306,7 @@ test("vault passcode reset sender does not inherit transfer security sender", ()
     new URL("../src/lib/vault-passcode-reset-email.ts", import.meta.url),
     "utf8",
   );
+  assert.match(source, /env\.DUTSTAR_VAULT_PIN_RESET_EMAIL_FROM\s*\?\?/);
   assert.match(source, /env\.GLOBUS_VAULT_PIN_RESET_EMAIL_FROM\s*\?\?/);
   assert.doesNotMatch(source, /GLOBUS_SECURITY_EMAIL_FROM/);
 });

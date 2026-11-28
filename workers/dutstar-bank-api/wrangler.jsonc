@@ -1,0 +1,45 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "dutstar-bank-api",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-11-27",
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "workers_dev": false,
+  "previews": {},
+  "vars": {
+    "APP_NAME": "DUTSTAR BANK",
+    "APP_ORIGIN": "https://www.bank.dutstar.online",
+    "APP_ENV": "production",
+    "AUTH_PROVIDER": "clerk",
+    "DATABASE_PROVIDER": "supabase-postgres",
+    "CLERK_ISSUER": "https://clerk.www.bank.dutstar.online",
+    "CLERK_JWKS_URL": "https://clerk.www.bank.dutstar.online/.well-known/jwks.json"
+  },
+  "r2_buckets": [
+    {
+      "binding": "PRIVATE_FILES",
+      "bucket_name": "dutstar-bank-private"
+    }
+  ],
+  "assets": {
+    "directory": "../../artifacts/globus-bank/dist/public",
+    "binding": "ASSETS",
+    "run_worker_first": [
+      "/api/*",
+      "/health"
+    ],
+    "not_found_handling": "single-page-application"
+  },
+  "observability": {
+    "enabled": true,
+    "head_sampling_rate": 1
+  },
+  "hyperdrive": [
+    {
+      "binding": "DB",
+      "id": "3fbe4aa6fa17456aa0eb2a33a6774534"
+    }
+  ]
+}

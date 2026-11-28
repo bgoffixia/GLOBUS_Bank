@@ -1,6 +1,5 @@
 import { useEffect, useRef, type ReactNode } from 'react';
 import { ClerkProvider, Show, useClerk, useUser } from '@clerk/react';
-import { publishableKeyFromHost } from '@clerk/react/internal';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
 import { ErrorBoundary } from '@/components/error-boundary';
@@ -44,10 +43,10 @@ import {
 
 const queryClient = new QueryClient();
 
-const clerkPubKey = publishableKeyFromHost(
-  window.location.hostname,
-  import.meta.env.VITE_CLERK_PUBLISHABLE_KEY,
-);
+// Use the explicitly configured key in preview and production. Host-based
+// key discovery can reject isolated Pages preview hostnames and prevent the
+// React application from mounting before the landing page is rendered.
+const clerkPubKey = import.meta.env.VITE_CLERK_PUBLISHABLE_KEY;
 
 const clerkProxyUrl = import.meta.env.VITE_CLERK_PROXY_URL;
 
@@ -71,7 +70,7 @@ const clerkAppearance = {
   options: {
     logoPlacement: 'inside' as const,
     logoLinkUrl: basePath || '/',
-    logoImageUrl: `${window.location.origin}${basePath}/globus-wordmark-transparent.png`,
+    logoImageUrl: `${window.location.origin}${basePath}/dutstar-mark.svg`,
   },
   variables: {
     colorPrimary: '#173b62',
@@ -117,16 +116,12 @@ const clerkAppearance = {
 };
 
 function HomeRedirect() {
-  return (
-    <>
-      <Show when="signed-in">
-        <Redirect to="/dashboard" />
-      </Show>
-      <Show when="signed-out">
-        <HomePage />
-      </Show>
-    </>
-  );
+  // The public landing page must not wait for Clerk to finish initializing.
+  // Clerk can be delayed by network/proxy checks; gating both branches with
+  // <Show> leaves #root empty and makes the site look broken to visitors.
+  const { isLoaded, isSignedIn } = useUser();
+  if (isLoaded && isSignedIn) return <Redirect to="/dashboard" />;
+  return <HomePage />;
 }
 
 function PasswordResetGate({ children }: { children: ReactNode }) {
@@ -237,13 +232,13 @@ function ClerkRoutes() {
         signIn: {
           start: {
             title: t('Welcome back'),
-            subtitle: t('Sign in to access your Globus workspace'),
+            subtitle: t('Sign in to access your DUTSTAR workspace'),
           },
         },
         signUp: {
           start: {
             title: t('Set up your account'),
-            subtitle: t('Create a secure account to explore Globus'),
+            subtitle: t('Create a secure account to explore DUTSTAR'),
           },
         },
       }}

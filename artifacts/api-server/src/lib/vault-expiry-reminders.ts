@@ -52,6 +52,7 @@ function escapeHtml(value: string): string {
 
 function getAppOrigin(): string | null {
   const host =
+    process.env.DUTSTAR_APP_ORIGIN?.trim() ||
     process.env.GLOBUS_APP_ORIGIN?.trim() ||
     process.env.REPLIT_DOMAINS?.split(",")[0]?.trim() ||
     process.env.REPLIT_DEV_DOMAIN?.trim();
@@ -101,7 +102,7 @@ export function buildVaultExpiryReminderEmail(
 export async function sendVaultExpiryReminderEmail(
   input: ReminderEmailInput,
 ): Promise<boolean> {
-  const senderAddress = process.env.GLOBUS_SECURITY_EMAIL_FROM?.trim();
+  const senderAddress = (process.env.DUTSTAR_SECURITY_EMAIL_FROM ?? process.env.GLOBUS_SECURITY_EMAIL_FROM)?.trim();
   const origin = getAppOrigin();
   if (
     !senderAddress ||
