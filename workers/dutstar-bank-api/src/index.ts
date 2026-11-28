@@ -458,6 +458,96 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/bank/signup-profile" && request.method === "PUT") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const allowed = new Set(["firstName","lastName","address","phone","country","cityOfOrigin","dateOfBirth","occupation","acceptedTerms"]);
+      if (Object.keys(body).some((key) => !allowed.has(key))) return json({ error: "INVALID_PROFILE_FIELDS" }, 400);
+      const normalizeName = (value: unknown) => typeof value === "string" && value.trim().length > 0 &&
+        value.trim().length <= 80 && /\p{L}/u.test(value) && !/[\p{Cc}\p{Cf}]/u.test(value)
+        ? value.trim() : null;
+      const firstName = normalizeName(body.firstName);
+      const lastName = normalizeName(body.lastName);
+      if (!firstName || !lastName) return json({ error: "FIRST_AND_LAST_NAME_REQUIRED" }, 400);
+      const validText = (value: unknown, max: number) => typeof value === "string" &&
+        value.trim().length > 0 && value.trim().length <= max &&
+        /^[\p{L}\p{M}\p{N} .,'’()&/-]+$/u.test(value.trim()) ? value.trim() : null;
+      const optionalText = (key: string, max: number) => {
+        if (!(key in body)) return undefined;
+        if (body[key] === null) return null;
+        return validText(body[key], max);
+      };
+      const address = optionalText("address", 1024);
+      const country = optionalText("country", 1024);
+      const cityOfOrigin = optionalText("cityOfOrigin", 1024);
+      const occupation = optionalText("occupation", 1024);
+      if ((address === null && body.address !== null) || (country === null && body.country !== null) ||
+          (cityOfOrigin === null && body.cityOfOrigin !== null) || (occupation === null && body.occupation !== null)) {
+        return json({ error: "INVALID_PROFILE_TEXT" }, 400);
+      }
+      let phone: string | null | undefined;
+      if ("phone" in body) {
+        if (body.phone === null) phone = null;
+        else if (typeof body.phone === "string") {
+          const v = body.phone.trim(), digits = v.replace(/\D/g, "").length;
+          if (!v || v.length > 1024 || !/^\+?[0-9(). -]+$/.test(v) || digits < 7 || digits > 15) {
+            return json({ error: "INVALID_PHONE" }, 400);
+          }
+          phone = v;
+        } else return json({ error: "INVALID_PHONE" }, 400);
+      }
+      let dateOfBirth: string | null | undefined;
+      if ("dateOfBirth" in body) {
+        if (body.dateOfBirth === null) dateOfBirth = null;
+        else if (typeof body.dateOfBirth === "string" &&
+          /^\d{4}-\d{2}-\d{2}$/.test(body.dateOfBirth) &&
+          new Date(body.dateOfBirth + "T00:00:00.000Z").toISOString().slice(0,10) === body.dateOfBirth &&
+          body.dateOfBirth <= new Date().toISOString().slice(0,10)) dateOfBirth = body.dateOfBirth;
+        else return json({ error: "INVALID_DATE_OF_BIRTH" }, 400);
+      }
+      if ("acceptedTerms" in body && typeof body.acceptedTerms !== "boolean") return json({ error: "INVALID_ACCEPTED_TERMS" }, 400);
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          `UPDATE public.bank_users
+              SET first_name = $3, last_name = $4,
+                  address = CASE WHEN $5 THEN $6 ELSE address END,
+                  phone = CASE WHEN $7 THEN $8 ELSE phone END,
+                  country = CASE WHEN $9 THEN $10 ELSE country END,
+                  city_of_origin = CASE WHEN $11 THEN $12 ELSE city_of_origin END,
+                  date_of_birth = CASE WHEN $13 THEN $14::date ELSE date_of_birth END,
+                  occupation = CASE WHEN $15 THEN $16 ELSE occupation END,
+                  profile_setup_completed_at = now(),
+                  accepted_terms_at = CASE WHEN $17 THEN now() ELSE accepted_terms_at END,
+                  updated_at = now()
+            WHERE id = $1 AND profile_setup_completed_at IS NULL
+            RETURNING id, email, customer_id, first_name, last_name, address, phone,
+              country, city_of_origin, date_of_birth, occupation, profile_setup_completed_at,
+              transfer_access_granted, (transaction_pin_hash IS NOT NULL) AS transaction_pin_configured,
+              account_status, created_at`,
+          [claims.sub, null, firstName, lastName,
+           address !== undefined, address ?? null, phone !== undefined, phone ?? null,
+           country !== undefined, country ?? null, cityOfOrigin !== undefined, cityOfOrigin ?? null,
+           dateOfBirth !== undefined, dateOfBirth ?? null, occupation !== undefined, occupation ?? null,
+           body.acceptedTerms === true],
+        ));
+        const user = result.rows[0];
+        if (!user) return json({ error: "PROFILE_SETUP_ALREADY_COMPLETED_OR_ACCOUNT_NOT_FOUND" }, 409);
+        return json({
+          id: user.id, email: user.email, customerId: user.customer_id,
+          firstName: user.first_name, lastName: user.last_name, address: user.address,
+          phone: user.phone, country: user.country, cityOfOrigin: user.city_of_origin,
+          dateOfBirth: user.date_of_birth, occupation: user.occupation,
+          profileSetupComplete: Boolean(user.profile_setup_completed_at),
+          transferAccessGranted: Boolean(user.transfer_access_granted),
+          transactionPinConfigured: Boolean(user.transaction_pin_configured),
+          accountStatus: user.account_status, createdAt: user.created_at,
+        });
+      } catch { return json({ error: "BANK_PROFILE_UPDATE_UNAVAILABLE" }, 503); }
+    }
+
     if (url.pathname === "/api/bank/wallets" && request.method === "GET") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
