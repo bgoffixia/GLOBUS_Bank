@@ -11,6 +11,7 @@ export interface Env {
   DB?: Hyperdrive;
   CLERK_JWKS_URL?: string;
   CLERK_ISSUER?: string;
+  VAULT_PASSCODE_PEPPER?: string;
 }
 
 const JSON_HEADERS = {
@@ -635,6 +636,108 @@ export default {
         if (result === "invalid") return json({ error: "CURRENT_PIN_INCORRECT" }, 403);
         return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
       } catch { return json({ error: "TRANSACTION_PIN_UPDATE_UNAVAILABLE" }, 503); }
+    }
+
+    if (url.pathname === "/api/bank/vault/session" && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      if (!env.VAULT_PASSCODE_PEPPER) return json({ error: "VAULT_SECURITY_NOT_CONFIGURED" }, 503);
+      let body: { passcode?: unknown; rememberDevice?: unknown };
+      try { body = await request.json() as typeof body; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      if (typeof body.passcode !== "string" || !/^\\d{6,12}$/.test(body.passcode) ||
+          (body.rememberDevice !== undefined && typeof body.rememberDevice !== "boolean")) {
+        return json({ error: "INVALID_VAULT_PASSCODE" }, 400);
+      }
+      try {
+        const result = await withCustomerWrite(env, claims.sub, async (client) => {
+          const selected = await client.query(
+            `SELECT vault_passcode_hash, vault_passcode_failed_attempts, vault_passcode_locked_until,
+                    vault_subscription_status, vault_subscription_expires_at
+               FROM public.bank_users WHERE id = $1 FOR UPDATE`,
+            [claims.sub],
+          );
+          const user = selected.rows[0];
+          if (!user) return { status: "missing" as const };
+          const now = Date.now();
+          if (user.vault_passcode_locked_until && new Date(user.vault_passcode_locked_until).getTime() > now) {
+            return { status: "locked" as const };
+          }
+          if (!user.vault_passcode_hash) return { status: "not_configured" as const };
+          const entitlement = await client.query(
+            `SELECT 1 FROM public.bank_vault_admin_entitlements
+              WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > now()) LIMIT 1`,
+            [claims.sub],
+          );
+          const subscribed = user.vault_subscription_status === "active" &&
+            user.vault_subscription_expires_at &&
+            new Date(user.vault_subscription_expires_at).getTime() > now;
+          if (!subscribed && entitlement.rowCount === 0) return { status: "no_access" as const };
+          const parts = String(user.vault_passcode_hash).split("$");
+          if (parts.length !== 3 || parts[0] !== "scrypt" ||
+              !/^[a-f0-9]{32}$/.test(parts[1]) || !/^[a-f0-9]{128}$/.test(parts[2])) {
+            return { status: "invalid_hash" as const };
+          }
+          const actual = await new Promise<Buffer>((resolve, reject) => {
+            scryptCallback(`${body.passcode as string}:${env.VAULT_PASSCODE_PEPPER}`,
+              Buffer.from(parts[1], "hex"), 64, (error, key) => error ? reject(error) : resolve(key as Buffer));
+          });
+          const expected = Buffer.from(parts[2], "hex");
+          const valid = actual.length === expected.length && timingSafeEqual(actual, expected);
+          if (!valid) {
+            const attempts = Number(user.vault_passcode_failed_attempts ?? 0) + 1;
+            const locked = attempts >= 5;
+            await client.query(
+              `UPDATE public.bank_users
+                  SET vault_passcode_failed_attempts = $2,
+                      vault_passcode_locked_until = $3, updated_at = now()
+                WHERE id = $1`,
+              [claims.sub, locked ? 0 : attempts, locked ? new Date(now + 15 * 60_000) : null],
+            );
+            return { status: locked ? "locked" as const : "invalid" as const };
+          }
+          const tokenBytes = randomBytes(32);
+          const token = tokenBytes.toString("base64url");
+          const tokenHash = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+          const hashHex = Array.from(new Uint8Array(tokenHash), (b) => b.toString(16).padStart(2, "0")).join("");
+          const expiresAt = new Date(now + (body.rememberDevice === true ? 7 * 24 * 60 * 60_000 : 15 * 60_000));
+          await client.query("DELETE FROM public.bank_vault_sessions WHERE user_id = $1", [claims.sub]);
+          await client.query(
+            `INSERT INTO public.bank_vault_sessions (user_id, token_hash, expires_at)
+             VALUES ($1, $2, $3)`,
+            [claims.sub, hashHex, expiresAt],
+          );
+          await client.query(
+            `UPDATE public.bank_users SET vault_passcode_failed_attempts = 0,
+                    vault_passcode_locked_until = NULL, updated_at = now() WHERE id = $1`,
+            [claims.sub],
+          );
+          return { status: "valid" as const, token, expiresAt: expiresAt.toISOString() };
+        });
+        if (result.status === "valid") return json({ sessionToken: result.token, expiresAt: result.expiresAt });
+        if (result.status === "missing") return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
+        if (result.status === "not_configured") return json({ error: "VAULT_PASSCODE_NOT_CONFIGURED" }, 409);
+        if (result.status === "no_access") return json({ error: "VAULT_SUBSCRIPTION_REQUIRED" }, 403);
+        if (result.status === "locked") return json({ error: "VAULT_PASSCODE_LOCKED", retryAfterSeconds: 900 }, 429);
+        if (result.status === "invalid_hash") return json({ error: "VAULT_CREDENTIALS_UNAVAILABLE" }, 503);
+        return json({ error: "VAULT_PASSCODE_INCORRECT" }, 403);
+      } catch { return json({ error: "VAULT_SESSION_UNAVAILABLE" }, 503); }
+    }
+
+    if (url.pathname === "/api/bank/vault/session/lock" && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      const token = request.headers.get("x-dutstar-vault-session") ?? "";
+      if (!token) return json({ locked: true });
+      try {
+        const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(token));
+        const tokenHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+        await withCustomerWrite(env, claims.sub, async (client) => {
+          await client.query("DELETE FROM public.bank_vault_sessions WHERE user_id = $1 AND token_hash = $2",
+            [claims.sub, tokenHash]);
+        });
+        return json({ locked: true });
+      } catch { return json({ error: "VAULT_SESSION_LOCK_UNAVAILABLE" }, 503); }
     }
 
     if (url.pathname === "/api/bank/wallets" && request.method === "GET") {
