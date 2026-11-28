@@ -717,7 +717,7 @@ export default {
       } catch { return json({ error: "FINANCE_LOAN_APPLICATION_SAVE_FAILED" }, 503); }
     }
 
-    const loanApplicationMatch = url.pathname.match(/^\\/api\\/bank\\/personal-finance\\/loan-applications\\/([0-9a-f-]{36})$/i);
+    const loanApplicationMatch = url.pathname.match(/^\/api\/bank\/personal-finance\/loan-applications\/([0-9a-f-]{36})$/i);
     if (loanApplicationMatch && request.method === "PATCH") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
@@ -810,7 +810,7 @@ export default {
       } catch { return json({ error: "FINANCIAL_ACCOUNT_SAVE_FAILED" }, 503); }
     }
 
-    const financialAccountMatch = url.pathname.match(/^\\/api\\/bank\\/personal-finance\\/accounts\\/([0-9a-f-]{36})$/i);
+    const financialAccountMatch = url.pathname.match(/^\/api\/bank\/personal-finance\/accounts\/([0-9a-f-]{36})$/i);
     if (financialAccountMatch && request.method === "PATCH") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
