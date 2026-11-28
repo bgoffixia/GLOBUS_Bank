@@ -1,4 +1,4 @@
-import { useEffect, useRef, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import { ClerkProvider, Show, useAuth, useClerk, useUser } from '@clerk/react';
 import { shadcn } from '@clerk/themes';
 import { QueryClient, QueryClientProvider, useQueryClient } from '@tanstack/react-query';
@@ -218,23 +218,33 @@ function ClerkQueryClientCacheInvalidator() {
   return null;
 }
 
-function ClerkApiTokenBridge() {
+function ClerkApiTokenBridge({ children }: { children: ReactNode }) {
   const { getToken, isLoaded, isSignedIn } = useAuth();
+  const [readyFor, setReadyFor] = useState<'signed-in' | 'signed-out' | null>(null);
 
-  useEffect(() => {
-    if (!isLoaded || !isSignedIn) {
-      setAuthTokenGetter(null);
+  useLayoutEffect(() => {
+    if (!isLoaded) {
+      setReadyFor(null);
       return;
     }
 
-    // The DUTSTAR Worker verifies Clerk session JWTs from the Authorization
-    // header. Resolve a fresh token for every API request instead of relying
-    // on browser cookies, which the Worker does not use for authentication.
+    if (!isSignedIn) {
+      setAuthTokenGetter(null);
+      setReadyFor('signed-out');
+      return;
+    }
+
+    // Install the Bearer-token provider before mounting any page that can
+    // issue an API query. Otherwise an early profile request can receive a
+    // cookie-only 401, which the profile query correctly treats as final.
     setAuthTokenGetter(() => getToken());
+    setReadyFor('signed-in');
     return () => setAuthTokenGetter(null);
   }, [getToken, isLoaded, isSignedIn]);
 
-  return null;
+  const expectedState = isSignedIn ? 'signed-in' : 'signed-out';
+  if (!isLoaded || readyFor !== expectedState) return null;
+  return <>{children}</>;
 }
 
 function ClerkRoutes() {
@@ -266,9 +276,9 @@ function ClerkRoutes() {
       routerReplace={(to) => setLocation(stripBase(to), { replace: true })}
     >
       <ClerkQueryClientCacheInvalidator />
-      <ClerkApiTokenBridge />
-      <PendingSignupProfilePersistence />
-      <Switch>
+      <ClerkApiTokenBridge>
+        <PendingSignupProfilePersistence />
+        <Switch>
         <Route path="/" component={HomeRedirect} />
         <Route path="/home">
           <Show when="signed-in">
@@ -331,7 +341,8 @@ function ClerkRoutes() {
         <Route path="/fees"><DisclosurePage path="/fees" /></Route>
         <Route path="/contact"><DisclosurePage path="/contact" /></Route>
         <Route component={NotFound} />
-      </Switch>
+        </Switch>
+      </ClerkApiTokenBridge>
       <PwaInstallPrompt />
     </ClerkProvider>
   );
