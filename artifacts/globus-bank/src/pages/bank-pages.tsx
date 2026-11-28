@@ -225,6 +225,40 @@ export function HomePage() {
           </div>
         </section>
 
+        <section id="banking-portfolio" className="mx-auto max-w-[1320px] scroll-mt-24 px-5 py-12 sm:px-8 sm:py-16 lg:px-12 lg:py-20">
+          <div className="mb-9 flex flex-col gap-4 sm:mb-12 sm:flex-row sm:items-end sm:justify-between">
+            <div className="max-w-[700px]">
+              <p className="text-[10px] font-bold uppercase tracking-[.2em] text-[#078c91]">{t('The DUTSTAR experience')}</p>
+              <h2 className="mt-3 text-[clamp(2rem,5vw,3.4rem)] font-semibold leading-[1.08] tracking-[-.045em] text-[#102b4e]">{t('A closer look at modern banking.')}</h2>
+              <p className="mt-4 max-w-[620px] text-[14px] leading-7 text-[#718296]">{t('Explore the digital banking experience through a curated collection of financial services, thoughtful design and secure account access.')}</p>
+            </div>
+            <span className="inline-flex w-fit items-center gap-2 rounded-full border border-[#dce8e9] bg-white px-3.5 py-2 text-[9px] font-bold uppercase tracking-[.14em] text-[#527b80] shadow-sm"><ShieldCheck size={13} /> {t('Built around clarity and control')}</span>
+          </div>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <article className="group relative min-h-[290px] overflow-hidden rounded-[22px] border border-[#dfe7ec] bg-[#102b4e] shadow-[0_12px_32px_rgba(20,48,78,.08)]">
+              <img src="https://images.unsplash.com/photo-1556740738-b6a63e27c4df?auto=format&fit=crop&w=900&q=85" alt={t('Customer using a payment card at a modern point of sale')} loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-700 group-hover:scale-105 group-hover:opacity-95" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#071b38]/95 via-[#071b38]/15 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white"><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#9de3dc]">01 / {t('Everyday banking')}</p><h3 className="mt-2 text-[19px] font-semibold tracking-tight">{t('A simpler way to manage money')}</h3><p className="mt-2 text-[11px] leading-5 text-white/75">{t('A clear digital view of your supported wallets and account activity.')}</p></div>
+            </article>
+            <article className="group relative min-h-[290px] overflow-hidden rounded-[22px] border border-[#dfe7ec] bg-[#102b4e] shadow-[0_12px_32px_rgba(20,48,78,.08)]">
+              <img src="https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=900&q=85" alt={t('Contemporary financial district architecture')} loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-700 group-hover:scale-105 group-hover:opacity-95" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#071b38]/95 via-[#071b38]/15 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white"><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#9de3dc]">02 / {t('Global perspective')}</p><h3 className="mt-2 text-[19px] font-semibold tracking-tight">{t('A world of currency options')}</h3><p className="mt-2 text-[11px] leading-5 text-white/75">{t('Follow supported currency records in one organised workspace.')}</p></div>
+            </article>
+            <article className="group relative min-h-[290px] overflow-hidden rounded-[22px] border border-[#dfe7ec] bg-[#102b4e] shadow-[0_12px_32px_rgba(20,48,78,.08)]">
+              <img src="https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=900&q=85" alt={t('Financial analytics dashboard on a computer screen')} loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-700 group-hover:scale-105 group-hover:opacity-95" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#071b38]/95 via-[#071b38]/15 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white"><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#9de3dc]">03 / {t('Financial insight')}</p><h3 className="mt-2 text-[19px] font-semibold tracking-tight">{t('Your finances, in perspective')}</h3><p className="mt-2 text-[11px] leading-5 text-white/75">{t('Keep financial information and personal records easier to review.')}</p></div>
+            </article>
+            <article className="group relative min-h-[290px] overflow-hidden rounded-[22px] border border-[#dfe7ec] bg-[#102b4e] shadow-[0_12px_32px_rgba(20,48,78,.08)]">
+              <img src="https://images.unsplash.com/photo-1555949963-ff9fe0c870eb?auto=format&fit=crop&w=900&q=85" alt={t('Digital security and software engineering workspace')} loading="lazy" className="absolute inset-0 h-full w-full object-cover opacity-85 transition duration-700 group-hover:scale-105 group-hover:opacity-95" />
+              <div className="absolute inset-0 bg-gradient-to-t from-[#071b38]/95 via-[#071b38]/15 to-transparent" />
+              <div className="absolute inset-x-0 bottom-0 p-5 text-white"><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#9de3dc]">04 / {t('Digital confidence')}</p><h3 className="mt-2 text-[19px] font-semibold tracking-tight">{t('Security at the centre')}</h3><p className="mt-2 text-[11px] leading-5 text-white/75">{t('A considered account experience with secure sign-in and private access.')}</p></div>
+            </article>
+          </div>
+          <p className="mt-4 text-center text-[9px] leading-4 text-[#8a98a6]">{t('Illustrative imagery. Available features and supported services are subject to account eligibility and applicable terms.')}</p>
+        </section>
+
         <section className="mx-5 mb-14 overflow-hidden rounded-[26px] bg-gradient-to-br from-[#081d42] via-[#0d3769] to-[#087d88] px-6 py-9 text-white shadow-[0_24px_60px_rgba(8,34,70,.18)] sm:mx-8 sm:mb-20 sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1280px] lg:px-16 lg:py-16">
           <div className="grid items-center gap-8 md:grid-cols-[1fr_auto]">
             <div className="max-w-[700px]"><p className="text-[10px] font-bold uppercase tracking-[.2em] text-[#9fe1dc]">{t('Your next step')}</p><h2 className="mt-3 text-[clamp(1.8rem,4vw,3.2rem)] font-semibold leading-[1.08] tracking-[-.04em]">{t('Bring your account records into better view.')}</h2><p className="mt-4 max-w-[590px] text-[13px] leading-6 text-white/70">{t('Sign in to review your own wallet information and account activity, or create an account to get started.')}</p></div>
