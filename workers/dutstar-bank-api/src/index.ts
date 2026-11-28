@@ -12,6 +12,7 @@ export interface Env {
   CLERK_JWKS_URL?: string;
   CLERK_ISSUER?: string;
   CLERK_SECRET_KEY?: string;
+  DUTSTAR_ADMIN_EMAILS?: string;
   SESSION_SECRET?: string;
   PAYSTACK_SECRET_KEY?: string;
   PAYSTACK_WEBHOOK_SECRET?: string;
