@@ -129,11 +129,19 @@ export function ClerkSignInForm() {
   const [verificationFactor, setVerificationFactor] = useState<
     'first_email_code' | 'email_code' | 'phone_code' | 'totp' | 'backup_code' | null
   >(null);
+  const [emailOtpMode, setEmailOtpMode] = useState(false);
+  const [emailOtpEmail, setEmailOtpEmail] = useState('');
   const [error, setError] = useState('');
   const [errorField, setErrorField] = useState<SignInValidationField | null>(null);
   const userSettings = clerk?.environment?.userSettings;
   const usernameIdentifierEnabled = userSettings?.attributes?.username?.enabled === true;
   const passwordSignInEnabled = userSettings?.attributes?.password?.enabled === true;
+  const emailSettings = userSettings?.attributes?.email_address;
+  const emailOtpAvailable = supportsEmailCodeRecovery(
+    emailSettings?.enabled === true,
+    emailSettings?.first_factors,
+    emailSettings?.verifications,
+  );
   const usernameMinLength = userSettings?.usernameSettings?.min_length ?? 1;
   const usernameMaxLength = userSettings?.usernameSettings?.max_length ?? 64;
   const busy = fetchStatus === 'fetching';
@@ -223,6 +231,45 @@ export function ClerkSignInForm() {
     }
   };
 
+  const requestEmailOtp = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    clearFormError();
+    const email = emailOtpEmail.trim();
+    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+      showFormError('Enter a valid email address.');
+      return;
+    }
+    try {
+      await signIn.reset();
+      const created = await signIn.create({ identifier: email });
+      if (created.error) {
+        setError(authFailureMessage(created.error, 'sign-in'));
+        return;
+      }
+      const sent = await signIn.emailCode.sendCode();
+      if (sent.error) {
+        setError(authFailureMessage(sent.error, 'verification'));
+        return;
+      }
+      setVerificationCode('');
+      setVerificationFactor('first_email_code');
+      setEmailOtpMode(true);
+      setError('');
+    } catch (otpError) {
+      setError(authFailureMessage(otpError, 'verification'));
+    }
+  };
+
+  const resendEmailOtp = async () => {
+    clearFormError();
+    try {
+      const sent = await signIn.emailCode.sendCode();
+      if (sent.error) setError(authFailureMessage(sent.error, 'verification'));
+    } catch (otpError) {
+      setError(authFailureMessage(otpError, 'verification'));
+    }
+  };
+
   const submit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const validationError = validateSignInCredentials({
@@ -280,7 +327,29 @@ export function ClerkSignInForm() {
         <h1>{t('Welcome back')}</h1>
         <p>{t('Sign in with your username and password.')}</p>
       </div>
-      {verificationFactor ? (
+      {emailOtpMode && !verificationFactor ? (
+        <form className="gb-auth-form" onSubmit={requestEmailOtp}>
+          <label className="gb-field-label" htmlFor="gb-signin-email-otp">{t('Email address')}</label>
+          <input
+            id="gb-signin-email-otp"
+            className="gb-input"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            value={emailOtpEmail}
+            onChange={event => { clearFormError(); setEmailOtpEmail(event.target.value); }}
+            required
+          />
+          {error && <p role="alert" className="gb-auth-error">{t(error)}</p>}
+          <button className="gb-primary-button" type="submit" disabled={busy || !emailOtpEmail.trim()}>
+            <span>{busy ? t('Sending code…') : t('Send email code')}</span>
+            <span aria-hidden="true">→</span>
+          </button>
+          <button className="gb-login-recovery-action mt-3" type="button" onClick={() => { setEmailOtpMode(false); clearFormError(); }}>
+            {t('Back to password sign in')}
+          </button>
+        </form>
+      ) : verificationFactor ? (
         <form className="gb-auth-form" onSubmit={submitVerificationCode}>
           <p className="gb-switch-copy">
             {verificationFactor === 'first_email_code' || verificationFactor === 'email_code'
@@ -307,6 +376,11 @@ export function ClerkSignInForm() {
             <span>{busy ? t('Verifying…') : t('Verify & sign in')}</span>
             <span aria-hidden="true">→</span>
           </button>
+          {emailOtpMode && verificationFactor === 'first_email_code' && (
+            <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={resendEmailOtp}>
+              {t('Resend email code')}
+            </button>
+          )}
           <button
             className="gb-login-recovery-action mt-3"
             type="button"
@@ -314,6 +388,7 @@ export function ClerkSignInForm() {
               void signIn.reset().catch(() => undefined);
               setVerificationFactor(null);
               setVerificationCode('');
+              setEmailOtpMode(false);
               clearFormError();
             }}
           >
@@ -374,6 +449,11 @@ export function ClerkSignInForm() {
               <span>{busy ? t('Signing in…') : t('Sign in')}</span>
               <span aria-hidden="true">→</span>
             </button>
+            {emailOtpAvailable && (
+              <button className="gb-recovery-secondary" type="button" disabled={busy} onClick={() => { setEmailOtpMode(true); setError(''); }}>
+                {t('Sign in with email code')}
+              </button>
+            )}
           </form>
         )
       )}
