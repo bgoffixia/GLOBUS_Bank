@@ -401,7 +401,7 @@ async function customerTransactions(
   const currency = url.searchParams.get("currency");
   const status = url.searchParams.get("status");
   const search = url.searchParams.get("search")?.trim();
-  if (currency && ["USD","EUR","GBP","NGN","CAD","AUD"].includes(currency)) {
+  if (currency && ["USD","EUR","GBP","CAD","AUD"].includes(currency)) {
     values.push(currency);
     conditions.push(`currency = $${values.length}`);
   }
@@ -1303,7 +1303,7 @@ export default {
       let body: Record<string, unknown>;
       try { body = await request.json() as Record<string, unknown>; }
       catch { return json({ error: "INVALID_JSON" }, 400); }
-      const currencies = ["USD", "EUR", "GBP", "NGN", "CAD", "AUD"];
+      const currencies = ["USD", "EUR", "GBP", "CAD", "AUD"];
       const amount = typeof body.requestedAmountMinor === "string" ? body.requestedAmountMinor : "";
       const purpose = typeof body.purpose === "string" ? body.purpose.trim() : "";
       const termMonths = Number(body.termMonths);
@@ -1389,7 +1389,7 @@ export default {
       let body: Record<string, unknown>;
       try { body = await request.json() as Record<string, unknown>; }
       catch { return json({ error: "INVALID_JSON" }, 400); }
-      const currencies = ["USD", "EUR", "GBP", "NGN", "CAD", "AUD"];
+      const currencies = ["USD", "EUR", "GBP", "CAD", "AUD"];
       const currentValue = typeof body.currentValueMinor === "string" ? body.currentValueMinor : "";
       const target = body.targetAmountMinor == null ? null : String(body.targetAmountMinor);
       const validDate = (value: unknown) => typeof value === "string" &&
@@ -1490,7 +1490,7 @@ export default {
       const kind = url.searchParams.get("kind");
       const currency = url.searchParams.get("currency");
       const allowedKinds = ["expense", "savings", "investment", "loan", "bill"];
-      const allowedCurrencies = ["USD", "EUR", "GBP", "NGN", "CAD", "AUD"];
+      const allowedCurrencies = ["USD", "EUR", "GBP", "CAD", "AUD"];
       if (kind && !allowedKinds.includes(kind)) return json({ error: "INVALID_KIND" }, 400);
       if (currency && !allowedCurrencies.includes(currency)) return json({ error: "INVALID_CURRENCY" }, 400);
 
@@ -1541,7 +1541,7 @@ export default {
       try { body = await request.json() as Record<string, unknown>; }
       catch { return json({ error: "INVALID_JSON" }, 400); }
       const kinds = ["expense", "savings", "investment", "loan", "bill"];
-      const currencies = ["USD", "EUR", "GBP", "NGN", "CAD", "AUD"];
+      const currencies = ["USD", "EUR", "GBP", "CAD", "AUD"];
       const frequencies = ["once", "weekly", "monthly", "quarterly", "yearly"];
       const amount = typeof body.amountMinor === "string" ? body.amountMinor : String(body.amountMinor ?? "");
       const target = body.targetAmountMinor == null ? null : String(body.targetAmountMinor);
