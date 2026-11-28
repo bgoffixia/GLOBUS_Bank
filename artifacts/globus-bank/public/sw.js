@@ -1,4 +1,4 @@
-const CACHE_NAME = "dutstar-app-shell-v3";
+const CACHE_NAME = "dutstar-app-shell-v4";
 
 self.addEventListener("install", (event) => {
   event.waitUntil(
