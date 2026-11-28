@@ -80,24 +80,36 @@ async function getClerkKeys(jwksUrl: string): Promise<JsonWebKey[]> {
 }
 
 async function verifyClerkSession(request: Request, env: Env): Promise<ClerkClaims | null> {
+  const requestHost = new URL(request.url).host;
+  const reject = (reason: string, details: Record<string, unknown> = {}) => {
+    // Never log the bearer token, session ID, Clerk user ID, email, or full claims.
+    console.warn("DUTSTAR_CLERK_AUTH_REJECTED", { reason, requestHost, ...details });
+    return null;
+  };
+
   const authorization = request.headers.get("authorization");
   const token = authorization?.startsWith("Bearer ")
     ? authorization.slice(7).trim()
     : "";
-  if (!token || !env.CLERK_JWKS_URL || !env.CLERK_ISSUER) return null;
+  if (!token) return reject("missing_bearer_token");
+  if (!env.CLERK_JWKS_URL || !env.CLERK_ISSUER) {
+    return reject("clerk_verification_config_missing", {
+      jwksConfigured: Boolean(env.CLERK_JWKS_URL),
+      issuerConfigured: Boolean(env.CLERK_ISSUER),
+    });
+  }
 
   try {
     const parts = token.split(".");
-    if (parts.length !== 3) return null;
+    if (parts.length !== 3) return reject("malformed_jwt");
 
     const header = decodeJwtPart<{ alg?: string; kid?: string }>(parts[0]);
     const claims = decodeJwtPart<ClerkClaims>(parts[1]);
-    if (header.alg !== "RS256" || !header.kid) return null;
+    if (header.alg !== "RS256" || !header.kid) {
+      return reject("unsupported_jwt_header", { algorithm: header.alg ?? null, hasKeyId: Boolean(header.kid) });
+    }
 
     const now = Math.floor(Date.now() / 1000);
-    // Clerk's authorized-party (azp) claim is the browser origin.
-    // DUTSTAR serves both the apex app host and its www alias; accept only
-    // those two exact HTTPS origins derived from the configured APP_ORIGIN.
     const configuredOrigin = new URL(env.APP_ORIGIN).origin;
     const configuredUrl = new URL(configuredOrigin);
     const alternateHost = configuredUrl.hostname.startsWith("www.")
@@ -108,20 +120,32 @@ async function verifyClerkSession(request: Request, env: Env): Promise<ClerkClai
       `${configuredUrl.protocol}//${alternateHost}`,
     ]);
 
-    if (
-      claims.iss !== env.CLERK_ISSUER ||
-      typeof claims.azp !== "string" ||
-      !allowedAuthorizedParties.has(claims.azp) ||
-      typeof claims.sub !== "string" ||
-      claims.sub.length === 0 ||
-      typeof claims.exp !== "number" ||
-      claims.exp <= now ||
-      (typeof claims.nbf === "number" && claims.nbf > now + 30)
-    ) return null;
+    if (claims.iss !== env.CLERK_ISSUER) {
+      return reject("issuer_mismatch", {
+        receivedIssuer: claims.iss ?? null,
+        configuredIssuer: env.CLERK_ISSUER,
+      });
+    }
+    if (typeof claims.azp !== "string" || !allowedAuthorizedParties.has(claims.azp)) {
+      return reject("authorized_party_mismatch", {
+        receivedAuthorizedParty: claims.azp ?? null,
+        allowedAuthorizedParties: [...allowedAuthorizedParties],
+      });
+    }
+    if (typeof claims.sub !== "string" || claims.sub.length === 0) return reject("subject_missing");
+    if (typeof claims.exp !== "number" || claims.exp <= now) {
+      return reject("token_expired_or_exp_missing", {
+        hasExpiration: typeof claims.exp === "number",
+        expired: typeof claims.exp === "number" ? claims.exp <= now : null,
+      });
+    }
+    if (typeof claims.nbf === "number" && claims.nbf > now + 30) {
+      return reject("token_not_yet_valid");
+    }
 
     const keyData = (await getClerkKeys(env.CLERK_JWKS_URL))
       .find((key) => key.kid === header.kid && key.kty === "RSA");
-    if (!keyData) return null;
+    if (!keyData) return reject("signing_key_not_found", { keyId: header.kid });
 
     const publicKey = await crypto.subtle.importKey(
       "jwk",
@@ -136,9 +160,11 @@ async function verifyClerkSession(request: Request, env: Env): Promise<ClerkClai
       decodeBase64Url(parts[2]),
       new TextEncoder().encode(`${parts[0]}.${parts[1]}`),
     );
-    return valid ? claims : null;
-  } catch {
-    return null;
+    return valid ? claims : reject("signature_invalid", { keyId: header.kid });
+  } catch (error) {
+    return reject("verification_exception", {
+      errorType: error instanceof Error ? error.name : "unknown",
+    });
   }
 }
 
