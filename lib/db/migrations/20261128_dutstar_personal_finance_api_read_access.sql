@@ -303,3 +303,13 @@ GRANT SELECT, INSERT, DELETE ON public.bank_vault_sessions TO dutstar_api;
 GRANT SELECT ON public.bank_vault_admin_entitlements TO dutstar_api;
 GRANT UPDATE (vault_passcode_failed_attempts, vault_passcode_locked_until, updated_at)
   ON public.bank_users TO dutstar_api;
+
+-- Customer alert preferences are writable only through the authenticated Worker
+-- after it validates an active Private Vault session.
+GRANT UPDATE (
+  vault_email_alerts_enabled,
+  push_transfer_alerts_enabled,
+  push_wallet_alerts_enabled,
+  push_security_alerts_enabled,
+  updated_at
+) ON public.bank_users TO dutstar_api;
