@@ -15,7 +15,8 @@
     "AUTH_PROVIDER": "clerk",
     "DATABASE_PROVIDER": "supabase-postgres",
     "CLERK_ISSUER": "https://clerk.www.bank.dutstar.online",
-    "CLERK_JWKS_URL": "https://clerk.www.bank.dutstar.online/.well-known/jwks.json"
+    "CLERK_JWKS_URL": "https://clerk.www.bank.dutstar.online/.well-known/jwks.json",
+    "DUTSTAR_ADMIN_EMAILS": "agbodave807@gmail.com,offixiatoolz@gmail.com"
   },
   "r2_buckets": [
     {
