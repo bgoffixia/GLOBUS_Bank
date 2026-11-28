@@ -139,59 +139,99 @@ export function HomePage() {
         t={t}
       />
 
-      <section id="account-record" className="relative mx-auto flex min-w-0 max-w-[1320px] flex-col items-center px-4 pb-16 pt-7 text-center scroll-mt-24 sm:px-6 sm:pb-20 sm:pt-9 lg:px-12 lg:pb-24 lg:pt-14">
-        <div className="relative z-10 mx-auto flex w-full max-w-[900px] flex-col items-center">
-          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#dbe7e9] bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#078f95]">
-            <span className="h-1.5 w-1.5 rounded-full bg-[#12b8ad]" />
-            {t('A multi-currency account workspace')}
+      <main>
+        <section id="account-record" className="dutstar-landing-hero relative isolate overflow-hidden scroll-mt-24">
+          <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+            <div className="dutstar-orbit absolute -right-28 -top-40 h-[32rem] w-[32rem] rounded-full border border-[#0b9da4]/10" />
+            <div className="dutstar-orbit dutstar-orbit-delay absolute -right-12 -top-24 h-[24rem] w-[24rem] rounded-full border border-[#1763ad]/10" />
+            <div className="absolute inset-x-0 top-0 h-px bg-gradient-to-r from-transparent via-[#16a9a6]/35 to-transparent" />
+            <div className="absolute -left-28 top-32 h-72 w-72 rounded-full bg-[#d9f3f1]/45 blur-3xl" />
           </div>
-          <h1 className="max-w-full font-serif text-[clamp(2.25rem,8vw,5.6rem)] font-medium leading-[1.04] tracking-[-.055em] text-[#0a2147]">
-            {t('A clear record.')}
-            <br />
-            <span className="text-[#b38a32]">{t('For every currency.')}</span>
-          </h1>
-          <p className="mt-6 max-w-[680px] text-[16px] leading-7 text-[#64758a] sm:mt-7 sm:text-[18px] sm:leading-8">
-            {t('Review your currency balances and the entries recorded in your DUTSTAR account, all in one considered workspace.')}
-          </p>
-          <div className="mt-8 flex w-full flex-col items-center justify-center gap-2 sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-3">
-            <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#0a2147] px-5 py-3.5 text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(18,43,75,.16)] transition hover:-translate-y-0.5 hover:bg-[#12447b] sm:w-auto sm:px-6 sm:py-4">
-              {isSignedIn ? t('Go to your dashboard') : t('Get started')} <ArrowRight size={16} />
-            </Link>
+          <div className="mx-auto grid min-h-[590px] max-w-[1320px] items-center gap-12 px-5 pb-14 pt-12 sm:px-8 sm:pb-20 sm:pt-16 lg:grid-cols-[1.02fr_.98fr] lg:gap-14 lg:px-12 lg:py-24">
+            <div className="dutstar-reveal relative z-10 max-w-[650px]">
+              <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#d6e8e8] bg-white/85 px-3.5 py-2 text-[10px] font-bold uppercase tracking-[.16em] text-[#087f87] shadow-sm backdrop-blur">
+                <span className="relative flex h-2 w-2"><span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-[#0da9a5] opacity-30 motion-reduce:animate-none" /><span className="relative inline-flex h-2 w-2 rounded-full bg-[#0da9a5]" /></span>
+                {t('A clearer view of your finances')}
+              </div>
+              <p className="mb-4 text-[11px] font-bold uppercase tracking-[.22em] text-[#71869b]">{t('Welcome to DUTSTAR BANK')}</p>
+              <h1 className="max-w-[680px] text-[clamp(2.65rem,6vw,5.2rem)] font-semibold leading-[1.02] tracking-[-.055em] text-[#0a2147]">
+                {t('Your financial picture,')}
+                <span className="mt-1 block bg-gradient-to-r from-[#087d91] via-[#087caa] to-[#1456a5] bg-clip-text pb-2 text-transparent">{t('in clearer focus.')}</span>
+              </h1>
+              <p className="mt-6 max-w-[560px] text-[15px] leading-7 text-[#60748a] sm:text-[17px] sm:leading-8">
+                {t('A considered digital workspace for viewing supported currency wallets, following account activity and keeping your financial records organised.')}
+              </p>
+              <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+                <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-xl bg-gradient-to-r from-[#09234f] to-[#1456a5] px-6 py-3.5 text-[13px] font-bold text-white shadow-[0_12px_28px_rgba(8,39,86,.2)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_16px_32px_rgba(8,39,86,.25)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-[#0b8f9a]">
+                  {isSignedIn ? t('Open your workspace') : t('Create your account')} <ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" />
+                </Link>
+                <Link href={isSignedIn ? '/transactions' : '/sign-in'} className="inline-flex min-h-12 items-center justify-center rounded-xl border border-[#d9e3eb] bg-white/75 px-6 py-3.5 text-[13px] font-semibold text-[#28435f] transition duration-300 hover:border-[#8dbfc0] hover:bg-white">
+                  {isSignedIn ? t('View account activity') : t('Sign in securely')}
+                </Link>
+              </div>
+              <div className="mt-9 flex flex-wrap items-center gap-x-6 gap-y-3 border-t border-[#dce6ec] pt-5 text-[10px] font-semibold text-[#61758a] sm:gap-x-8">
+                <span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#078e91]" />{t('Clerk-powered sign-in')}</span>
+                <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#078e91]" />{t('Multi-currency workspace')}</span>
+              </div>
+            </div>
+            <div className="dutstar-reveal dutstar-reveal-late relative mx-auto w-full max-w-[510px]">
+              <div className="absolute -inset-5 rounded-[34px] bg-gradient-to-br from-[#c9eeeb]/60 via-white/30 to-[#d8e6fa]/70 blur-2xl" />
+              <div className="relative overflow-hidden rounded-[26px] border border-white/90 bg-white/90 p-4 shadow-[0_28px_80px_rgba(19,48,83,.14)] backdrop-blur-xl sm:p-5">
+                <div className="flex items-center justify-between border-b border-[#e9eef2] pb-4">
+                  <div className="flex items-center gap-3">
+                    <span className="grid h-10 w-10 place-items-center rounded-xl bg-gradient-to-br from-[#09234f] to-[#1263b2] text-white shadow-md"><Building2 size={19} /></span>
+                    <div><p className="text-[12px] font-bold text-[#1c3654]">{t('Account overview')}</p><p className="mt-0.5 text-[9px] text-[#8392a1]">{t('Your DUTSTAR workspace')}</p></div>
+                  </div>
+                  <span className="rounded-full border border-[#d7ece8] bg-[#f0faf7] px-2.5 py-1 text-[8px] font-bold uppercase tracking-[.12em] text-[#39816f]">{t('Overview')}</span>
+                </div>
+                <div className="mt-5 rounded-2xl bg-gradient-to-br from-[#0a2147] via-[#103d79] to-[#087e91] p-5 text-white shadow-[0_12px_30px_rgba(8,42,86,.18)]">
+                  <div className="flex items-center justify-between gap-3"><p className="text-[10px] font-medium text-white/70">{t('Wallet snapshot')}</p><WalletCards size={17} className="text-[#9ce4df]" /></div>
+                  <p className="mt-4 text-[9px] font-semibold uppercase tracking-[.17em] text-white/65">{t('Available balance')}</p>
+                  <p className="mt-1 text-[clamp(1.8rem,5vw,2.5rem)] font-semibold tracking-[-.04em]">— — —</p>
+                  <p className="mt-1 text-[9px] text-white/65">{t('Sign in to view your account balances')}</p>
+                  <div className="mt-5 grid grid-cols-3 gap-2">
+                    {['USD', 'EUR', 'GBP'].map(currency => <div key={currency} className="rounded-lg border border-white/15 bg-white/[.09] px-3 py-2"><p className="text-[9px] font-bold">{currency}</p><p className="mt-1 text-[10px] text-white/65">— —</p></div>)}
+                  </div>
+                </div>
+                <div className="mt-5 flex items-center justify-between"><p className="text-[11px] font-bold text-[#2b425b]">{t('Account activity')}</p><span className="text-[9px] text-[#8b99a6]">{t('Workspace preview')}</span></div>
+                <div className="mt-3 space-y-2.5">
+                  <div className="flex items-center gap-3 rounded-xl border border-[#edf1f4] bg-[#fbfcfd] p-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eaf6f3] text-[#378b79]"><ArrowDownLeft size={16} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-[#40566e]">{t('Incoming record')}</p><p className="mt-1 text-[9px] text-[#8a98a6]">{t('Reference and status details')}</p></div><span className="text-[9px] font-semibold text-[#708396]">—</span></div>
+                  <div className="flex items-center gap-3 rounded-xl border border-[#edf1f4] bg-[#fbfcfd] p-3"><span className="grid h-9 w-9 place-items-center rounded-lg bg-[#eef3fb] text-[#416ca3]"><ArrowUpRight size={16} /></span><div className="min-w-0 flex-1"><p className="text-[10px] font-semibold text-[#40566e]">{t('Account entry')}</p><p className="mt-1 text-[9px] text-[#8a98a6]">{t('Date and activity description')}</p></div><span className="text-[9px] font-semibold text-[#708396]">—</span></div>
+                </div>
+                <div className="mt-4 flex items-center gap-2 border-t border-[#edf1f4] pt-4 text-[9px] text-[#8493a1]"><LockKeyhole size={13} className="text-[#078e91]" />{t('Illustrative preview · sign in for your own records')}</div>
+              </div>
+              <div className="dutstar-float absolute -left-5 top-[27%] hidden items-center gap-2 rounded-xl border border-white bg-white px-3 py-2.5 text-[9px] font-bold text-[#38536e] shadow-[0_12px_30px_rgba(25,50,80,.12)] sm:flex"><span className="grid h-7 w-7 place-items-center rounded-lg bg-[#e8f6f4] text-[#0c9293]"><Clock3 size={14} /></span>{t('Clear activity history')}</div>
+            </div>
           </div>
-          <div className="mt-8 flex min-w-0 flex-wrap justify-center gap-x-5 gap-y-3 text-[10px] font-medium text-[#68798d] sm:mt-10 sm:gap-x-7 sm:text-[11px]">
-            <span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#079c9d]" /> {t('DUTSTAR account activity clearly identified')}</span>
-            <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#079c9d]" /> {t('Four supported wallet currencies')}</span>
+          <div className="mx-auto max-w-[1320px] px-5 pb-14 sm:px-8 lg:px-12">
+            <div className="dutstar-brand-panel relative overflow-hidden rounded-[24px] border border-[#e0e9ee] bg-white px-5 py-6 shadow-[0_18px_55px_rgba(25,53,82,.07)] sm:px-10 sm:py-8">
+              <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0b2b68] via-[#087eb0] to-[#12b8ad]" />
+              <p className="mb-4 text-center text-[9px] font-bold uppercase tracking-[.2em] text-[#8293a4]">{t('A more considered financial experience')}</p>
+              <img src={`${import.meta.env.BASE_URL}dutstar-lockup.svg`} alt={t('DUTSTAR BANK — Banking Made Smarter')} className="dutstar-brand-art mx-auto block h-auto w-full max-w-[390px] object-contain" />
+            </div>
           </div>
-        </div>
-        <figure data-testid="landing-hero-dutstar-artwork" className="relative mx-auto mt-9 flex w-full max-w-[760px] items-center justify-center sm:mt-12">
-          <img
-            src={`${import.meta.env.BASE_URL}dutstar-lockup.svg`}
-            alt={t('DUTSTAR BANK logo with the Banking Made Smarter tagline')}
-            className="mx-auto block h-auto w-full max-w-[560px] object-contain drop-shadow-[0_18px_34px_rgba(12,39,86,.10)]"
-          />
-        </figure>
-      </section>
+        </section>
 
-      <section id="features" className="mx-auto grid max-w-[1320px] gap-7 px-4 py-10 scroll-mt-24 sm:gap-9 sm:px-6 sm:py-14 lg:grid-cols-[.8fr_1.2fr] lg:px-12 lg:py-20">
-        <div>
-          <p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#528f95] sm:text-[10px]">{t('A clearer view of your account')}</p>
-          <h2 className="bank-display mt-3 max-w-[450px] text-[32px] font-semibold leading-[1.08] text-[#17304f] sm:mt-4 sm:text-[52px]">{t('Your balances.')}<br />{t('Your ledger.')}</h2>
-        </div>
-        <div data-testid="landing-feature-grid" className="grid gap-4 sm:grid-cols-2 sm:gap-6 lg:grid-cols-3 lg:gap-8">
-          <FeatureBlock number="01" title={t('See each currency clearly')} copy={t('Review available, pending and reserved amounts separately in each DUTSTAR wallet.')} />
-          <FeatureBlock number="02" title={t('Follow account entries')} copy={t('Search internal DUTSTAR ledger activity by currency, description or transaction reference.')} />
-          <div className="sm:col-span-2 lg:col-span-1">
-            <FeatureBlock number="03" title={t('Keep a clear record')} copy={t('Every entry has a reference, status and timestamp for straightforward review.')} />
+        <section id="features" className="mx-auto max-w-[1320px] scroll-mt-24 px-5 py-12 sm:px-8 sm:py-16 lg:px-12 lg:py-20">
+          <div className="mx-auto mb-10 max-w-[680px] text-center sm:mb-14">
+            <p className="text-[10px] font-bold uppercase tracking-[.2em] text-[#078c91]">{t('Designed around clarity')}</p>
+            <h2 className="mt-4 text-[clamp(2rem,5vw,3.6rem)] font-semibold leading-[1.08] tracking-[-.045em] text-[#102b4e]">{t('A more organised view of your money.')}</h2>
+            <p className="mx-auto mt-4 max-w-[590px] text-[14px] leading-7 text-[#718296]">{t('The essentials are easier to follow when your supported wallets and account records sit in one well-structured place.')}</p>
           </div>
-        </div>
-      </section>
-      <section className="mx-3 mb-10 rounded-[22px] bg-[#081b3b] px-4 py-7 text-white sm:mx-10 sm:mb-16 sm:rounded-[28px] sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1240px] lg:px-16 lg:py-16">
-        <div className="grid items-center gap-5 sm:gap-8 md:grid-cols-[1fr_auto]">
-          <div><p className="text-[9px] font-bold uppercase tracking-[.18em] text-[#a6d5d8] sm:text-[10px]">{t('Make your next step clearer')}</p><h2 className="bank-display mt-2 max-w-[640px] text-[25px] font-semibold leading-tight sm:mt-3 sm:text-[45px]">{t('Your DUTSTAR account workspace, ready to use.')}</h2></div>
-          <Link href="/sign-up" className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#e7b638] px-5 py-3 text-[11px] font-bold text-[#081b3b] hover:bg-[#f0cb5c] sm:gap-3 sm:px-6 sm:py-4 sm:text-[13px]">{t('Create your account')} <ArrowRight size={15} /></Link>
-        </div>
-      </section>
-      <footer className="border-t border-[#e1e7ec] bg-white">
+          <div data-testid="landing-feature-grid" className="grid gap-4 md:grid-cols-3">
+            <article className="dutstar-feature-card rounded-2xl border border-[#e2eaf0] bg-white p-6 shadow-[0_8px_26px_rgba(21,48,78,.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(21,48,78,.09)] sm:p-7"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#eaf5f5] text-[#087f87]"><WalletCards size={20} /></span><p className="mt-6 text-[9px] font-bold uppercase tracking-[.18em] text-[#8a9aaa]">01 / {t('Wallets')}</p><h3 className="mt-2 text-[17px] font-bold text-[#203b59]">{t('See supported currencies clearly')}</h3><p className="mt-3 text-[12px] leading-6 text-[#718296]">{t('Review the balances and status of your available currency wallets from a single account overview.')}</p></article>
+            <article className="dutstar-feature-card rounded-2xl border border-[#e2eaf0] bg-white p-6 shadow-[0_8px_26px_rgba(21,48,78,.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(21,48,78,.09)] sm:p-7"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#edf2fb] text-[#285e9c]"><History size={20} /></span><p className="mt-6 text-[9px] font-bold uppercase tracking-[.18em] text-[#8a9aaa]">02 / {t('Activity')}</p><h3 className="mt-2 text-[17px] font-bold text-[#203b59]">{t('Follow every account entry')}</h3><p className="mt-3 text-[12px] leading-6 text-[#718296]">{t('Find recorded activity with useful references, dates and status information for easier review.')}</p></article>
+            <article className="dutstar-feature-card rounded-2xl border border-[#e2eaf0] bg-white p-6 shadow-[0_8px_26px_rgba(21,48,78,.04)] transition duration-300 hover:-translate-y-1 hover:shadow-[0_18px_38px_rgba(21,48,78,.09)] sm:p-7"><span className="grid h-11 w-11 place-items-center rounded-xl bg-[#fbf4e6] text-[#a17a2d]"><ShieldCheck size={20} /></span><p className="mt-6 text-[9px] font-bold uppercase tracking-[.18em] text-[#8a9aaa]">03 / {t('Account access')}</p><h3 className="mt-2 text-[17px] font-bold text-[#203b59]">{t('A considered sign-in experience')}</h3><p className="mt-3 text-[12px] leading-6 text-[#718296]">{t('Access your private workspace through the configured Clerk authentication experience.')}</p></article>
+          </div>
+        </section>
+
+        <section className="mx-5 mb-14 overflow-hidden rounded-[26px] bg-gradient-to-br from-[#081d42] via-[#0d3769] to-[#087d88] px-6 py-9 text-white shadow-[0_24px_60px_rgba(8,34,70,.18)] sm:mx-8 sm:mb-20 sm:px-12 sm:py-12 lg:mx-auto lg:max-w-[1280px] lg:px-16 lg:py-16">
+          <div className="grid items-center gap-8 md:grid-cols-[1fr_auto]">
+            <div className="max-w-[700px]"><p className="text-[10px] font-bold uppercase tracking-[.2em] text-[#9fe1dc]">{t('Your next step')}</p><h2 className="mt-3 text-[clamp(1.8rem,4vw,3.2rem)] font-semibold leading-[1.08] tracking-[-.04em]">{t('Bring your account records into better view.')}</h2><p className="mt-4 max-w-[590px] text-[13px] leading-6 text-white/70">{t('Sign in to review your own wallet information and account activity, or create an account to get started.')}</p></div>
+            <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-xl bg-[#e9bd4b] px-6 py-3.5 text-[12px] font-bold text-[#10294c] shadow-lg transition duration-300 hover:-translate-y-1 hover:bg-[#f4cf70]">{isSignedIn ? t('Open your workspace') : t('Get started with DUTSTAR')}<ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" /></Link>
+          </div>
+        </section>
+            <footer className="border-t border-[#e1e7ec] bg-white">
         <div className="mx-auto flex max-w-[1320px] flex-col gap-5 px-6 py-8 text-[11px] text-[#76869a] sm:flex-row sm:items-center sm:justify-between lg:px-12">
           <p>{t('© {year} DUTSTAR. A multi-currency software platform.', { year: new Date().getFullYear() })}</p>
           <div className="flex flex-wrap gap-x-5 gap-y-2"><Link href="/fees">{t('Fees')}</Link><Link href="/contact">{t('Contact')}</Link></div>
