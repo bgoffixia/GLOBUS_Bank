@@ -1352,3 +1352,26 @@ body:has(.gb-auth-signin-shell) #root {
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+
+/* Official horizontal DUTSTAR BANK wordmark supplied for authentication screens. */
+.gb-auth-signup-shell .gb-signup-brand,
+.gb-auth-signin-shell .gb-signup-brand {
+  width: min(290px, 76vw);
+  max-width: 100%;
+  margin: 0 auto clamp(18px, 3.5vh, 30px);
+}
+.gb-auth-signup-shell .gb-signup-brand img,
+.gb-auth-signin-shell .gb-signup-brand img {
+  display: block;
+  width: 100%;
+  height: auto;
+  object-fit: contain;
+}
+@media (max-width: 760px) {
+  .gb-auth-signup-shell .gb-signup-brand,
+  .gb-auth-signin-shell .gb-signup-brand {
+    width: min(250px, 74vw);
+    margin-bottom: 16px;
+  }
+}
