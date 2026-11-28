@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1400" height="1120" viewBox="0 0 1400 1120" fill="none">
+<defs>
+ <linearGradient id="bg" x1="180" y1="70" x2="1220" y2="1050" gradientUnits="userSpaceOnUse"><stop stop-color="#F8FCFF"/><stop offset=".55" stop-color="#E5F3F5"/><stop offset="1" stop-color="#D9E7F7"/></linearGradient>
+ <linearGradient id="navy" x1="440" y1="260" x2="1050" y2="940" gradientUnits="userSpaceOnUse"><stop stop-color="#123D75"/><stop offset=".55" stop-color="#09234F"/><stop offset="1" stop-color="#071A3B"/></linearGradient>
+ <linearGradient id="teal" x1="580" y1="250" x2="1040" y2="840" gradientUnits="userSpaceOnUse"><stop stop-color="#21C4B5"/><stop offset="1" stop-color="#087E91"/></linearGradient>
+ <linearGradient id="gold" x1="330" y1="200" x2="560" y2="500" gradientUnits="userSpaceOnUse"><stop stop-color="#F7D98B"/><stop offset="1" stop-color="#B88739"/></linearGradient>
+ <filter id="shadow" x="100" y="100" width="1200" height="1000" filterUnits="userSpaceOnUse"><feGaussianBlur stdDeviation="32"/></filter>
+ </defs>
+ <rect width="1400" height="1120" rx="54" fill="url(#bg)"/>
+ <circle cx="1110" cy="170" r="230" fill="#A6E5DF" opacity=".35"/>
+ <circle cx="250" cy="900" r="270" fill="#B7CDEB" opacity=".38"/>
+ <ellipse cx="735" cy="910" rx="470" ry="90" fill="#153E70" opacity=".13" filter="url(#shadow)"/>
+ <path d="M120 740V560L255 450L390 560V740H120Z" fill="#B9D5E4" opacity=".58"/>
+ <path d="M190 740V590L255 535L320 590V740" stroke="#fff" stroke-width="14" opacity=".8"/>
+ <path d="M1050 740V490L1175 385L1300 490V740H1050Z" fill="#A8C8DD" opacity=".65"/>
+ <path d="M1115 740V525L1175 475L1235 525V740" stroke="#fff" stroke-width="14" opacity=".8"/>
+ <path d="M355 780V420C355 265 480 140 635 140H765C920 140 1045 265 1045 420V780" stroke="#0A8E98" stroke-width="18" opacity=".18"/>
+ <path d="M420 760V430C420 310 517 213 637 213H763C883 213 980 310 980 430V760" stroke="#fff" stroke-width="10" opacity=".72"/>
+ <g transform="translate(385 250)">
+  <rect x="0" y="0" width="630" height="620" rx="42" fill="url(#navy)"/>
+  <rect x="24" y="24" width="582" height="572" rx="28" stroke="#7BD9D1" stroke-opacity=".25" stroke-width="2"/>
+  <path d="M60 108H570" stroke="#FFFFFF" stroke-opacity=".17" stroke-width="2"/>
+  <circle cx="92" cy="70" r="17" fill="url(#teal)"/>
+  <path d="M84 70L90 76L102 62" stroke="white" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="126" y="78" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="25" font-weight="700" letter-spacing="2">DUTSTAR BANK</text>
+  <text x="60" y="160" fill="#A8C9D9" font-family="Arial,sans-serif" font-size="16" letter-spacing="3">YOUR FINANCIAL OVERVIEW</text>
+  <rect x="60" y="190" width="510" height="220" rx="26" fill="url(#teal)"/>
+  <text x="96" y="245" fill="#E4FFFC" font-family="Arial,sans-serif" font-size="17">A clearer view of your finances</text>
+  <text x="96" y="318" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="49" font-weight="700">Banking,</text>
+  <text x="96" y="370" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="49" font-weight="700">made smarter.</text>
+  <rect x="60" y="445" width="238" height="112" rx="18" fill="#FFFFFF" fill-opacity=".10" stroke="#FFFFFF" stroke-opacity=".2"/>
+  <rect x="318" y="445" width="252" height="112" rx="18" fill="#FFFFFF" fill-opacity=".10" stroke="#FFFFFF" stroke-opacity=".2"/>
+  <circle cx="99" cy="485" r="16" fill="#A7E8DD"/><path d="M91 485H107M99 477V493" stroke="#0A4660" stroke-width="3" stroke-linecap="round"/>
+  <text x="126" y="491" fill="#D8EAF2" font-family="Arial,sans-serif" font-size="16">MULTI-CURRENCY</text>
+  <text x="90" y="530" fill="#FFFFFF" font-family="Arial,sans-serif" font-size="20" font-weight="700">Wallet workspace</text>
+  <path d="M350 505L385 480L420 493L455 465L492 478L530 452" stroke="#8BE2D7" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="350" y="535" fill="#D8EAF2" font-family="Arial,sans-serif" font-size="15">ACCOUNT INSIGHT</text>
+ </g>
+ <g transform="translate(860 670) rotate(8)">
+  <rect x="0" y="0" width="260" height="164" rx="22" fill="url(#gold)" stroke="#FFF4D8" stroke-width="5"/>
+  <path d="M28 42H232" stroke="#FFF7E8" stroke-opacity=".6" stroke-width="2"/>
+  <circle cx="48" cy="91" r="18" fill="#FFF3D4" fill-opacity=".72"/>
+  <circle cx="72" cy="91" r="18" fill="#FFF3D4" fill-opacity=".42"/>
+  <text x="28" y="137" fill="#533C19" font-family="Arial,sans-serif" font-size="15" font-weight="700" letter-spacing="2">DUTSTAR</text>
+ </g>
+ <g transform="translate(175 265)">
+  <rect width="220" height="116" rx="20" fill="#FFFFFF" stroke="#E4EEF2" stroke-width="2"/>
+  <circle cx="42" cy="42" r="18" fill="#E0F5F1"/><path d="M34 42L40 48L51 35" stroke="#078D8F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/>
+  <text x="72" y="40" fill="#71869B" font-family="Arial,sans-serif" font-size="13" letter-spacing="1">SECURE ACCESS</text>
+  <text x="28" y="82" fill="#12345A" font-family="Arial,sans-serif" font-size="20" font-weight="700">Your money, in view.</text>
+ </g>
+ <text x="700" y="1035" fill="#46637D" font-family="Arial,sans-serif" font-size="20" text-anchor="middle" letter-spacing="4">CLARITY  •  CONFIDENCE  •  CONTROL</text>
+</svg>
