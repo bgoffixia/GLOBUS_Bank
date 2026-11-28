@@ -881,7 +881,7 @@ body:has(.gb-auth-signup-shell) #root {
 
 .gb-auth-signin-shell .gb-signin-brand {
   display: flex;
-  width: min(218px, 62vw);
+  width: min(160px, 48vw);
   margin: 0 auto clamp(16px, 3.5vh, 28px);
   align-items: center;
   justify-content: center;
@@ -1102,7 +1102,7 @@ body:has(.gb-auth-signin-shell) #root {
   }
 
   .gb-auth-signin-shell .gb-signin-brand {
-    width: min(198px, 62vw);
+    width: min(140px, 42vw);
     margin-bottom: 14px;
   }
 
