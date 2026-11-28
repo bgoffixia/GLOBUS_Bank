@@ -188,6 +188,7 @@ export function HomePage() {
                 {t('Secure digital banking')}
               </div>
             </div>
+          </div>
           <div className="mx-auto max-w-[1320px] px-5 pb-14 sm:px-8 lg:px-12">
             <div className="dutstar-brand-panel relative overflow-hidden rounded-[24px] border border-[#e0e9ee] bg-white px-5 py-6 shadow-[0_18px_55px_rgba(25,53,82,.07)] sm:px-10 sm:py-8">
               <div className="absolute inset-x-0 top-0 h-1 bg-gradient-to-r from-[#0b2b68] via-[#087eb0] to-[#12b8ad]" />
