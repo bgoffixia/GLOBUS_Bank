@@ -254,3 +254,30 @@ GRANT UPDATE (customer_unread, admin_unread, status, last_message_at, updated_at
   ON public.bank_support_conversations TO dutstar_api;
 --> statement-breakpoint
 GRANT SELECT, INSERT ON public.bank_support_messages TO dutstar_api;
+--> statement-breakpoint
+-- Customer-owned notification inbox.
+DROP POLICY IF EXISTS dutstar_api_notification_owner_select
+  ON public.bank_notifications;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_notification_owner_select
+  ON public.bank_notifications FOR SELECT TO dutstar_api
+  USING (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_notification_owner_update
+  ON public.bank_notifications;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_notification_owner_update
+  ON public.bank_notifications FOR UPDATE TO dutstar_api
+  USING (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''))
+  WITH CHECK (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_notification_owner_delete
+  ON public.bank_notifications;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_notification_owner_delete
+  ON public.bank_notifications FOR DELETE TO dutstar_api
+  USING (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+GRANT SELECT, DELETE ON public.bank_notifications TO dutstar_api;
+--> statement-breakpoint
+GRANT UPDATE (read_at) ON public.bank_notifications TO dutstar_api;
