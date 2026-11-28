@@ -290,6 +290,21 @@ export function DashboardPage() {
   if (query.isError) return <Failure title={t('Your overview isn’t available')} retry={() => query.refetch()} />;
   return (
     <div data-testid="dashboard-workspace" className="flex min-h-full w-full flex-col">
+      {!dash?.profile.profileSetupComplete && (
+        <section
+          role="status"
+          data-testid="dashboard-incomplete-profile-notice"
+          className="mb-3 flex flex-wrap items-center justify-between gap-3 rounded-xl border border-[#d9e5ef] bg-white px-4 py-3 text-[12px] text-[#40566e]"
+        >
+          <div className="min-w-0">
+            <p className="font-semibold text-[#183653]">{t('Your dashboard is ready')}</p>
+            <p className="mt-1">{t('You can use your dashboard now. Complete your profile when convenient to enable account features that require additional details.')}</p>
+          </div>
+          <Link href="/profile" data-testid="link-complete-dashboard-profile" className="shrink-0 rounded-lg bg-[#173b62] px-3 py-2 font-semibold text-white hover:bg-[#214c76]">
+            {t('Complete profile')}
+          </Link>
+        </section>
+      )}
       {dash?.profile.testingMode && <div role="status" data-testid="dashboard-testing-mode-warning" className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-xl border border-[#ead9a8] bg-[#fff9e9] px-3.5 py-2.5 text-[10px] leading-4 text-[#765e2d]">
         <ShieldCheck size={14} className="shrink-0" />
         <p className="min-w-0 flex-1"><strong className="font-bold">{t('Testing Mode')}</strong> · {t('Private Vault is inactive. Set it up and choose a subscription to unlock its services.')}</p>
