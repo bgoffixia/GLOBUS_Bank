@@ -380,9 +380,6 @@ export function ClerkSignInForm() {
       <p className="gb-recovery-link">
         <Link href="/sign-in/email">{t('Forgot username or password?')}</Link>
       </p>
-      <p className="gb-recovery-link">
-        <Link href="/private-vault/reset-passcode">Forgot your Private Vault PIN?</Link>
-      </p>
       <p className="gb-switch-copy">{t('New to DUTSTAR?')} <Link href="/sign-up">{t('Create an account')}</Link></p>
     </div>
   );
