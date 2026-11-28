@@ -141,6 +141,7 @@ export function HomePage() {
 
       <section id="account-record" className="relative mx-auto grid min-w-0 max-w-[1320px] items-center gap-10 px-4 pb-16 pt-7 scroll-mt-24 sm:gap-14 sm:px-6 sm:pb-20 sm:pt-9 lg:grid-cols-[1.04fr_.96fr] lg:px-12 lg:pb-28 lg:pt-16">
         <div className="relative z-10 min-w-0">
+          <div className="mb-5 flex items-center"><img src={`${import.meta.env.BASE_URL}dutstar-wordmark.svg`} alt="DUTSTAR BANK — Banking Made Smarter" className="h-auto w-[min(250px,72vw)]" /></div>
           <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#dbe7e9] bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#078f95]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#12b8ad]" />
             {t('A multi-currency account workspace')}
