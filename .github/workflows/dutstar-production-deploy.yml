@@ -1,4 +1,5 @@
 name: DUTSTAR production Worker deploy
+# Production deploy pipeline for the Cloudflare Worker and its static frontend assets.
 
 on:
   push:
