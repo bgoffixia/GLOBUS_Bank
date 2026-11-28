@@ -667,7 +667,7 @@ export default {
       catch { return json({ error: "INVALID_JSON" }, 400); }
       const passcode = typeof body.newPasscode === "string" ? body.newPasscode : body.passcode;
       if (
-        typeof passcode !== "string" || !/^\\d{6,12}$/.test(passcode) ||
+        typeof passcode !== "string" || !/^\d{6,12}$/.test(passcode) ||
         (body.customerId !== undefined &&
           (typeof body.customerId !== "string" || !/^[A-Za-z0-9]{7}$/.test(body.customerId)))
       ) return json({ error: "INVALID_RECOVERY_INPUT" }, 400);
