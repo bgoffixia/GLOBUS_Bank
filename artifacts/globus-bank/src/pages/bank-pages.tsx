@@ -1192,36 +1192,22 @@ export function ProfilePage() {
           </section>
           <button type="button" onClick={() => setProfileTab('details')} className="mt-4 inline-flex h-9 items-center gap-2 rounded-lg bg-[#173858] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269]">Review personal details <ArrowRight size={12} /></button>
         </section>}
-        {profileTab === 'details' && (profile.profileSetupComplete ? <section className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5" data-testid="profile-details-readonly">
-          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">These details are read-only after initial setup. Contact an administrator to request a correction.</p></div>
-          <dl className="grid gap-3 sm:grid-cols-2">
-            <div className="min-w-0 rounded-xl bg-[#f7f9fa] p-3" data-testid="profile-details-username">
-              <dt className="text-[8px] font-bold uppercase tracking-[.1em] text-[#8291a0]">{t('Username')}</dt>
-              <dd className={`mt-1 break-words text-[10px] font-semibold ${user?.username ? 'text-[#40566e]' : 'text-[#a07855]'}`}>{formatCustomerProfileValue(user?.username) === 'Missing' ? t('Missing') : formatCustomerProfileValue(user?.username)}</dd>
-            </div>
-            {customerProfileFieldLabels.map(([key, label]) => {
-              const value = profile[key];
-              const provided = typeof value === 'string' && value.trim().length > 0;
-              return <div key={key} className="min-w-0 rounded-xl bg-[#f7f9fa] p-3"><dt className="text-[8px] font-bold uppercase tracking-[.1em] text-[#8291a0]">{t(label)}</dt><dd className={`mt-1 break-words text-[10px] font-semibold ${provided ? 'text-[#40566e]' : 'text-[#a07855]'}`}>{formatCustomerProfileValue(value) === 'Missing' ? t('Missing') : formatCustomerProfileValue(value)}</dd></div>;
-            })}
-          </dl>
-          <p className="mt-3 text-[9px] text-[#7c8b9a]">Email address · {profile.email}</p>
-        </section> : <form onSubmit={submit} className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
-          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Complete your personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">This initial setup can be completed once. Later changes require an administrator.</p></div>
+        {profileTab === 'details' && <form onSubmit={submit} className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5" data-testid="profile-details-edit-form">
+          <div className="mb-3"><h2 className="text-[12px] font-bold text-[#29425c]">Personal details</h2><p className="mt-1 text-[9px] text-[#7c8b9a]">Keep your personal information up to date. Changes are saved securely to your existing DUTSTAR account.</p></div>
           <div className="grid gap-3 sm:grid-cols-2">
             <Field label="First name"><input required maxLength={80} value={firstName} onChange={event => setFirstName(event.target.value)} className={inputClass} /></Field>
             <Field label="Last name"><input required maxLength={80} value={lastName} onChange={event => setLastName(event.target.value)} className={inputClass} /></Field>
-            <Field label="Address"><textarea maxLength={1024} value={address} onChange={event => setAddress(event.target.value)} className={`${inputClass} min-h-[72px] resize-y py-2`} placeholder="Missing" /></Field>
-            <Field label="Phone number"><input maxLength={1024} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
-            <Field label="Country of origin"><input maxLength={1024} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
-            <Field label="City of origin"><input maxLength={1024} value={cityOfOrigin} onChange={event => setCityOfOrigin(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
+            <Field label="Address"><textarea maxLength={1024} value={address} onChange={event => setAddress(event.target.value)} className={`${inputClass} min-h-[72px] resize-y py-2`} placeholder="Enter your address" /></Field>
+            <Field label="Phone number"><input maxLength={1024} value={phone} onChange={event => setPhone(event.target.value)} className={inputClass} placeholder="Enter your phone number" /></Field>
+            <Field label="Country of origin"><input maxLength={1024} value={country} onChange={event => setCountry(event.target.value)} className={inputClass} placeholder="Enter your country" /></Field>
+            <Field label="City of origin"><input maxLength={1024} value={cityOfOrigin} onChange={event => setCityOfOrigin(event.target.value)} className={inputClass} placeholder="Enter your city" /></Field>
             <Field label="Date of birth"><input type="date" value={dateOfBirth} onChange={event => setDateOfBirth(event.target.value)} className={inputClass} /></Field>
-            <Field label="Occupation / employment status"><input maxLength={1024} value={occupation} onChange={event => setOccupation(event.target.value)} className={inputClass} placeholder="Missing" /></Field>
+            <Field label="Occupation / employment status"><input maxLength={1024} value={occupation} onChange={event => setOccupation(event.target.value)} className={inputClass} placeholder="Enter your occupation" /></Field>
             <Field label="Email address"><input disabled value={profile?.email ?? ''} className={`${inputClass} bg-[#f4f7f9] text-[#8190a0]`} /></Field>
           </div>
-          {note && <p role="status" className={`mt-3 rounded-lg px-3 py-2 text-[9px] ${note.startsWith('Profile saved') ? 'bg-[#f0f8f4] text-[#41755f]' : 'bg-[#fff1ef] text-[#a24940]'}`}>{note}</p>}
-          <button disabled={update.isPending} className="mt-3 h-9 rounded-lg bg-[#142f51] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45">{update.isPending ? 'Saving profile…' : 'Save profile'}</button>
-        </form>)}
+          {note && <p role={note.startsWith('Profile saved') ? 'status' : 'alert'} className={`mt-3 rounded-lg px-3 py-2 text-[9px] ${note.startsWith('Profile saved') ? 'bg-[#f0f8f4] text-[#41755f]' : 'bg-[#fff1ef] text-[#a24940]'}`}>{note}</p>}
+          <button type="submit" disabled={update.isPending} className="mt-3 h-9 rounded-lg bg-[#142f51] px-4 text-[9px] font-bold text-white hover:bg-[#1b4269] disabled:cursor-not-allowed disabled:opacity-45">{update.isPending ? 'Saving profile…' : 'Save changes'}</button>
+        </form>}
         {profileTab === 'security' && <section id="transaction-security" className="rounded-[18px] border border-[#e1e8ee] bg-white p-4 sm:p-5">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
