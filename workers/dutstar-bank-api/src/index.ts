@@ -641,7 +641,7 @@ export default {
     if (url.pathname === "/api/bank/vault/session" && request.method === "POST") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
-      if (!env.VAULT_PASSCODE_PEPPER) return json({ error: "VAULT_SECURITY_NOT_CONFIGURED" }, 503);
+      if (!env.SESSION_SECRET) return json({ error: "VAULT_SECURITY_NOT_CONFIGURED" }, 503);
       let body: { passcode?: unknown; rememberDevice?: unknown };
       try { body = await request.json() as typeof body; }
       catch { return json({ error: "INVALID_JSON" }, 400); }
@@ -679,7 +679,7 @@ export default {
             return { status: "invalid_hash" as const };
           }
           const actual = await new Promise<Buffer>((resolve, reject) => {
-            scryptCallback(`${body.passcode as string}:${env.VAULT_PASSCODE_PEPPER}`,
+            scryptCallback(`${body.passcode as string}:${env.SESSION_SECRET}`,
               Buffer.from(parts[1], "hex"), 64, (error, key) => error ? reject(error) : resolve(key as Buffer));
           });
           const expected = Buffer.from(parts[2], "hex");
