@@ -48,6 +48,9 @@ jobs:
           PORT: "24083"
           BASE_PATH: /
           NODE_ENV: production
+          # Public Clerk production publishable key for the verified
+          # clerk.www.bank.dutstar.online instance (not the dev instance).
+          VITE_CLERK_PUBLISHABLE_KEY: pk_live_Y2xlcmsud3d3LmJhbmsuZHV0c3Rhci5vbmxpbmUk
         run: |
           pnpm run build
           test -s artifacts/globus-bank/dist/public/index.html
