@@ -1,4 +1,5 @@
 import { Client } from "pg";
+import { randomBytes, scrypt as scryptCallback, timingSafeEqual } from "node:crypto";
 
 export interface Env {
   APP_NAME: string;
@@ -180,6 +181,34 @@ async function withCustomerRead<T>(
   } finally {
     try { await client.end(); } catch { /* close best-effort */ }
   }
+}
+
+const TRANSACTION_PIN_KEY_LENGTH = 64;
+const TRANSACTION_PIN_MAX_FAILURES = 5;
+const TRANSACTION_PIN_LOCK_MS = 15 * 60 * 1000;
+
+function deriveTransactionPinKey(pin: string, salt: Buffer): Promise<Buffer> {
+  return new Promise((resolve, reject) => {
+    scryptCallback(pin, salt, TRANSACTION_PIN_KEY_LENGTH, (error, key) => {
+      if (error) reject(error);
+      else resolve(key as Buffer);
+    });
+  });
+}
+
+async function hashTransactionPin(pin: string): Promise<string> {
+  const salt = randomBytes(16);
+  const key = await deriveTransactionPinKey(pin, salt);
+  return `scrypt${salt.toString("hex")}${key.toString("hex")}`;
+}
+
+async function matchesTransactionPin(pin: string, encodedHash: string): Promise<boolean> {
+  const parts = encodedHash.split("$");
+  if (parts.length !== 3 || parts[0] !== "scrypt" ||
+      !/^[a-f0-9]{32}$/.test(parts[1]) || !/^[a-f0-9]{128}$/.test(parts[2])) return false;
+  const expected = Buffer.from(parts[2], "hex");
+  const actual = await deriveTransactionPinKey(pin, Buffer.from(parts[1], "hex"));
+  return actual.length === expected.length && timingSafeEqual(actual, expected);
 }
 
 function moneyMinor(value: string | number | bigint | null | undefined): string {
@@ -547,6 +576,65 @@ export default {
           accountStatus: user.account_status, createdAt: user.created_at,
         });
       } catch { return json({ error: "BANK_PROFILE_UPDATE_UNAVAILABLE" }, 503); }
+    }
+
+    if (url.pathname === "/api/bank/transaction-pin" && request.method === "PUT") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: { pin?: unknown; currentPin?: unknown };
+      try { body = await request.json() as typeof body; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      if (typeof body.pin !== "string" || !/^[0-9]{6}$/.test(body.pin) ||
+          (body.currentPin !== undefined && (typeof body.currentPin !== "string" || !/^[0-9]{6}$/.test(body.currentPin)))) {
+        return json({ error: "INVALID_TRANSACTION_PIN" }, 400);
+      }
+      try {
+        const result = await withCustomerWrite(env, claims.sub, async (client) => {
+          const selected = await client.query(
+            `SELECT transaction_pin_hash, transaction_pin_failed_attempts, transaction_pin_locked_until
+               FROM public.bank_users WHERE id = $1 FOR UPDATE`,
+            [claims.sub],
+          );
+          const user = selected.rows[0];
+          if (!user) return "missing_user" as const;
+          if (user.transaction_pin_hash) {
+            if (!body.currentPin) return "current_pin_required" as const;
+            if (user.transaction_pin_locked_until && new Date(user.transaction_pin_locked_until).getTime() > Date.now()) {
+              return "locked" as const;
+            }
+            const valid = await matchesTransactionPin(body.currentPin, String(user.transaction_pin_hash));
+            if (!valid) {
+              const attempts = Number(user.transaction_pin_failed_attempts ?? 0) + 1;
+              const locked = attempts >= TRANSACTION_PIN_MAX_FAILURES;
+              await client.query(
+                `UPDATE public.bank_users
+                    SET transaction_pin_failed_attempts = $2,
+                        transaction_pin_locked_until = $3,
+                        updated_at = now()
+                  WHERE id = $1`,
+                [claims.sub, locked ? 0 : attempts, locked ? new Date(Date.now() + TRANSACTION_PIN_LOCK_MS) : null],
+              );
+              return locked ? "locked" as const : "invalid" as const;
+            }
+          }
+          const encoded = await hashTransactionPin(body.pin);
+          await client.query(
+            `UPDATE public.bank_users
+                SET transaction_pin_hash = $2,
+                    transaction_pin_failed_attempts = 0,
+                    transaction_pin_locked_until = NULL,
+                    updated_at = now()
+              WHERE id = $1`,
+            [claims.sub, encoded],
+          );
+          return "updated" as const;
+        });
+        if (result === "updated") return json({ configured: true });
+        if (result === "current_pin_required") return json({ error: "CURRENT_PIN_REQUIRED" }, 400);
+        if (result === "locked") return json({ error: "PIN_LOCKED", retryAfterSeconds: 900 }, 429);
+        if (result === "invalid") return json({ error: "CURRENT_PIN_INCORRECT" }, 403);
+        return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
+      } catch { return json({ error: "TRANSACTION_PIN_UPDATE_UNAVAILABLE" }, 503); }
     }
 
     if (url.pathname === "/api/bank/wallets" && request.method === "GET") {
