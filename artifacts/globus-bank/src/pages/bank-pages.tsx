@@ -231,6 +231,8 @@ export function HomePage() {
             <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="group inline-flex min-h-12 items-center justify-center gap-3 rounded-xl bg-[#e9bd4b] px-6 py-3.5 text-[12px] font-bold text-[#10294c] shadow-lg transition duration-300 hover:-translate-y-1 hover:bg-[#f4cf70]">{isSignedIn ? t('Open your workspace') : t('Get started with DUTSTAR')}<ArrowRight size={16} className="transition-transform duration-300 group-hover:translate-x-1" /></Link>
           </div>
         </section>
+      </main>
+
             <footer className="border-t border-[#e1e7ec] bg-white">
         <div className="mx-auto flex max-w-[1320px] flex-col gap-5 px-6 py-8 text-[11px] text-[#76869a] sm:flex-row sm:items-center sm:justify-between lg:px-12">
           <p>{t('© {year} DUTSTAR. A multi-currency software platform.', { year: new Date().getFullYear() })}</p>
