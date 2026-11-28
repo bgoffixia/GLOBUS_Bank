@@ -11,6 +11,7 @@ export interface Env {
   DB?: Hyperdrive;
   CLERK_JWKS_URL?: string;
   CLERK_ISSUER?: string;
+  CLERK_SECRET_KEY?: string;
   SESSION_SECRET?: string;
   PAYSTACK_SECRET_KEY?: string;
   PAYSTACK_WEBHOOK_SECRET?: string;
@@ -385,6 +386,45 @@ async function customerTransactions(
   return result.rows.map((row) => transactionPayload(row, clerkUserId));
 }
 
+
+type ClerkUserIdentity = {
+  primary_email_address_id?: string | null;
+  email_addresses?: Array<{
+    id?: string;
+    email_address?: string;
+    verification?: { status?: string | null };
+  }>;
+};
+
+async function getAllowlistedAdminEmail(
+  userId: string,
+  env: Env,
+): Promise<string | null> {
+  if (!env.CLERK_SECRET_KEY) throw new Error("Clerk backend identity verification is not configured");
+  const response = await fetch(`https://api.clerk.com/v1/users/${encodeURIComponent(userId)}`, {
+    headers: {
+      authorization: `Bearer ${env.CLERK_SECRET_KEY}`,
+      accept: "application/json",
+    },
+  });
+  if (response.status === 404) return null;
+  if (!response.ok) throw new Error("Clerk identity lookup failed");
+  const identity = await response.json() as ClerkUserIdentity;
+  const primary = identity.email_addresses?.find(
+    (email) => email.id === identity.primary_email_address_id,
+  );
+  if (!primary || primary.verification?.status !== "verified" ||
+      typeof primary.email_address !== "string") return null;
+  const allowed = new Set(
+    (env.DUTSTAR_ADMIN_EMAILS || "")
+      .split(",")
+      .map((email) => email.trim().toLowerCase())
+      .filter(Boolean),
+  );
+  const normalized = primary.email_address.trim().toLowerCase();
+  return allowed.has(normalized) ? normalized : null;
+}
+
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -426,6 +466,39 @@ export default {
         userId: claims.sub,
         sessionId: claims.sid ?? null,
       });
+    }
+
+
+    // Administrative access is based on the verified primary Clerk email,
+    // never on client-supplied email or editable public user metadata.
+    if (url.pathname === "/api/bank/admin/access" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const adminEmail = await getAllowlistedAdminEmail(claims.sub, env);
+        const allowed = Boolean(adminEmail);
+        return json({
+          allowed,
+          roles: allowed ? ["super_administrator"] : [],
+        });
+      } catch {
+        return json({ error: "ADMIN_IDENTITY_VERIFICATION_UNAVAILABLE" }, 503);
+      }
+    }
+
+    // Do not let the admin UI mistake missing Worker routes for an authorized
+    // operation. The access gate is live; data-management endpoints are not
+    // enabled until their server-side implementations are migrated.
+    if (url.pathname.startsWith("/api/bank/admin/")) {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const adminEmail = await getAllowlistedAdminEmail(claims.sub, env);
+        if (!adminEmail) return json({ error: "ADMIN_ACCESS_DENIED" }, 403);
+      } catch {
+        return json({ error: "ADMIN_IDENTITY_VERIFICATION_UNAVAILABLE" }, 503);
+      }
+      return json({ error: "ADMIN_API_NOT_MIGRATED" }, 503);
     }
 
     if (url.pathname === "/api/bank/dashboard" && request.method === "GET") {
