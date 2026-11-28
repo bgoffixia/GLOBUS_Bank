@@ -95,9 +95,23 @@ async function verifyClerkSession(request: Request, env: Env): Promise<ClerkClai
     if (header.alg !== "RS256" || !header.kid) return null;
 
     const now = Math.floor(Date.now() / 1000);
+    // Clerk's authorized-party (azp) claim is the browser origin.
+    // DUTSTAR serves both the apex app host and its www alias; accept only
+    // those two exact HTTPS origins derived from the configured APP_ORIGIN.
+    const configuredOrigin = new URL(env.APP_ORIGIN).origin;
+    const configuredUrl = new URL(configuredOrigin);
+    const alternateHost = configuredUrl.hostname.startsWith("www.")
+      ? configuredUrl.hostname.slice(4)
+      : `www.${configuredUrl.hostname}`;
+    const allowedAuthorizedParties = new Set([
+      configuredOrigin,
+      `${configuredUrl.protocol}//${alternateHost}`,
+    ]);
+
     if (
       claims.iss !== env.CLERK_ISSUER ||
-      claims.azp !== env.APP_ORIGIN ||
+      typeof claims.azp !== "string" ||
+      !allowedAuthorizedParties.has(claims.azp) ||
       typeof claims.sub !== "string" ||
       claims.sub.length === 0 ||
       typeof claims.exp !== "number" ||
