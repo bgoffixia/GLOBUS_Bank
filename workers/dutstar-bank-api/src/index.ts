@@ -661,6 +661,92 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/bank/personal-finance/loan-applications" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerRead(env, claims.sub, (client) => client.query(
+          `SELECT id, requested_amount_minor::text, currency, purpose, term_months,
+                  status, submitted_at, created_at, updated_at
+             FROM public.bank_finance_loan_applications
+            WHERE user_id = $1 ORDER BY submitted_at DESC LIMIT 100`,
+          [claims.sub],
+        ));
+        return json(result.rows.map((row) => ({
+          id: row.id, requestedAmountMinor: row.requested_amount_minor,
+          currency: row.currency, purpose: row.purpose, termMonths: row.term_months,
+          status: row.status, submittedAt: row.submitted_at,
+          createdAt: row.created_at, updatedAt: row.updated_at,
+        })));
+      } catch { return json({ error: "FINANCE_LOAN_APPLICATIONS_UNAVAILABLE" }, 503); }
+    }
+
+    if (url.pathname === "/api/bank/personal-finance/loan-applications" && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const currencies = ["USD", "EUR", "GBP", "NGN", "CAD", "AUD"];
+      const amount = typeof body.requestedAmountMinor === "string" ? body.requestedAmountMinor : "";
+      const purpose = typeof body.purpose === "string" ? body.purpose.trim() : "";
+      const termMonths = Number(body.termMonths);
+      if (Object.keys(body).some((key) => !["requestedAmountMinor", "currency", "purpose", "termMonths"].includes(key)) ||
+          !/^[0-9]{1,19}$/.test(amount) || BigInt(amount) <= 0n ||
+          !currencies.includes(String(body.currency)) || !purpose || purpose.length > 160 ||
+          !Number.isInteger(termMonths) || termMonths < 1 || termMonths > 600) {
+        return json({ error: "INVALID_FINANCE_LOAN_APPLICATION" }, 400);
+      }
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          `INSERT INTO public.bank_finance_loan_applications
+             (user_id, requested_amount_minor, currency, purpose, term_months)
+           VALUES ($1, $2, $3, $4, $5)
+           RETURNING id, requested_amount_minor::text, currency, purpose, term_months,
+             status, submitted_at, created_at, updated_at`,
+          [claims.sub, amount, body.currency, purpose, termMonths],
+        ));
+        const row = result.rows[0];
+        if (!row) return json({ error: "FINANCE_LOAN_APPLICATION_SAVE_FAILED" }, 503);
+        return json({
+          id: row.id, requestedAmountMinor: row.requested_amount_minor,
+          currency: row.currency, purpose: row.purpose, termMonths: row.term_months,
+          status: row.status, submittedAt: row.submitted_at,
+          createdAt: row.created_at, updatedAt: row.updated_at,
+        }, 201);
+      } catch { return json({ error: "FINANCE_LOAN_APPLICATION_SAVE_FAILED" }, 503); }
+    }
+
+    const loanApplicationMatch = url.pathname.match(/^\\/api\\/bank\\/personal-finance\\/loan-applications\\/([0-9a-f-]{36})$/i);
+    if (loanApplicationMatch && request.method === "PATCH") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      if (Object.keys(body).length !== 1 || body.status !== "withdrawn") {
+        return json({ error: "INVALID_WITHDRAWAL_REQUEST" }, 400);
+      }
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          `UPDATE public.bank_finance_loan_applications
+              SET status = 'withdrawn', updated_at = now()
+            WHERE id = $1 AND user_id = $2 AND status = 'submitted'
+            RETURNING id, requested_amount_minor::text, currency, purpose, term_months,
+              status, submitted_at, created_at, updated_at`,
+          [loanApplicationMatch[1], claims.sub],
+        ));
+        const row = result.rows[0];
+        if (!row) return json({ error: "LOAN_APPLICATION_NOT_FOUND_OR_ALREADY_WITHDRAWN" }, 404);
+        return json({
+          id: row.id, requestedAmountMinor: row.requested_amount_minor,
+          currency: row.currency, purpose: row.purpose, termMonths: row.term_months,
+          status: row.status, submittedAt: row.submitted_at,
+          createdAt: row.created_at, updatedAt: row.updated_at,
+        });
+      } catch { return json({ error: "FINANCE_LOAN_APPLICATION_WITHDRAW_FAILED" }, 503); }
+    }
+
     if (url.pathname === "/api/bank/personal-finance/records" && request.method === "GET") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
