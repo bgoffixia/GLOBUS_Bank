@@ -130,13 +130,13 @@ export function PrivateVaultPasscodeResetPage() {
         <h1 className="mt-2 text-2xl font-extrabold tracking-tight">{success ? 'PIN updated' : signedIn ? 'Update your Vault PIN' : 'Sign in to recover your Vault PIN'}</h1>
         {success ? (
           <div className="mt-4 space-y-4 text-sm leading-6 text-[#61777c]">
-            <p>Your Private Vault PIN has been updated. Unlock your Vault using the new four-digit PIN.</p>
+            <p>Your Private Vault PIN has been updated. Unlock your Vault using the new PIN.</p>
             <p className="rounded-lg bg-[#f1f6f3] p-3 text-xs">Your Clerk account, Vault access status, subscription, balances, and financial records were not changed. Existing Vault sessions were revoked for your protection.</p>
             <a href="/private-vault" className="inline-flex rounded-lg bg-[#173b50] px-4 py-3 text-sm font-bold text-white">Return to Private Vault</a>
           </div>
         ) : signedIn ? (
           <>
-            <p className="mt-2 text-sm leading-6 text-[#71858b]">Verify the email address on your Clerk account with a one-time code. We will also match your Clerk ID, username, email, and DUTSTAR Customer ID before saving your new PIN. Your existing PIN remains active until verification succeeds.</p>
+            <p className="mt-2 text-sm leading-6 text-[#71858b]">Verify the email address on your Clerk account with a one-time code. The Worker checks your authenticated Clerk identity and DUTSTAR Customer ID before saving your new PIN. Your existing PIN remains active until verification succeeds.</p>
             <div className="mt-5 rounded-lg bg-[#f5f8f8] p-3 text-xs leading-5 text-[#607780]">
               <p><strong>Clerk email:</strong> {primaryEmail || 'Unavailable'}</p>
               <p><strong>Clerk username:</strong> {username || 'Not configured'}</p>
@@ -152,7 +152,7 @@ export function PrivateVaultPasscodeResetPage() {
                   <input autoComplete="one-time-code" inputMode="numeric" maxLength={12} value={code} onChange={e => setCode(e.target.value.replace(/\D/g, '').slice(0, 12))} className="mt-2 h-12 w-full rounded-lg border border-[#d8e1e3] px-3 text-lg tracking-[.35em] outline-none focus:border-[#43898a]" required />
                 </label>
                 <label className="block text-xs font-semibold text-[#425d69]">New 6–12 digit Vault PIN
-                  <input autoComplete="new-password" inputMode="numeric" pattern="[0-9]{4}" maxLength={12} type="password" value={passcode} onChange={e => setPasscode(e.target.value.replace(/\D/g, '').slice(0, 12))} className="mt-2 h-12 w-full rounded-lg border border-[#d8e1e3] px-3 text-lg tracking-[.5em] outline-none focus:border-[#43898a]" required />
+                  <input autoComplete="new-password" inputMode="numeric" pattern="[0-9]{6,12}" maxLength={12} type="password" value={passcode} onChange={e => setPasscode(e.target.value.replace(/\D/g, '').slice(0, 12))} className="mt-2 h-12 w-full rounded-lg border border-[#d8e1e3] px-3 text-lg tracking-[.5em] outline-none focus:border-[#43898a]" required />
                 </label>
                 <label className="block text-xs font-semibold text-[#425d69]">Confirm new Vault PIN
                   <input autoComplete="new-password" inputMode="numeric" pattern="[0-9]{6,12}" maxLength={12} type="password" value={confirmation} onChange={e => setConfirmation(e.target.value.replace(/\D/g, '').slice(0, 4))} className="mt-2 h-12 w-full rounded-lg border border-[#d8e1e3] px-3 text-lg tracking-[.5em] outline-none focus:border-[#43898a]" required />
@@ -171,7 +171,7 @@ export function PrivateVaultPasscodeResetPage() {
             <a href="/sign-in?redirect_url=%2Fprivate-vault%2Fpasscode-reset" className="inline-flex rounded-lg bg-[#173b50] px-4 py-3 text-sm font-bold text-white">Sign in securely</a>
             {error && <p role="alert" className="rounded-lg border border-[#f0d4cc] bg-[#fff7f3] p-3 text-xs text-[#9a5044]">{error}</p>}
           </div>
-        )}}
+        )}
       </section>
     </main>
   );
