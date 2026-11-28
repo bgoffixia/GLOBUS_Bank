@@ -63,7 +63,7 @@ export function PrivateVaultPasscodeResetPage() {
       setError('Enter your seven-character DUTSTAR Customer ID.');
       return;
     }
-    if (!/^\d{4}$/.test(passcode)) {
+    if (!/^\d{6,12}$/.test(passcode)) {
       setError('Enter a 6–12 digit PIN.');
       return;
     }
@@ -155,7 +155,7 @@ export function PrivateVaultPasscodeResetPage() {
                   <input autoComplete="new-password" inputMode="numeric" pattern="[0-9]{6,12}" maxLength={12} type="password" value={passcode} onChange={e => setPasscode(e.target.value.replace(/\D/g, '').slice(0, 12))} className="mt-2 h-12 w-full rounded-lg border border-[#d8e1e3] px-3 text-lg tracking-[.5em] outline-none focus:border-[#43898a]" required />
                 </label>
                 <label className="block text-xs font-semibold text-[#425d69]">Confirm new Vault PIN
-                  <input autoComplete="new-password" inputMode="numeric" pattern="[0-9]{6,12}" maxLength={12} type="password" value={confirmation} onChange={e => setConfirmation(e.target.value.replace(/\D/g, '').slice(0, 4))} className="mt-2 h-12 w-full rounded-lg border border-[#d8e1e3] px-3 text-lg tracking-[.5em] outline-none focus:border-[#43898a]" required />
+                  <input autoComplete="new-password" inputMode="numeric" pattern="[0-9]{6,12}" maxLength={12} type="password" value={confirmation} onChange={e => setConfirmation(e.target.value.replace(/\D/g, '').slice(0, 12))} className="mt-2 h-12 w-full rounded-lg border border-[#d8e1e3] px-3 text-lg tracking-[.5em] outline-none focus:border-[#43898a]" required />
                 </label>
                 <button type="submit" disabled={busy} className="w-full rounded-lg bg-[#173b50] px-4 py-3 text-sm font-bold text-white disabled:opacity-50">{busy ? 'Verifying and updating PIN…' : 'Verify OTP and update PIN'}</button>
                 <button type="button" onClick={() => { setOtpSent(false); setCode(''); setError(''); }} disabled={busy} className="w-full rounded-lg border border-[#d8e1e3] px-4 py-3 text-sm font-semibold text-[#45616d]">Send a new code</button>
