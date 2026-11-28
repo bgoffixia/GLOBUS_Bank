@@ -574,6 +574,36 @@ export default {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
       try {
+        // A dashboard request must not fail solely because an older or
+        // interrupted signup left the verified Clerk user without a bank row.
+        // Reuse the same trusted provisioning function as /api/bank/me; never
+        // trust profile details supplied by the browser and never overwrite an
+        // existing customer record.
+        const existingProfile = await withCustomerRead(
+          env,
+          claims.sub,
+          (client) => customerProfile(client, claims.sub!),
+        );
+        if (!existingProfile) {
+          const identity = await getVerifiedClerkIdentity(claims.sub, env);
+          if (!identity) {
+            return json({
+              error: "VERIFIED_PRIMARY_EMAIL_REQUIRED",
+              message: "Verify your primary email before accessing your DUTSTAR dashboard.",
+            }, 403);
+          }
+          if (!identity.firstName || !identity.lastName) {
+            return json({
+              error: "PROFILE_NAME_DETAILS_REQUIRED",
+              message: "Complete your first and last name in your verified account profile, then reload the dashboard.",
+            }, 409);
+          }
+          await withCustomerWrite(env, claims.sub, (client) => client.query(
+            "SELECT * FROM public.ensure_dutstar_customer_profile($1,$2,$3,$4,false)",
+            [claims.sub, identity.email, identity.firstName, identity.lastName],
+          ));
+        }
+
         const dashboard = await withCustomerRead(env, claims.sub, async (client) => {
           const profile = await customerProfile(client, claims.sub!);
           if (!profile) return null;
@@ -606,9 +636,19 @@ export default {
             wallets, recentTransactions, referenceCurrency: "USD", internalLedger: true,
           };
         });
-        if (!dashboard) return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
+        if (!dashboard) {
+          console.error("DUTSTAR_BANK_DASHBOARD_PROFILE_MISSING", {
+            reason: "profile_not_found_after_provisioning",
+          });
+          return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
+        }
         return json(dashboard);
-      } catch {
+      } catch (error) {
+        // Keep production logs useful without exposing tokens, customer IDs,
+        // email addresses, SQL text, or private banking data.
+        console.error("DUTSTAR_BANK_DASHBOARD_UNAVAILABLE", {
+          errorType: error instanceof Error ? error.name : "unknown",
+        });
         return json({ error: "BANK_DASHBOARD_UNAVAILABLE" }, 503);
       }
     }
