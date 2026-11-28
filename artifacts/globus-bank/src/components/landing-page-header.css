@@ -280,6 +280,24 @@
   }
 }
 
+/* Keep the language panel inside the mobile viewport and do not summon the
+   software keyboard until the visitor deliberately taps the search field. */
+@media (max-width: 640px) {
+  .app-language-selector__drawer {
+    position: fixed;
+    top: 4.9rem;
+    right: 0.75rem;
+    left: auto;
+    width: min(18rem, calc(100vw - 1.5rem));
+    max-height: min(22rem, calc(100dvh - 6rem));
+    z-index: 120;
+  }
+
+  .app-language-selector__drawer ul {
+    max-height: min(15rem, calc(100dvh - 11rem));
+  }
+}
+
 @media (max-width: 380px) {
   .globus-landing-header__signin {
     display: none;
