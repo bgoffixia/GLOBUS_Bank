@@ -42,6 +42,7 @@ type ClerkClaims = {
   nbf?: number;
   sid?: string;
   azp?: string;
+  fva?: number[];
 };
 
 type JwkSet = { keys: JsonWebKey[] };
@@ -647,112 +648,45 @@ export default {
     }
 
 
-    // Email one-time-code recovery. The code is delivered only to the email on
-    // the authenticated bank profile; only a hash is persisted.
-    if (url.pathname === "/api/bank/vault/passcode-reset/request" && request.method === "POST") {
+    // Vault recovery requires a recent first-factor verification performed by Clerk.
+    // The email OTP is issued and checked by Clerk; the Worker never generates or emails codes.
+    if (
+      (url.pathname === "/api/bank/vault/passcode-reset/complete-otp" ||
+       url.pathname === "/api/bank/vault/passcode-reset/complete") &&
+      request.method === "POST"
+    ) {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
-      if (!env.SESSION_SECRET || !env.RESEND_API_KEY || !env.RESEND_FROM_EMAIL) {
-        return json({ error: "VAULT_RECOVERY_NOT_CONFIGURED" }, 503);
+      const firstFactorAge = Array.isArray(claims.fva) ? claims.fva[0] : undefined;
+      if (typeof firstFactorAge !== "number" || firstFactorAge < 0 || firstFactorAge > 300) {
+        return json({ error: "CLERK_EMAIL_OTP_REQUIRED" }, 403);
       }
-      try {
-        const user = await withCustomerWrite(env, claims.sub, async (client) => {
-          const selected = await client.query(
-            `SELECT email FROM public.bank_users WHERE id = $1 FOR UPDATE`,
-            [claims.sub],
-          );
-          const row = selected.rows[0];
-          if (!row) return null;
-          const limits = await client.query(
-            `SELECT count(*)::int AS count,
-                    max(created_at) AS latest
-               FROM public.bank_vault_passcode_reset_tokens
-              WHERE user_id = $1 AND created_at > now() - interval '1 hour'`,
-            [claims.sub],
-          );
-          const count = Number(limits.rows[0]?.count ?? 0);
-          const latest = limits.rows[0]?.latest ? new Date(limits.rows[0].latest).getTime() : 0;
-          if (count >= 3 || (latest && Date.now() - latest < 60_000)) return { throttled: true as const };
-          return { email: String(row.email) };
-        });
-        if (!user) return json({ requested: true });
-        if ("throttled" in user) return json({ error: "RECOVERY_RATE_LIMITED" }, 429);
-        const code = String(randomBytes(4).readUInt32BE(0) % 100_000_000).padStart(8, "0");
-        const digest = await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(`${claims.sub}:${code}:${env.SESSION_SECRET}`),
-        );
-        const tokenHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
-        await withCustomerWrite(env, claims.sub, async (client) => {
-          await client.query(
-            `DELETE FROM public.bank_vault_passcode_reset_tokens
-              WHERE user_id = $1 AND used_at IS NULL`,
-            [claims.sub],
-          );
-          await client.query(
-            `INSERT INTO public.bank_vault_passcode_reset_tokens
-              (user_id, token_hash, expires_at, requested_by_user_id)
-             VALUES ($1, $2, now() + interval '10 minutes', $1)`,
-            [claims.sub, tokenHash],
-          );
-        });
-        const sent = await fetch("https://api.resend.com/emails", {
-          method: "POST",
-          headers: {
-            authorization: `Bearer ${env.RESEND_API_KEY}`,
-            "content-type": "application/json",
-          },
-          body: JSON.stringify({
-            from: env.RESEND_FROM_EMAIL,
-            to: [user.email],
-            subject: "Your DUTSTAR Private Vault recovery code",
-            text: `Your Private Vault recovery code is ${code}. It expires in 10 minutes. If you did not request this, ignore this email. Never share this code with anyone.`,
-          }),
-        });
-        if (!sent.ok) {
-          await withCustomerWrite(env, claims.sub, (client) => client.query(
-            "DELETE FROM public.bank_vault_passcode_reset_tokens WHERE user_id = $1 AND token_hash = $2",
-            [claims.sub, tokenHash],
-          ));
-          return json({ error: "RECOVERY_EMAIL_DELIVERY_FAILED" }, 503);
-        }
-        return json({ requested: true, expiresInSeconds: 600 });
-      } catch {
-        return json({ error: "VAULT_RECOVERY_REQUEST_FAILED" }, 503);
-      }
-    }
-
-    if (url.pathname === "/api/bank/vault/passcode-reset/complete" && request.method === "POST") {
-      const claims = await verifyClerkSession(request, env);
-      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
       if (!env.SESSION_SECRET) return json({ error: "VAULT_SECURITY_NOT_CONFIGURED" }, 503);
-      let body: { code?: unknown; passcode?: unknown };
+      let body: { customerId?: unknown; newPasscode?: unknown; passcode?: unknown };
       try { body = await request.json() as typeof body; }
       catch { return json({ error: "INVALID_JSON" }, 400); }
-      if (typeof body.code !== "string" || !/^\d{8}$/.test(body.code) ||
-          typeof body.passcode !== "string" || !/^\d{6,12}$/.test(body.passcode)) {
-        return json({ error: "INVALID_RECOVERY_INPUT" }, 400);
-      }
+      const passcode = typeof body.newPasscode === "string" ? body.newPasscode : body.passcode;
+      if (
+        typeof passcode !== "string" || !/^\\d{6,12}$/.test(passcode) ||
+        (body.customerId !== undefined &&
+          (typeof body.customerId !== "string" || !/^[A-Za-z0-9]{7}$/.test(body.customerId)))
+      ) return json({ error: "INVALID_RECOVERY_INPUT" }, 400);
       try {
-        const digest = await crypto.subtle.digest(
-          "SHA-256",
-          new TextEncoder().encode(`${claims.sub}:${body.code}:${env.SESSION_SECRET}`),
-        );
-        const tokenHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
         const salt = randomBytes(16);
         const encoded = await new Promise<string>((resolve, reject) => {
-          scryptCallback(`${body.passcode as string}:${env.SESSION_SECRET}`, salt, 64,
-            (error, key) => error ? reject(error) : resolve(`scrypt${salt.toString("hex")}${(key as Buffer).toString("hex")}`));
+          scryptCallback(`${passcode}:${env.SESSION_SECRET}`, salt, 64,
+            (error, key) => error ? reject(error) : resolve(`scrypt$${salt.toString("hex")}$${(key as Buffer).toString("hex")}`));
         });
-        const result = await withCustomerWrite(env, claims.sub, async (client) => {
-          const token = await client.query(
-            `SELECT id FROM public.bank_vault_passcode_reset_tokens
-              WHERE user_id = $1 AND requested_by_user_id = $1
-                AND token_hash = $2 AND used_at IS NULL AND expires_at > now()
-              FOR UPDATE`,
-            [claims.sub, tokenHash],
+        const updated = await withCustomerWrite(env, claims.sub, async (client) => {
+          const profile = await client.query(
+            `SELECT customer_id FROM public.bank_users WHERE id = $1 FOR UPDATE`,
+            [claims.sub],
           );
-          if (!token.rows[0]) return false;
+          if (!profile.rows[0]) return "not_found" as const;
+          if (
+            typeof body.customerId === "string" &&
+            String(profile.rows[0].customer_id ?? "").toUpperCase() !== body.customerId.toUpperCase()
+          ) return "customer_mismatch" as const;
           await client.query(
             `UPDATE public.bank_users
                 SET vault_passcode_hash = $2,
@@ -762,25 +696,14 @@ export default {
               WHERE id = $1`,
             [claims.sub, encoded],
           );
-          await client.query(
-            `UPDATE public.bank_vault_passcode_reset_tokens
-                SET used_at = now() WHERE id = $1`,
-            [token.rows[0].id],
-          );
-          await client.query(
-            "DELETE FROM public.bank_vault_sessions WHERE user_id = $1",
-            [claims.sub],
-          );
-          await client.query(
-            `DELETE FROM public.bank_vault_passcode_reset_tokens
-              WHERE user_id = $1 AND used_at IS NULL`,
-            [claims.sub],
-          );
-          return true;
+          await client.query("DELETE FROM public.bank_vault_sessions WHERE user_id = $1", [claims.sub]);
+          // Remove legacy recovery records; Clerk is the sole OTP authority.
+          await client.query("DELETE FROM public.bank_vault_passcode_reset_tokens WHERE user_id = $1", [claims.sub]);
+          return "updated" as const;
         });
-        return result
-          ? json({ passcodeReset: true, sessionsRevoked: true })
-          : json({ error: "RECOVERY_CODE_INVALID_OR_EXPIRED" }, 400);
+        if (updated === "not_found") return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
+        if (updated === "customer_mismatch") return json({ error: "CUSTOMER_ID_MISMATCH" }, 403);
+        return json({ passcodeReset: true, sessionsRevoked: true, recoveryProvider: "clerk" });
       } catch {
         return json({ error: "VAULT_PASSCODE_RESET_FAILED" }, 503);
       }
