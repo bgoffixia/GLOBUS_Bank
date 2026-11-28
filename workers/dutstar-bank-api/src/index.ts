@@ -918,6 +918,82 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/bank/vault/status" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const status = await withCustomerRead(env, claims.sub, async (client) => {
+          const selected = await client.query(
+            `SELECT vault_passcode_hash, vault_subscription_status,
+                    vault_subscription_requested_at, vault_subscription_expires_at,
+                    vault_subscription_plan, vault_subscription_amount_minor,
+                    vault_subscription_payment_status, vault_subscription_payment_reference,
+                    vault_subscription_auto_renew, vault_paystack_subscription_code
+               FROM public.bank_users WHERE id = $1 LIMIT 1`,
+            [claims.sub],
+          );
+          const user = selected.rows[0];
+          if (!user) return null;
+
+          const now = Date.now();
+          const expiresAt = user.vault_subscription_expires_at
+            ? new Date(user.vault_subscription_expires_at)
+            : null;
+          const legacyManualRequest = user.vault_subscription_status === "pending" &&
+            user.vault_subscription_payment_status !== "pending" &&
+            user.vault_subscription_payment_status !== "success";
+          let subscriptionStatus = legacyManualRequest
+            ? "inactive"
+            : ["inactive", "pending", "active", "rejected", "expired"].includes(user.vault_subscription_status)
+              ? user.vault_subscription_status
+              : "inactive";
+          if (subscriptionStatus === "active" && expiresAt && expiresAt.getTime() <= now) {
+            subscriptionStatus = "expired";
+          }
+
+          const entitlement = await client.query(
+            `SELECT 1 FROM public.bank_vault_admin_entitlements
+              WHERE user_id = $1 AND (expires_at IS NULL OR expires_at > now()) LIMIT 1`,
+            [claims.sub],
+          );
+          const adminGrantActive = entitlement.rowCount > 0;
+          const subscriptionActive = subscriptionStatus === "active" &&
+            Boolean(expiresAt && expiresAt.getTime() > now);
+          const accessSource = adminGrantActive
+            ? "admin_grant"
+            : subscriptionActive ? "paystack_subscription" : "none";
+          const paymentStatus = ["pending", "failed", "success"].includes(user.vault_subscription_payment_status)
+            ? user.vault_subscription_payment_status : "none";
+          const autoRenew = paymentStatus === "success" && Boolean(user.vault_subscription_auto_renew);
+          return {
+            configured: Boolean(user.vault_passcode_hash),
+            subscriptionStatus,
+            subscriptionActive,
+            adminGrantActive,
+            accessActive: accessSource !== "none",
+            accessSource,
+            requestedAt: legacyManualRequest || !user.vault_subscription_requested_at
+              ? null : new Date(user.vault_subscription_requested_at).toISOString(),
+            expiresAt: expiresAt?.toISOString() ?? null,
+            planCode: legacyManualRequest ? null : user.vault_subscription_plan ?? null,
+            amountMinor: legacyManualRequest ? null :
+              user.vault_subscription_amount_minor === null ? null : String(user.vault_subscription_amount_minor),
+            paymentStatus,
+            paymentReference: user.vault_subscription_payment_reference ?? null,
+            autoRenew,
+            renewalManagementReady: autoRenew && Boolean(user.vault_paystack_subscription_code),
+          };
+        });
+        if (!status) return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
+        return json(status);
+      } catch (error) {
+        console.error("DUTSTAR_VAULT_STATUS_UNAVAILABLE", {
+          errorType: error instanceof Error ? error.name : "unknown",
+        });
+        return json({ error: "VAULT_STATUS_UNAVAILABLE" }, 503);
+      }
+    }
+
     if (url.pathname === "/api/bank/vault/session" && request.method === "POST") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
