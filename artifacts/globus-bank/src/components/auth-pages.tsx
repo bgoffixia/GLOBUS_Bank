@@ -235,7 +235,7 @@ export function ClerkSignInForm() {
     event.preventDefault();
     clearFormError();
     const email = emailOtpEmail.trim();
-    if (!/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/.test(email)) {
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
       showFormError('Enter a valid email address.');
       return;
     }
