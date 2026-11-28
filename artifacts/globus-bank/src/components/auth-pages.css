@@ -640,10 +640,10 @@
 
 .gb-auth-signup-shell .gb-signup-content .gb-input:focus-visible,
 .gb-auth-signup-shell .gb-signup-fields input:focus-visible {
-  border-color: #9873e8;
+  border-color: #0b9295;
   outline: none;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(133, 91, 220, .13);
+  box-shadow: 0 0 0 3px rgba(11, 146, 149, .14);
 }
 
 .gb-auth-signup-shell .gb-signup-content .gb-signup-spaced-label {
@@ -716,13 +716,13 @@
   min-height: 44px;
   align-items: center;
   padding: 0 3px;
-  color: #744bd3;
+  color: #087f87;
   font-weight: 700;
   vertical-align: middle;
 }
 
 .gb-auth-signup-shell .gb-signup-content .gb-switch-copy a:hover {
-  color: #5736ad;
+  color: #075f69;
 }
 
 .gb-auth-signup-shell .gb-signup-footer {
@@ -954,10 +954,10 @@ body:has(.gb-auth-signup-shell) #root {
 }
 
 .gb-auth-signin-shell .gb-signin-form-wrap .gb-input:focus-visible {
-  border-color: #9873e8;
+  border-color: #0b9295;
   outline: none;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(133, 91, 220, .13);
+  box-shadow: 0 0 0 3px rgba(11, 146, 149, .14);
 }
 
 .gb-auth-signin-shell .gb-signin-form-wrap .gb-primary-button {
@@ -1015,9 +1015,9 @@ body:has(.gb-auth-signup-shell) #root {
 }
 
 .gb-auth-signin-shell .gb-recovery-type button.is-active {
-  border-color: #8059db;
-  background: #f2edff;
-  color: #6844c4;
+  border-color: #0b9295;
+  background: #e8f6f4;
+  color: #087f87;
 }
 
 .gb-auth-signin-shell .gb-recovery-type button:disabled {
@@ -1029,7 +1029,7 @@ body:has(.gb-auth-signup-shell) #root {
   min-height: 40px;
   border: 0;
   background: transparent;
-  color: #744bd3;
+  color: #087f87;
   font: inherit;
   font-size: 12px;
   font-weight: 650;
@@ -1044,7 +1044,7 @@ body:has(.gb-auth-signup-shell) #root {
 .gb-auth-signin-shell .gb-recovery-link a,
 .gb-auth-signin-shell .gb-login-recovery-action,
 .gb-auth-signin-shell .gb-switch-copy a {
-  color: #744bd3;
+  color: #087f87;
 }
 
 .gb-auth-signin-shell .gb-switch-copy {
@@ -1142,7 +1142,7 @@ body:has(.gb-auth-signin-shell) #root {
   border: 1px solid #dedfe6;
   border-radius: 10px;
   background: #fff;
-  color: #6343b4;
+  color: #087f87;
   font: inherit;
   font-size: 13px;
   font-weight: 700;
@@ -1150,7 +1150,7 @@ body:has(.gb-auth-signin-shell) #root {
 }
 
 .gb-auth-signup-shell .gb-optional-skip:hover:not(:disabled) {
-  background: #f8f6fd;
+  background: #f0f9f8;
 }
 
 .gb-auth-signup-shell .gb-optional-skip:focus-visible {
@@ -1237,20 +1237,20 @@ body:has(.gb-auth-signin-shell) #root {
 }
 
 .gb-auth-signup-shell .gb-signup-main-form .gb-input:focus-visible {
-  border-color: #9873e8;
+  border-color: #0b9295;
   background: #fff;
-  box-shadow: 0 0 0 3px rgba(133, 91, 220, .13);
+  box-shadow: 0 0 0 3px rgba(11, 146, 149, .14);
 }
 
 .gb-auth-signup-shell .gb-signup-profile-section {
   min-width: 0;
   padding-top: 12px;
-  border-top: 1px solid #e8e4ef;
+  border-top: 1px solid #dce8ed;
 }
 
 .gb-auth-signup-shell .gb-signup-section-title {
   margin: 0 0 9px;
-  color: #4c4663;
+  color: #23455f;
   font-size: 10px;
   font-weight: 750;
   letter-spacing: .11em;
@@ -1267,10 +1267,10 @@ body:has(.gb-auth-signin-shell) #root {
   min-width: 0;
   gap: 9px;
   padding: 12px;
-  border: 1px solid #e4dcf4;
-  border-left: 3px solid #8059db;
+  border: 1px solid #d6ecea;
+  border-left: 3px solid #0b9295;
   border-radius: 10px;
-  background: #faf8ff;
+  background: #f5fbfa;
 }
 
 .gb-auth-signup-shell .gb-signup-verification-copy {
@@ -1306,7 +1306,7 @@ body:has(.gb-auth-signin-shell) #root {
   min-width: 18px;
   min-height: 18px;
   flex: 0 0 auto;
-  accent-color: #8059db;
+  accent-color: #0b9295;
 }
 
 .gb-auth-signup-shell .gb-signup-continue,
