@@ -661,6 +661,148 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/bank/support/conversations" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerRead(env, claims.sub, (client) => client.query(
+          `SELECT c.id, c.subject, c.category, c.transfer_reference, c.status,
+                  c.customer_unread, c.last_message_at, c.created_at, c.updated_at,
+                  (SELECT left(m.body, 160) FROM public.bank_support_messages m
+                    WHERE m.conversation_id = c.id ORDER BY m.created_at DESC LIMIT 1) AS last_message_preview
+             FROM public.bank_support_conversations c
+            WHERE c.user_id = $1 AND c.category = 'general'
+            ORDER BY c.last_message_at DESC LIMIT 100`,
+          [claims.sub],
+        ));
+        return json({ conversations: result.rows.map((row) => ({
+          id: row.id, subject: row.subject, category: "general",
+          transferReference: row.transfer_reference, status: row.status,
+          customerUnread: row.customer_unread, lastMessagePreview: row.last_message_preview,
+          lastMessageAt: row.last_message_at, createdAt: row.created_at, updatedAt: row.updated_at,
+        })) });
+      } catch { return json({ error: "SUPPORT_CONVERSATIONS_UNAVAILABLE" }, 503); }
+    }
+
+    if (url.pathname === "/api/bank/support/conversations" && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const subject = typeof body.subject === "string" ? body.subject.trim() : "";
+      const message = typeof body.message === "string" ? body.message.trim() : "";
+      if (Object.keys(body).some((key) => !["subject","message","category"].includes(key)) ||
+          !subject || subject.length > 120 || !message || message.length > 4000 ||
+          (body.category !== undefined && body.category !== "general")) {
+        return json({ error: "INVALID_SUPPORT_CONVERSATION" }, 400);
+      }
+      try {
+        const created = await withCustomerWrite(env, claims.sub, async (client) => {
+          const conversation = await client.query(
+            `INSERT INTO public.bank_support_conversations
+              (user_id, subject, category, status, customer_unread, admin_unread, last_message_at, updated_at)
+             VALUES ($1,$2,'general','open',false,true,now(),now())
+             RETURNING id, subject, status, customer_unread, last_message_at, created_at, updated_at`,
+            [claims.sub, subject],
+          );
+          const row = conversation.rows[0];
+          const messageResult = await client.query(
+            `INSERT INTO public.bank_support_messages
+              (conversation_id, sender_user_id, sender_role, body)
+             VALUES ($1,$2,'customer',$3) RETURNING id, conversation_id, sender_role, body, created_at`,
+            [row.id, claims.sub, message],
+          );
+          return { conversation: row, message: messageResult.rows[0] };
+        });
+        return json({ conversation: {
+          id: created.conversation.id, subject: created.conversation.subject, status: created.conversation.status,
+          customerUnread: created.conversation.customer_unread,
+          lastMessagePreview: created.message.body.slice(0,160),
+          lastMessageAt: created.conversation.last_message_at,
+          createdAt: created.conversation.created_at, updatedAt: created.conversation.updated_at,
+        } }, 201);
+      } catch { return json({ error: "SUPPORT_CONVERSATION_CREATE_FAILED" }, 503); }
+    }
+
+    const supportMessagesMatch = url.pathname.match(/^\\/api\\/bank\\/support\\/conversations\\/([0-9a-f-]{36})\\/messages$/i);
+    if (supportMessagesMatch && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerRead(env, claims.sub, (client) => client.query(
+          `SELECT m.id, m.conversation_id, m.sender_role, m.body, m.created_at
+             FROM public.bank_support_messages m
+             JOIN public.bank_support_conversations c ON c.id = m.conversation_id
+            WHERE c.id = $1 AND c.user_id = $2 AND c.category = 'general'
+            ORDER BY m.created_at ASC LIMIT 500`,
+          [supportMessagesMatch[1], claims.sub],
+        ));
+        return json({ messages: result.rows.map((row) => ({
+          id: row.id, conversationId: row.conversation_id, senderRole: row.sender_role,
+          senderName: row.sender_role === "customer" ? "You" : "DUTSTAR support",
+          body: row.body, createdAt: row.created_at,
+        })) });
+      } catch { return json({ error: "SUPPORT_MESSAGES_UNAVAILABLE" }, 503); }
+    }
+
+    if (supportMessagesMatch && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const message = typeof body.body === "string" ? body.body.trim() : "";
+      if (Object.keys(body).length !== 1 || !message || message.length > 4000) {
+        return json({ error: "INVALID_SUPPORT_MESSAGE" }, 400);
+      }
+      try {
+        const created = await withCustomerWrite(env, claims.sub, async (client) => {
+          const conversation = await client.query(
+            `SELECT id FROM public.bank_support_conversations
+              WHERE id = $1 AND user_id = $2 AND category = 'general' AND status = 'open'
+              FOR UPDATE`,
+            [supportMessagesMatch[1], claims.sub],
+          );
+          if (!conversation.rows[0]) return null;
+          const result = await client.query(
+            `INSERT INTO public.bank_support_messages
+              (conversation_id, sender_user_id, sender_role, body)
+             VALUES ($1,$2,'customer',$3)
+             RETURNING id, conversation_id, sender_role, body, created_at`,
+            [supportMessagesMatch[1], claims.sub, message],
+          );
+          await client.query(
+            `UPDATE public.bank_support_conversations
+                SET customer_unread = false, admin_unread = true,
+                    last_message_at = now(), updated_at = now()
+              WHERE id = $1 AND user_id = $2`,
+            [supportMessagesMatch[1], claims.sub],
+          );
+          return result.rows[0];
+        });
+        if (!created) return json({ error: "SUPPORT_CONVERSATION_NOT_FOUND_OR_CLOSED" }, 404);
+        return json({ message: {
+          id: created.id, conversationId: created.conversation_id, senderRole: created.sender_role,
+          senderName: "You", body: created.body, createdAt: created.created_at,
+        } }, 201);
+      } catch { return json({ error: "SUPPORT_MESSAGE_SEND_FAILED" }, 503); }
+    }
+
+    const supportReadMatch = url.pathname.match(/^\\/api\\/bank\\/support\\/conversations\\/([0-9a-f-]{36})\\/read$/i);
+    if (supportReadMatch && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      try {
+        const result = await withCustomerWrite(env, claims.sub, (client) => client.query(
+          `UPDATE public.bank_support_conversations SET customer_unread = false, updated_at = now()
+            WHERE id = $1 AND user_id = $2 AND category = 'general' RETURNING id`,
+          [supportReadMatch[1], claims.sub],
+        ));
+        return result.rowCount ? json({ markedRead: true }) : json({ error: "SUPPORT_CONVERSATION_NOT_FOUND" }, 404);
+      } catch { return json({ error: "SUPPORT_READ_UPDATE_FAILED" }, 503); }
+    }
+
     if (url.pathname === "/api/bank/personal-finance/loan-applications" && request.method === "GET") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
