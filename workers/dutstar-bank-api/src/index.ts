@@ -690,7 +690,7 @@ export default {
       } catch { return json({ error: "BANK_NOTIFICATIONS_CLEAR_FAILED" }, 503); }
     }
 
-    const notificationReadMatch = url.pathname.match(/^\\/api\\/bank\\/notifications\\/([0-9a-f-]{36})\\/read$/i);
+    const notificationReadMatch = url.pathname.match(/^\/api\/bank\/notifications\/([0-9a-f-]{36})\\/read$/i);
     if (notificationReadMatch && request.method === "PATCH") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
