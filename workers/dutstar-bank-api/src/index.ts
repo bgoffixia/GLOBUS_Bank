@@ -602,17 +602,17 @@ export default {
       const allowed = new Set(["firstName","lastName","address","phone","country","cityOfOrigin","dateOfBirth","occupation","acceptedTerms"]);
       if (Object.keys(body).some((key) => !allowed.has(key))) return json({ error: "INVALID_PROFILE_FIELDS" }, 400);
       const normalizeName = (value: unknown) => typeof value === "string" && value.trim().length > 0 &&
-        value.trim().length <= 80 && /\\p{L}/u.test(value) && !/[\\p{Cc}\\p{Cf}]/u.test(value)
+        value.trim().length <= 80 && /\p{L}/u.test(value) && !/[\p{Cc}\p{Cf}]/u.test(value)
         ? value.trim() : null;
       const firstName = normalizeName(body.firstName);
       const lastName = normalizeName(body.lastName);
       if (!firstName || !lastName) return json({ error: "FIRST_AND_LAST_NAME_REQUIRED" }, 400);
       const validText = (value: unknown, max: number) => typeof value === "string" &&
-        value.trim().length > 0 && value.trim().length <= max && /[\\p{L}\\p{N}]/u.test(value) &&
-        !/[\\p{Cc}\\p{Cf}]/u.test(value) ? value.trim() : null;
+        value.trim().length > 0 && value.trim().length <= max && /[\p{L}\p{N}]/u.test(value) &&
+        !/[\p{Cc}\p{Cf}]/u.test(value) ? value.trim() : null;
       const address = body.address === undefined ? undefined : validText(body.address, 1024);
       const phone = body.phone === undefined ? undefined :
-        (typeof body.phone === "string" && /^\\+?[0-9(). -]{7,32}$/.test(body.phone.trim()) ? body.phone.trim() : null);
+        (typeof body.phone === "string" && /^\+?[0-9(). -]{7,32}$/.test(body.phone.trim()) ? body.phone.trim() : null);
       const country = body.country === undefined ? undefined : validText(body.country, 100);
       const cityOfOrigin = body.cityOfOrigin === undefined ? undefined : validText(body.cityOfOrigin, 100);
       const occupation = body.occupation === undefined ? undefined : validText(body.occupation, 1024);
@@ -622,7 +622,7 @@ export default {
       let dateOfBirth: string | null | undefined;
       if (body.dateOfBirth !== undefined) {
         if (body.dateOfBirth === null || body.dateOfBirth === "") dateOfBirth = null;
-        else if (typeof body.dateOfBirth === "string" && /^\\d{4}-\\d{2}-\\d{2}$/.test(body.dateOfBirth)) {
+        else if (typeof body.dateOfBirth === "string" && /^\d{4}-\d{2}-\d{2}$/.test(body.dateOfBirth)) {
           const parsed = new Date(`${body.dateOfBirth}T00:00:00.000Z`);
           if (!Number.isFinite(parsed.getTime()) || parsed.toISOString().slice(0, 10) !== body.dateOfBirth ||
               body.dateOfBirth > new Date().toISOString().slice(0, 10)) return json({ error: "INVALID_DATE_OF_BIRTH" }, 400);
