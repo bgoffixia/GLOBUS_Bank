@@ -178,3 +178,79 @@ GRANT SELECT, INSERT ON public.bank_financial_accounts TO dutstar_api;
 --> statement-breakpoint
 GRANT UPDATE (name, current_value_minor, target_amount_minor, status, notes, updated_at)
   ON public.bank_financial_accounts TO dutstar_api;
+--> statement-breakpoint
+-- Customer access is limited to general support conversations in the first
+-- Cloudflare support release. Restricted categories remain unavailable until
+-- their Vault entitlement checks are ported.
+ALTER TABLE public.bank_support_conversations ENABLE ROW LEVEL SECURITY;
+--> statement-breakpoint
+ALTER TABLE public.bank_support_messages ENABLE ROW LEVEL SECURITY;
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_support_conversation_owner_select
+  ON public.bank_support_conversations;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_support_conversation_owner_select
+  ON public.bank_support_conversations FOR SELECT TO dutstar_api
+  USING (
+    user_id = NULLIF(current_setting('app.clerk_user_id', true), '')
+    AND category = 'general'
+  );
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_support_conversation_owner_insert
+  ON public.bank_support_conversations;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_support_conversation_owner_insert
+  ON public.bank_support_conversations FOR INSERT TO dutstar_api
+  WITH CHECK (
+    user_id = NULLIF(current_setting('app.clerk_user_id', true), '')
+    AND category = 'general'
+  );
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_support_conversation_owner_update
+  ON public.bank_support_conversations;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_support_conversation_owner_update
+  ON public.bank_support_conversations FOR UPDATE TO dutstar_api
+  USING (
+    user_id = NULLIF(current_setting('app.clerk_user_id', true), '')
+    AND category = 'general'
+  )
+  WITH CHECK (
+    user_id = NULLIF(current_setting('app.clerk_user_id', true), '')
+    AND category = 'general'
+  );
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_support_message_owner_select
+  ON public.bank_support_messages;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_support_message_owner_select
+  ON public.bank_support_messages FOR SELECT TO dutstar_api
+  USING (EXISTS (
+    SELECT 1 FROM public.bank_support_conversations c
+    WHERE c.id = conversation_id
+      AND c.user_id = NULLIF(current_setting('app.clerk_user_id', true), '')
+      AND c.category = 'general'
+  ));
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_support_message_owner_insert
+  ON public.bank_support_messages;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_support_message_owner_insert
+  ON public.bank_support_messages FOR INSERT TO dutstar_api
+  WITH CHECK (
+    sender_user_id = NULLIF(current_setting('app.clerk_user_id', true), '')
+    AND sender_role = 'customer'
+    AND EXISTS (
+      SELECT 1 FROM public.bank_support_conversations c
+      WHERE c.id = conversation_id
+        AND c.user_id = NULLIF(current_setting('app.clerk_user_id', true), '')
+        AND c.category = 'general'
+    )
+  );
+--> statement-breakpoint
+GRANT SELECT, INSERT ON public.bank_support_conversations TO dutstar_api;
+--> statement-breakpoint
+GRANT UPDATE (customer_unread, admin_unread, status, last_message_at, updated_at)
+  ON public.bank_support_conversations TO dutstar_api;
+--> statement-breakpoint
+GRANT SELECT, INSERT ON public.bank_support_messages TO dutstar_api;
