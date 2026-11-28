@@ -403,15 +403,15 @@ async function customerTransactions(
   const search = url.searchParams.get("search")?.trim();
   if (currency && ["USD","EUR","GBP","NGN","CAD","AUD"].includes(currency)) {
     values.push(currency);
-    conditions.push(`currency = ${values.length}`);
+    conditions.push(`currency = $${values.length}`);
   }
   if (status && ["completed","pending","failed","rejected","reversed"].includes(status)) {
     values.push(status);
-    conditions.push(`status = ${values.length}`);
+    conditions.push(`status = $${values.length}`);
   }
   if (search) {
     values.push(`%${search.slice(0, 80)}%`);
-    conditions.push(`(reference ILIKE ${values.length} OR counterparty ILIKE ${values.length} OR description ILIKE ${values.length})`);
+    conditions.push(`(reference ILIKE $${values.length} OR counterparty ILIKE $${values.length} OR description ILIKE $${values.length})`);
   }
   values.push(limit);
   const result = await client.query(
@@ -421,7 +421,7 @@ async function customerTransactions(
        FROM public.bank_transactions
       WHERE ${conditions.join(" AND ")}
       ORDER BY created_at DESC
-      LIMIT ${values.length}`,
+      LIMIT $${values.length}`,
     values,
   );
   return result.rows.map((row) => transactionPayload(row, clerkUserId));
