@@ -633,10 +633,10 @@ export default {
                   city_of_origin = CASE WHEN $10 THEN $11 ELSE city_of_origin END,
                   date_of_birth = CASE WHEN $12 THEN $13::date ELSE date_of_birth END,
                   occupation = CASE WHEN $14 THEN $15 ELSE occupation END,
-                  profile_setup_completed_at = now(),
+                  profile_setup_completed_at = COALESCE(profile_setup_completed_at, now()),
                   accepted_terms_at = CASE WHEN $16 THEN now() ELSE accepted_terms_at END,
                   updated_at = now()
-            WHERE id = $1 AND profile_setup_completed_at IS NULL
+            WHERE id = $1
             RETURNING id, email, customer_id, first_name, last_name, address, phone,
               country, city_of_origin, date_of_birth, occupation, profile_setup_completed_at,
               transfer_access_granted, (transaction_pin_hash IS NOT NULL) AS transaction_pin_configured,
