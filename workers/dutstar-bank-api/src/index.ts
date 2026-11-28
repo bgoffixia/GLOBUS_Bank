@@ -11,7 +11,7 @@ export interface Env {
   DB?: Hyperdrive;
   CLERK_JWKS_URL?: string;
   CLERK_ISSUER?: string;
-  VAULT_PASSCODE_PEPPER?: string;
+  SESSION_SECRET?: string;
 }
 
 const JSON_HEADERS = {
