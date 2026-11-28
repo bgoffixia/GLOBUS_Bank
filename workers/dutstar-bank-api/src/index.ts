@@ -764,6 +764,64 @@ export default {
       }
     }
 
+    if ((url.pathname === "/api/bank/notification-preferences" &&
+         (request.method === "GET" || request.method === "PATCH"))) {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      const sessionToken = request.headers.get("x-dutstar-vault-session") ?? "";
+      if (!sessionToken) return json({ error: "VAULT_SESSION_REQUIRED" }, 403);
+      let updates: Record<string, unknown> = {};
+      if (request.method === "PATCH") {
+        try { updates = await request.json() as Record<string, unknown>; }
+        catch { return json({ error: "INVALID_JSON" }, 400); }
+        const allowed = ["emailAlertsEnabled", "transferAlertsEnabled", "walletAlertsEnabled", "securityAlertsEnabled"];
+        if (!Object.keys(updates).length || Object.keys(updates).some((key) => !allowed.includes(key)) ||
+            Object.values(updates).some((value) => typeof value !== "boolean")) {
+          return json({ error: "INVALID_NOTIFICATION_PREFERENCES" }, 400);
+        }
+      }
+      try {
+        const preferences = await withCustomerWrite(env, claims.sub, async (client) => {
+          const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(sessionToken));
+          const tokenHash = Array.from(new Uint8Array(digest), (b) => b.toString(16).padStart(2, "0")).join("");
+          const activeSession = await client.query(
+            `SELECT 1 FROM public.bank_vault_sessions
+              WHERE user_id = $1 AND token_hash = $2 AND expires_at > now() LIMIT 1`,
+            [claims.sub, tokenHash],
+          );
+          if (!activeSession.rowCount) return null;
+          if (request.method === "PATCH") {
+            await client.query(
+              `UPDATE public.bank_users SET
+                vault_email_alerts_enabled = COALESCE($2, vault_email_alerts_enabled),
+                push_transfer_alerts_enabled = COALESCE($3, push_transfer_alerts_enabled),
+                push_wallet_alerts_enabled = COALESCE($4, push_wallet_alerts_enabled),
+                push_security_alerts_enabled = COALESCE($5, push_security_alerts_enabled),
+                updated_at = now()
+               WHERE id = $1`,
+              [claims.sub, updates.emailAlertsEnabled ?? null, updates.transferAlertsEnabled ?? null,
+               updates.walletAlertsEnabled ?? null, updates.securityAlertsEnabled ?? null],
+            );
+          }
+          const selected = await client.query(
+            `SELECT vault_email_alerts_enabled, push_transfer_alerts_enabled,
+                    push_wallet_alerts_enabled, push_security_alerts_enabled
+               FROM public.bank_users WHERE id = $1 LIMIT 1`,
+            [claims.sub],
+          );
+          const row = selected.rows[0];
+          return row ? {
+            emailAlertsEnabled: Boolean(row.vault_email_alerts_enabled),
+            transferAlertsEnabled: Boolean(row.push_transfer_alerts_enabled),
+            walletAlertsEnabled: Boolean(row.push_wallet_alerts_enabled),
+            securityAlertsEnabled: Boolean(row.push_security_alerts_enabled),
+          } : null;
+        });
+        if (!preferences) return json({ error: "VAULT_SESSION_EXPIRED" }, 403);
+        return json(preferences);
+      } catch { return json({ error: "NOTIFICATION_PREFERENCES_UNAVAILABLE" }, 503); }
+    }
+
     if (url.pathname === "/api/bank/notifications" && request.method === "GET") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
