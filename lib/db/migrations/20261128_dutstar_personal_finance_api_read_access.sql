@@ -110,3 +110,71 @@ GRANT SELECT, INSERT ON public.bank_finance_loan_applications TO dutstar_api;
 --> statement-breakpoint
 GRANT UPDATE (status, updated_at)
   ON public.bank_finance_loan_applications TO dutstar_api;
+--> statement-breakpoint
+-- Create the finance tracker table if it was not present in the live project.
+DO $$
+BEGIN
+  CREATE TYPE public.bank_financial_account_type AS ENUM ('savings', 'investment');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+--> statement-breakpoint
+DO $$
+BEGIN
+  CREATE TYPE public.bank_financial_account_status AS ENUM ('active', 'closed');
+EXCEPTION WHEN duplicate_object THEN NULL;
+END $$;
+--> statement-breakpoint
+CREATE TABLE IF NOT EXISTS public.bank_financial_accounts (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+  user_id text NOT NULL REFERENCES public.bank_users(id) ON DELETE CASCADE,
+  account_type public.bank_financial_account_type NOT NULL,
+  name text NOT NULL,
+  currency public.bank_currency_code NOT NULL,
+  current_value_minor bigint NOT NULL DEFAULT 0,
+  target_amount_minor bigint,
+  opened_on date NOT NULL,
+  status public.bank_financial_account_status NOT NULL DEFAULT 'active',
+  notes text,
+  created_at timestamptz NOT NULL DEFAULT now(),
+  updated_at timestamptz NOT NULL DEFAULT now(),
+  CONSTRAINT bank_financial_account_name_nonempty_check CHECK (btrim(name) <> ''),
+  CONSTRAINT bank_financial_account_values_nonnegative_check CHECK (
+    current_value_minor >= 0 AND
+    (target_amount_minor IS NULL OR (account_type = 'savings' AND target_amount_minor > 0))
+  )
+);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS bank_financial_account_user_type_status_idx
+  ON public.bank_financial_accounts (user_id, account_type, status);
+--> statement-breakpoint
+CREATE INDEX IF NOT EXISTS bank_financial_account_user_currency_idx
+  ON public.bank_financial_accounts (user_id, currency);
+--> statement-breakpoint
+ALTER TABLE public.bank_financial_accounts ENABLE ROW LEVEL SECURITY;
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_financial_account_owner_select
+  ON public.bank_financial_accounts;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_financial_account_owner_select
+  ON public.bank_financial_accounts FOR SELECT TO dutstar_api
+  USING (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_financial_account_owner_insert
+  ON public.bank_financial_accounts;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_financial_account_owner_insert
+  ON public.bank_financial_accounts FOR INSERT TO dutstar_api
+  WITH CHECK (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+DROP POLICY IF EXISTS dutstar_api_financial_account_owner_update
+  ON public.bank_financial_accounts;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_financial_account_owner_update
+  ON public.bank_financial_accounts FOR UPDATE TO dutstar_api
+  USING (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''))
+  WITH CHECK (user_id = NULLIF(current_setting('app.clerk_user_id', true), ''));
+--> statement-breakpoint
+GRANT SELECT, INSERT ON public.bank_financial_accounts TO dutstar_api;
+--> statement-breakpoint
+GRANT UPDATE (name, current_value_minor, target_amount_minor, status, notes, updated_at)
+  ON public.bank_financial_accounts TO dutstar_api;
