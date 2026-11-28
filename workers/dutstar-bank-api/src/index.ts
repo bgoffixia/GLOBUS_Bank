@@ -645,7 +645,7 @@ export default {
       let body: { passcode?: unknown; rememberDevice?: unknown };
       try { body = await request.json() as typeof body; }
       catch { return json({ error: "INVALID_JSON" }, 400); }
-      if (typeof body.passcode !== "string" || !/^\\d{6,12}$/.test(body.passcode) ||
+      if (typeof body.passcode !== "string" || !/^\d{6,12}$/.test(body.passcode) ||
           (body.rememberDevice !== undefined && typeof body.rememberDevice !== "boolean")) {
         return json({ error: "INVALID_VAULT_PASSCODE" }, 400);
       }
