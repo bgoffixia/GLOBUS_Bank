@@ -809,7 +809,7 @@ export default {
         const created = await withCustomerWrite(env, claims.sub, async (client) => {
           const conversation = await client.query(
             `SELECT id FROM public.bank_support_conversations
-              WHERE id = $1 AND user_id = $2 AND category = 'general' AND status = 'open'
+              WHERE id = $1 AND user_id = $2 AND category = 'general'
               FOR UPDATE`,
             [supportMessagesMatch[1], claims.sub],
           );
