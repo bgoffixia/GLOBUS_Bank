@@ -487,7 +487,7 @@ export default {
       }
     }
 
-    if (url.pathname === "/api/bank/signup-profile" && request.method === "PUT") {
+    if ((url.pathname === "/api/bank/signup-profile" || url.pathname === "/api/bank/profile") && request.method === "PUT") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
       let body: Record<string, unknown>;
