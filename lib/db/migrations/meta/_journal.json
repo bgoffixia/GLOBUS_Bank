@@ -127,6 +127,13 @@
       "when": 1795622400000,
       "tag": "20261125_transfer_inquiry_links",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1795869100000,
+      "tag": "20261128_dutstar_optional_profile_names",
+      "breakpoints": true
     }
   ]
 }
