@@ -450,6 +450,61 @@ export default {
       }
     }
 
+    if (url.pathname === "/api/bank/personal-finance/records" && request.method === "GET") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+
+      const rawPage = Number(url.searchParams.get("page") ?? 1);
+      const rawPageSize = Number(url.searchParams.get("pageSize") ?? 20);
+      const page = Number.isInteger(rawPage) ? Math.max(1, Math.min(rawPage, 10_000)) : 1;
+      const pageSize = Number.isInteger(rawPageSize) ? Math.max(1, Math.min(rawPageSize, 100)) : 20;
+      const kind = url.searchParams.get("kind");
+      const currency = url.searchParams.get("currency");
+      const allowedKinds = ["expense", "savings", "investment", "loan", "bill"];
+      const allowedCurrencies = ["USD", "EUR", "GBP", "NGN", "CAD", "AUD"];
+      if (kind && !allowedKinds.includes(kind)) return json({ error: "INVALID_KIND" }, 400);
+      if (currency && !allowedCurrencies.includes(currency)) return json({ error: "INVALID_CURRENCY" }, 400);
+
+      try {
+        const result = await withCustomerRead(env, claims.sub, async (client) => {
+          const filters = ["user_id = $1"];
+          const values: unknown[] = [claims.sub];
+          if (kind) { values.push(kind); filters.push(`kind = ${values.length}`); }
+          if (currency) { values.push(currency); filters.push(`currency = ${values.length}`); }
+          const countResult = await client.query(
+            `SELECT count(*)::int AS total FROM public.bank_personal_finance_records WHERE ${filters.join(" AND ")}`,
+            values,
+          );
+          values.push(pageSize);
+          const limitIndex = values.length;
+          values.push((page - 1) * pageSize);
+          const records = await client.query(
+            `SELECT id, kind, title, category, currency, amount_minor::text,
+                    target_amount_minor::text, record_date, due_date, frequency,
+                    status, notes, created_at, updated_at
+               FROM public.bank_personal_finance_records
+              WHERE ${filters.join(" AND ")}
+              ORDER BY record_date DESC, created_at DESC
+              LIMIT ${limitIndex} OFFSET ${values.length}`,
+            values,
+          );
+          return { records: records.rows, total: countResult.rows[0]?.total ?? 0 };
+        });
+        return json({
+          records: result.records.map((row) => ({
+            id: row.id, kind: row.kind, title: row.title, category: row.category,
+            currency: row.currency, amountMinor: String(row.amount_minor),
+            targetAmountMinor: row.target_amount_minor === null ? null : String(row.target_amount_minor),
+            recordDate: row.record_date, dueDate: row.due_date, frequency: row.frequency,
+            status: row.status, notes: row.notes, createdAt: row.created_at, updatedAt: row.updated_at,
+          })),
+          total: result.total, page, pageSize,
+        });
+      } catch {
+        return json({ error: "PERSONAL_FINANCE_UNAVAILABLE" }, 503);
+      }
+    }
+
     if (url.pathname.startsWith("/api/")) {
       return json({
         error: "BANKING_API_NOT_READY",
