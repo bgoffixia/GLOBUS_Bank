@@ -690,7 +690,7 @@ export default {
       } catch { return json({ error: "BANK_NOTIFICATIONS_CLEAR_FAILED" }, 503); }
     }
 
-    const notificationReadMatch = url.pathname.match(/^\/api\/bank\/notifications\/([0-9a-f-]{36})\\/read$/i);
+    const notificationReadMatch = url.pathname.match(/^\/api\/bank\/notifications\/([0-9a-f-]{36})\/read$/i);
     if (notificationReadMatch && request.method === "PATCH") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
@@ -774,7 +774,7 @@ export default {
       } catch { return json({ error: "SUPPORT_CONVERSATION_CREATE_FAILED" }, 503); }
     }
 
-    const supportMessagesMatch = url.pathname.match(/^\/api\/bank\/support\/conversations\/([0-9a-f-]{36})\\/messages$/i);
+    const supportMessagesMatch = url.pathname.match(/^\/api\/bank\/support\/conversations\/([0-9a-f-]{36})\/messages$/i);
     if (supportMessagesMatch && request.method === "GET") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
@@ -838,7 +838,7 @@ export default {
       } catch { return json({ error: "SUPPORT_MESSAGE_SEND_FAILED" }, 503); }
     }
 
-    const supportReadMatch = url.pathname.match(/^\/api\/bank\/support\/conversations\/([0-9a-f-]{36})\\/read$/i);
+    const supportReadMatch = url.pathname.match(/^\/api\/bank\/support\/conversations\/([0-9a-f-]{36})\/read$/i);
     if (supportReadMatch && request.method === "POST") {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
