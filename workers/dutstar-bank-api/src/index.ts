@@ -658,7 +658,7 @@ export default {
       const claims = await verifyClerkSession(request, env);
       if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
       const firstFactorAge = Array.isArray(claims.fva) ? claims.fva[0] : undefined;
-      if (typeof firstFactorAge !== "number" || firstFactorAge < 0 || firstFactorAge > 300) {
+      if (typeof firstFactorAge !== "number" || firstFactorAge < 0 || firstFactorAge > 5) {
         return json({ error: "CLERK_EMAIL_OTP_REQUIRED" }, 403);
       }
       if (!env.SESSION_SECRET) return json({ error: "VAULT_SECURITY_NOT_CONFIGURED" }, 503);
