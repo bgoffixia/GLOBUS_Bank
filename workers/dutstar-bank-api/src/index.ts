@@ -12,6 +12,8 @@ export interface Env {
   CLERK_JWKS_URL?: string;
   CLERK_ISSUER?: string;
   SESSION_SECRET?: string;
+  PAYSTACK_SECRET_KEY?: string;
+  PAYSTACK_WEBHOOK_SECRET?: string;
 }
 
 const JSON_HEADERS = {
@@ -1384,6 +1386,159 @@ export default {
           status: row.status, notes: row.notes, createdAt: row.created_at, updatedAt: row.updated_at,
         } });
       } catch { return json({ error: "PERSONAL_FINANCE_UPDATE_FAILED" }, 503); }
+    }
+
+
+    // Paystack subscription checkout: the browser never supplies an amount.
+    if (url.pathname === "/api/bank/vault/subscription/initialize" && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      if (!env.PAYSTACK_SECRET_KEY) return json({ error: "PAYSTACK_NOT_CONFIGURED" }, 503);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const planCode = typeof body.planCode === "string" ? body.planCode.trim() : "";
+      if (!/^[a-zA-Z0-9_-]{1,64}$/.test(planCode)) return json({ error: "INVALID_PLAN" }, 400);
+      try {
+        const result = await withCustomerWrite(env, claims.sub, async (client) => {
+          const user = await client.query(
+            "SELECT email FROM public.bank_users WHERE id = $1 FOR UPDATE", [claims.sub],
+          );
+          if (!user.rows[0]?.email) return { missing: true as const };
+          const plan = await client.query(
+            "SELECT plan_code, amount_minor, provider_plan_code, duration_days FROM public.bank_vault_paystack_plans WHERE plan_code = $1 LIMIT 1",
+            [planCode],
+          );
+          const selected = plan.rows[0];
+          if (!selected || !/^\\d{1,12}$/.test(String(selected.amount_minor)) ||
+              !Number.isInteger(Number(selected.duration_days)) || Number(selected.duration_days) < 1 ||
+              Number(selected.duration_days) > 366) return { planMissing: true as const };
+          const reference = "DUTSTAR_VAULT_" + crypto.randomUUID().replace(/-/g, "");
+          const response = await fetch("https://api.paystack.co/transaction/initialize", {
+            method: "POST",
+            headers: { authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`, "content-type": "application/json" },
+            body: JSON.stringify({
+              email: user.rows[0].email,
+              amount: String(selected.amount_minor),
+              currency: "NGN",
+              reference,
+              plan: selected.provider_plan_code,
+              metadata: { clerkUserId: claims.sub, planCode: selected.plan_code, product: "dutstar_vault" },
+            }),
+          });
+          const payload = await response.json() as { status?: boolean; message?: string; data?: { authorization_url?: string; reference?: string } };
+          if (!response.ok || !payload.status || !payload.data?.authorization_url || payload.data.reference !== reference) {
+            return { providerError: true as const };
+          }
+          await client.query(
+            `UPDATE public.bank_users SET vault_subscription_status = 'pending',
+               vault_subscription_requested_at = now(), vault_subscription_plan = $2,
+               vault_subscription_amount_minor = $3, vault_subscription_payment_reference = $4,
+               vault_subscription_payment_status = 'pending', vault_subscription_payment_initialized_at = now(),
+               vault_paystack_plan_code = $2, updated_at = now()
+             WHERE id = $1`,
+            [claims.sub, selected.plan_code, String(selected.amount_minor), reference],
+          );
+          return { authorizationUrl: payload.data.authorization_url, reference };
+        });
+        if ("missing" in result) return json({ error: "BANK_ACCOUNT_NOT_FOUND" }, 404);
+        if ("planMissing" in result) return json({ error: "SUBSCRIPTION_PLAN_UNAVAILABLE" }, 404);
+        if ("providerError" in result) return json({ error: "PAYSTACK_INITIALIZATION_FAILED" }, 502);
+        return json(result, 201);
+      } catch { return json({ error: "SUBSCRIPTION_INITIALIZATION_UNAVAILABLE" }, 503); }
+    }
+
+    async function verifyAndActivatePaystack(reference: string, userId: string, eventKey: string, eventType: string) {
+      if (!env.PAYSTACK_SECRET_KEY) return { configured: false as const };
+      const verifiedResponse = await fetch(`https://api.paystack.co/transaction/verify/${encodeURIComponent(reference)}`, {
+        headers: { authorization: `Bearer ${env.PAYSTACK_SECRET_KEY}`, accept: "application/json" },
+      });
+      const verified = await verifiedResponse.json() as {
+        status?: boolean; data?: { status?: string; reference?: string; amount?: number; currency?: string; customer?: { email?: string }; metadata?: { clerkUserId?: string } };
+      };
+      if (!verifiedResponse.ok || !verified.status || verified.data?.status !== "success" ||
+          verified.data.reference !== reference || verified.data.metadata?.clerkUserId !== userId ||
+          verified.data.currency !== "NGN" || !Number.isSafeInteger(verified.data.amount)) {
+        return { verified: false as const };
+      }
+      return withCustomerWrite(env, userId, async (client) => {
+        const user = await client.query(
+          `SELECT email, vault_subscription_amount_minor, vault_subscription_plan
+             FROM public.bank_users WHERE id = $1 AND vault_subscription_payment_reference = $2 FOR UPDATE`,
+          [userId, reference],
+        );
+        const row = user.rows[0];
+        if (!row || String(row.vault_subscription_amount_minor) !== String(verified.data!.amount) ||
+            (verified.data!.customer?.email && verified.data!.customer.email.toLowerCase() !== String(row.email).toLowerCase())) {
+          return { verified: false as const };
+        }
+        const plan = await client.query(
+          "SELECT duration_days FROM public.bank_vault_paystack_plans WHERE plan_code = $1 LIMIT 1",
+          [row.vault_subscription_plan],
+        );
+        const days = Number(plan.rows[0]?.duration_days);
+        if (!Number.isInteger(days) || days < 1 || days > 366) return { planInvalid: true as const };
+        const event = await client.query(
+          `INSERT INTO public.bank_vault_paystack_events (event_key, event_type, payment_reference, user_id)
+           VALUES ($1,$2,$3,$4) ON CONFLICT (event_key) DO NOTHING RETURNING id`,
+          [eventKey, eventType, reference, userId],
+        );
+        if (event.rowCount) {
+          await client.query(
+            `UPDATE public.bank_users SET vault_subscription_status = 'active',
+               vault_subscription_expires_at = GREATEST(COALESCE(vault_subscription_expires_at, now()), now()) + ($2::text || ' days')::interval,
+               vault_subscription_payment_status = 'success', vault_subscription_payment_verified_at = now(),
+               updated_at = now() WHERE id = $1`,
+            [userId, days],
+          );
+        }
+        return { verified: true as const, alreadyProcessed: !event.rowCount };
+      });
+    }
+
+    if (url.pathname === "/api/bank/vault/subscription/verify" && request.method === "POST") {
+      const claims = await verifyClerkSession(request, env);
+      if (!claims?.sub) return json({ error: "UNAUTHENTICATED" }, 401);
+      let body: Record<string, unknown>;
+      try { body = await request.json() as Record<string, unknown>; }
+      catch { return json({ error: "INVALID_JSON" }, 400); }
+      const reference = typeof body.reference === "string" ? body.reference.trim() : "";
+      if (!/^[A-Za-z0-9_-]{8,100}$/.test(reference)) return json({ error: "INVALID_REFERENCE" }, 400);
+      try {
+        const result = await verifyAndActivatePaystack(reference, claims.sub, `verify:${reference}`, "transaction.verify");
+        if ("configured" in result) return json({ error: "PAYSTACK_NOT_CONFIGURED" }, 503);
+        if ("planInvalid" in result) return json({ error: "SUBSCRIPTION_PLAN_INVALID" }, 409);
+        if (!result.verified) return json({ error: "PAYMENT_NOT_VERIFIED" }, 402);
+        return json({ active: true, alreadyProcessed: result.alreadyProcessed });
+      } catch { return json({ error: "PAYMENT_VERIFICATION_UNAVAILABLE" }, 503); }
+    }
+
+    if (url.pathname === "/api/bank/vault/paystack/webhook" && request.method === "POST") {
+      const secret = env.PAYSTACK_WEBHOOK_SECRET || env.PAYSTACK_SECRET_KEY;
+      if (!secret) return json({ error: "PAYSTACK_WEBHOOK_NOT_CONFIGURED" }, 503);
+      const signature = request.headers.get("x-paystack-signature") || "";
+      const raw = await request.text();
+      const key = await crypto.subtle.importKey("raw", new TextEncoder().encode(secret), { name: "HMAC", hash: "SHA-512" }, false, ["sign"]);
+      const digest = await crypto.subtle.sign("HMAC", key, new TextEncoder().encode(raw));
+      const expected = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, "0")).join("");
+      if (!/^[a-f0-9]{128}$/i.test(signature) || expected.toLowerCase() !== signature.toLowerCase()) {
+        return json({ error: "INVALID_WEBHOOK_SIGNATURE" }, 401);
+      }
+      let event: { event?: string; data?: { reference?: string; id?: number; metadata?: { clerkUserId?: string } } };
+      try { event = JSON.parse(raw) as typeof event; }
+      catch { return json({ error: "INVALID_WEBHOOK_JSON" }, 400); }
+      if (event.event !== "charge.success" || !event.data?.reference || !event.data.metadata?.clerkUserId) {
+        return json({ received: true, ignored: true });
+      }
+      const userId = event.data.metadata.clerkUserId;
+      if (typeof userId !== "string" || userId.length > 255) return json({ error: "INVALID_EVENT_METADATA" }, 400);
+      try {
+        const eventKey = `paystack:${event.data.id ?? event.data.reference}`;
+        const result = await verifyAndActivatePaystack(event.data.reference, userId, eventKey, event.event);
+        if ("configured" in result) return json({ error: "PAYSTACK_NOT_CONFIGURED" }, 503);
+        if (!result.verified) return json({ error: "PAYMENT_NOT_VERIFIED" }, 422);
+        return json({ received: true, alreadyProcessed: result.alreadyProcessed });
+      } catch { return json({ error: "WEBHOOK_PROCESSING_FAILED" }, 503); }
     }
 
     if (url.pathname.startsWith("/api/")) {
