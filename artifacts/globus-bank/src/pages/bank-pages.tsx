@@ -139,55 +139,36 @@ export function HomePage() {
         t={t}
       />
 
-      <section id="account-record" className="relative mx-auto grid min-w-0 max-w-[1320px] items-center gap-10 px-4 pb-16 pt-7 scroll-mt-24 sm:gap-14 sm:px-6 sm:pb-20 sm:pt-9 lg:grid-cols-[1.04fr_.96fr] lg:px-12 lg:pb-28 lg:pt-16">
-        <div className="relative z-10 min-w-0">
-          <div className="mb-5 flex items-center"><img src={`${import.meta.env.BASE_URL}dutstar-wordmark.svg`} alt="DUTSTAR BANK — Banking Made Smarter" className="h-auto w-[min(250px,72vw)]" /></div>
-          <div className="mb-7 inline-flex items-center gap-2 rounded-full border border-[#dbe7e9] bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#078f95]">
+      <section id="account-record" className="relative mx-auto flex min-w-0 max-w-[1320px] flex-col items-center px-4 pb-16 pt-7 text-center scroll-mt-24 sm:px-6 sm:pb-20 sm:pt-9 lg:px-12 lg:pb-24 lg:pt-14">
+        <div className="relative z-10 mx-auto flex w-full max-w-[900px] flex-col items-center">
+          <div className="mb-6 inline-flex items-center gap-2 rounded-full border border-[#dbe7e9] bg-white px-3.5 py-2 text-[10px] font-bold uppercase tracking-[0.14em] text-[#078f95]">
             <span className="h-1.5 w-1.5 rounded-full bg-[#12b8ad]" />
             {t('A multi-currency account workspace')}
           </div>
-          <h1 className="max-w-full font-serif text-[clamp(2.25rem,10vw,5.6rem)] font-medium leading-[1.04] tracking-[-.055em] text-[#0a2147] sm:max-w-[700px] sm:text-[clamp(3.2rem,6.5vw,5.8rem)]">
+          <h1 className="max-w-full font-serif text-[clamp(2.25rem,8vw,5.6rem)] font-medium leading-[1.04] tracking-[-.055em] text-[#0a2147]">
             {t('A clear record.')}
             <br />
             <span className="text-[#b38a32]">{t('For every currency.')}</span>
           </h1>
-          <p className="mt-7 max-w-[510px] text-[16px] leading-7 text-[#64758a] sm:text-[18px] sm:leading-8">
+          <p className="mt-6 max-w-[680px] text-[16px] leading-7 text-[#64758a] sm:mt-7 sm:text-[18px] sm:leading-8">
             {t('Review your currency balances and the entries recorded in your DUTSTAR account, all in one considered workspace.')}
           </p>
-          <div className="mt-8 flex flex-col items-stretch gap-2 sm:mt-9 sm:flex-row sm:flex-wrap sm:items-center sm:gap-3">
+          <div className="mt-8 flex w-full flex-col items-center justify-center gap-2 sm:mt-9 sm:flex-row sm:flex-wrap sm:gap-3">
             <Link href={isSignedIn ? '/dashboard' : '/sign-up'} className="inline-flex w-full items-center justify-center gap-3 rounded-xl bg-[#0a2147] px-5 py-3.5 text-[13px] font-bold text-white shadow-[0_10px_24px_rgba(18,43,75,.16)] transition hover:-translate-y-0.5 hover:bg-[#12447b] sm:w-auto sm:px-6 sm:py-4">
               {isSignedIn ? t('Go to your dashboard') : t('Get started')} <ArrowRight size={16} />
             </Link>
           </div>
-          <div className="mt-8 flex min-w-0 flex-wrap gap-x-5 gap-y-3 text-[10px] font-medium text-[#68798d] sm:mt-11 sm:gap-x-7 sm:text-[11px]">
+          <div className="mt-8 flex min-w-0 flex-wrap justify-center gap-x-5 gap-y-3 text-[10px] font-medium text-[#68798d] sm:mt-10 sm:gap-x-7 sm:text-[11px]">
             <span className="inline-flex items-center gap-2"><ShieldCheck size={15} className="text-[#079c9d]" /> {t('DUTSTAR account activity clearly identified')}</span>
             <span className="inline-flex items-center gap-2"><Globe2 size={15} className="text-[#079c9d]" /> {t('Four supported wallet currencies')}</span>
           </div>
         </div>
-        <figure data-testid="landing-hero-institute-photo" className="relative mx-auto w-full min-w-0 max-w-[560px]">
-          <div className="absolute -right-3 top-8 h-32 w-32 rounded-full bg-[#e7dcc0]/70 sm:-right-5 sm:h-44 sm:w-44" />
-          <div className="absolute -bottom-3 -left-3 h-28 w-28 rounded-full bg-[#dce9e6]/80 sm:-left-6 sm:h-40 sm:w-40" />
-          <div className="relative overflow-hidden rounded-[22px] border border-[#d9cfb9] bg-[#f4f0e6] p-3 shadow-[0_24px_60px_rgba(31,56,83,.12)] sm:rounded-[28px] sm:p-5">
-            <div className="flex items-center justify-between gap-2 border-b border-[#dcd2bd] px-1 pb-3 sm:px-2 sm:pb-4">
-              <div className="flex min-w-0 items-center gap-2.5">
-                <span className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-[#b99a5b]/60 bg-[#e9e0cc] text-[#173651]"><Building2 size={17} strokeWidth={1.6} /></span>
-              <span className="min-w-0"><span className="block font-serif text-[12px] font-semibold tracking-[.08em] text-[#173651] sm:text-[14px]">DUTSTAR BANK</span><span className="mt-0.5 block text-[7px] font-bold uppercase tracking-[.18em] text-[#8b7953] sm:text-[8px]">{t('Currency account records')}</span></span>
-              </div>
-              <span className="shrink-0 rounded-full border border-[#d9cfb9] bg-[#f8f5ed] px-2 py-1 text-[7px] font-bold uppercase tracking-[.1em] text-[#7d735e] sm:px-2.5 sm:text-[8px]">{t('DUTSTAR institute')}</span>
-            </div>
-            <div className="relative mt-3 overflow-hidden rounded-[15px] border border-[#d9cfb9] bg-[#e8e4d9] shadow-[0_8px_20px_rgba(31,56,83,.10)] sm:mt-4 sm:rounded-[18px]">
-              <img
-                src={`${import.meta.env.BASE_URL}globus-public-hero.jpg`}
-                alt={t('Illustrative pale-stone financial institute with a navy entrance and brass details')}
-                className="block aspect-[1.18] w-full object-cover object-[64%_center] sm:aspect-[1.5] sm:object-[60%_center]"
-              />
-              <div aria-hidden="true" className="pointer-events-none absolute inset-0 bg-[linear-gradient(180deg,rgba(20,44,73,.02)_45%,rgba(20,44,73,.19)_100%)]" />
-            </div>
-            <figcaption className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 border-t border-[#dcd2bd] px-1 pt-3 sm:px-2 sm:pt-4">
-              <span className="text-[8px] leading-4 text-[#7d786b] sm:text-[9px]">{t('Illustrative financial institute exterior · no account data shown')}</span>
-              <span className="flex flex-wrap gap-1.5" aria-label="Supported wallet currencies">{currencies.map(code => <span key={code} className="rounded-md border border-[#d6cbb3] bg-[#f9f6ef] px-1.5 py-1 text-[8px] font-bold tracking-[.04em] text-[#37566c]">{code}</span>)}</span>
-            </figcaption>
-          </div>
+        <figure data-testid="landing-hero-dutstar-artwork" className="relative mx-auto mt-9 flex w-full max-w-[760px] items-center justify-center sm:mt-12">
+          <img
+            src={`${import.meta.env.BASE_URL}dutstar-lockup.svg`}
+            alt={t('DUTSTAR BANK logo with the Banking Made Smarter tagline')}
+            className="mx-auto block h-auto w-full max-w-[560px] object-contain drop-shadow-[0_18px_34px_rgba(12,39,86,.10)]"
+          />
         </figure>
       </section>
 
