@@ -84,7 +84,6 @@ jobs:
           fi
       - name: Upload Playwright diagnostics
         if: ${{ false }}
-        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: globus-playwright-diagnostics
