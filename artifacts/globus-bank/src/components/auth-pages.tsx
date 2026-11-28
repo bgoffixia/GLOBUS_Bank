@@ -72,7 +72,7 @@ export function AuthFrame({ mode, children }: AuthFrameProps) {
             <img src={asset('dutstar-mark.svg')} alt="" className="gb-mark" />
           </span>
           <span className="gb-wordmark-wrap">
-            <img src={asset('dutstar-wordmark.svg')} alt="DUTSTAR BANK" className="gb-wordmark" />
+            <img src={asset('dutstar-wordmark.webp')} alt="DUTSTAR BANK" className="gb-wordmark" />
           </span>
         </div>
         <div className="gb-brand-copy">
