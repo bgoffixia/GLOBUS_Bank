@@ -66,7 +66,10 @@ jobs:
   deploy-production:
     name: Deploy DUTSTAR production Worker and frontend
     needs: frontend
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    # A merge alone must not release the unfinished banking API. Set the
+    # repository variable DUTSTAR_PRODUCTION_RELEASE_APPROVED=true only
+    # after the documented production release gates have been cleared.
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.DUTSTAR_PRODUCTION_RELEASE_APPROVED == 'true'
     runs-on: ubuntu-latest
     environment: production
     permissions:
