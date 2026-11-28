@@ -50,3 +50,25 @@ CREATE POLICY dutstar_api_personal_finance_owner_delete
 --> statement-breakpoint
 GRANT INSERT, UPDATE, DELETE
   ON public.bank_personal_finance_records TO dutstar_api;
+--> statement-breakpoint
+-- Allow a signed-in customer to complete their own initial profile only.
+-- Column-level grants intentionally exclude email, customer ID, account flags,
+-- PIN hashes, Vault fields, and administrator-controlled settings.
+DROP POLICY IF EXISTS dutstar_api_user_self_update_profile
+  ON public.bank_users;
+--> statement-breakpoint
+CREATE POLICY dutstar_api_user_self_update_profile
+  ON public.bank_users
+  FOR UPDATE TO dutstar_api
+  USING (
+    id = NULLIF(current_setting('app.clerk_user_id', true), '')
+  )
+  WITH CHECK (
+    id = NULLIF(current_setting('app.clerk_user_id', true), '')
+  );
+--> statement-breakpoint
+GRANT UPDATE (
+  first_name, last_name, address, phone, country, city_of_origin,
+  date_of_birth, occupation, profile_setup_completed_at,
+  accepted_terms_at, updated_at
+) ON public.bank_users TO dutstar_api;
