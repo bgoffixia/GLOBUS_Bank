@@ -1,0 +1,84 @@
+name: DUTSTAR production Worker deploy
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "workers/dutstar-bank-api/**"
+      - "artifacts/globus-bank/**"
+      - "package.json"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - ".github/workflows/dutstar-production-deploy.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dutstar-bank-production
+  cancel-in-progress: false
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: Checkout production source
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.34.9
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build and typecheck production frontend
+        env:
+          PORT: "24083"
+          BASE_PATH: /
+          NODE_ENV: production
+        run: |
+          pnpm run build
+          test -s artifacts/globus-bank/dist/public/index.html
+          test -s artifacts/globus-bank/dist/public/sw.js
+
+      - name: Validate production Worker configuration
+        run: |
+          node --input-type=module <<'NODE'
+          import fs from 'node:fs';
+          const config = JSON.parse(fs.readFileSync('workers/dutstar-bank-api/wrangler.jsonc', 'utf8'));
+          if (config.name !== 'dutstar-bank-api') throw new Error('Unexpected production Worker name');
+          if (config.assets?.binding !== 'ASSETS' || config.assets?.directory !== '../../artifacts/globus-bank/dist/public') {
+            throw new Error('Production static-assets binding does not match the built frontend');
+          }
+          if (!config.hyperdrive?.some((binding) => binding.binding === 'DB' && binding.id)) {
+            throw new Error('Production Supabase Hyperdrive binding is missing');
+          }
+          if (!config.r2_buckets?.some((binding) => binding.binding === 'PRIVATE_FILES')) {
+            throw new Error('Production private-file R2 binding is missing');
+          }
+          if (config.vars?.APP_ENV !== 'production' || config.vars?.AUTH_PROVIDER !== 'clerk') {
+            throw new Error('Production environment/auth configuration is invalid');
+          }
+          console.log('Production Worker configuration validated.');
+          NODE
+
+      - name: Deploy DUTSTAR production Worker and frontend assets
+        env:
+          CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: "334a20d5ead9d330d85ab713876e1faf"
+        run: |
+          test -n "$CLOUDFLARE_API_TOKEN" || { echo "::error::CLOUDFLARE_API_TOKEN is missing from the GitHub Actions production environment."; exit 1; }
+          pnpm dlx wrangler@4 deploy --config workers/dutstar-bank-api/wrangler.jsonc
+
