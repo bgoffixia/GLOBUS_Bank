@@ -1505,7 +1505,7 @@ export default {
       const reference = typeof body.reference === "string" ? body.reference.trim() : "";
       if (!/^[A-Za-z0-9_-]{8,100}$/.test(reference)) return json({ error: "INVALID_REFERENCE" }, 400);
       try {
-        const result = await verifyAndActivatePaystack(reference, claims.sub, `verify:${reference}`, "transaction.verify");
+        const result = await verifyAndActivatePaystack(reference, claims.sub, `payment:${reference}`, "transaction.verify");
         if ("configured" in result) return json({ error: "PAYSTACK_NOT_CONFIGURED" }, 503);
         if ("planInvalid" in result) return json({ error: "SUBSCRIPTION_PLAN_INVALID" }, 409);
         if (!result.verified) return json({ error: "PAYMENT_NOT_VERIFIED" }, 402);
@@ -1533,7 +1533,7 @@ export default {
       const userId = event.data.metadata.clerkUserId;
       if (typeof userId !== "string" || userId.length > 255) return json({ error: "INVALID_EVENT_METADATA" }, 400);
       try {
-        const eventKey = `paystack:${event.data.id ?? event.data.reference}`;
+        const eventKey = `payment:${event.data.reference}`;
         const result = await verifyAndActivatePaystack(event.data.reference, userId, eventKey, event.event);
         if ("configured" in result) return json({ error: "PAYSTACK_NOT_CONFIGURED" }, 503);
         if (!result.verified) return json({ error: "PAYMENT_NOT_VERIFIED" }, 422);
