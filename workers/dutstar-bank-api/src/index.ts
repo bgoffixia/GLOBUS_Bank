@@ -1422,7 +1422,7 @@ export default {
               amount: String(selected.amount_minor),
               currency: "NGN",
               reference,
-              plan: selected.provider_plan_code,
+              ...(selected.provider_plan_code ? { plan: selected.provider_plan_code } : {}),
               metadata: { clerkUserId: claims.sub, planCode: selected.plan_code, product: "dutstar_vault" },
             }),
           });
