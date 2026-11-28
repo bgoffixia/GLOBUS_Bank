@@ -392,7 +392,10 @@ export default {
         hyperdriveBinding: Boolean(env.DB),
         databaseConnection: databaseConnected,
         clerkJwksConfigured: Boolean(env.CLERK_JWKS_URL && env.CLERK_ISSUER),
-        bankingApi: false,
+        bankingApi: Boolean(env.DB && databaseConnected && env.CLERK_JWKS_URL && env.CLERK_ISSUER),
+        paystackSubscriptions: Boolean(env.PAYSTACK_SECRET_KEY && (env.PAYSTACK_WEBHOOK_SECRET || env.PAYSTACK_SECRET_KEY)),
+        privateFileStorage: Boolean(env.PRIVATE_FILES),
+        emailDelivery: Boolean(env.RESEND_API_KEY),
       };
       const ready = checks.staticAssets
         && checks.hyperdriveBinding
